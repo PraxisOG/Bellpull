@@ -50,8 +50,25 @@
   exists from what's planned. `docs/references.md` was cited by a non-negotiable but missing
   — now written. `docs/hermes-api.md` said config lived in `~/.hermes/.env`; the real
   deployment is a rootless Docker container with config at `~/hermes-data/`.
-- Next: Slice 2 (`core-hermes` client) per `ROADMAP.md`, but **harden `mock-hermes` first** —
-  it has no auth check, no 429, no `POST /api/sessions`, and serves the SSE fixture as one
-  blob, so Slice 2's accept criteria ("every error path returns a typed scoped error") and
-  Slice 3's ("streaming renders incrementally") are not testable against it today.
-
+- **`mock-hermes` is hardened.** Bearer auth on every route, `POST /api/sessions`, chunked
+  event-by-event SSE with `MOCK_HERMES_SSE_DELAY`, and per-request fault injection via the
+  mock-only `X-Mock-Fail` header (auth / rate-limit / stream-abort / slow-headers). Every
+  error body it returns was captured from the live API; the 429 alone is source-derived and
+  labelled `observed: false` in `fixtures/error-responses.json`.
+- **Slice 2 is done, on branch `slice2-core-hermes`.** `core-model` (typed data + a sealed
+  `HermesError`) and `core-hermes` (OkHttp client, six endpoints, SSE) are committed.
+  **31 tests green** — 5 app, 13 core-model, 13 core-hermes — screenshots unchanged, and the
+  opt-in live smoke test really did create a session, stream 9 events and a reply, and
+  round-trip history against the running instance.
+- Dependencies added with approval: `okhttp:5.5.0` and `kotlinx-serialization-json:1.11.0`.
+  The full approved list is now recorded in `CLAUDE.md`.
+- Note for whoever picks this up: **`app/` still does not use `core-hermes`.** Its connection
+  screen predates the module and talks to `/v1/capabilities` with `HttpURLConnection`
+  directly. Migrating it is Slice 3's first job.
+- The live smoke test runs over `http://127.0.0.1:8642`, not the tailnet name: MagicDNS does
+  not resolve from this host, because `tailscaled` runs with `--tun=userspace-networking` and
+  no host DNS integration. The phone resolves it fine — that was Gate 0b. So the tailnet path
+  is proved from the Fold, and the client is proved against live Hermes, but not both at once
+  from here.
+- Next: Slice 3 (chat client UI) per `ROADMAP.md`, starting by moving `app/` onto
+  `core-hermes`.

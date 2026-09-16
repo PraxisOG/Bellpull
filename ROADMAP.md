@@ -96,6 +96,19 @@ reply; every error path returns a typed scoped error; 429 backs off rather than 
 
 > One day, not two. The surface collapsed.
 
+**Done 2026-09-16**, ahead of schedule. All four criteria met: 13 contract tests against
+mock-hermes plus 13 core-model unit tests; the opt-in live smoke test created a session,
+streamed nine events and a real reply and round-tripped history; every failure returns a
+`HermesError` case, including the two that needed finding — an unknown path returns plain
+text rather than the JSON error envelope, and a stream dropped mid-flight is
+`StreamTruncated` with its event count rather than a transport error; 429 honours the
+server's `Retry-After` and gives up after three attempts.
+
+One deviation from the plan above, deliberately: **no `Idempotency-Key` is sent.**
+`docs/hermes-api.md` records that dedupe for `chat/stream` is unverified, so sending the
+header would imply a retry safety nobody has established. It belongs with `/v1/runs`, which
+Tier 1 does not use.
+
 ### Slice 3 — Chat client UI (Days 4–6, 09/20–22)
 The long pole. Session list → session detail → streaming view → context/memory panel.
 Render `assistant.delta`, `tool.started`, `tool.completed`, and the terminal event's real
