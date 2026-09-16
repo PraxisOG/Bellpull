@@ -11,8 +11,11 @@
 
 **Source:** Hermes Agent official docs (API Server, Programmatic Integration, Web Dashboard),
 read 2026-09-16. **Partially verified against installed Hermes 0.21.1 on 2026-09-16.**
-The capabilities response and session list/history endpoints are confirmed; verify remaining
-operations before implementing them. Claude Code must not use any endpoint not listed here.
+Confirmed live: `/v1/capabilities`, `GET /api/sessions`, `POST /api/sessions`,
+`GET /api/sessions/{id}/messages`, `POST /api/sessions/{id}/chat/stream` (two full turns,
+including a `terminal` tool call). Still unverified: `PATCH`/`DELETE /api/sessions/{id}`,
+`/fork`, the non-streaming `/chat`, and every `/v1/runs/*` operation. Verify before
+implementing. Claude Code must not use any endpoint not listed here.
 
 ## Decision: use the API server, not the dashboard, not the TUI gateway
 
@@ -38,7 +41,24 @@ timeout. That's Tier 2+ work if we ever want slash commands.
 
 ## Setup on the Hermes host
 
-`~/.hermes/.env`:
+**This deployment is a container, not a `~/.hermes` install.** Verified 2026-09-16 by reading
+the live gateway process (pid on `127.0.0.1:8642`). Hermes runs as a rootless Docker
+container, s6-supervised, as the `praxisog` host user. Inside it `HERMES_HOME=/opt/data`,
+which is bind-mounted from the host path `~/hermes-data`. So the files that matter are:
+
+| What | Host path | In-container path |
+|---|---|---|
+| Main config | `~/hermes-data/config.yaml` | `/opt/data/config.yaml` |
+| Env / keys | `~/hermes-data/.env` | `/opt/data/.env` |
+| Session DB | `~/hermes-data/` | `/opt/data/` |
+
+`/opt/hermes` (the code) exists **only** inside the container — there is no such host path.
+To read it, go through `/proc/<gateway-pid>/root/opt/hermes`. There is no compose file on
+disk and `docker` CLI is not accessible to this user, so the container is managed outside
+this repo. `~/.hermes/` does not exist on this host; earlier drafts of this file said the
+config lived there and that was wrong.
+
+The env keys themselves are unchanged:
 
 ```bash
 API_SERVER_ENABLED=true
@@ -52,10 +72,21 @@ Then `hermes gateway`. It logs `[API Server] API server listening on http://…:
 Auth is `Authorization: Bearer $API_SERVER_KEY` on every endpoint. Same key for `/v1/*` and
 `/api/*`. No CORS needed (native client, not a browser).
 
-> **This key is root-equivalent on the Hermes host.** The docs are explicit that the API
-> server exposes the full toolset *including terminal commands*. Bind to Tailscale only,
-> never a public interface. Store the key in EncryptedSharedPreferences, never in a build
-> file or a committed env. Have a rotation path for a lost phone.
+> **This key grants shell execution inside the Hermes container.** The API server exposes
+> the full toolset including `terminal`, and Gate 0c confirmed live that a bearer-authenticated
+> request executes shell commands (`id -un` → `hermes`, exit 0).
+>
+> Scope it accurately rather than over- or under-stating it. Commands run as the **`hermes`
+> user inside a rootless container**, not as host root — `sudo` is not even installed
+> (`sudo: command not found`, exit 127). But `/opt/data` is bind-mounted from
+> `~/hermes-data`, so the key confers full read/write over the Hermes data directory,
+> including `config.yaml` and `.env` and therefore **the API key and the provider keys**. A
+> leaked key is a full compromise of the Hermes instance and everything it can reach; it is
+> not a host root compromise.
+>
+> Bind to Tailscale only, never a public interface. Store the key in
+> EncryptedSharedPreferences, never in a build file or a committed env. Have a rotation path
+> for a lost phone.
 
 ## Verify before building
 
@@ -63,9 +94,12 @@ Auth is `Authorization: Bearer $API_SERVER_KEY` on every endpoint. Same key for 
 curl -s -H "Authorization: Bearer $KEY" http://$HOST:8642/v1/capabilities | jq
 ```
 
-`/v1/capabilities` reports `auth`, and feature flags including `run_submission`,
-`run_events_sse`, `run_stop`, `run_approval`, and the `session_*` flags plus
-`endpoints.session_*` entries. **That response is the real contract for our installed
+`/v1/capabilities` reports `auth` (`{"type": "bearer", "required": true}`) plus
+`platform`, `model`, `runtime`, `features`, `endpoints`. Flags observed live on 2026-09-16
+that this file had not recorded: `approval_events`, `run_approval_response`, `run_steer`,
+`run_status`, `tool_progress_events`, `session_model_lock`, `session_resources`,
+`session_continuity_header: X-Hermes-Session-Id`, and
+`runs_idempotency: {supported: true, durable: true, retention_seconds: 86400}`. **That response is the real contract for our installed
 version — where it disagrees with this file, it wins.** Update this file, don't work around it.
 
 ## Endpoints Tier 1 uses
@@ -89,6 +123,22 @@ All under `Authorization: Bearer $API_SERVER_KEY`.
 `include_children=false` and a `source` filter are what keep cron, tool, API, and subagent
 sessions out of the human chat list. The dashboard's own Chats/Automation split works the
 same way. Get this right in slice 2 or the session list is mostly noise.
+
+### Response envelopes — three different shapes
+
+Confirmed against live 0.21.1. Do not model these as one generic wrapper:
+
+| Endpoint | Envelope |
+|---|---|
+| `GET /api/sessions` | `{object, data: [...], limit, offset, has_more}` |
+| `GET /api/sessions/{id}/messages` | `{object, session_id, data: [...], pagination: {...}}` |
+| `POST /api/sessions` | `{object, session: {...}}` — single object under `session`, **not** `data` |
+
+Session objects in the list carry 26 fields (`id`, `source`, `model`, `title`, `started_at`,
+`message_count`, token/cost counters, `parent_session_id`, `preview`, `pinned`, `archived`,
+`hidden`, …). Message objects carry `id`, `session_id`, `role`, `content`, `tool_call_id`,
+`tool_calls`, `tool_name`, `timestamp`, `token_count`, `finish_reason`, `reasoning`,
+`reasoning_content`, `display_kind`.
 
 ### Streaming
 
@@ -114,6 +164,13 @@ run.completed       successful terminal event with usage
 done                stream closed
 ```
 
+**`tool.completed` carries no tool output.** Verified 2026-09-16: the event's payload is
+`message_id`, `tool_name`, `preview`, `args`, `session_id`, `run_id`, `seq`, `ts` — and on
+completion `preview` and `args` are both `null`. The actual result lives only in the message
+history (`GET /api/sessions/{id}/messages`), as a `role: "tool"` message whose `content` is a
+JSON string like `{"output": "...", "exit_code": 0, "error": null}`. A client that wants to
+show tool output cannot get it from the stream alone.
+
 In the installed 0.21.1 stream, `assistant.completed` carries `completed` / `partial` /
 `interrupted` flags; `run.completed` carries `completed` and usage. Render the distinction
 — a truncated or interrupted turn must not look like a finished one.
@@ -127,7 +184,8 @@ assistant message, so the client must also recognize an empty or failed inferenc
 | `GET` | `/v1/runs/{run_id}` | Status without holding SSE open |
 | `GET` | `/v1/runs/{run_id}/events` | SSE, attach/detach without losing state |
 | `POST` | `/v1/runs/{run_id}/stop` | Settles as `cancelled` |
-| `POST` | `/v1/runs/{run_id}/approval` | **Required — see below** |
+| `POST` | `/v1/runs/{run_id}/steer` | Observed in live capabilities 2026-09-16 (`run_steer: true`). Not used by Tier 1; noted so it isn't mistaken for invented later. |
+| `POST` | `/v1/runs/{run_id}/approval` | Exists, but **unreachable from this client** — see "Approvals cannot reach this client" below |
 
 ### Discovery
 
@@ -136,11 +194,36 @@ assistant message, so the client must also recognize an empty or failed inferenc
 
 ## Things that will bite
 
-- **Approvals are a Tier 1 requirement, not a nicety.** If Hermes' `approvals` config is
-  `smart` or `manual`, a turn that hits a gated command *stalls waiting for a human*. If
-  the phone can't render the prompt and POST to `/v1/runs/{id}/approval`, the chat just
-  hangs with no error. Either implement the approval prompt or knowingly run
-  `approvals: off` on this profile and write down that you chose that.
+- **Approvals cannot reach this client, by design.** *Settled by Gate 0c, 2026-09-16 —
+  this bullet previously said the opposite.* `/v1/capabilities` advertises
+  `approval_events: true` and `run_approval_response: true`, and
+  `POST /v1/runs/{run_id}/approval` exists. None of that applies to us, because the
+  **`api_server` platform is explicitly excluded from being an approval context.**
+  `tools/approval_context.py:166-170` is unambiguous:
+
+  > Unattended programmatic platforms (webhook, msgraph_webhook, api_server) are excluded
+  > […] those adapters have no `send_exec_approval` and no way to receive `/approve`
+  > replies. Submitting a pending approval there blocks the session for the full approval
+  > timeout (60-300 s) with no human who can resolve it. Their dangerous-command handling
+  > is governed by `approvals.unattended_mode` config (default deny), mirroring cron.
+
+  So a session created through `/api/sessions` will **never** emit a pending approval for
+  the phone to answer. The feared hang-forever failure mode is what this exclusion exists
+  to prevent. A flagged command resolves instantly, one of two ways:
+
+  1. **Smart approval auto-approves it.** Observed live: `rm -rf /opt/data/gate0c-probe`
+     executed, and the tool result carried an audit note —
+     `"approval": "Command was flagged (recursive delete) and auto-approved by smart approval."`
+  2. **`unattended_mode` denies it.** Not set in `~/hermes-data/config.yaml`, so it runs on
+     the default from `hermes_cli/config_defaults.py:1538` — `"unattended_mode": "deny"`.
+     The tool result comes back with `status: "blocked"` and a `Command denied: <desc>.`
+     message, and the command does not run.
+
+  **Client consequence:** do not build an approval prompt. Do render `status: "blocked"` as
+  a distinct, honest state — "Hermes refused this command" — not as a generic tool error,
+  or the user will think the app broke when the server deliberately said no. Render the
+  `approval` audit note too when present, so an auto-approved destructive command is
+  visible rather than silent.
 - **`Idempotency-Key` header on `/v1/runs`** makes a run submission safely retryable — an
   identical retry returns the original `run_id` with `Idempotency-Replayed: true`, surviving
   gateway restarts, retained 24h. Dedupe for `/api/sessions/{id}/chat/stream` is not verified;
@@ -170,3 +253,45 @@ assistant message, so the client must also recognize an empty or failed inferenc
   `accounts/fireworks/models/deepseek-v4p1-flash`. Hermes picked up the change without a
   restart. A fresh turn returned a nonempty assistant reply, four `assistant.delta` events,
   and a completed terminal event; its sanitized stream is in `mock-hermes/fixtures/`.
+
+## Gate 0c status — approvals settled (2026-09-16)
+
+Ran against the live container, session `api_1789554464_8413b4c7`, model
+`accounts/fireworks/models/deepseek-v4p1-flash` via Fireworks.
+
+**Probe 1 — benign shell.** `id -un` → `run.started` → `message.started` → `tool.started`
+(`tool_name: "terminal"`, `preview: "id -un"`) → `tool.completed` 190 ms later →
+5× `assistant.delta` → `tool.progress` (`tool_name: "_thinking"`) → `assistant.completed`
+(`completed: true, partial: false, interrupted: false`) → `run.completed` → `done`. Whole
+turn 1.94 s. **No approval event of any kind.** Tool result: `{"output": "hermes",
+"exit_code": 0, "error": null}`.
+
+**Probe 2 — destructive + privileged.** A real `rm -rf` against a throwaway directory
+created for the test, and `sudo -n true`. Both executed, no approval event, turn completed
+in 8.8 s. The directory was really deleted. Results:
+
+- `rm -rf /opt/data/gate0c-probe` → `{"output": "", "exit_code": 0, "error": null,
+  "approval": "Command was flagged (recursive delete) and auto-approved by smart approval."}`
+  — so the classifier **did** fire; the policy auto-approved rather than gating.
+- `sudo -n true` → `{"output": "/usr/bin/bash: line 5: sudo: command not found\nsudo exit=127",
+  "exit_code": 0, "error": null}` — no `sudo` in the container image.
+
+**Why no prompt, from source** (`/proc/<pid>/root/opt/hermes`): `terminal_tool.py:836`
+`_run_approval_guards` has four outcomes — `pending_approval` (gateway ask mode), `blocked`
+(denied), `user_approved`, `smart_approved`. The `pending_approval` branch is unreachable for
+us because `approval_context.py:172` returns False for unattended platforms and
+`api_server` is one of them. Flagged commands therefore fall to
+`approvals.unattended_mode`, which is **not set** in `~/hermes-data/config.yaml` and
+defaults to `"deny"` (`hermes_cli/config_defaults.py:1538`). `_yolo_active()` is not in play.
+
+**Conclusions.**
+
+1. **No approval UI is needed or possible on this transport.** Tier 1 does not need an
+   approval prompt — see the rewritten bullet above.
+2. **The client must render `status: "blocked"` honestly**, because deny-by-default means a
+   command the user genuinely wanted can be refused with no prompt and no retry path.
+3. **Open decision for the operator, not the client:** leave `unattended_mode` at `deny`
+   (safe; some commands the user wants will be refused) or set it to `approve` (the phone
+   becomes able to run anything smart approval flags, unattended). Leaving it at `deny` is
+   the recommendation. Either way it is a one-line change in
+   `~/hermes-data/config.yaml` under `approvals:`, not app work.

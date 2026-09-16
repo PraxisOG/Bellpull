@@ -1,0 +1,57 @@
+{
+  "object": "list",
+  "session_id": "api_0000000000_fixture0",
+  "data": [
+    {
+      "id": 101,
+      "session_id": "api_0000000000_fixture0",
+      "role": "tool",
+      "content": "{\"output\": \"hermes\", \"exit_code\": 0, \"error\": null}",
+      "tool_call_id": "call_fixture0001",
+      "tool_calls": null,
+      "tool_name": "terminal",
+      "timestamp": "2026-09-16T00:00:01Z",
+      "token_count": null,
+      "finish_reason": null,
+      "reasoning": null,
+      "reasoning_content": null,
+      "display_kind": null
+    },
+    {
+      "id": 102,
+      "session_id": "api_0000000000_fixture0",
+      "role": "tool",
+      "content": "{\"output\": \"\", \"exit_code\": 0, \"error\": null, \"approval\": \"Command was flagged (recursive delete) and auto-approved by smart approval.\"}",
+      "tool_call_id": "call_fixture0002",
+      "tool_calls": null,
+      "tool_name": "terminal",
+      "timestamp": "2026-09-16T00:00:02Z",
+      "token_count": null,
+      "finish_reason": null,
+      "reasoning": null,
+      "reasoning_content": null,
+      "display_kind": null
+    },
+    {
+      "id": 103,
+      "session_id": "api_0000000000_fixture0",
+      "role": "tool",
+      "content": "{\"output\": \"/usr/bin/bash: line 5: sudo: command not found\\nsudo exit=127\", \"exit_code\": 0, \"error\": null}",
+      "tool_call_id": "call_fixture0003",
+      "tool_calls": null,
+      "tool_name": "terminal",
+      "timestamp": "2026-09-16T00:00:03Z",
+      "token_count": null,
+      "finish_reason": null,
+      "reasoning": null,
+      "reasoning_content": null,
+      "display_kind": null
+    }
+  ],
+  "pagination": {
+    "limit": 500,
+    "offset": 0,
+    "order": "latest",
+    "returned": 9
+  }
+}
