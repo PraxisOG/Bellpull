@@ -74,6 +74,10 @@ dependencies {
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    // Glance is the AndroidX way to build an app widget in Compose. AndroidX, not a Play
+    // library, so it does not put a Google surface on a device that has none. 1.2.0 is the
+    // latest stable; 1.3.0 is still alpha.
+    implementation("androidx.glance:glance-appwidget:1.2.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(composeBom)

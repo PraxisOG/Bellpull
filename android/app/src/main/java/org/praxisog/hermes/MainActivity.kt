@@ -1,5 +1,6 @@
 package org.praxisog.hermes
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,13 @@ class MainActivity : ComponentActivity() {
     private var store by mutableStateOf<HermesStore?>(null)
     private var connectionStore: SecureConnectionStore? = null
 
+    /**
+     * Set when the launch came from the widget. Held rather than acted on immediately,
+     * because a session cannot be created until the client is known good — the store does not
+     * exist until the capabilities check passes.
+     */
+    private var pendingNewChat = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val secureStore = runCatching { SecureConnectionStore(this) }.getOrElse {
@@ -38,6 +46,16 @@ class MainActivity : ComponentActivity() {
         val initialKey = runCatching { secureStore?.loadKey().orEmpty() }.getOrElse {
             status = "Saved API key could not be read."
             ""
+        }
+
+        pendingNewChat = WidgetIntents.isNewChat(intent)
+
+        // Auto-connect when credentials are already stored. Without this the widget costs
+        // three taps -- widget, Check connection, New chat -- and the accept criterion is a
+        // fresh session in under two from cold start. It also means the app does not ask the
+        // user to re-confirm a connection it already has on every launch.
+        if (initialUrl.isNotBlank() && initialKey.isNotBlank()) {
+            checkConnection(initialUrl, initialKey)
         }
 
         setContent {
@@ -120,6 +138,10 @@ class MainActivity : ComponentActivity() {
                                 store = HermesStore(scope, client).also { newStore ->
                                     newStore.loadSessions()
                                     loadInstalledApps(newStore)
+                                    if (pendingNewChat) {
+                                        pendingNewChat = false
+                                        newStore.newSession()
+                                    }
                                 }
                             } else {
                                 status =
@@ -136,6 +158,24 @@ class MainActivity : ComponentActivity() {
                     }
                 },
             )
+        }
+    }
+
+    /**
+     * The widget may be tapped while the app is already running. `SINGLE_TOP` means this
+     * Activity is reused rather than recreated, so the new-chat request arrives here instead
+     * of through [onCreate].
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (!WidgetIntents.isNewChat(intent)) return
+        val current = store
+        if (current != null) {
+            current.newSession()
+        } else {
+            // Not connected yet: remember it, and the connection path will pick it up.
+            pendingNewChat = true
         }
     }
 

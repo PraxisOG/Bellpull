@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Widget colours live in resources rather than in Kotlin because Glance 1.2.0 has no
+      day/night ColorProvider overload — the resource system is the mechanism. That also keeps
+      the app's "no hardcoded colours anywhere" property intact.
+
+      The widget host renders outside this app's Compose theme and cannot inherit one, so a
+      widget pinned to a dark home screen needs its own night values. That is why the widget
+      has day/night support while the app's own dark theme is still deferred.
+    -->
+    <color name="widget_background">#FFEADDFF</color>
+    <color name="widget_on_background">#FF21005D</color>
+</resources>
