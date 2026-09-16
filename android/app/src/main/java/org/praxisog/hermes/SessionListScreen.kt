@@ -137,25 +137,19 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, onClick
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    formatLastActive(session.lastActive ?: session.startedAt, now),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    pluralize(session.messageCount, "message"),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (session.toolCallCount > 0) {
-                    Text(
-                        pluralize(session.toolCallCount, "tool call"),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            // A single flowing line rather than three boxes: at 240dp the row broke
+            // "3 tool calls" across two lines mid-label.
+            Text(
+                buildList {
+                    add(formatLastActive(session.lastActive ?: session.startedAt, now))
+                    add(pluralize(session.messageCount, "message"))
+                    if (session.toolCallCount > 0) add(pluralize(session.toolCallCount, "tool call"))
+                }.joinToString("  ·  "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

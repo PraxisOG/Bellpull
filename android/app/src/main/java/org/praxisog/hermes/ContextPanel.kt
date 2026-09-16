@@ -13,6 +13,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Session
 
@@ -68,7 +70,9 @@ internal fun ContextPanel(session: Session?, now: Double, modifier: Modifier = M
             // Hermes sends actual_cost_usd as null until it knows; estimated is the fallback.
             val cost = session.actualCostUsd ?: session.estimatedCostUsd
             if (cost != null) {
-                val label = if (session.actualCostUsd != null) "Cost" else "Cost (estimated)"
+                // "Cost (estimated)" left no room for the figure and ellipsised it to
+                // "$0.04…". A truncated cost is worse than a terse label.
+                val label = if (session.actualCostUsd != null) "Cost" else "Cost (est.)"
                 Field(label, "$" + String.format("%.4f", cost))
             }
 
@@ -84,15 +88,25 @@ internal fun ContextPanel(session: Session?, now: Double, modifier: Modifier = M
 
 @Composable
 private fun Field(label: String, value: String) {
+    // This pane is 200dp at the Fold's unfolded width, so a long value such as a model name
+    // has to give way. Ellipsised on one line beats breaking a word across two.
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f),
+        )
     }
 }

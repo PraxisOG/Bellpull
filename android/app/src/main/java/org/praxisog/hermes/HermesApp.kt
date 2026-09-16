@@ -63,10 +63,16 @@ internal fun HermesApp(
                 // clear of both, so a fold transition cannot land on the boundary.
                 val sideBySide = maxWidth >= 720.dp
 
-                // Three fixed panes at 840dp left the transcript about 260dp — a cramped
-                // composer and wrapped labels. Context is therefore collapsed by default
-                // until there is room for all three, and always one tap away.
-                val roomForThreePanes = maxWidth >= 1000.dp
+                // Three panes are shown from 820dp, which is just under the Fold's ~840dp
+                // unfolded width — the target device, where all three are wanted.
+                //
+                // An earlier version gated this at 1000dp, which meant the Fold unfolded to
+                // two panes and a toggle. That was the wrong call: it came from three *fixed*
+                // panes at 288dp and 248dp leaving the transcript ~260dp, and the fix for a
+                // cramped transcript is to narrow its neighbours, not to hide one. At 840dp
+                // the list and context now take 240dp and 200dp, leaving ~400dp — wider than
+                // the cover display the transcript already renders fine on.
+                val roomForThreePanes = maxWidth >= 820.dp
                 var showContext by remember(roomForThreePanes) { mutableStateOf(roomForThreePanes) }
 
                 if (sideBySide) {
@@ -80,7 +86,7 @@ internal fun HermesApp(
                             onNewSession = onNewSession,
                             creating = creatingSession,
                             createError = createError,
-                            modifier = Modifier.width(288.dp).fillMaxHeight(),
+                            modifier = Modifier.width(240.dp).fillMaxHeight(),
                         )
                         VerticalDivider()
                         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -106,7 +112,7 @@ internal fun HermesApp(
                             ContextPanel(
                                 session = openSession,
                                 now = now,
-                                modifier = Modifier.width(248.dp).fillMaxHeight(),
+                                modifier = Modifier.width(200.dp).fillMaxHeight(),
                             )
                         }
                     }
