@@ -104,7 +104,7 @@ What exists today (as of 2026-09-16):
 
 ```
 android/            # Gradle project, single APK
-  app/              # Connection screen + probe. Compose. Still HttpURLConnection-based.
+  app/              # Compose UI, HermesStore, offline cache, widget, search.
   core-hermes/      # API client: auth, sessions, messages, SSE. Pure Kotlin JVM, no Android.
   core-model/       # Pure Kotlin data types + typed errors, shared by both.
 mock-hermes/        # Replay server fed by recorded fixtures. Started by core-hermes' tests.
@@ -115,9 +115,8 @@ docs/
 ROADMAP.md
 ```
 
-`app/` does **not** use `core-hermes` yet — its connection screen predates the module and
-still talks to `/v1/capabilities` directly. Migrating it is Slice 3's first job, not a
-leftover to work around.
+`app/` uses `core-hermes` through `HermesStore`. The connection screen still has its older
+direct `/v1/capabilities` probe; do not mistake that one path for the chat architecture.
 
 **There is no `infra/` directory and no Docker Compose in this repo.** An earlier version of
 this file described one; it was never built. Hermes runs as a rootless Docker container
@@ -130,8 +129,8 @@ without saying so first**, because that's the live instance.
 
 **Server-side work lives outside this repo.** Hermes plugins go in `~/hermes-data/plugins/`
 on the host (`/opt/data/plugins/` in the container) — **not** `~/.hermes/plugins/`, which does
-not exist here. Four `hermes-launcher-*` plugins already sit there from an earlier effort;
-read them before writing a new `plugin.yaml`, and note they are root-owned while the gateway
+not exist here. Four root-owned `hermes-launcher-*` directories sit there, but they were
+verified empty on 2026-09-16; use Hermes' bundled plugins as format examples. The gateway
 runs as uid 1000. `ntfy` (`127.0.0.1:2586`) and `searxng` also run as host processes, not from
 any Compose file in this repo.
 

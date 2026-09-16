@@ -242,27 +242,21 @@ while the gateway runs as uid 1000. Creating a new plugin directory there will n
 an ownership fix, and this host was deliberately set up without sudo for Tailscale. Resolve
 that before writing code, not after.
 
-### 2. Prior art already sits in that directory — read it first
+### 2. Correction: the apparent prior art is empty
 
-`~/hermes-data/plugins/` is not empty. It contains four plugins from 2026-09-11, predating
-this project:
+`~/hermes-data/plugins/` contains four root-owned directories from 2026-09-11:
 
 ```
 hermes-launcher-briefs      hermes-launcher-cards
 hermes-launcher-retrieval   hermes-launcher-tasks
 ```
 
-These are almost certainly the server side of the parked card/sidecar design in
-`ROADMAP.md`'s parking lot. **Read them before writing `plugin.yaml` from scratch** — they are
-a working example of this exact Hermes version's plugin format, which beats the documentation.
-That is the "Borrow, don't build" non-negotiable applying to the one case where the thing to
-borrow is already on the same disk.
+**Rechecked 2026-09-16: all four directories are empty.** They are not plugin examples.
+The running Hermes source has bundled plugins; `plugins/google_meet/` shows the manifest,
+`register(ctx)`, and tool registration mechanics for this version. See
+`docs/phone-bridge.md` for the gate discovery log.
 
-Note the naming: these are *launcher* plugins, and `CLAUDE.md`'s first non-negotiable is "no
-launcher shell." Borrowing their plugin *mechanics* is fine; adopting their product direction
-is not.
-
-### 3. ntfy is running, but the phone cannot reach it
+### 3. ntfy needed a tailnet route — resolved for the gate
 
 Good news first: **ntfy is live** on `127.0.0.1:2586` and answers `/v1/health` with 200. So
 option B's wake transport exists.
@@ -274,11 +268,11 @@ https://powermacg3.tail0b3e3a.ts.net (tailnet only)
 |-- / proxy http://127.0.0.1:8642
 ```
 
-That is Hermes, on `/`. **Nothing exposes ntfy to the tailnet**, so a phone cannot subscribe
-today. Gate T2-0 option B has a prerequisite the plan above does not mention: get ntfy onto
-the tailnet first.
+That was Hermes, on `/`. Gate T2-0 added a separate tailnet-only Tailscale Serve HTTPS route
+on port 8443 to `http://127.0.0.1:2586` on 2026-09-16. The Fold loaded ntfy's health
+endpoint and received a live SSE message over this route. See `docs/phone-bridge.md`.
 
-And `/` is already taken, so this is a real decision rather than a one-liner:
+`/` was already taken, so the gate considered two routes:
 
 - **`tailscale serve --set-path /ntfy`** keeps one hostname, but ntfy subscriptions are
   long-lived SSE/WebSocket connections and a path prefix is the kind of thing that works for
@@ -286,8 +280,8 @@ And `/` is already taken, so this is a real decision rather than a one-liner:
 - **`tailscale serve --https=8443`** gives ntfy its own port and avoids the path question
   entirely. Less tidy, fewer unknowns.
 
-Whichever you pick, it belongs inside Gate T2-0: a wake transport the phone cannot subscribe
-to fails state 1, never mind state 4.
+The second route was chosen and the live subscription worked while the browser was
+foregrounded. Background and overnight reachability remain Gate T2-0 measurements.
 
 ### 4. Confirmed as stated
 

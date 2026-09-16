@@ -3,6 +3,8 @@
 local.properties
 .gradle/
 build/
+__pycache__/
+*.pyc
 # Release signing — never committed. See android/app/build.gradle.kts.
 keystore.properties
 *.jks

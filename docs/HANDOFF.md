@@ -14,8 +14,8 @@ Rewritten 2026-09-17. Entry point for whoever picks this up next, human or agent
 
 ## State in one paragraph
 
-**Tier 1 is code-complete and partly confirmed on the device. Tier 2 is planned and not
-started.** `master` is the only branch that matters; everything is merged. Tier 1 built six
+**Tier 1 is code-complete and partly confirmed on the device. Gate T2-0 is in progress on
+`tier2-gate-phone-ping`; see `docs/phone-bridge.md`.** Tier 1 built six
 slices (1–3, 5–7) and cut Slice 4 with evidence. All three things Tier 1 called "done" exist:
 the widget, the app-search bar, and sessions/streaming with visible context.
 
@@ -173,7 +173,9 @@ Stated so nobody mistakes a green run for full coverage.
 2. **Gate T2-0** — prove the phone is reachable when it has been asleep for hours. It is the
    only part of Tier 2 that can turn out to be impossible, and compressing it to reach the
    content providers sooner is the specific mistake `ROADMAP-TIER2.md` warns about. It has a
-   prerequisite that roadmap did not list: **ntfy is loopback-only today and the phone cannot
-   subscribe** — see its *Verified against the host* section.
-3. Then T2-1 (bridge + plugin skeleton), reading the four existing
-   `~/hermes-data/plugins/hermes-launcher-*` plugins first.
+   prerequisite that roadmap did not list: ntfy needed a tailnet route. Port 8443 now
+   provides one, and a foreground SSE subscription worked on the Fold. See
+   `docs/phone-bridge.md`; background and overnight results are still pending.
+3. Then T2-1 (bridge + plugin skeleton). The four
+   `~/hermes-data/plugins/hermes-launcher-*` directories are empty, despite the earlier
+   handoff claim; see `docs/phone-bridge.md`. Use bundled Hermes plugins as examples.

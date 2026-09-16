@@ -1,0 +1,6 @@
+name: phone_ping_gate
+version: 0.1.0
+description: "Gate T2-0 reachability probe for the user's Android phone; no personal data access"
+kind: standalone
+provides_tools:
+  - phone_ping

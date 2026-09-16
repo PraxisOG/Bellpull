@@ -20,7 +20,7 @@ mistyped key surfaces as a generic auth failure.
 
 | Source | Why it matters |
 |---|---|
-| **`~/hermes-data/plugins/hermes-launcher-{briefs,cards,retrieval,tasks}`** | Four working plugins for *this* Hermes version, from 2026-09-11, predating this project. They are the authoritative example of the plugin format — better than the documentation, because they run. Read them before writing `plugin.yaml` for T2-1. Borrow the mechanics; **not** the product direction, since "no launcher shell" is the first non-negotiable in `CLAUDE.md`. |
+| **Hermes' bundled `plugins/google_meet/`** | A working example in the running Hermes source of `plugin.yaml`, `register(ctx)`, and `ctx.register_tool(...)`. The four host `hermes-launcher-*` directories formerly listed here were checked on 2026-09-16 and are empty. Borrow the registration mechanics, not the Meet feature. |
 
 ## Read before designing Tier 2 — do not implement yet
 
