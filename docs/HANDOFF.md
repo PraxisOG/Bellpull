@@ -10,7 +10,11 @@
   is on the tailnet as `powermacg3` (`100.75.193.5`); the Fold is joined as
   `pixel-10-pro-fold` (`100.97.154.105`). `tailscale serve` proxies
   `https://powermacg3.tail0b3e3a.ts.net` → `http://127.0.0.1:8642`, confirmed **tailnet-only**
-  (not Funnel — not exposed to the public internet).
+  (not Funnel — not exposed to the public internet). `tailscaled` runs under the enabled
+  user systemd unit `~/.config/systemd/user/tailscaled-hermes.service`
+  (`WantedBy=default.target`, `Restart=on-failure`) — it restarts automatically on login/
+  reboot on this host, this isn't a one-off manual process. `Linger=no` for this user, so it
+  won't come up before a graphical/SSH login on a fresh boot with nobody logged in.
 - The ADB reverse tunnel (`adb reverse tcp:8642 tcp:8642`) is gone — `adb reverse --list` is
   empty. The app was re-tested against the real tailnet URL
   (`https://powermacg3.tail0b3e3a.ts.net`), not the loopback tunnel, and reported
