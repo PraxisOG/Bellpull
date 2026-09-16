@@ -19,6 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,9 +68,6 @@ internal fun SessionDetailScreen(
                     is UiState.Ready -> {
                         val listState = rememberLazyListState()
                         val itemCount = history.value.size + if (turn is TurnState.Idle) 0 else 1
-                        // Follow the tail as tokens arrive, and when a turn settles, so the
-                        // newest text and any error banner are on screen without a manual
-                        // scroll. Keyed on the streamed length so every delta nudges it.
                         val streamedLength = when (turn) {
                             is TurnState.Streaming -> turn.text.length
                             is TurnState.StoppedByUser -> turn.text.length
@@ -77,8 +75,32 @@ internal fun SessionDetailScreen(
                             is TurnState.Finished -> turn.text.length
                             else -> 0
                         }
-                        LaunchedEffect(itemCount, streamedLength, turn::class) {
-                            if (itemCount > 0) listState.scrollToItem(itemCount - 1)
+
+                        // Follow the tail as tokens arrive — but only the tail, and only when
+                        // the user is already there.
+                        //
+                        // Two bugs lived here. scrollToItem(index) aligns that item's *top*
+                        // with the viewport top, and a streaming reply is one single item that
+                        // grows, so every delta re-pinned the view to the top of the reply and
+                        // the visible text went backwards as it got longer. Hence the large
+                        // offset: it scrolls within the item to its end instead.
+                        //
+                        // And it re-ran on every delta regardless of where the user was, so
+                        // scrolling up to read earlier messages yanked you back a moment later.
+                        // Following now stops as soon as the last item is off screen, and
+                        // resumes when you scroll back to it.
+                        val followTail by remember {
+                            derivedStateOf {
+                                val info = listState.layoutInfo
+                                val lastVisible = info.visibleItemsInfo.lastOrNull()
+                                // Nothing laid out yet: follow, so a fresh turn starts pinned.
+                                lastVisible == null || lastVisible.index >= info.totalItemsCount - 1
+                            }
+                        }
+                        LaunchedEffect(itemCount, streamedLength) {
+                            if (itemCount > 0 && followTail) {
+                                listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
+                            }
                         }
                         LazyColumn(
                             state = listState,
@@ -235,3 +257,10 @@ private fun Composer(
         }
     }
 }
+
+/**
+ * Pixel offset large enough to land at the end of a streaming message, whatever its length.
+ * `scrollToItem` clamps to the item's extent, so this means "the bottom of that item" without
+ * needing to measure it.
+ */
+private const val SCROLL_TO_ITEM_END = 1_000_000
