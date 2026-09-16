@@ -1,7 +1,9 @@
 package org.praxisog.hermes
 
 import androidx.test.core.app.ActivityScenario
+import androidx.lifecycle.Lifecycle.State
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,13 +36,13 @@ class MainActivityChromeTest {
     }
 
     @Test
-    fun activityLaunchesAndComposesWithoutCrashing() {
-        // A smoke test for the real runtime: the JVM tests never construct the Activity, so
-        // nothing else here would catch a theme or manifest change that breaks startup.
+    fun activityReachesResumed() {
+        // A real smoke test rather than a second copy of the assertion above: the JVM tests
+        // never construct the Activity, so nothing else here would catch a manifest or theme
+        // change that breaks startup. Reaching RESUMED means onCreate ran, setContent
+        // composed, and the secure store was read without throwing.
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
-                assertNull("no action bar expected", activity.actionBar)
-            }
+            assertEquals(State.RESUMED, scenario.state)
         }
     }
 }

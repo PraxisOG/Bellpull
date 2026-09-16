@@ -49,6 +49,10 @@ android {
                     device = "Pixel 10 Pro Fold"
                     apiLevel = 34
                     systemImageSource = "aosp-atd"
+                    // Pinned explicitly: AGP warns that the default flips to "arm64-v8a" in
+                    // AGP 10.0, and this ATD image cannot do NDK translation, so that flip
+                    // would break the task rather than just slow it down.
+                    testedAbi = "x86_64"
                 }
             }
         }
