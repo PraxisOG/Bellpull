@@ -69,9 +69,10 @@ multiple-display warning to stdout on this device and corrupts the PNG; use
 context panel, and the unfolded/three-pane layout. The list screen is the only one confirmed
 on device; the rest are Roborazzi renders only.
 
-**Known cosmetic issue found on device:** the app shows the platform default dark action bar
-titled "Hermes" above the Compose content, because no app theme is declared. The Compose UI
-draws its own headers, so this bar is redundant — declare a `NoActionBar` theme.
+**Fixed since:** the redundant platform action bar (no theme was declared, so the app
+inherited the default). `Theme.Hermes` now keeps DayNight and switches the bar off
+explicitly, because `android:Theme.DeviceDefault.DayNight.NoActionBar` does not exist.
+`MainActivityChromeTest` guards it.
 
 ## What the four gates settled
 
@@ -89,8 +90,9 @@ Full evidence and source citations: `docs/hermes-api.md` §§ Gate 0c, Gate 0d.
 
 ## Open items
 
-1. **Finish exercising it on the Fold.** The list screen is confirmed; open a session and
-   drive streaming, stop and the unfolded layout. Fix the redundant action bar while there.
+1. **Finish exercising it on the Fold.** The list screen is confirmed on glass; session
+   detail, a real streaming turn, stop, and the unfolded three-pane layout are not. Needs the
+   phone on the same LAN — see the adb note below.
 2. **One accept criterion is implemented but unproven:** history refetch after a *truncated*
    stream. See the long comment in `HermesStoreTest` — it's Compose snapshot visibility in
    plain JUnit, not a store bug. Wants a Compose-aware rule or an instrumentation test.
@@ -101,6 +103,22 @@ Full evidence and source citations: `docs/hermes-api.md` §§ Gate 0c, Gate 0d.
    shown because no verified endpoint reads them back. Don't invent one.
 5. **No `androidTest` source set.** `aospAtdApi34DebugAndroidTest` is registered but runs 0
    tests, and the SDK image has never been downloaded.
+
+## Done 2026-09-17
+
+- **New-chat entry point.** `createSession` existed in the client but nothing in the UI
+  called it, so the app could only open sessions created elsewhere, and a fresh Hermes was a
+  dead end. There is now a "New chat" button on the list; a failed create shows a banner and
+  leaves the list usable.
+- **Three panes at the Fold's unfolded width.** The threshold was 1000dp, so 840dp got two
+  panes and a toggle. Now 820dp with the list at 240dp and context at 200dp, leaving the
+  transcript ~400dp. Narrowing exposed three wrapping bugs (model name broken mid-word,
+  "3 tool calls" split mid-label, an ellipsised cost figure) — all fixed.
+- **`androidTest` stands up.** Source set created, deps added, managed device switched from
+  Pixel 6 to **Pixel 10 Pro Fold** geometry. First test asserts the Activity has no action
+  bar, which is exactly the class of bug Roborazzi cannot see.
+
+**81 JVM tests, 28 screenshots**, plus the instrumentation tests.
 
 ## Landmines
 
@@ -121,6 +139,15 @@ Full evidence and source citations: `docs/hermes-api.md` §§ Gate 0c, Gate 0d.
   carry the bearer key onward. Don't "fix" that by re-enabling them.
 - **GrapheneOS blocks USB data while locked.** Use wireless debugging.
 - **Default branch is `master`, not `main`.**
+- **adb cannot reach the phone over Tailscale from this host.** `tailscaled` runs with
+  `--tun=userspace-networking` (the no-sudo install), so there is **no TUN interface and no
+  host route into `100.64.0.0/10`** — host-originated connections to tailnet IPs fail with
+  `Network is unreachable`. The working direction is phone → host, because `tailscale serve`
+  terminates inside tailscaled and needs no TUN. That asymmetry is also why the live smoke
+  test uses `127.0.0.1:8642` rather than the tailnet hostname. **`installDebug` and `logcat`
+  therefore need the phone on the same LAN.** Workarounds if that ever matters: a
+  `socat` + `tailscale nc` bridge through the userspace stack, or giving tailscaled a real
+  TUN, which needs root and would undo the deliberate no-sudo setup.
 
 ## Next
 
