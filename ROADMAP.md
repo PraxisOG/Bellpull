@@ -207,6 +207,25 @@ done moves to the Tier 2 backlog. Freeze.
   Tier 2 needs, already designed. Read it before designing the content-provider layer.
 - **Mobilerun** — unchanged, Tier 3.
 
+## Deferred deliberately, cheap when picked up
+
+**Light/dark theme support.** Assessed 2026-09-17: the app has **zero hardcoded colours** —
+every colour already comes from a `MaterialTheme.colorScheme` role — and there are only two
+`MaterialTheme {}` call sites. So it is ~30 lines plus 8–10 `-night` screenshot variants,
+maybe 45 minutes. Deferred in favour of core Tier 1 functionality.
+
+Two notes for whoever does it:
+
+- **It closes a real mismatch, not just adds a feature.** The window theme is
+  `Theme.DeviceDefault.DayNight` (set when the action bar was removed), so the window
+  background already follows the system while the Compose content is pinned light. On a
+  dark-mode phone that is a dark frame behind light content.
+- **Do not use dynamic colour (Material You).** It works on GrapheneOS — it is AOSP, not a
+  Play service — but several colours here carry *meaning*: refused vs flagged vs ordinary
+  tool results, and the primary tint marking which panes are open. Deriving those from the
+  wallpaper puts a distinction that has already collapsed once at the mercy of the home
+  screen. Fixed schemes keep the semantics stable.
+
 ## Parking lot — not before 09/28
 
 Foreground-app awareness · screen-context search · Organic Maps plugin · voice wake ·
