@@ -54,6 +54,9 @@ class HermesClient(
 ) {
     private val base = baseUrl.trimEnd('/')
 
+    /** Same pool and settings as [httpClient], minus the read timeout. See [streamingClient]. */
+    private val streamingHttpClient = streamingClient(httpClient)
+
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     init {
@@ -138,7 +141,7 @@ class HermesClient(
             .header("Accept", "text/event-stream")
             .build()
 
-        val call = httpClient.newCall(request)
+        val call = streamingHttpClient.newCall(request)
         onStart(Streaming(call))
 
         // Delivered outside the read so a mid-stream failure still reports how far it got.
@@ -333,13 +336,15 @@ class HermesClient(
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
         /**
-         * No read timeout, because an SSE turn can legitimately sit quiet while the model
-         * thinks; a read timeout here would kill long turns. Connect and call timeouts stay
-         * bounded so an unreachable server still fails fast.
+         * Ordinary requests get a bounded read timeout. Only the SSE stream disables it, via
+         * [streamingHttpClient] — an earlier version set it to zero for everything, which
+         * meant a plain GET on a poisoned pooled connection could wait forever with nothing
+         * to break the deadlock. A list or history fetch that never returns is worse than one
+         * that fails.
          */
         fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             // Redirects are refused, not followed. OkHttp follows them by default and drops
@@ -349,5 +354,14 @@ class HermesClient(
             .followRedirects(false)
             .followSslRedirects(false)
             .build()
+
+        /**
+         * The streaming variant: no read timeout, because a turn can legitimately sit quiet
+         * for a long time while the model thinks or a tool runs, and a read timeout would kill
+         * it. Derived from [defaultHttpClient] so it shares the connection pool and inherits
+         * every other setting, redirect refusal included.
+         */
+        internal fun streamingClient(base: OkHttpClient): OkHttpClient =
+            base.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
     }
 }

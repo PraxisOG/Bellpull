@@ -27,6 +27,17 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // HermesStoreTest drives a real client against mock-hermes, so it needs the same
+            // coordinates core-hermes' contract tests use. Plain strings, so the
+            // configuration cache stays clean.
+            it.systemProperty(
+                "mockHermes.script",
+                rootProject.layout.projectDirectory.file("../mock-hermes/server.py").asFile.absolutePath,
+            )
+            it.systemProperty("mockHermes.port", "8647")
+            it.systemProperty("mockHermes.key", "app-store-test-key")
+        }
         managedDevices {
             localDevices {
                 create("aospAtdApi34") {
@@ -58,6 +69,10 @@ dependencies {
 
     testImplementation(composeBom)
     testImplementation("junit:junit:4.13.2")
+    // Test-only. core-hermes keeps OkHttp as `implementation` so the app's production code
+    // cannot see it; HermesStoreTest needs the type to inject mock-hermes' X-Mock-Fail header
+    // without the production client exposing any way to request a failure.
+    testImplementation("com.squareup.okhttp3:okhttp:5.5.0")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.63.0")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.63.0")

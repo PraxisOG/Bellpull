@@ -170,10 +170,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         match = RUN_PATH.match(self.path)
         if match:
-            if match.group(1) == FIXTURE_RUN_ID:
-                self._json(200, RUN_STATUS)
-            else:
-                self._error("session_not_found", id=match.group(1))
+            # Echo whatever run id was asked for: a real client learns its run_id from the
+            # stream, so pinning one fixture id would make the stop path untestable.
+            body = json.loads(RUN_STATUS)
+            body["run_id"] = match.group(1)
+            self._json(200, json.dumps(body))
             return
         match = SESSION_PATH.match(self.path)
         if match:
@@ -197,10 +198,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._read_body()
             if fault == "run-not-active":
                 self._error("run_not_active", run_id=match.group(1))
-            elif match.group(1) == FIXTURE_RUN_ID:
-                self._json(200, RUN_STOP)
             else:
-                self._error("session_not_found", id=match.group(1))
+                body = json.loads(RUN_STOP)
+                body["run_id"] = match.group(1)
+                self._json(200, json.dumps(body))
             return
         match = STREAM_PATH.match(self.path)
         if match:
