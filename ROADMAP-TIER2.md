@@ -270,7 +270,9 @@ https://powermacg3.tail0b3e3a.ts.net (tailnet only)
 
 That was Hermes, on `/`. Gate T2-0 added a separate tailnet-only Tailscale Serve HTTPS route
 on port 8443 to `http://127.0.0.1:2586` on 2026-09-16. The Fold loaded ntfy's health
-endpoint and received a live SSE message over this route. See `docs/phone-bridge.md`.
+endpoint and received a live SSE message over this route. The route was then disabled pending
+screen-off testing because it exposes the full ntfy server to tailnet members while active.
+See `docs/phone-bridge.md`.
 
 `/` was already taken, so the gate considered two routes:
 

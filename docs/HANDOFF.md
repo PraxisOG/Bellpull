@@ -173,9 +173,9 @@ Stated so nobody mistakes a green run for full coverage.
 2. **Gate T2-0** — prove the phone is reachable when it has been asleep for hours. It is the
    only part of Tier 2 that can turn out to be impossible, and compressing it to reach the
    content providers sooner is the specific mistake `ROADMAP-TIER2.md` warns about. It has a
-   prerequisite that roadmap did not list: ntfy needed a tailnet route. Port 8443 now
-   provides one, and a foreground SSE subscription worked on the Fold. See
-   `docs/phone-bridge.md`; background and overnight results are still pending.
+   prerequisite that roadmap did not list: ntfy needed a tailnet route. A temporary port
+   8443 route proved SSE on the Fold, then was disabled pending screen-off timing. See
+   `docs/phone-bridge.md`; one-hour and overnight results are still pending.
 3. Then T2-1 (bridge + plugin skeleton). The four
    `~/hermes-data/plugins/hermes-launcher-*` directories are empty, despite the earlier
    handoff claim; see `docs/phone-bridge.md`. Use bundled Hermes plugins as examples.

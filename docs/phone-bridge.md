@@ -12,14 +12,15 @@ Device: Pixel 10 Pro Fold, GrapheneOS / Android 17, connected by wireless adb. H
 | Check | Result |
 |---|---|
 | ntfy on host | `http://127.0.0.1:2586/v1/health` returned `{"healthy":true}`. |
-| Tailnet route | Added Tailscale Serve HTTPS port 8443 to proxy `http://127.0.0.1:2586`. Existing Hermes route on `/` remains. |
+| Tailnet route | Temporarily added Tailscale Serve HTTPS port 8443 to proxy `http://127.0.0.1:2586`. Existing Hermes route on `/` remained. The gate route was disabled after the five-minute test pending screen-off timing. |
 | Phone to ntfy | The Fold's browser loaded `https://powermacg3.tail0b3e3a.ts.net:8443/v1/health` and showed `{"healthy":true}`. |
 | Streaming subscription | The Fold's browser opened `/hermes-tier2-gate-probe-20260916/sse`; a message published on the host appeared in the live SSE response. This proves the route carries a stream while the browser is foregrounded. |
 
-The port 8443 Serve route is **tailnet only**, not a public Funnel route. It currently exposes
-ntfy without topic authentication to other tailnet members. The probe topic carries no
-personal data. A real bridge must use its own separately revocable credential and enforce a
-phone-side capability allowlist before it handles personal data.
+The port 8443 Serve route was **tailnet only**, not a public Funnel route. While active it
+exposed ntfy without topic authentication to other tailnet members, so it was turned off
+after the five-minute test. The probe topics carried no personal data. A real bridge must
+use its own separately revocable credential and enforce a phone-side capability allowlist
+before it handles personal data.
 
 ## Gate measurements still required
 
@@ -51,8 +52,9 @@ adb shell am start-foreground-service -n org.praxisog.hermes/.PingBridgeService 
 
 To stop the service, use `adb shell am stopservice -n
 org.praxisog.hermes/.PingBridgeService`. The service persists its three non-secret settings
-for a process restart and returns `START_STICKY`. The app service remains running for the
-screen-off and overnight checks.
+for a process restart and returns `START_STICKY`. The app service was stopped after the
+five-minute check pending screen-off timing. Restart it and the port 8443 Serve route for
+the one-hour and overnight checks.
 
 The gate topics have no authentication and must carry no personal data. They are suitable
 only for this disposable reachability experiment. T2-1 must replace them with a separately
