@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.praxisog.hermes.core.HermesClient
+import org.praxisog.hermes.model.HermesResult
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
@@ -58,13 +60,34 @@ class MainActivity : ComponentActivity() {
         checking = true
         status = "Checking Hermes…"
         requests.execute {
-            val result = HermesProbe.check(baseUrl, key)
+            val result = checkCapabilities(baseUrl, key)
             runOnUiThread {
                 if (!isDestroyed) {
                     checking = false
                     status = result
                 }
             }
+        }
+    }
+
+    /**
+     * Replaces the hand-rolled HermesProbe with core-hermes. The two success strings are
+     * unchanged so the swap is behaviour-neutral and the existing screenshots still prove it.
+     *
+     * The failure branch deliberately uses [HermesError.summary], which is operator-facing
+     * text, as a stopgap: mapping each error case to proper user-facing wording is the next
+     * commit, kept separate so it can be bisected on its own.
+     */
+    private fun checkCapabilities(baseUrl: String, key: String): String {
+        val client = HermesClient(baseUrl, { key })
+        return when (val outcome = client.capabilities()) {
+            is HermesResult.Ok ->
+                if (outcome.value.sessionChatStreaming) {
+                    "Authenticated. Session streaming is available."
+                } else {
+                    "Authenticated, but this Hermes server does not report session streaming."
+                }
+            is HermesResult.Err -> outcome.error.summary
         }
     }
 
