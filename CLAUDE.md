@@ -88,11 +88,12 @@ cd android && ./gradlew test
 cd android && ./gradlew verifyRoborazziDebug
 cd android && ./gradlew recordRoborazziDebug   # after an intentional UI change
 
-# Instrumentation on the Gradle Managed Device (AOSP image, headless)
-cd android && ./gradlew aospAtdApiNNDebugAndroidTest
+# Instrumentation on the Gradle Managed Device (AOSP ATD image, headless, API 34)
+cd android && ./gradlew aospAtdApi34DebugAndroidTest   # 0 tests today — no androidTest source set yet
 
-# Mock Hermes (tests start it automatically; run manually to poke at it)
-cd mock-hermes && ./run.sh
+# Mock Hermes (fixture replay server; not yet wired into the Gradle test lifecycle —
+# core-hermes contract tests will do that in Slice 2. Run it manually to poke at it.)
+cd mock-hermes && ./run.sh   # http://127.0.0.1:8643, override with MOCK_HERMES_PORT
 
 # Install to the real phone (wireless debugging — see platform constraints)
 cd android && ./gradlew installDebug

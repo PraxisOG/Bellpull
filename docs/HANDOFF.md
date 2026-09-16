@@ -18,8 +18,15 @@
   permission declared. That decision is now recorded in `CLAUDE.md`: the permission is not
   needed, since Hermes traffic only ever goes over Tailscale (100.64.0.0/10, CGNAT space, not
   a private LAN range Android's local-network enforcement covers).
-- Next: Slice 1 still has two unmet accept criteria worth closing before Slice 2 — there is no
-  `mock-hermes/run.sh` replay server yet (only `mock-hermes/fixtures/`), and no Gradle Managed
-  Device is configured in the build files, so `aospAtdApiNNDebugAndroidTest` has nowhere to
-  run. Then Slice 2 (`core-hermes` client) per `ROADMAP.md`.
+- **Slice 1's two remaining accept criteria are closed.** `mock-hermes/run.sh` runs a stdlib
+  Python `http.server` replay of the three fixtures (`GET /api/sessions`,
+  `GET /api/sessions/{id}/messages`, `POST /api/sessions/{id}/chat/stream`) on
+  `127.0.0.1:8643` — manually verified with curl against all three routes plus 404s on
+  unknown ids/paths. It is not yet wired into the Gradle test lifecycle; that happens when
+  `core-hermes` contract tests exist in Slice 2. `app/build.gradle.kts` now declares a Gradle
+  Managed Device (`aospAtdApi34`, AOSP ATD image, API 34) — `./gradlew :app:tasks` confirms
+  `aospAtdApi34DebugAndroidTest` is registered, but it runs 0 tests today since there's no
+  `androidTest` source set yet. Actually running that task would download an SDK system
+  image; that hasn't been done in this session.
+- Next: Slice 2 (`core-hermes` client) per `ROADMAP.md`.
 - The effective dev key is in the local private file `~/.config/hermes-android/dev-api-key` (mode 600). The user enters it on the phone; never paste it into chat or logs.
