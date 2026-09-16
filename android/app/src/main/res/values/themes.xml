@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Compose draws every header this app has, so the platform action bar was pure
+      duplication: on the real Fold the window showed a dark bar titled "Hermes" above the
+      Compose content. No theme was declared at all, so the app inherited the platform
+      default, which has one.
+
+      DayNight rather than a fixed light theme so the pre-composition frame and the system
+      bars follow the device setting instead of flashing the wrong background.
+    -->
+    <!--
+      There is no android:Theme.DeviceDefault.DayNight.NoActionBar, so DayNight is kept and
+      the bar is switched off explicitly rather than dropping to a fixed light or dark parent.
+    -->
+    <style name="Theme.Hermes" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

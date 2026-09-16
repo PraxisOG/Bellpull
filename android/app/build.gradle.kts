@@ -40,8 +40,13 @@ android {
         }
         managedDevices {
             localDevices {
+                // Pixel 10 Pro Fold geometry, to match the real target device. The system
+                // image is still AOSP ATD at API 34, not the Fold's API 37, so this catches
+                // layout and Activity-level problems but NOT Android 17 behaviour -- and a
+                // GMD emulator cannot fold, so it gives the unfolded geometry, never the
+                // transition. On-device testing is still required.
                 create("aospAtdApi34") {
-                    device = "Pixel 6"
+                    device = "Pixel 10 Pro Fold"
                     apiLevel = 34
                     systemImageSource = "aosp-atd"
                 }
@@ -78,4 +83,12 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.63.0")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Instrumentation tests. These exist for what Roborazzi cannot see: Roborazzi renders
+    // composables outside an Activity, so Activity-level chrome -- the stray action bar --
+    // is invisible to it by construction.
+    androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
