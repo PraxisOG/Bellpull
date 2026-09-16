@@ -2,6 +2,7 @@ package org.praxisog.hermes
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
@@ -46,6 +47,13 @@ class SearchBehaviourTest {
                 onAskHermes = { asked = it },
             )
         }
+    }
+
+    @Test fun theNewChatButtonIsLabelledForAccessibility() {
+        // On the device the accessibility tree exposed the "+" icon but not "New chat", so
+        // the button announced itself as a plus sign.
+        setUp("")
+        compose.onNodeWithContentDescription("New chat").assertIsDisplayed()
     }
 
     @Test fun typingFindsAndLaunchesAnApp() {

@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Session
@@ -57,10 +59,17 @@ internal fun SessionListScreen(
         floatingActionButton = {
             // An empty Hermes with no way to start a conversation was the gap this closes:
             // createSession existed in the client and nothing in the UI called it.
+            // Labelled explicitly. Checking the accessibility tree on the device showed the
+            // "+" icon exposed but not the "New chat" text, so the button announced itself as
+            // a plus sign. A description on the button itself is what TalkBack reads, and it
+            // also makes the control addressable by automation rather than by coordinates.
             ExtendedFloatingActionButton(
                 onClick = onNewSession,
                 text = { Text(if (creating) "Starting…" else "New chat") },
                 icon = { Text("+", style = MaterialTheme.typography.titleLarge) },
+                modifier = Modifier.semantics {
+                    contentDescription = if (creating) "Starting a new chat" else "New chat"
+                },
             )
         },
     ) { padding ->
