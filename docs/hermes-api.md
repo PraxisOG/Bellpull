@@ -181,9 +181,9 @@ assistant message, so the client must also recognize an empty or failed inferenc
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/v1/runs/{run_id}` | Status without holding SSE open |
-| `GET` | `/v1/runs/{run_id}/events` | SSE, attach/detach without losing state |
-| `POST` | `/v1/runs/{run_id}/stop` | Settles as `cancelled` |
+| `GET` | `/v1/runs/{run_id}` | Status without holding SSE open. **Verified 2026-09-16** |
+| `GET` | `/v1/runs/{run_id}/events` | SSE, attach/detach without losing state. Still unverified |
+| `POST` | `/v1/runs/{run_id}/stop` | **Verified 2026-09-16 — works, but does *not* settle as `cancelled`. See Gate 0d.** |
 | `POST` | `/v1/runs/{run_id}/steer` | Observed in live capabilities 2026-09-16 (`run_steer: true`). Not used by Tier 1; noted so it isn't mistaken for invented later. |
 | `POST` | `/v1/runs/{run_id}/approval` | Exists, but **unreachable from this client** — see "Approvals cannot reach this client" below |
 
@@ -295,3 +295,53 @@ defaults to `"deny"` (`hermes_cli/config_defaults.py:1538`). `_yolo_active()` is
    becomes able to run anything smart approval flags, unattended). Leaving it at `deny` is
    the recommendation. Either way it is a one-line change in
    `~/hermes-data/config.yaml` under `approvals:`, not app work.
+
+## Gate 0d status — run control (2026-09-16)
+
+`docs/hermes-api.md` previously claimed run control "applies to session/chat/stream runs
+too" and that stop "settles as `cancelled`". The first is true. The second is false.
+
+**`GET /v1/runs/{run_id}` — verified.** Returns
+`{object, run_id, status, updated_at, created_at, session_id, model, last_event}`, adding
+`usage` once finished. Statuses observed: `running`, `stopping`, `completed`.
+
+**`POST /v1/runs/{run_id}/stop` — verified, with two caveats that change how a client uses
+it.**
+
+*1. There is a registration race.* Called immediately after `run.started`, stop returns
+**409** `{"code": "run_not_active", "message": "Run is not active in this gateway process"}`
+even though `GET /v1/runs/{id}` simultaneously reports `running`. The streaming path does pass
+`active_run_id` (`api_server.py:3134`), but registration into `_active_run_agents` happens
+inside the executor thread *after* the agent is constructed (`api_server.py:3655`), while
+`run.started` is emitted before that. Called 1.5 s in, the same request returned
+**200** `{"status": "stopping"}`.
+
+> **Client rule:** don't offer stop until the first `assistant.delta` arrives, and treat 409
+> `run_not_active` as "not stoppable yet", never as a hard error.
+
+*2. A stopped turn is indistinguishable from a finished one.* The stop works — generation
+halted 40 ms after the 200 — but every signal the server sends says the turn finished
+normally:
+
+| Signal | Value after a successful stop |
+|---|---|
+| `assistant.completed` | `completed: true`, `partial: false`, `interrupted: false` |
+| `run.completed` | `completed: true` |
+| `GET /v1/runs/{id}` | `status: "completed"` |
+| persisted message | `finish_reason: null` |
+
+Proved by asking for a count from 1 to 400 and stopping at delta 16; the persisted assistant
+message is exactly `"1\n2\n…\n16"`. Nothing in the response distinguishes that from a turn
+that genuinely finished. (This says nothing about whether `interrupted` is ever set by *other*
+interruption paths — only that an API stop does not set it.)
+
+> **Client rule:** the `interrupted` flag cannot be used to detect a user-initiated stop. The
+> client must remember that it asked. `ROADMAP.md`'s "a truncated turn must not look finished"
+> is therefore satisfiable from two client-side facts — a dropped stream, which surfaces as
+> `HermesError.StreamTruncated`, and a stop the client itself issued — and **not** from server
+> flags.
+
+**Decision: ship the stop button anyway.** The instruction was to ship without it if it did
+not behave as documented. It does stop the turn, reliably and fast, which is the part that
+matters; only the labelling is wrong, and the client can label it correctly from what it
+already knows. Shipping a working stop with client-side state is better than no stop.

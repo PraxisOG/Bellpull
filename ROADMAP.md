@@ -142,8 +142,16 @@ the API and it completed in 8.8 s.
 2. Render the `approval` audit note when a tool result carries one, so an auto-approved
    destructive command is visible rather than silent.
 
-**Also absorbed:** stop via `POST /v1/runs/{id}/stop`, which was tacked onto this slice.
-Still wanted, still unverified against the live server.
+**Also absorbed:** stop via `POST /v1/runs/{id}/stop`. **Verified 2026-09-16 (Gate 0d)** —
+it works, but it does not settle as `cancelled` the way this file and `docs/hermes-api.md`
+both claimed. A stopped turn reports `completed: true, partial: false, interrupted: false`
+and a run status of `completed`, so it is indistinguishable from a finished one. There is
+also a registration race: stop called immediately after `run.started` returns 409
+`run_not_active`.
+
+Consequence for Slice 3's "a truncated turn must not look finished": that has to come from
+client-side state — a stream the client saw drop, or a stop the client itself issued — not
+from the terminal event's flags. The button still ships, because stopping genuinely works.
 
 > **Operator decision, not app work.** `approvals.unattended_mode` is unset in
 > `~/hermes-data/config.yaml`, so it runs on the default `deny`. Recommendation: leave it.
