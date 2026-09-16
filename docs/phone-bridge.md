@@ -4,6 +4,51 @@ Started 2026-09-16. This is the evidence log for the Tier 2 reachability gate in
 `ROADMAP-TIER2.md`. A network probe is not a `phone_ping` result: the gate remains open until
 the app and Hermes plugin round-trip in all four device states.
 
+## Pause checkpoint — 2026-09-16
+
+Work is paused at the user's request on branch `tier2-gate-phone-ping`. The debug APK
+containing the ping service is
+installed on the Fold, and its service is **stopped**. Tailscale Serve port 8443 is **off**;
+the existing Hermes route on `/` remains. The live Hermes config and plugin directory were
+not changed. No one-hour or overnight screen-off run has started.
+
+Verification before pausing: `./gradlew test`, `:app:assembleDebug`, and
+`:app:assembleRelease` passed; the release merged manifest contains no ping service or
+foreground-service permission. The plugin handler registered against a test context and
+completed a real ntfy round trip, but it has not been loaded by the running Hermes gateway.
+
+To resume, first arrange a period when the Fold can remain powered, on Tailscale, and
+screen-off for the one-hour and overnight measurements. Re-enable only the temporary route:
+
+```bash
+/home/praxisog/.local/opt/tailscale_1.102.4_amd64/tailscale \
+  --socket=/home/praxisog/.config/tailscale-hermes/tailscaled.sock \
+  serve --bg --https=8443 --yes http://127.0.0.1:2586
+```
+
+Then start the debug service using the command under *Gate harness* below. Run
+`phone_ping` with the staged handler, or install and enable the plugin after resolving the
+root-owned plugin directory and gateway configuration. Record actual elapsed time and device
+state for each result. To run the staged handler directly from the repo root:
+
+```bash
+PHONE_PING_NTFY_URL=http://127.0.0.1:2586 \
+PHONE_PING_REQUEST_TOPIC=hermes-tier2-gate-requests-20260916 \
+PHONE_PING_REPLY_TOPIC=hermes-tier2-gate-replies-20260916 \
+python3 -c 'import importlib.util; s=importlib.util.spec_from_file_location("gate", "phone-ping-plugin/__init__.py"); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.phone_ping({"echo":"resume-check"}))'
+```
+
+When pausing again, stop the service and turn off port 8443:
+
+```bash
+/home/praxisog/Android/Sdk/platform-tools/adb shell am stopservice -n org.praxisog.hermes/.PingBridgeService
+/home/praxisog/.local/opt/tailscale_1.102.4_amd64/tailscale \
+  --socket=/home/praxisog/.config/tailscale-hermes/tailscaled.sock serve --https=8443 off
+```
+
+Confirm `tailscale serve status` shows only Hermes.
+Do not proceed to contacts or SMS until this gate is documented.
+
 ## Preflight on the real Fold
 
 Device: Pixel 10 Pro Fold, GrapheneOS / Android 17, connected by wireless adb. Hermes
@@ -64,8 +109,9 @@ contact, SMS, or notification operation exists.
 ## Host discovery correction
 
 `~/hermes-data/plugins/hermes-launcher-{briefs,cards,retrieval,tasks}` exist as root-owned
-**empty directories**. The handoff and references call them working prior art, but there are
-no `plugin.yaml` or Python files in them on this host. Hermes' bundled `google_meet` plugin
+**empty directories**. Earlier handoff and reference text called them working prior art;
+those files have been corrected. There are no `plugin.yaml` or Python files in the host
+directories. Hermes' bundled `google_meet` plugin
 is an available example of `register(ctx)`, `ctx.register_tool(...)`, and a manifest. The
 user plugin directory is root-owned and `sudo -n` requires a password, so deploying a plugin
 there needs an ownership or installation step.

@@ -19,6 +19,12 @@ Rewritten 2026-09-17. Entry point for whoever picks this up next, human or agent
 slices (1–3, 5–7) and cut Slice 4 with evidence. All three things Tier 1 called "done" exist:
 the widget, the app-search bar, and sessions/streaming with visible context.
 
+**Pause checkpoint, 2026-09-16:** The user asked to resume later. The Gate T2-0 foreground
+and five-minute background pings passed on the real Fold; the one-hour and overnight runs
+have not started. The debug listener is stopped and the temporary ntfy Tailscale Serve route
+is off. The installed debug APK remains on the phone. `docs/phone-bridge.md` has the restart
+commands, evidence, and host plugin installation blocker.
+
 | | |
 |---|---|
 | Tests | **124 JVM**, 0 failures, 1 skipped (the opt-in live smoke test) |
