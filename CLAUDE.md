@@ -32,6 +32,11 @@ Play Services.
   No bidirectional merge. (Offline queue is Tier 3 — not now.)
 - **Importance is a typed data field**, never styling embedded in a payload. The client
   decides how to render it and enforces its own budget. Agent output cannot override this.
+- **No approval prompt. Settled by Gate 0c, don't rebuild it.** The `api_server` platform is
+  excluded from approval contexts in Hermes' own source, so this client will never receive a
+  pending approval. Flagged commands are either auto-approved by smart approval or denied
+  outright with `status: "blocked"`. Render `blocked` as its own honest state; never as a
+  generic tool failure. Details and source citations in `docs/hermes-api.md` § Gate 0c.
 - **Borrow, don't build.** Check `docs/references.md` before writing a subsystem. Pull the
   specific piece, not the feature set.
 
@@ -65,18 +70,34 @@ These are environment facts, not preferences. Violating them produces silent fai
 
 ## Repo layout
 
+What exists today (`master`, as of 2026-09-16):
+
 ```
-android/            # Gradle project, single APK
-  app/              # UI, widget, search, navigation
-  core-hermes/      # API client: auth, sessions, messages, SSE. No Android UI deps.
-  core-model/       # Pure Kotlin data types shared by both
-infra/              # Docker Compose: hermes, searxng, ntfy. dev/ and prod/ env files.
-mock-hermes/        # Replay server fed by recorded fixtures. Used by all tests.
+android/            # Gradle project, single APK. settings.gradle.kts includes :app only.
+  app/              # Connection screen + probe. 5 Kotlin files.
+mock-hermes/        # Replay server fed by recorded fixtures. Not yet in the Gradle lifecycle.
 docs/
   hermes-api.md     # THE CONTRACT. Authoritative.
   references.md     # What to borrow from where
+  HANDOFF.md        # Running status log
 ROADMAP.md
 ```
+
+Planned, **not yet created** — don't cite these as if they exist:
+
+```
+android/core-hermes/   # Slice 2. API client: auth, sessions, messages, SSE. No Android UI deps.
+android/core-model/    # Slice 2. Pure Kotlin data types shared by both.
+```
+
+**There is no `infra/` directory and no Docker Compose in this repo.** An earlier version of
+this file described one; it was never built. Hermes runs as a rootless Docker container
+managed outside this repo, with config at `~/hermes-data/` on the host — see
+`docs/hermes-api.md` § Setup on the Hermes host. The old "don't touch `infra/prod/`" rule
+guarded nothing and is gone; the real rule is **don't edit `~/hermes-data/config.yaml`
+without saying so first**, because that's the live instance.
+
+**The default branch is `master`, not `main`.**
 
 ## Commands
 
