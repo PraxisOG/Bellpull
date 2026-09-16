@@ -35,11 +35,14 @@ instead of building it.
 
 These are environment facts, not preferences. Violating them produces silent failures.
 
-- **`ACCESS_LOCAL_NETWORK` (Android 17 / API 37).** Local network access is blocked by
-  default for apps targeting 37+. Enforcement is in the networking stack, so it applies to
-  OkHttp. Without the permission, LAN traffic fails *silently*. It's a runtime permission in
-  the NEARBY_DEVICES group. Whether we need it depends on whether traffic goes over
-  Tailscale or plain LAN — Gate 0 decides, and the answer gets written here.
+- **`ACCESS_LOCAL_NETWORK` (Android 17 / API 37) — decided, not needed.** Gate 0 tested the
+  app on the real Fold against `https://powermacg3.tail0b3e3a.ts.net` (Tailscale Serve,
+  tailnet-only, proxying to the host's loopback Hermes on `127.0.0.1:8642`) with no
+  `ACCESS_LOCAL_NETWORK` permission declared. The phone authenticated and reported session
+  streaming available. All traffic to Hermes goes over Tailscale (100.64.0.0/10, through the
+  phone's Tailscale VPN interface) — CGNAT space, not a private LAN range — so Android's
+  local-network enforcement doesn't apply. Do not add this permission. If plain-LAN access is
+  ever needed later, this decision must be revisited.
 - **targetSdk 37 removes the large-screen orientation opt-out.** Adaptive layout on a
   foldable is mandatory. Every screen has folded and unfolded screenshot configs and both
   stay green.
