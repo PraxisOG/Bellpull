@@ -70,5 +70,26 @@
   no host DNS integration. The phone resolves it fine — that was Gate 0b. So the tailnet path
   is proved from the Fold, and the client is proved against live Hermes, but not both at once
   from here.
-- Next: Slice 3 (chat client UI) per `ROADMAP.md`, starting by moving `app/` onto
-  `core-hermes`.
+- **Slice 3 is largely done, on branch `slice3-chat-ui`.** `app/` is migrated onto
+  `core-hermes` (HermesProbe deleted), session list + detail + read-only context panel are
+  built and wired, stop works, and there are **76 tests and 25 screenshots** across cover
+  (393dp), unfolded (840dp) and wide (1280dp).
+- **Gate 0d** verified `/v1/runs/{id}` and `/v1/runs/{id}/stop`. Stop works but reports a
+  stopped turn as `completed`/`interrupted: false`, so stop and truncation are both tracked
+  client-side. There is also a registration race: stop before the first delta returns 409
+  `run_not_active`. Details in `docs/hermes-api.md` § Gate 0d.
+- **Not done in Slice 3, and worth knowing:**
+  - **The app has not been run on the phone this session.** `assembleDebug` passes but no
+    device is attached (`adb devices` empty — the wireless pairing from the earlier session
+    is gone). Everything UI-level is verified by Roborazzi renders, not on glass. New deps
+    (OkHttp 5.5.0, kotlinx-serialization 1.11.0, coroutines 1.11.0) have never run on the
+    real Fold.
+  - One accept criterion is implemented but unproven: history refetch after a *truncated*
+    stream. See the long comment in `HermesStoreTest` — it is a Compose-snapshot visibility
+    limit in plain JUnit, not a store bug.
+  - The context panel shows session metadata only. Hermes' long-term memory contents are not
+    shown because no endpoint in `docs/hermes-api.md` reads them back, and inventing one is
+    worse than a blocker.
+- Next: run it on the Fold (needs wireless debugging re-paired), then Slice 5 (widget) or
+  Slice 6 (app search) — Day 7 is free from the Slice 4 cut.
+
