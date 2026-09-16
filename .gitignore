@@ -3,3 +3,7 @@
 local.properties
 .gradle/
 build/
+# Release signing — never committed. See android/app/build.gradle.kts.
+keystore.properties
+*.jks
+*.keystore

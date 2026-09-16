@@ -12,14 +12,46 @@ Written 2026-09-16. Entry point for whoever picks this up next.
 
 Only **Tier 1** is in scope. Tier 2/3 are out until after 2026-09-28.
 
+## Phase 1 (Tier 1) closeout — 2026-09-17
+
+**Every slice is built and merged. `master` is the only branch that matters.** Slices 1–3 and
+5–7 are done; Slice 4 was cut with evidence (Gate 0c). All three things Tier 1 called "done"
+exist in code: the widget, the app-search bar, and sessions/streaming with visible context.
+
+**What is NOT done, and it is one thing: nothing has been exercised on the phone since the
+session list.** That is the whole remaining risk, and it is not small — see *Verified vs not*
+below. Phase 1 is code-complete, not demo-complete.
+
+The release build works and produces an **unsigned** APK. Signing is configured from an
+untracked `android/keystore.properties`; no keystore has been generated, because that is a
+secret the operator should hold. To sign:
+
+```bash
+keytool -genkeypair -v -keystore ~/hermes-release.jks -alias hermes \
+  -keyalg RSA -keysize 4096 -validity 10000
+cat > android/keystore.properties <<'EOF'
+storeFile=/home/praxisog/hermes-release.jks
+storePassword=...
+keyAlias=hermes
+keyPassword=...
+EOF
+cd android && ./gradlew assembleRelease
+```
+
+**R8 is deliberately off**, so the APK is ~30MB. Glance, kotlinx-serialization and OkHttp all
+need keep rules, and a shrunk build that has never run on the device is a worse bet than a
+larger one that has. Turning it on is a real task with a real failure mode — an R8 mistake
+here looks like a widget that never appears or a session list that decodes to nothing — so it
+wants a device to verify against. Do it after the on-glass pass, not before.
+
 ## Where things stand
 
 `master` is current — Slices 1, 2 and 3 are merged; nothing is parked on a branch.
 
 | | |
 |---|---|
-| Tests | **111 JVM, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) + **5 instrumentation** |
-| Screenshots | **33**, all verified, at 393dp / 840dp / 1280dp |
+| Tests | **118 JVM, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) + **8 instrumentation** |
+| Screenshots | **34**, all verified, at 393dp / 840dp / 1280dp |
 | Modules | `app` (Compose UI), `core-hermes` (API client), `core-model` (types + errors) |
 | Deps added, all approved | okhttp 5.5.0, kotlinx-serialization-json 1.11.0, kotlinx-coroutines-android 1.11.0 |
 
@@ -80,6 +112,19 @@ emulator instrumentation.
 **Behaviour change worth knowing:** the app now **auto-connects on launch** when credentials
 are stored, which the widget's "under two taps" criterion required. It makes one
 `/v1/capabilities` call per start.
+
+**The on-glass checklist, in the order I would do it** (needs the phone on the same LAN):
+
+1. Pin the widget, tap it — expect a new session in one tap from cold start.
+2. Send a turn. Watch it stream incrementally, then press Stop mid-reply and check the reply
+   is labelled partial. That path is built entirely on client-side state because the server
+   reports a stopped turn as completed (Gate 0d), so it is the most likely thing to be subtly
+   wrong.
+3. Unfold. Check all three panes appear and the ☰ / ⓘ toggles collapse them.
+4. Search for a sideloaded app and launch it; then type something that matches nothing and
+   confirm the query arrives pre-filled in a new session.
+5. Airplane mode, reopen — expect cached sessions plus a banner naming the failure.
+6. Disconnect, confirm the fields blank, re-enter the key.
 
 **Fixed since:** the redundant platform action bar (no theme was declared, so the app
 inherited the default). `Theme.Hermes` now keeps DayNight and switches the bar off

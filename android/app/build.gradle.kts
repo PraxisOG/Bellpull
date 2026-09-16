@@ -1,8 +1,26 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("io.github.takahirom.roborazzi")
 }
+
+// Release signing is configured from an untracked file so no keystore or password ever
+// reaches the repo. Create android/keystore.properties (gitignored) with:
+//
+//   storeFile=/absolute/path/to/hermes-release.jks
+//   storePassword=...
+//   keyAlias=hermes
+//   keyPassword=...
+//
+// Absent that file, assembleRelease still builds -- it just produces an unsigned APK, which
+// is the right failure mode for CI and for anyone cloning this.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile")?.let { File(it).exists() } == true
 
 android {
     namespace = "org.praxisog.hermes"
@@ -14,6 +32,30 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = File(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
+            // R8 stays OFF deliberately. Glance, kotlinx-serialization and OkHttp all need
+            // keep rules, and a shrunk build that has never run on the device is a worse bet
+            // than a slightly larger one that has. Turn it on only with a real install to
+            // verify against -- an R8 failure here looks like a widget that never appears or
+            // a session list that decodes to nothing.
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
     buildFeatures {

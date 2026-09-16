@@ -199,6 +199,12 @@ cache of the last-synced session list. Key rotation path for a lost phone.
 *Accept:* airplane mode opens to cached sessions with an honest banner; server down names
 which layer failed; no silent fallback anywhere.
 
+**Done 2026-09-17.** All three met, with the cache encrypted because session titles and
+previews are the opening lines of real conversations. Key rotation is the Disconnect action,
+which forgets the key and the cache and says in words that rotating `API_SERVER_KEY` on the
+host is what actually revokes a lost device. **Not yet confirmed on the phone:** real airplane
+mode.
+
 ### Day 11 (09/27) — Soak, buffer, demo build
 Real-device use, battery, cold start, fold transitions. Signed release APK. Whatever isn't
 done moves to the Tier 2 backlog. Freeze.
