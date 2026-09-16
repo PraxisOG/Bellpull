@@ -70,12 +70,14 @@ These are environment facts, not preferences. Violating them produces silent fai
 
 ## Repo layout
 
-What exists today (`master`, as of 2026-09-16):
+What exists today (as of 2026-09-16):
 
 ```
-android/            # Gradle project, single APK. settings.gradle.kts includes :app only.
-  app/              # Connection screen + probe. 5 Kotlin files.
-mock-hermes/        # Replay server fed by recorded fixtures. Not yet in the Gradle lifecycle.
+android/            # Gradle project, single APK
+  app/              # Connection screen + probe. Compose. Still HttpURLConnection-based.
+  core-hermes/      # API client: auth, sessions, messages, SSE. Pure Kotlin JVM, no Android.
+  core-model/       # Pure Kotlin data types + typed errors, shared by both.
+mock-hermes/        # Replay server fed by recorded fixtures. Started by core-hermes' tests.
 docs/
   hermes-api.md     # THE CONTRACT. Authoritative.
   references.md     # What to borrow from where
@@ -83,12 +85,9 @@ docs/
 ROADMAP.md
 ```
 
-Planned, **not yet created** — don't cite these as if they exist:
-
-```
-android/core-hermes/   # Slice 2. API client: auth, sessions, messages, SSE. No Android UI deps.
-android/core-model/    # Slice 2. Pure Kotlin data types shared by both.
-```
+`app/` does **not** use `core-hermes` yet — its connection screen predates the module and
+still talks to `/v1/capabilities` directly. Migrating it is Slice 3's first job, not a
+leftover to work around.
 
 **There is no `infra/` directory and no Docker Compose in this repo.** An earlier version of
 this file described one; it was never built. Hermes runs as a rootless Docker container
@@ -102,8 +101,15 @@ without saying so first**, because that's the live instance.
 ## Commands
 
 ```bash
-# Unit + contract tests (JVM, fast — run these constantly)
+# Unit + contract tests (JVM, fast — run these constantly). core-hermes' contract tests
+# start mock-hermes themselves; nothing manual is needed.
 cd android && ./gradlew test
+
+# Live smoke test against a real Hermes. Opt-in: skipped unless both are set, so the normal
+# suite stays hermetic. Costs one real inference call.
+cd android && HERMES_SMOKE_URL=http://127.0.0.1:8642 \
+  HERMES_SMOKE_KEY_FILE=~/.config/hermes-android/dev-api-key \
+  ./gradlew :core-hermes:test --tests '*HermesLiveSmokeTest*'
 
 # Compose screenshot tests (JVM render, no emulator)
 cd android && ./gradlew verifyRoborazziDebug
@@ -129,7 +135,12 @@ cd android && ./gradlew installDebug
 - **One slice per branch**, small commits. Most of this is vibe-coded; cheap rollback is the
   safety net. Never bundle unrelated changes into one commit.
 - **Every UI change ends with a screenshot test run.** Show the diff images.
-- **Don't add a dependency without asking.** Especially not a Google/Play one.
+- **Don't add a dependency without asking.** Especially not a Google/Play one. Approved so
+  far, and the whole list: `kotlinx-serialization-json` and `okhttp` (core-hermes/core-model),
+  Compose + `androidx.security:security-crypto` (app), Robolectric + Roborazzi (tests).
+  OkHttp was chosen over `HttpURLConnection` for the SSE path specifically because a
+  long-lived stream needs clean cancellation and a bounded connect timeout with no read
+  timeout; `HttpURLConnection.disconnect()` mid-read is not well defined.
 - **Don't touch `infra/prod/`.** Promotion is a manual env-file swap.
 
 ## Tone
