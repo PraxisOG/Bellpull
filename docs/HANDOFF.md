@@ -18,8 +18,8 @@ Only **Tier 1** is in scope. Tier 2/3 are out until after 2026-09-28.
 
 | | |
 |---|---|
-| Tests | **76, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) |
-| Screenshots | **25**, all verified, at 393dp / 840dp / 1280dp |
+| Tests | **81 JVM, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) + **2 instrumentation** |
+| Screenshots | **28**, all verified, at 393dp / 840dp / 1280dp |
 | Modules | `app` (Compose UI), `core-hermes` (API client), `core-model` (types + errors) |
 | Deps added, all approved | okhttp 5.5.0, kotlinx-serialization-json 1.11.0, kotlinx-coroutines-android 1.11.0 |
 
@@ -32,7 +32,8 @@ rendering, stop, and a read-only context panel. Adaptive across cover/unfolded/w
 cd android && ./gradlew test                    # unit + contract; starts mock-hermes itself
 cd android && ./gradlew verifyRoborazziDebug    # screenshots
 cd android && ./gradlew recordRoborazziDebug    # after an intentional UI change
-cd android && ./gradlew installDebug            # needs wireless debugging paired
+cd android && ./gradlew installDebug            # needs the phone on the same LAN; see adb note
+cd android && ./gradlew aospAtdApi34DebugAndroidTest   # instrumentation, headless emulator
 
 # Live smoke test against a real Hermes. Opt-in; costs one inference call.
 cd android && HERMES_SMOKE_URL=http://127.0.0.1:8642 \
@@ -114,11 +115,18 @@ Full evidence and source citations: `docs/hermes-api.md` §§ Gate 0c, Gate 0d.
   panes and a toggle. Now 820dp with the list at 240dp and context at 200dp, leaving the
   transcript ~400dp. Narrowing exposed three wrapping bugs (model name broken mid-word,
   "3 tool calls" split mid-label, an ellipsised cost figure) — all fixed.
-- **`androidTest` stands up.** Source set created, deps added, managed device switched from
-  Pixel 6 to **Pixel 10 Pro Fold** geometry. First test asserts the Activity has no action
-  bar, which is exactly the class of bug Roborazzi cannot see.
+- **`androidTest` stands up and runs.** Source set created, deps added, managed device
+  switched from Pixel 6 to **Pixel 10 Pro Fold** geometry with `testedAbi = "x86_64"` pinned
+  (AGP warns the default flips to arm64-v8a in AGP 10.0, and this ATD image cannot do NDK
+  translation, so the flip would break the task). `aospAtdApi34DebugAndroidTest` went from
+  0 tests to **2 passing**. The AOSP ATD API 34 image is downloaded; a run takes ~20s warm,
+  ~1m30s cold.
+- **The action-bar guard was verified by making it fail.** Removed the theme, confirmed both
+  tests fail, restored it, confirmed both pass. Worth doing: a guard that has never failed
+  may be asserting nothing. That check also caught that my second test was a copy of the
+  first; it now asserts the Activity reaches RESUMED, which nothing on the JVM side does.
 
-**81 JVM tests, 28 screenshots**, plus the instrumentation tests.
+**81 JVM tests, 28 screenshots, 2 instrumentation tests.**
 
 ## Landmines
 
