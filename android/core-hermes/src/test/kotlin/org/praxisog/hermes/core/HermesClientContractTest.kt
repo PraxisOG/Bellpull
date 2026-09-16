@@ -81,6 +81,30 @@ class HermesClientContractTest {
         assertEquals("sequence numbers should be monotonic", seen.mapNotNull { it.seq }.sorted(), seen.mapNotNull { it.seq })
     }
 
+    @Test fun runStatusDecodes() {
+        val status = ok(MockHermes.client().runStatus(MockHermes.FIXTURE_RUN_ID))
+        assertEquals(MockHermes.FIXTURE_RUN_ID, status.runId)
+        assertEquals("completed", status.status)
+        assertTrue(status.isTerminal)
+        assertEquals("run.completed", status.lastEvent)
+    }
+
+    @Test fun stopReturnsStoppingAndOmitsMostFields() {
+        // The stop response carries only run_id and status — no `object`, no timestamps.
+        val status = ok(MockHermes.client().stopRun(MockHermes.FIXTURE_RUN_ID))
+        assertEquals("stopping", status.status)
+        assertTrue(status.isStopping)
+        assertEquals(null, status.`object`)
+    }
+
+    @Test fun stopTooEarlyIsNotStoppableYetNotAGenericFailure() {
+        // Gate 0d's registration race. A client must be able to tell "too early, try again"
+        // from "this went wrong", or it will show the user an error for a benign condition.
+        val client = MockHermes.client(httpClient = MockHermes.faultingClient("run-not-active"))
+        val error = err(client.stopRun(MockHermes.FIXTURE_RUN_ID))
+        assertEquals(HermesError.RunNotStoppableYet(MockHermes.FIXTURE_RUN_ID), error)
+    }
+
     // ---- error paths ----------------------------------------------------------
 
     @Test fun wrongKeyIsAuthFailed() {

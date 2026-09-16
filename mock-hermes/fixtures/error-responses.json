@@ -79,5 +79,18 @@
       }
     },
     "_note": "Not reproduced live: would need 11 concurrent runs against the homelab. Shape read from source; honour Retry-After rather than guessing a backoff."
+  },
+  "run_not_active": {
+    "status": 409,
+    "observed": true,
+    "body": {
+      "error": {
+        "message": "Run is not active in this gateway process: {run_id}",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "run_not_active"
+      }
+    },
+    "_note": "Observed live 2026-09-16 when stop was called immediately after run.started. Not a failure: the agent is registered in the executor thread after construction, so the run is simply not stoppable yet. GET /v1/runs/{id} reports 'running' at the same moment. See docs/hermes-api.md Gate 0d."
   }
 }

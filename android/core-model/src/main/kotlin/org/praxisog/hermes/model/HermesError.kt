@@ -52,6 +52,15 @@ sealed interface HermesError {
         override val summary get() = "Hermes redirected (HTTP $status) to ${location ?: "an unnamed target"}; check the server URL"
     }
 
+    /**
+     * 409 `run_not_active` from a stop. **Not a failure**: the run exists and is running, but
+     * its agent has not been registered yet, which happens in a worker thread after
+     * `run.started` is emitted. Retrying a moment later succeeds. Verified in Gate 0d.
+     */
+    data class RunNotStoppableYet(val runId: String) : HermesError {
+        override val summary get() = "Run $runId is not stoppable yet (agent not registered)"
+    }
+
     /** A 2xx whose body did not decode — a genuine contract break, not a transport problem. */
     data class MalformedResponse(val detail: String) : HermesError {
         override val summary get() = "Hermes sent a response this client could not parse: $detail"

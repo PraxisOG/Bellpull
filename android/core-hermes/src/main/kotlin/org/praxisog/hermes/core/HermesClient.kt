@@ -15,6 +15,7 @@ import okhttp3.Response
 import org.praxisog.hermes.model.HermesError
 import org.praxisog.hermes.model.HermesResult
 import org.praxisog.hermes.model.MessageHistory
+import org.praxisog.hermes.model.RunStatus
 import org.praxisog.hermes.model.Session
 import org.praxisog.hermes.model.SessionCreated
 import org.praxisog.hermes.model.SessionList
@@ -180,6 +181,36 @@ class HermesClient(
                     )
                 )
             }
+        }
+    }
+
+    /**
+     * `GET /v1/runs/{run_id}`. Verified in Gate 0d.
+     *
+     * Note that a run stopped through [stopRun] settles here as `"completed"`, not
+     * `"cancelled"`, so this cannot be used to discover that a turn was interrupted.
+     */
+    fun runStatus(runId: String): HermesResult<RunStatus> =
+        get("/v1/runs/$runId") { json.decodeFromString(it) }
+
+    /**
+     * `POST /v1/runs/{run_id}/stop`. Verified in Gate 0d: it really does interrupt the turn,
+     * within about 40 ms.
+     *
+     * Two things the caller has to know. A 409 comes back as
+     * [HermesError.RunNotStoppableYet] rather than a generic error, because the run is
+     * running — its agent just is not registered yet, which happens shortly after
+     * `run.started`. And the run afterwards reports itself `completed` with
+     * `interrupted: false`, so the caller must remember that it asked for the stop; nothing
+     * in any later response will say so.
+     */
+    fun stopRun(runId: String): HermesResult<RunStatus> {
+        val result = post("/v1/runs/$runId/stop", "{}") { json.decodeFromString<RunStatus>(it) }
+        val error = (result as? HermesResult.Err)?.error
+        return if (error is HermesError.ServerError && error.code == "run_not_active") {
+            HermesResult.Err(HermesError.RunNotStoppableYet(runId))
+        } else {
+            result
         }
     }
 

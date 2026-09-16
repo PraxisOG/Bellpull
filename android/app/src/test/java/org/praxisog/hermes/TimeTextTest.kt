@@ -28,6 +28,15 @@ class TimeTextTest {
         assertEquals("just now", formatLastActive(now + 180, now))
     }
 
+    @Test fun groupsThousands() {
+        assertEquals("0", groupDigits(0))
+        assertEquals("872", groupDigits(872))
+        assertEquals("1,240", groupDigits(1_240))
+        assertEquals("66,858", groupDigits(66_858))
+        assertEquals("1,234,567", groupDigits(1_234_567))
+        assertEquals("-1,240", groupDigits(-1_240))
+    }
+
     @Test fun pluralizesOnlyWhenItShould() {
         assertEquals("1 message", pluralize(1, "message"))
         assertEquals("0 messages", pluralize(0, "message"))

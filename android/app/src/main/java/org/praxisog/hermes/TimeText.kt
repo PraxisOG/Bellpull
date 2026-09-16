@@ -24,3 +24,18 @@ internal fun formatLastActive(epochSeconds: Double?, now: Double): String {
 /** "1 message", not "1 messages". */
 internal fun pluralize(count: Int, singular: String, plural: String = singular + "s"): String =
     if (count == 1) "$count $singular" else "$count $plural"
+
+/**
+ * Groups thousands so six-figure token counts are readable at a glance.
+ *
+ * Uses an explicit separator rather than a locale-aware formatter: the context panel is a
+ * dense numeric column, and a locale that groups with "." would read as a decimal point next
+ * to the cost field right below it.
+ */
+internal fun groupDigits(value: Long): String {
+    val digits = value.toString()
+    val negative = digits.startsWith("-")
+    val body = if (negative) digits.substring(1) else digits
+    val grouped = body.reversed().chunked(3).joinToString(",").reversed()
+    return if (negative) "-$grouped" else grouped
+}

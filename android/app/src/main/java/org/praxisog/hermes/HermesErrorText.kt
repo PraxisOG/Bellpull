@@ -27,6 +27,11 @@ internal fun HermesError.toUserMessage(): String = when (this) {
     is HermesError.SessionNotFound ->
         "That session no longer exists on Hermes."
 
+    // Normally invisible: HermesStore retries this race rather than surfacing it. Worded for
+    // the case where every retry loses, and worded as "not yet" because the turn is fine.
+    is HermesError.RunNotStoppableYet ->
+        "Hermes could not stop the turn yet. It is still running; try again in a moment."
+
     is HermesError.BadRequest ->
         "Hermes rejected the request: $message"
 

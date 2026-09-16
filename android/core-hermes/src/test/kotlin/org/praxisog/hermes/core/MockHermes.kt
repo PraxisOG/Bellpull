@@ -25,6 +25,9 @@ internal object MockHermes {
     /** The session id the recorded fixtures are keyed to. */
     const val FIXTURE_SESSION_ID = "fixture-id-1"
 
+    /** The run id in run-status.json / run-stop.json. */
+    const val FIXTURE_RUN_ID = "run_fixture0000000000000000000000"
+
     private val process: Process by lazy { start() }
 
     private fun start(): Process {

@@ -28,6 +28,8 @@ tests can reach error paths without a broken server. Per request, send the heade
   slow-headers  -> stall before the response headers, to exercise connect/read timeouts
   redirect      -> 302 to another host, which a client must refuse rather than follow (the
                    bearer key is root-equivalent; it must not be carried to a redirect target)
+  run-not-active -> 409 run_not_active on a stop, the registration race a client hits when it
+                   stops too early (see docs/hermes-api.md Gate 0d)
 """
 
 import http.server
@@ -52,18 +54,23 @@ SESSION_MESSAGES = _load("session-messages.json")
 SESSION_CREATE = _load("session-create.json")
 CAPABILITIES = _load("capabilities.json")
 SESSION_STREAM = _load("session-chat-stream.sse")
+RUN_STATUS = _load("run-status.json")
+RUN_STOP = _load("run-stop.json")
 ERRORS = json.loads(_load("error-responses.json"))
 
 FIXTURE_SESSION_ID = json.loads(SESSION_LIST)["data"][0]["id"]
+FIXTURE_RUN_ID = json.loads(RUN_STATUS)["run_id"]
 
 MESSAGES_PATH = re.compile(r"^/api/sessions/([^/?]+)/messages$")
 STREAM_PATH = re.compile(r"^/api/sessions/([^/?]+)/chat/stream$")
 SESSION_PATH = re.compile(r"^/api/sessions/([^/?]+)$")
+RUN_PATH = re.compile(r"^/v1/runs/([^/?]+)$")
+RUN_STOP_PATH = re.compile(r"^/v1/runs/([^/?]+)/stop$")
 
 EXPECTED_KEY = os.environ.get("MOCK_HERMES_KEY", "mock-hermes-test-key")
 SSE_DELAY = float(os.environ.get("MOCK_HERMES_SSE_DELAY", "0"))
 DEFAULT_FAULT = os.environ.get("MOCK_HERMES_FAIL", "")
-FAULTS = ("auth", "rate-limit", "stream-abort", "slow-headers", "redirect")
+FAULTS = ("auth", "rate-limit", "stream-abort", "slow-headers", "redirect", "run-not-active")
 
 
 def _sse_events(raw: str) -> list:
@@ -161,6 +168,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             else:
                 self._error("session_not_found", id=match.group(1))
             return
+        match = RUN_PATH.match(self.path)
+        if match:
+            if match.group(1) == FIXTURE_RUN_ID:
+                self._json(200, RUN_STATUS)
+            else:
+                self._error("session_not_found", id=match.group(1))
+            return
         match = SESSION_PATH.match(self.path)
         if match:
             # Metadata for a single session is not a recorded fixture: GET /api/sessions/{id}
@@ -177,6 +191,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path.split("?")[0] == "/api/sessions":
             self._read_body()
             self._json(201, SESSION_CREATE)
+            return
+        match = RUN_STOP_PATH.match(self.path)
+        if match:
+            self._read_body()
+            if fault == "run-not-active":
+                self._error("run_not_active", run_id=match.group(1))
+            elif match.group(1) == FIXTURE_RUN_ID:
+                self._json(200, RUN_STOP)
+            else:
+                self._error("session_not_found", id=match.group(1))
             return
         match = STREAM_PATH.match(self.path)
         if match:
