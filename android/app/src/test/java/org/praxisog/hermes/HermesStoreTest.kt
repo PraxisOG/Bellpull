@@ -155,6 +155,26 @@ class HermesStoreTest {
         assertTrue(store.turn is TurnState.Finished)
     }
 
+    @Test fun newSessionCreatesAndOpensIt() {
+        val store = store()
+        store.loadSessions()
+        awaitUntil("sessions") { store.sessions is UiState.Ready }
+        store.newSession()
+        awaitUntil("a session to be opened") { store.openSessionId != null }
+        awaitUntil("create to settle") { !store.creatingSession }
+        assertEquals(null, store.createError)
+        // The fixture's created session id, opened straight away.
+        assertTrue(store.openSessionId!!.startsWith("api_"))
+    }
+
+    @Test fun aFailedCreateSurfacesAndDoesNotOpenAnything() {
+        val store = store(httpClient = faulting("auth"))
+        store.newSession()
+        awaitUntil("create to fail") { store.createError != null }
+        assertEquals(null, store.openSessionId)
+        assertTrue(!store.creatingSession)
+    }
+
     @Test fun blankSendDoesNothing() {
         val store = store()
         store.openSession(MockHermesLauncher.FIXTURE_SESSION_ID)

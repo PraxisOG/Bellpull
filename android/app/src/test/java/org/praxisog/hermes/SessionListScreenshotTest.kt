@@ -16,16 +16,23 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35])
 class SessionListScreenshotTest {
 
-    private fun capture(state: UiState<List<org.praxisog.hermes.model.Session>>, selected: String? = null) =
-        captureRoboImage {
-            SessionListScreen(
-                state = state,
-                now = UiFixtures.NOW,
-                selectedId = selected,
-                onOpen = {},
-                onRetry = {},
-            )
-        }
+    private fun capture(
+        state: UiState<List<org.praxisog.hermes.model.Session>>,
+        selected: String? = null,
+        creating: Boolean = false,
+        createError: org.praxisog.hermes.model.HermesError? = null,
+    ) = captureRoboImage {
+        SessionListScreen(
+            state = state,
+            now = UiFixtures.NOW,
+            selectedId = selected,
+            onOpen = {},
+            onRetry = {},
+            onNewSession = {},
+            creating = creating,
+            createError = createError,
+        )
+    }
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun readyCover() =
         capture(UiState.Ready(UiFixtures.sessions))
@@ -44,4 +51,15 @@ class SessionListScreenshotTest {
 
     @Test @Config(qualifiers = "w840dp-h900dp") fun failedUnfolded() =
         capture(UiState.Failed(UiFixtures.authFailure))
+
+    @Test @Config(qualifiers = "w393dp-h850dp") fun creatingCover() =
+        capture(UiState.Ready(UiFixtures.sessions), creating = true)
+
+    /** A failed create must not look like a failed list load; the list stays usable. */
+    @Test @Config(qualifiers = "w393dp-h850dp") fun createFailedCover() =
+        capture(UiState.Ready(UiFixtures.sessions), createError = UiFixtures.authFailure)
+
+    /** The empty case is the one that made the missing entry point unrecoverable. */
+    @Test @Config(qualifiers = "w393dp-h850dp") fun emptyWithEntryPointCover() =
+        capture(UiState.Ready(emptyList()))
 }

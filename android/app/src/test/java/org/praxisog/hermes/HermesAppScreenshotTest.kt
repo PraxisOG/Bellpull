@@ -32,6 +32,7 @@ class HermesAppScreenshotTest {
                 onStop = {},
                 onRetrySessions = {},
                 onRetryHistory = {},
+                onNewSession = {},
             )
         }
 

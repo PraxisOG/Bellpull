@@ -58,6 +58,9 @@ class MainActivity : ComponentActivity() {
                     onStop = current::stop,
                     onRetrySessions = current::loadSessions,
                     onRetryHistory = current::refreshHistory,
+                    onNewSession = current::newSession,
+                    creatingSession = current.creatingSession,
+                    createError = current.createError,
                 )
             }
         }

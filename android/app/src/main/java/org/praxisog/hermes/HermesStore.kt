@@ -37,6 +37,14 @@ internal class HermesStore(
     var openSessionId by mutableStateOf<String?>(null)
         private set
 
+    /** True while a create is in flight, so the button cannot be double-tapped. */
+    var creatingSession by mutableStateOf(false)
+        private set
+
+    /** Set when a create fails; cleared on the next attempt. */
+    var createError by mutableStateOf<HermesError?>(null)
+        private set
+
     /** Non-null while a turn is in flight, so a stop has something to target. */
     private var activeRunId: String? = null
     private var stopRequested = false
@@ -52,6 +60,32 @@ internal class HermesStore(
             sessions = when (val result = io { client.listSessions(source = sessionSource) }) {
                 is HermesResult.Ok -> UiState.Ready(result.value.data)
                 is HermesResult.Err -> UiState.Failed(result.error)
+            }
+        }
+    }
+
+    /**
+     * `POST /api/sessions`, then open the result.
+     *
+     * The list is refreshed rather than having the new session spliced in locally: Hermes is
+     * the source of truth, and a locally-inserted row would be the one row on screen that
+     * never came from the server.
+     */
+    fun newSession() {
+        if (creatingSession) return
+        creatingSession = true
+        createError = null
+        scope.launch {
+            when (val result = io { client.createSession() }) {
+                is HermesResult.Ok -> {
+                    creatingSession = false
+                    loadSessions()
+                    openSession(result.value.id)
+                }
+                is HermesResult.Err -> {
+                    creatingSession = false
+                    createError = result.error
+                }
             }
         }
     }

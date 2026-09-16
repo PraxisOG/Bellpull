@@ -48,6 +48,9 @@ internal fun HermesApp(
     onStop: () -> Unit,
     onRetrySessions: () -> Unit,
     onRetryHistory: () -> Unit,
+    onNewSession: () -> Unit,
+    creatingSession: Boolean = false,
+    createError: org.praxisog.hermes.model.HermesError? = null,
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -74,6 +77,9 @@ internal fun HermesApp(
                             selectedId = openSessionId,
                             onOpen = onOpenSession,
                             onRetry = onRetrySessions,
+                            onNewSession = onNewSession,
+                            creating = creatingSession,
+                            createError = createError,
                             modifier = Modifier.width(288.dp).fillMaxHeight(),
                         )
                         VerticalDivider()
@@ -112,6 +118,9 @@ internal fun HermesApp(
                             selectedId = null,
                             onOpen = onOpenSession,
                             onRetry = onRetrySessions,
+                            onNewSession = onNewSession,
+                            creating = creatingSession,
+                            createError = createError,
                         )
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {

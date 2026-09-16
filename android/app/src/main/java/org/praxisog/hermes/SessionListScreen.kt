@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,9 +38,24 @@ internal fun SessionListScreen(
     selectedId: String?,
     onOpen: (String) -> Unit,
     onRetry: () -> Unit,
+    onNewSession: () -> Unit,
+    creating: Boolean = false,
+    createError: org.praxisog.hermes.model.HermesError? = null,
     modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = modifier.fillMaxSize()) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        floatingActionButton = {
+            // An empty Hermes with no way to start a conversation was the gap this closes:
+            // createSession existed in the client and nothing in the UI called it.
+            ExtendedFloatingActionButton(
+                onClick = onNewSession,
+                text = { Text(if (creating) "Starting…" else "New chat") },
+                icon = { Text("+", style = MaterialTheme.typography.titleLarge) },
+            )
+        },
+    ) { padding ->
+      Surface(modifier = Modifier.fillMaxSize().padding(padding)) {
         when (state) {
             is UiState.Loading -> Centered { CircularProgressIndicator() }
 
@@ -65,19 +82,34 @@ internal fun SessionListScreen(
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(state.value, key = { it.id }) { session ->
-                        SessionRow(
-                            session = session,
-                            now = now,
-                            selected = session.id == selectedId,
-                            onClick = { onOpen(session.id) },
-                        )
-                        HorizontalDivider()
+                Column(modifier = Modifier.fillMaxSize()) {
+                    createError?.let {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                it.toUserMessage(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(state.value, key = { it.id }) { session ->
+                            SessionRow(
+                                session = session,
+                                now = now,
+                                selected = session.id == selectedId,
+                                onClick = { onOpen(session.id) },
+                            )
+                            HorizontalDivider()
+                        }
                     }
                 }
             }
         }
+      }
     }
 }
 
