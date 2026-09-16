@@ -40,12 +40,42 @@ Play Services.
 - **Borrow, don't build.** Check `docs/references.md` before writing a subsystem. Pull the
   specific piece, not the feature set.
 
+### Tier 2 non-negotiables
+
+Settled in `ROADMAP-TIER2.md`. They exist because Tier 1 put a key to the homelab on the
+phone, and Tier 2 puts a key to messages and contacts on the homelab — a new direction of
+trust, not a second use of the old one.
+
+- **The phone is the sole origin point for any write or outbound action** touching personal
+  data or communications. The server reads and reasons; it never mutates personal data and
+  never contacts anyone unilaterally.
+- **A separate token from the Tier 1 API key**, independently revocable. Never reuse the
+  `API_SERVER_KEY` for the phone-bridge direction.
+- **A capability allowlist on the phone.** The bridge answers a request because it is on the
+  list, not because the server asked.
+- **An on-device audit log** of every request the server made, visible in the app, plus a
+  **kill switch** that stops answering without uninstalling anything.
+- **SMS sending is structurally incapable of firing without a tap** — not defaulted off, not
+  gated by a flag. There is no auto-send path and none gets added without an explicit
+  decision.
+- **Contacts are read-only** in the first pass, and ambiguous lookups return every match for
+  the model to disambiguate rather than silently picking the first row.
+
 ## Scope gate
 
-Only Tier 1 is in scope (see `ROADMAP.md`). Tier 2 (calendar/contacts/SMS content providers,
-notification listener, accessibility service) and Tier 3 (on-device llama.cpp agent loop) are
-**out of scope until after 2026-09-28**. If a task seems to need Tier 2/3 work, say so
-instead of building it.
+**Tier 1 is code-complete** (see `ROADMAP.md`). **Tier 2 is planned and startable** — see
+`ROADMAP-TIER2.md`, which has its own gate, slices, and a set of decisions marked *do not
+relitigate*. Tier 3 (on-device llama.cpp agent loop) remains out of scope.
+
+Two rules about the order of work:
+
+- **Close the Tier 1 carry-over first.** Tier 1 is code-complete, not demo-complete. The
+  on-glass checklist in `docs/HANDOFF.md` and the carry-over list at the top of
+  `ROADMAP-TIER2.md` come before new Tier 2 code. Don't build a tier on top of an unverified
+  one.
+- **Gate T2-0 goes before every other Tier 2 slice.** It is the only part of that tier that
+  can turn out to be impossible, and compressing it to reach the content providers sooner is
+  the specific mistake the roadmap warns about.
 
 ## Platform constraints specific to this build
 
@@ -97,6 +127,13 @@ guarded nothing and is gone; the real rule is **don't edit `~/hermes-data/config
 without saying so first**, because that's the live instance.
 
 **The default branch is `master`, not `main`.**
+
+**Server-side work lives outside this repo.** Hermes plugins go in `~/hermes-data/plugins/`
+on the host (`/opt/data/plugins/` in the container) — **not** `~/.hermes/plugins/`, which does
+not exist here. Four `hermes-launcher-*` plugins already sit there from an earlier effort;
+read them before writing a new `plugin.yaml`, and note they are root-owned while the gateway
+runs as uid 1000. `ntfy` (`127.0.0.1:2586`) and `searxng` also run as host processes, not from
+any Compose file in this repo.
 
 ## Commands
 

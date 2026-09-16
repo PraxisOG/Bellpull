@@ -16,11 +16,17 @@ roadmap wins for *when*.
 Relevant because the key is long and typo-prone: the dev key is 64 characters, and a
 mistyped key surfaces as a generic auth failure.
 
+## Read first for Tier 2 — it is already on this disk
+
+| Source | Why it matters |
+|---|---|
+| **`~/hermes-data/plugins/hermes-launcher-{briefs,cards,retrieval,tasks}`** | Four working plugins for *this* Hermes version, from 2026-09-11, predating this project. They are the authoritative example of the plugin format — better than the documentation, because they run. Read them before writing `plugin.yaml` for T2-1. Borrow the mechanics; **not** the product direction, since "no launcher shell" is the first non-negotiable in `CLAUDE.md`. |
+
 ## Read before designing Tier 2 — do not implement yet
 
 | Source | Why it matters |
 |---|---|
-| **WakeHermesClaw, "Mobile Bridge"** | An opt-in HTTP service *inside* an Android app that lets Hermes call into the phone — bearer token in EncryptedSharedPreferences, per-capability allowlist, binds to `127.0.0.1` by default, explicit approval for medium/high-risk capabilities. That is the Hermes→phone direction Tier 2 needs, already designed. Read it before designing the content-provider layer. |
+| **WakeHermesClaw, "Mobile Bridge"** | An opt-in HTTP service *inside* an Android app that lets Hermes call into the phone — bearer token in EncryptedSharedPreferences, per-capability allowlist, binds to `127.0.0.1` by default, explicit approval for medium/high-risk capabilities. Borrow the **security model** — separate token, allowlist, audit log — which is exactly what `ROADMAP-TIER2.md` § T2-1 requires. Be aware its **transport is the inbound shape (option A)**, which that roadmap rejects in favour of the phone calling out via ntfy. Take the model, not the direction. |
 
 ## Tier 3
 
