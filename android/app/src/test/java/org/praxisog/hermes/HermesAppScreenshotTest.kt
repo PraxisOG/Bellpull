@@ -56,24 +56,18 @@ class HermesAppScreenshotTest {
             onNewSession = {},
         )
 
-    private fun capture(openSessionId: String?, turn: TurnState = TurnState.Idle) =
-        captureRoboImage {
-            HermesApp(
-                sessions = UiState.Ready(UiFixtures.sessions),
-                history = UiState.Ready(UiFixtures.history),
-                turn = turn,
-                openSessionId = openSessionId,
-                openSession = UiFixtures.sessions.firstOrNull { it.id == openSessionId },
-                now = UiFixtures.NOW,
-                onOpenSession = {},
-                onCloseSession = {},
-                onSend = {},
-                onStop = {},
-                onRetrySessions = {},
-                onRetryHistory = {},
-                onNewSession = {},
-            )
-        }
+    /**
+     * Captured through the rule, not via a bare `captureRoboImage { }`.
+     *
+     * A ComposeTestRule owns the composition host, so a direct capture in the same class
+     * renders nothing and writes a blank PNG — silently, and `verify` then happily compares
+     * blank against blank. Six screenshots in this class were blank for two commits because
+     * of exactly that.
+     */
+    private fun capture(openSessionId: String?, turn: TurnState = TurnState.Idle) {
+        compose.setContent { app(openSessionId = openSessionId, turn = turn) }
+        compose.onRoot().captureRoboImage()
+    }
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun listOnlyCover() = capture(openSessionId = null)
 
