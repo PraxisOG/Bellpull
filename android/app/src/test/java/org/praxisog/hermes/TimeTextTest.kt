@@ -44,4 +44,23 @@ class TimeTextTest {
         assertEquals("1 tool call", pluralize(1, "tool call"))
         assertEquals("3 tool calls", pluralize(3, "tool call"))
     }
+
+    @Test fun compactsModelIdsToTheirMeaningfulTail() {
+        // The reported case: "accounts/firework…" identified the billing account, not the model.
+        assertEquals(
+            "deepseek-v4p1-flash",
+            compactModelName("accounts/fireworks/models/deepseek-v4p1-flash"),
+        )
+        assertEquals("claude-opus-4.6", compactModelName("anthropic/claude-opus-4.6"))
+        // A bare name has no path to strip.
+        assertEquals("gpt-4o", compactModelName("gpt-4o"))
+    }
+
+    @Test fun compactModelNameToleratesOddInput() {
+        assertEquals("", compactModelName(""))
+        assertEquals("x", compactModelName("  x  "))
+        // A trailing slash must not yield an empty label.
+        assertEquals("models", compactModelName("accounts/fireworks/models/"))
+        assertEquals("/", compactModelName("/"))
+    }
 }

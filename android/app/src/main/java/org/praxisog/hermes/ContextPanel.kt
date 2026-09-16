@@ -59,7 +59,9 @@ internal fun ContextPanel(
             }
 
             Field("Session", session.id)
-            session.model?.let { Field("Model", it) }
+            // Shortened and truncated from the left: the distinctive tail of a model id is
+            // what identifies it, so losing the front costs nothing.
+            session.model?.let { Field("Model", compactModelName(it), ellipsizeStart = true) }
             session.source?.let { Field("Source", it) }
             Field("Last active", formatLastActive(session.lastActive ?: session.startedAt, now))
             Field("Messages", groupDigits(session.messageCount.toLong()))
@@ -119,7 +121,7 @@ private fun DisconnectSection(onDisconnect: () -> Unit) {
 }
 
 @Composable
-private fun Field(label: String, value: String) {
+private fun Field(label: String, value: String, ellipsizeStart: Boolean = false) {
     // This pane is 200dp at the Fold's unfolded width, so a long value such as a model name
     // has to give way. Ellipsised on one line beats breaking a word across two.
     Row(
@@ -136,7 +138,7 @@ private fun Field(label: String, value: String) {
             value,
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = if (ellipsizeStart) TextOverflow.StartEllipsis else TextOverflow.Ellipsis,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
         )

@@ -17,7 +17,9 @@ internal object UiFixtures {
         Session(
             id = "api_1_alpha",
             source = "api_server",
-            model = "deepseek-v4p1-flash",
+            // The real id Hermes reports, so the screenshot exercises the truncation rather
+            // than a conveniently short stand-in.
+            model = "accounts/fireworks/models/deepseek-v4p1-flash",
             title = "Tailscale routing for the Fold",
             preview = "Checked the serve config and the tailnet ACLs; the phone resolves the name fine.",
             startedAt = NOW - 900,

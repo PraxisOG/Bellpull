@@ -39,3 +39,22 @@ internal fun groupDigits(value: Long): String {
     val grouped = body.reversed().chunked(3).joinToString(",").reversed()
     return if (negative) "-$grouped" else grouped
 }
+
+/**
+ * Shortens a model id for the context panel.
+ *
+ * Hermes reports whatever its config points at, and those ids are slash-separated paths whose
+ * meaningful part is last: `accounts/fireworks/models/deepseek-v4p1-flash`,
+ * `anthropic/claude-opus-4.6`, or a bare `gpt-4o`. Truncating from the right produced
+ * "accounts/firework…", which identifies the billing account and nothing else.
+ *
+ * So the last segment wins. That is the only structural assumption made — slash-separated,
+ * most specific last — which holds for every id this project has seen, and a bare name with
+ * no slash is returned untouched. Nothing here hardcodes a provider's naming scheme, because
+ * the id is Hermes' to define and not ours.
+ */
+internal fun compactModelName(model: String): String {
+    val trimmed = model.trim().trimEnd('/')
+    if (trimmed.isEmpty()) return model
+    return trimmed.substringAfterLast('/').ifEmpty { trimmed }
+}
