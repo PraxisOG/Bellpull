@@ -51,6 +51,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation(project(":core-hermes"))
+    // Already on the classpath transitively via Compose; declared so the version is ours
+    // rather than an accident of whatever compose-bom happens to pull in.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(composeBom)
