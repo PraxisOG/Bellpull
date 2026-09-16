@@ -51,10 +51,27 @@ both 400s. The client itself streamed a real reply and round-tripped history.
 non-streaming `/chat`, `/v1/runs/{id}/events`, and the 429 body (source-derived only, marked
 `observed: false` in `mock-hermes/fixtures/error-responses.json`).
 
-**THE BIG ONE: the app has never run on the phone since Slice 1.** `assembleDebug` passes,
-but `adb devices` is empty — the wireless pairing is gone. Every UI claim rests on Roborazzi
-renders, not glass, and OkHttp / serialization / coroutines have never executed on the real
-Fold. **Re-pair wireless debugging and run it before building anything else.**
+**Verified on the real phone 2026-09-16 (Pixel 10 Pro Fold, Android 17/API 37, GrapheneOS).**
+Installed over wireless debugging and launched with no crash; process stable. Confirmed on
+glass, cover width: the saved URL round-tripped out of EncryptedSharedPreferences, "Check
+connection" authenticated over `https://powermacg3.tail0b3e3a.ts.net`, and the app navigated
+to a session list rendering **real Hermes sessions** — correct relative times, pluralisation
+and previews. So OkHttp 5.5.0, kotlinx-serialization and coroutines all work on the device,
+over Tailscale, with no `ACCESS_LOCAL_NETWORK`.
+
+Reconnecting later: `adb mdns services` lists the Fold as `_adb-tls-connect._tcp`; the host
+is already paired, so `adb connect <ip>:<port>` is enough. `adb` is not on `PATH` — it lives
+at `~/Android/Sdk/platform-tools/adb`. Note `adb exec-out screencap -p` prefixes a
+multiple-display warning to stdout on this device and corrupts the PNG; use
+`adb shell screencap -p /sdcard/x.png` then `adb pull`.
+
+**Still not exercised on glass:** session detail, streaming, tool-result rendering, stop, the
+context panel, and the unfolded/three-pane layout. The list screen is the only one confirmed
+on device; the rest are Roborazzi renders only.
+
+**Known cosmetic issue found on device:** the app shows the platform default dark action bar
+titled "Hermes" above the Compose content, because no app theme is declared. The Compose UI
+draws its own headers, so this bar is redundant — declare a `NoActionBar` theme.
 
 ## What the four gates settled
 
@@ -72,7 +89,8 @@ Full evidence and source citations: `docs/hermes-api.md` §§ Gate 0c, Gate 0d.
 
 ## Open items
 
-1. **Run on the Fold.** Highest priority. Needs wireless debugging re-paired.
+1. **Finish exercising it on the Fold.** The list screen is confirmed; open a session and
+   drive streaming, stop and the unfolded layout. Fix the redundant action bar while there.
 2. **One accept criterion is implemented but unproven:** history refetch after a *truncated*
    stream. See the long comment in `HermesStoreTest` — it's Compose snapshot visibility in
    plain JUnit, not a store bug. Wants a Compose-aware rule or an instrumentation test.
