@@ -1,0 +1,36 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "fixture-id-1",
+      "source": "api_server",
+      "user_id": null,
+      "model": "fixture-model",
+      "title": "Fixture session",
+      "started_at": 1700000000.0,
+      "ended_at": null,
+      "end_reason": null,
+      "message_count": 4,
+      "tool_call_count": 1,
+      "input_tokens": 12109,
+      "output_tokens": 83,
+      "cache_read_tokens": 11722,
+      "cache_write_tokens": 0,
+      "reasoning_tokens": 6,
+      "estimated_cost_usd": 0.0,
+      "actual_cost_usd": null,
+      "api_call_count": 2,
+      "parent_session_id": null,
+      "last_active": 1700000007.0,
+      "preview": "Fixture preview.",
+      "pinned": false,
+      "archived": false,
+      "hidden": false,
+      "has_system_prompt": true,
+      "has_model_config": true
+    }
+  ],
+  "limit": 1,
+  "offset": 4,
+  "has_more": true
+}

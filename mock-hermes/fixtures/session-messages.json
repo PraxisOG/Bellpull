@@ -1,0 +1,83 @@
+{
+  "object": "list",
+  "session_id": "fixture-id-1",
+  "data": [
+    {
+      "id": 1,
+      "session_id": "fixture-id-1",
+      "role": "user",
+      "content": "Fixture user message.",
+      "tool_call_id": null,
+      "tool_calls": null,
+      "tool_name": null,
+      "timestamp": 1700000001.0,
+      "token_count": null,
+      "finish_reason": null,
+      "reasoning": null,
+      "reasoning_content": null,
+      "display_kind": null
+    },
+    {
+      "id": 2,
+      "session_id": "fixture-id-1",
+      "role": "assistant",
+      "content": "Fixture assistant response.",
+      "tool_call_id": null,
+      "tool_calls": [
+        {
+          "id": "fixture-id-2",
+          "call_id": "fixture-id-2",
+          "response_item_id": "fixture-id-3",
+          "type": "function",
+          "function": {
+            "name": "fixture_tool",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "tool_name": null,
+      "timestamp": 1700000002.0,
+      "token_count": null,
+      "finish_reason": "tool_calls",
+      "reasoning": null,
+      "reasoning_content": "[redacted]",
+      "display_kind": null
+    },
+    {
+      "id": 3,
+      "session_id": "fixture-id-1",
+      "role": "tool",
+      "content": "Fixture tool result.",
+      "tool_call_id": "fixture-id-2",
+      "tool_calls": null,
+      "tool_name": "fixture_tool",
+      "timestamp": 1700000003.0,
+      "token_count": null,
+      "finish_reason": null,
+      "reasoning": null,
+      "reasoning_content": null,
+      "display_kind": null
+    },
+    {
+      "id": 4,
+      "session_id": "fixture-id-1",
+      "role": "assistant",
+      "content": "Fixture assistant response.",
+      "tool_call_id": null,
+      "tool_calls": null,
+      "tool_name": null,
+      "timestamp": 1700000004.0,
+      "token_count": null,
+      "finish_reason": "stop",
+      "reasoning": "[redacted]",
+      "reasoning_content": "[redacted]",
+      "display_kind": null
+    }
+  ],
+  "pagination": {
+    "limit": 500,
+    "offset": 0,
+    "order": "latest",
+    "returned": 4
+  }
+}

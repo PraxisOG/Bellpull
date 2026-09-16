@@ -1,0 +1,30 @@
+event: run.started
+data: {"user_message":{"role":"user","content":"Fixture stream ready."},"runtime":{"provider":"","model":"","route_source":"global","requested":{"provider":"","model":""}},"session_id":"fixture-session-1","run_id":"fixture-id-1","seq":1,"ts":1700000000.0}
+
+event: message.started
+data: {"message":{"id":"fixture-id-2","role":"assistant"},"session_id":"fixture-session-1","run_id":"fixture-id-1","seq":2,"ts":1700000000.0}
+
+event: assistant.delta
+data: {"message_id":"fixture-id-2","delta":"x","session_id":"fixture-session-1","run_id":"fixture-id-1","seq":3,"ts":1700000000.0}
+
+event: assistant.delta
+data: {"message_id":"fixture-id-2","delta":"x","session_id":"fixture-session-1","run_id":"fixture-id-1","seq":4,"ts":1700000000.0}
+
+event: assistant.delta
+data: {"message_id":"fixture-id-2","delta":"x","session_id":"fixture-session-1","run_id":"fixture-id-1","seq":5,"ts":1700000000.0}
+
+event: assistant.delta
+data: {"message_id":"fixture-id-2","delta":"x","session_id":"fixture-session-1","run_id":"fixture-id-1","seq":6,"ts":1700000000.0}
+
+event: tool.progress
+data: {"message_id":"fixture-id-2","tool_name":"fixture_tool","delta":"x","session_id":"fixture-session-1","run_id":"fixture-id-1","seq":7,"ts":1700000000.0}
+
+event: assistant.completed
+data: {"session_id":"fixture-session-1","message_id":"fixture-id-2","content":"Fixture stream ready.","completed":true,"partial":false,"interrupted":false,"runtime":{"provider":"[redacted]","model":"[redacted]","route_source":"global","requested":{"provider":"","model":""}},"run_id":"fixture-id-1","seq":8,"ts":1700000000.0}
+
+event: run.completed
+data: {"session_id":"fixture-session-1","message_id":"fixture-id-2","completed":true,"messages":[{"role":"assistant","content":"Fixture stream ready.","timestamp":1700000000.0,"finish_reason":"stop","reasoning":null}],"usage":{"input_tokens":11529,"output_tokens":6,"total_tokens":11535,"runtime":{"provider":"[redacted]","model":"[redacted]","route_source":"global","requested":{"provider":"","model":""}}},"runtime":{"provider":"[redacted]","model":"[redacted]","route_source":"global","requested":{"provider":"","model":""}},"run_id":"fixture-id-1","seq":9,"ts":1700000000.0}
+
+event: done
+data: {"session_id":"fixture-session-1","run_id":"fixture-id-1","seq":10,"ts":1700000000.0}
+

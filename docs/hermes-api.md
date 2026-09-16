@@ -1,8 +1,9 @@
 # Hermes API contract
 
 **Source:** Hermes Agent official docs (API Server, Programmatic Integration, Web Dashboard),
-read 2026-09-16. **Not yet verified against our installed version.** Verify first (below),
-then mark each endpoint as confirmed. Claude Code must not use any endpoint not listed here.
+read 2026-09-16. **Partially verified against installed Hermes 0.21.1 on 2026-09-16.**
+The capabilities response and session list/history endpoints are confirmed; verify remaining
+operations before implementing them. Claude Code must not use any endpoint not listed here.
 
 ## Decision: use the API server, not the dashboard, not the TUI gateway
 
@@ -84,16 +85,31 @@ same way. Get this right in slice 2 or the session list is mostly noise.
 
 `POST /api/sessions/{id}/chat/stream` emits SSE events:
 
-```
-assistant.delta     token text
-tool.started        tool call begins
-tool.completed      tool call ends
-run.completed       terminal — also run.failed / run.cancelled
+The installed 0.21.1 server requires a JSON body containing a nonempty `message` field.
+Its source also accepts `input`, but the phone will use `message`. This body has been
+verified in the installed source and accepted by a live SSE request:
+
+```json
+{"message":"Fixture stream ready."}
 ```
 
-The terminal payload carries real `completed` / `partial` / `interrupted` flags. A run is
-never `completed` with `completed: false`. Render the distinction — a truncated or
-interrupted turn must not look like a finished one.
+```
+run.started         turn accepted
+message.started     assistant message opened
+assistant.delta     token text
+tool.progress       tool/reasoning progress (observed in the fixture)
+tool.started        tool call begins
+tool.completed      tool call ends
+assistant.completed assistant content and completion flags
+run.completed       successful terminal event with usage
+done                stream closed
+```
+
+In the installed 0.21.1 stream, `assistant.completed` carries `completed` / `partial` /
+`interrupted` flags; `run.completed` carries `completed` and usage. Render the distinction
+— a truncated or interrupted turn must not look like a finished one.
+The provider-404 attempt still produced `run.completed` with zero usage and no persisted
+assistant message, so the client must also recognize an empty or failed inference.
 
 ### Run control (applies to session/chat/stream runs too)
 
@@ -116,10 +132,10 @@ interrupted turn must not look like a finished one.
   the phone can't render the prompt and POST to `/v1/runs/{id}/approval`, the chat just
   hangs with no error. Either implement the approval prompt or knowingly run
   `approvals: off` on this profile and write down that you chose that.
-- **`Idempotency-Key` header on `/v1/runs`** makes a send safely retryable — an identical
-  retry returns the original `run_id` with `Idempotency-Replayed: true`, surviving gateway
-  restarts, retained 24h. Use it for every send from the phone. It's the flaky-network
-  resend problem already solved server-side.
+- **`Idempotency-Key` header on `/v1/runs`** makes a run submission safely retryable — an
+  identical retry returns the original `run_id` with `Idempotency-Replayed: true`, surviving
+  gateway restarts, retained 24h. Dedupe for `/api/sessions/{id}/chat/stream` is not verified;
+  do not assume this header makes that endpoint safely retryable.
 - **`max_concurrent_runs` defaults to 10**; over the cap returns `429`. Back off, don't spin.
 - **`X-Hermes-Session-Key`** scopes long-term memory independently of the transcript
   session id. Max 256 chars. Set one stable value for the phone.
@@ -128,3 +144,20 @@ interrupted turn must not look like a finished one.
   don't get surprised later.
 - Unconsumed SSE event buffers expire after 5 minutes on a detached client. Reattach via
   `/v1/runs/{id}/events` or poll `/v1/runs/{id}`.
+
+## Gate 0 status (2026-09-16)
+
+- Installed Hermes 0.21.1 returned HTTP 200 for `/v1/capabilities`, `/api/sessions`, and
+  `/api/sessions/{id}/messages`. Sanitized list and history responses are in
+  `mock-hermes/fixtures/`.
+- `POST /api/sessions` initially returned HTTP 500 because live gateway/dashboard
+  processes held a deleted SQLite database and WAL while a new empty database existed
+  at the same path. The old database (21 sessions, 232 messages) was recovered from
+  private snapshots, integrity-checked, and restored during a controlled stop. After
+  restart, session listing and creation returned HTTP 200 and 201 respectively.
+- The first live streaming request returned SSE frames but no usable assistant reply:
+  Fireworks rejected the then-configured `anthropic/claude-opus-4.6` with HTTP 404.
+  The live config was changed to the previously used
+  `accounts/fireworks/models/deepseek-v4p1-flash`. Hermes picked up the change without a
+  restart. A fresh turn returned a nonempty assistant reply, four `assistant.delta` events,
+  and a completed terminal event; its sanitized stream is in `mock-hermes/fixtures/`.
