@@ -107,18 +107,39 @@ a dropped connection mid-stream shows a scoped error and leaves the session read
 > If behind at end of Day 5, cut the context/memory panel to a read-only dump. Least
 > load-bearing third of this slice.
 
-### Slice 4 — Approvals (Day 7, 09/23)
-**New, and not optional.** Surface a pending approval from the run stream, let the user
-decide, POST to `/v1/runs/{id}/approval`. Add stop via `/v1/runs/{id}/stop` while you're in
-there.
+### Slice 4 — ~~Approvals~~ **CUT** (frees Day 7, 09/23)
 
-*Accept:* a turn that triggers a gated command shows a prompt and resumes on answer; the
-same turn with the app backgrounded and reopened still shows the pending prompt.
+**Cut 2026-09-16 by Gate 0c, and written down here as the roadmap asked.** Not cut because
+approvals are switched off — cut because they are *structurally unreachable on this
+transport*. Hermes excludes the `api_server` platform from being an approval context in its
+own source (`tools/approval_context.py:172`), precisely so an unattended client can't hang
+waiting for a human who will never answer. A session created via `/api/sessions` never emits
+a pending approval, so there is nothing for the phone to render or POST. Full evidence,
+including two live probe turns and the source citations, is in `docs/hermes-api.md` § Gate 0c.
 
-> The cheap escape hatch is running `approvals: off` on this Hermes profile and shipping
-> without it. That's a legitimate choice for a single-user homelab — but make it
-> deliberately and write it down, because the failure mode otherwise is a chat that hangs
-> forever with no error the first time the agent tries to touch a shell.
+The feared failure mode — *"a chat that hangs forever with no error the first time the agent
+tries to touch a shell"* — cannot happen on this surface. Gate 0c ran a real `rm -rf` through
+the API and it completed in 8.8 s.
+
+**What survives from this slice, absorbed into Slice 3** (both small):
+
+1. Render `status: "blocked"` as its own honest state. Flagged commands fall to
+   `approvals.unattended_mode`, default `deny`, so a command the user genuinely wanted can
+   be refused with no prompt. "Hermes refused this command" — never a generic tool error.
+2. Render the `approval` audit note when a tool result carries one, so an auto-approved
+   destructive command is visible rather than silent.
+
+**Also absorbed:** stop via `POST /v1/runs/{id}/stop`, which was tacked onto this slice.
+Still wanted, still unverified against the live server.
+
+> **Operator decision, not app work.** `approvals.unattended_mode` is unset in
+> `~/hermes-data/config.yaml`, so it runs on the default `deny`. Recommendation: leave it.
+> Setting it to `approve` would let the phone run anything smart approval flags, unattended.
+> One line in the live config either way.
+
+**Day 7 is now buffer.** Per the slip rule the deadline doesn't move; spend it on the two
+things Gate 0c did *not* de-risk — the mock-hermes gap (Slice 2's accept criteria aren't
+testable against the current replay server) and real-device soak.
 
 ### Slice 5 — Widget + new-chat entry (Day 8, 09/24)
 Glance widget → intent → `POST /api/sessions` → straight into the chat view.

@@ -32,5 +32,26 @@
   `aospAtdApi34DebugAndroidTest` is registered, but it runs 0 tests today since there's no
   `androidTest` source set yet. Actually running that task would download an SDK system
   image; that hasn't been done in this session.
-- Next: Slice 2 (`core-hermes` client) per `ROADMAP.md`.
+
 - The effective dev key is in the local private file `~/.config/hermes-android/dev-api-key` (mode 600). The user enters it on the phone; never paste it into chat or logs.
+- **Slice 1 is merged.** `slice1-minimal-app` fast-forwarded into `master` at `c7a183f`.
+  The default branch is `master`, not `main`.
+- **Gate 0c is done — approvals are settled and Slice 4 is cut.** The `api_server` platform
+  is excluded from approval contexts in Hermes' own source, so this client can never receive
+  a pending approval; flagged commands are auto-approved by smart approval or denied with
+  `status: "blocked"`. Two live probe turns on session `api_1789554464_8413b4c7` (left on the
+  server as evidence; safe to delete). Evidence and source citations in `docs/hermes-api.md`
+  § Gate 0c; the schedule consequence is in `ROADMAP.md` § Slice 4. Day 7 is now buffer.
+- **One operator decision is open:** `approvals.unattended_mode` is unset in
+  `~/hermes-data/config.yaml` and therefore `deny`. Recommendation is to leave it. Changing
+  it is a one-line edit to the live config, not app work.
+- **Docs reconciled with disk.** `CLAUDE.md`'s repo layout described `core-hermes/`,
+  `core-model/` and an `infra/` Compose tree that were never built; it now separates what
+  exists from what's planned. `docs/references.md` was cited by a non-negotiable but missing
+  — now written. `docs/hermes-api.md` said config lived in `~/.hermes/.env`; the real
+  deployment is a rootless Docker container with config at `~/hermes-data/`.
+- Next: Slice 2 (`core-hermes` client) per `ROADMAP.md`, but **harden `mock-hermes` first** —
+  it has no auth check, no 429, no `POST /api/sessions`, and serves the SSE fixture as one
+  blob, so Slice 2's accept criteria ("every error path returns a typed scoped error") and
+  Slice 3's ("streaming renders incrementally") are not testable against it today.
+
