@@ -18,13 +18,18 @@ Only **Tier 1** is in scope. Tier 2/3 are out until after 2026-09-28.
 
 | | |
 |---|---|
-| Tests | **81 JVM, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) + **2 instrumentation** |
-| Screenshots | **28**, all verified, at 393dp / 840dp / 1280dp |
+| Tests | **111 JVM, 0 failures, 1 skipped** (the skip is the opt-in live smoke test) + **5 instrumentation** |
+| Screenshots | **33**, all verified, at 393dp / 840dp / 1280dp |
 | Modules | `app` (Compose UI), `core-hermes` (API client), `core-model` (types + errors) |
 | Deps added, all approved | okhttp 5.5.0, kotlinx-serialization-json 1.11.0, kotlinx-coroutines-android 1.11.0 |
 
 Built: connection screen → session list → session detail with streaming, tool-result
-rendering, stop, and a read-only context panel. Adaptive across cover/unfolded/wide.
+rendering, stop, and a read-only context panel. Adaptive across cover/unfolded/wide, with
+both side panes collapsible. Plus an app-search bar and a Glance widget.
+
+**All three Tier 1 deliverables now exist in code** — widget, app search, and
+sessions/streaming with visible context. What is missing is confirmation on the phone, not
+features. See the next section.
 
 ## Commands
 
@@ -66,9 +71,15 @@ at `~/Android/Sdk/platform-tools/adb`. Note `adb exec-out screencap -p` prefixes
 multiple-display warning to stdout on this device and corrupts the PNG; use
 `adb shell screencap -p /sdcard/x.png` then `adb pull`.
 
-**Still not exercised on glass:** session detail, streaming, tool-result rendering, stop, the
-context panel, and the unfolded/three-pane layout. The list screen is the only one confirmed
-on device; the rest are Roborazzi renders only.
+**Still not exercised on glass** (the list screen is the only one confirmed on device):
+session detail, streaming, tool-result rendering, stop, the context panel, the collapsible
+panes and the three-pane unfolded layout, app search launching a real app, and the widget —
+which has never been pinned to a real home screen. Everything else is Roborazzi renders plus
+emulator instrumentation.
+
+**Behaviour change worth knowing:** the app now **auto-connects on launch** when credentials
+are stored, which the widget's "under two taps" criterion required. It makes one
+`/v1/capabilities` call per start.
 
 **Fixed since:** the redundant platform action bar (no theme was declared, so the app
 inherited the default). `Theme.Hermes` now keeps DayNight and switches the bar off

@@ -167,6 +167,12 @@ Glance widget → intent → `POST /api/sessions` → straight into the chat vie
 
 *Accept:* widget opens a fresh session in under two taps, cold start.
 
+**Done 2026-09-17.** One tap, not two — the widget tap is the only one, because the app now
+auto-connects when credentials are stored. That auto-connect was forced by this criterion:
+widget → Check connection → New chat was three taps. **Not yet confirmed on the phone:** the
+cold-start path is verified by instrumentation on an emulator, and the widget has never been
+pinned to a real home screen.
+
 ### Slice 6 — App search bar (Day 9, 09/25)
 Query launchable apps and launch them; same field submits a prompt to Hermes.
 
@@ -179,6 +185,12 @@ No Hermes dependency, so pull this forward if the server ever blocks you.
 
 *Accept:* typing finds and launches a sideloaded app; a non-matching query offers "ask
 Hermes" and lands in a new session with the text pre-filled.
+
+**Done 2026-09-17.** All criteria covered by behavioural tests. A test caught a real bug
+first: `queryIntentActivities` was passed `MATCH_DEFAULT_ONLY`, which only matches filters
+carrying `CATEGORY_DEFAULT` — launcher activities do not declare it, so the query returned
+nothing and would have on the device too. **Not yet confirmed on the phone:** launching a
+real sideloaded app.
 
 ### Slice 7 — Connectivity hardening (Day 10, 09/26)
 Tailscale reachability, server-unreachable and auth-failed states distinguished, read-only
