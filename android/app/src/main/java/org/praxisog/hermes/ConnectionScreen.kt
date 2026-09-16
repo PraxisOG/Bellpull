@@ -36,8 +36,10 @@ internal fun ConnectionScreen(
     checking: Boolean,
     onCheck: (String, String) -> Unit,
 ) {
-    var url by remember { mutableStateOf(initialUrl) }
-    var key by remember { mutableStateOf(initialKey) }
+    // Keyed, so that clearing the stored credentials actually blanks the fields. Unkeyed
+    // remember held the old key on screen after the user asked the app to forget it.
+    var url by remember(initialUrl) { mutableStateOf(initialUrl) }
+    var key by remember(initialKey) { mutableStateOf(initialKey) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {

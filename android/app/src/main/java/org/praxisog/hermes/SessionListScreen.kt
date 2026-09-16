@@ -42,6 +42,8 @@ internal fun SessionListScreen(
     onNewSession: () -> Unit,
     creating: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
+    offline: OfflineState? = null,
+    now2: Double = now,
     query: String = "",
     onQueryChange: (String) -> Unit = {},
     apps: List<LaunchableApp> = emptyList(),
@@ -71,6 +73,30 @@ internal fun SessionListScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         )
+        offline?.let { state ->
+            // Names the staleness AND which layer failed, because "offline" alone does not
+            // tell the user whether to check their network or the server.
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        "Showing sessions cached " +
+                            formatLastActive(state.cachedAtEpochSeconds, now2),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        state.error.toUserMessage(),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            HorizontalDivider()
+        }
         if (searching) {
             SearchResults(
                 query = query,

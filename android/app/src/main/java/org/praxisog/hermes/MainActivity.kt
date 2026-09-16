@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
     private var checking by mutableStateOf(false)
     private var store by mutableStateOf<HermesStore?>(null)
     private var connectionStore: SecureConnectionStore? = null
+    private var sessionCache: SessionCache? = null
 
     /**
      * Set when the launch came from the widget. Held rather than acted on immediately,
@@ -32,6 +33,14 @@ class MainActivity : ComponentActivity() {
      */
     private var pendingNewChat = false
 
+    /**
+     * State, not locals captured in onCreate: [disconnect] has to be able to blank them.
+     * Holding them as captured vals meant the connection screen still showed the old key
+     * after the user asked the app to forget it.
+     */
+    private var initialUrl by mutableStateOf("")
+    private var initialKey by mutableStateOf("")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val secureStore = runCatching { SecureConnectionStore(this) }.getOrElse {
@@ -39,11 +48,12 @@ class MainActivity : ComponentActivity() {
             null
         }
         connectionStore = secureStore
-        val initialUrl = runCatching { secureStore?.loadUrl().orEmpty() }.getOrElse {
+        sessionCache = runCatching { SessionCache(this) }.getOrNull()
+        initialUrl = runCatching { secureStore?.loadUrl().orEmpty() }.getOrElse {
             status = "Saved connection settings could not be read."
             ""
         }
-        val initialKey = runCatching { secureStore?.loadKey().orEmpty() }.getOrElse {
+        initialKey = runCatching { secureStore?.loadKey().orEmpty() }.getOrElse {
             status = "Saved API key could not be read."
             ""
         }
@@ -79,6 +89,8 @@ class MainActivity : ComponentActivity() {
                     onNewSession = current::newSession,
                     creatingSession = current.creatingSession,
                     createError = current.createError,
+                    offline = current.offline,
+                    onDisconnect = ::disconnect,
                     query = current.searchQuery,
                     onQueryChange = current::setQuery,
                     apps = current.apps,
@@ -135,7 +147,11 @@ class MainActivity : ComponentActivity() {
                             if (result.value.sessionChatStreaming) {
                                 status = "Authenticated. Session streaming is available."
                                 // Only now is the client known good, so only now is a store built.
-                                store = HermesStore(scope, client).also { newStore ->
+                                store = HermesStore(
+                                    scope,
+                                    client,
+                                    cache = sessionCache,
+                                ).also { newStore ->
                                     newStore.loadSessions()
                                     loadInstalledApps(newStore)
                                     if (pendingNewChat) {
@@ -159,6 +175,22 @@ class MainActivity : ComponentActivity() {
                 },
             )
         }
+    }
+
+    /**
+     * Forget the credentials and the cache, and return to the connection screen.
+     *
+     * Both are cleared: the cache holds session titles and previews, so leaving it behind
+     * after a key is rotated would keep the previous conversations readable on the device.
+     */
+    private fun disconnect() {
+        store = null
+        pendingNewChat = false
+        runCatching { connectionStore?.clear() }
+        runCatching { sessionCache?.clear() }
+        initialUrl = ""
+        initialKey = ""
+        status = "Disconnected. Enter a server URL and API key."
     }
 
     /**

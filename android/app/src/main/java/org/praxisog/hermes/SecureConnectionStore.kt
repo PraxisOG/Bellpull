@@ -18,6 +18,13 @@ internal class SecureConnectionStore(context: Context) {
 
     fun loadKey(): String = preferences.getString("api_key", "") ?: ""
 
+    /**
+     * Forgets the URL and key. The rotation path for a lost phone is: rotate
+     * `API_SERVER_KEY` on the Hermes host, then re-enter the new key here. This clears the
+     * old one so a stale root-equivalent key is not left sitting in storage.
+     */
+    fun clear(): Boolean = preferences.edit().clear().commit()
+
     fun save(url: String, key: String): Boolean = preferences.edit()
         .putString("base_url", url)
         .putString("api_key", key)

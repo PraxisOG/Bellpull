@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +32,12 @@ import org.praxisog.hermes.model.Session
  * verified first.
  */
 @Composable
-internal fun ContextPanel(session: Session?, now: Double, modifier: Modifier = Modifier) {
+internal fun ContextPanel(
+    session: Session?,
+    now: Double,
+    onDisconnect: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 1.dp) {
         Column(
             modifier = Modifier
@@ -48,6 +54,7 @@ internal fun ContextPanel(session: Session?, now: Double, modifier: Modifier = M
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                onDisconnect?.let { DisconnectSection(it) }
                 return@Column
             }
 
@@ -82,7 +89,32 @@ internal fun ContextPanel(session: Session?, now: Double, modifier: Modifier = M
                 if (session.hasModelConfig) Field("Model config", "set")
                 session.parentSessionId?.let { Field("Forked from", it) }
             }
+
+            onDisconnect?.let { DisconnectSection(it) }
         }
+    }
+}
+
+/**
+ * The rotation path for a lost phone, kept behind the info panel rather than beside Send:
+ * it is rare, and it is the one control that discards credentials.
+ *
+ * Rotating is a two-part job and the wording says so — changing `API_SERVER_KEY` on the host
+ * is what actually revokes the lost phone's access. Forgetting the key here only stops *this*
+ * device using it.
+ */
+@Composable
+private fun DisconnectSection(onDisconnect: () -> Unit) {
+    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+    Text("Connection", style = MaterialTheme.typography.labelLarge)
+    Text(
+        "Forgets the stored key and cached sessions on this device. To revoke a lost phone, " +
+            "rotate API_SERVER_KEY on the Hermes host as well.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
+        Text("Disconnect")
     }
 }
 

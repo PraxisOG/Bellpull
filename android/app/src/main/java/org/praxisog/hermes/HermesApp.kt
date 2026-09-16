@@ -64,6 +64,8 @@ internal fun HermesApp(
     onNewSession: () -> Unit,
     creatingSession: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
+    offline: OfflineState? = null,
+    onDisconnect: (() -> Unit)? = null,
     query: String = "",
     onQueryChange: (String) -> Unit = {},
     apps: List<LaunchableApp> = emptyList(),
@@ -111,6 +113,7 @@ internal fun HermesApp(
                                 onNewSession = onNewSession,
                                 creating = creatingSession,
                                 createError = createError,
+                                offline = offline,
                                 query = query,
                                 onQueryChange = onQueryChange,
                                 apps = apps,
@@ -149,6 +152,7 @@ internal fun HermesApp(
                             ContextPanel(
                                 session = openSession,
                                 now = now,
+                                onDisconnect = onDisconnect,
                                 modifier = Modifier.width(200.dp).fillMaxHeight(),
                             )
                         }
@@ -164,6 +168,7 @@ internal fun HermesApp(
                             onNewSession = onNewSession,
                             creating = creatingSession,
                             createError = createError,
+                            offline = offline,
                             query = query,
                             onQueryChange = onQueryChange,
                             apps = apps,
@@ -189,6 +194,7 @@ internal fun HermesApp(
                                 ContextPanel(
                                     session = openSession,
                                     now = now,
+                                    onDisconnect = onDisconnect,
                                     modifier = Modifier.weight(1f),
                                 )
                             } else {

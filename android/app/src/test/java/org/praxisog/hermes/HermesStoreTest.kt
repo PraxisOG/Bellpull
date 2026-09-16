@@ -33,9 +33,21 @@ class HermesStoreTest {
     private fun store(
         httpClient: OkHttpClient = HermesClient.defaultHttpClient(),
         baseUrl: String = MockHermesLauncher.baseUrl,
+        cache: SessionSnapshots? = null,
     ): HermesStore {
         val client = HermesClient(baseUrl, { MockHermesLauncher.key }, httpClient = httpClient)
-        return HermesStore(scope, client, sessionSource = "api_server")
+        return HermesStore(scope, client, sessionSource = "api_server", cache = cache)
+    }
+
+    /** In-memory stand-in; SessionCache itself needs a real AndroidKeyStore. */
+    private class FakeSnapshots(var snapshot: SessionSnapshots.Snapshot? = null) : SessionSnapshots {
+        var writes = 0
+        override fun read() = snapshot
+        override fun write(sessions: List<org.praxisog.hermes.model.Session>, atEpochSeconds: Double) {
+            writes++
+            snapshot = SessionSnapshots.Snapshot(sessions, atEpochSeconds)
+        }
+        override fun clear() { snapshot = null }
     }
 
     private fun faulting(fault: String): OkHttpClient =
@@ -62,6 +74,54 @@ class HermesStoreTest {
         val sessions = (store.sessions as UiState.Ready).value
         assertEquals(1, sessions.size)
         assertEquals(MockHermesLauncher.FIXTURE_SESSION_ID, sessions.first().id)
+    }
+
+    @Test fun aSuccessfulSyncWritesTheCacheAndClearsOfflineState() {
+        val cache = FakeSnapshots()
+        val store = store(cache = cache)
+        store.loadSessions()
+        awaitUntil("sessions") { store.sessions is UiState.Ready }
+        assertEquals(1, cache.writes)
+        assertEquals(null, store.offline)
+    }
+
+    @Test fun aFailedSyncFallsBackToTheCacheAndSaysSo() {
+        val cached = listOf(UiFixtures.sessions.first())
+        val cache = FakeSnapshots(SessionSnapshots.Snapshot(cached, 1_700_000_000.0))
+        // Port 1 is reserved; nothing listens there, so the fetch fails at the transport.
+        val store = store(baseUrl = "http://127.0.0.1:1", cache = cache)
+        store.loadSessions()
+        awaitUntil("cached sessions") { store.offline != null }
+
+        assertEquals(cached, (store.sessions as UiState.Ready).value)
+        val offline = store.offline!!
+        assertEquals(1_700_000_000.0, offline.cachedAtEpochSeconds, 0.1)
+        // Names which layer failed, not just "offline".
+        assertTrue(offline.error is org.praxisog.hermes.model.HermesError.Unreachable)
+    }
+
+    @Test fun aFailedSyncWithNoCacheFailsHonestlyRatherThanShowingAnEmptyList() {
+        // An empty list would read as "you have no sessions", which is a different claim.
+        val store = store(baseUrl = "http://127.0.0.1:1", cache = FakeSnapshots())
+        store.loadSessions()
+        awaitUntil("failure") { store.sessions is UiState.Failed }
+        assertEquals(null, store.offline)
+    }
+
+    @Test fun anEmptyCacheIsTreatedAsNoCache() {
+        val cache = FakeSnapshots(SessionSnapshots.Snapshot(emptyList(), 1_700_000_000.0))
+        val store = store(baseUrl = "http://127.0.0.1:1", cache = cache)
+        store.loadSessions()
+        awaitUntil("failure") { store.sessions is UiState.Failed }
+        assertEquals("an empty cache must not present as offline data", null, store.offline)
+    }
+
+    @Test fun recoveringFromOfflineClearsTheBanner() {
+        val cache = FakeSnapshots(SessionSnapshots.Snapshot(listOf(UiFixtures.sessions.first()), 1.0))
+        val store = store(cache = cache)
+        store.loadSessions()
+        awaitUntil("live sessions") { store.sessions is UiState.Ready }
+        assertEquals("a live sync must clear the stale banner", null, store.offline)
     }
 
     @Test fun openingASessionFetchesHistoryRatherThanCaching() {

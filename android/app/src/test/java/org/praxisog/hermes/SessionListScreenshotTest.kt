@@ -21,6 +21,7 @@ class SessionListScreenshotTest {
         selected: String? = null,
         creating: Boolean = false,
         createError: org.praxisog.hermes.model.HermesError? = null,
+        offline: OfflineState? = null,
     ) = captureRoboImage {
         SessionListScreen(
             state = state,
@@ -31,6 +32,7 @@ class SessionListScreenshotTest {
             onNewSession = {},
             creating = creating,
             createError = createError,
+            offline = offline,
         )
     }
 
@@ -85,4 +87,20 @@ class SessionListScreenshotTest {
             onAskHermes = {},
         )
     }
+
+    /**
+     * Offline: cached sessions with a banner naming both the staleness and which layer
+     * failed. "No silent fallback anywhere" is a project non-negotiable, and this is the
+     * image that proves the fallback is not silent.
+     */
+    @Test @Config(qualifiers = "w393dp-h850dp") fun offlineCachedCover() = capture(
+        UiState.Ready(UiFixtures.sessions),
+        offline = OfflineState(
+            cachedAtEpochSeconds = UiFixtures.NOW - 5_400,
+            error = org.praxisog.hermes.model.HermesError.Unreachable(
+                org.praxisog.hermes.model.HermesError.Unreachable.Kind.DNS,
+                "powermacg3.tail0b3e3a.ts.net",
+            ),
+        ),
+    )
 }

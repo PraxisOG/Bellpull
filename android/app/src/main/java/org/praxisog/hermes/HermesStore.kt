@@ -27,6 +27,9 @@ internal class HermesStore(
     private val client: HermesClient,
     /** Which `source` to filter the session list by; null lists every source. */
     private val sessionSource: String? = "api_server",
+    /** Null disables caching, which is what the contract tests want. */
+    private val cache: SessionSnapshots? = null,
+    private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
 ) {
     var sessions by mutableStateOf<UiState<List<Session>>>(UiState.Loading)
         private set
@@ -43,6 +46,10 @@ internal class HermesStore(
 
     /** Set when a create fails; cleared on the next attempt. */
     var createError by mutableStateOf<HermesError?>(null)
+        private set
+
+    /** Non-null when the list on screen is cached rather than live. */
+    var offline by mutableStateOf<OfflineState?>(null)
         private set
 
     var searchQuery by mutableStateOf("")
@@ -69,12 +76,36 @@ internal class HermesStore(
 
     // ---- sessions -------------------------------------------------------------
 
+    /**
+     * Fetch the session list, falling back to the cache when the fetch fails.
+     *
+     * The fallback is never silent: it sets [offline], which the list renders as a banner
+     * naming both the staleness and which layer failed. A successful fetch overwrites the
+     * cache wholesale and clears [offline] — Hermes is the source of truth, so there is no
+     * merge and no way for stale local data to win.
+     *
+     * An empty cache is treated as no cache. Rendering zero cached sessions would read as
+     * "you have no sessions", which is a different and wrong claim.
+     */
     fun loadSessions() {
         scope.launch {
-            sessions = UiState.Loading
-            sessions = when (val result = io { client.listSessions(source = sessionSource) }) {
-                is HermesResult.Ok -> UiState.Ready(result.value.data)
-                is HermesResult.Err -> UiState.Failed(result.error)
+            if (sessions !is UiState.Ready) sessions = UiState.Loading
+            when (val result = io { client.listSessions(source = sessionSource) }) {
+                is HermesResult.Ok -> {
+                    offline = null
+                    sessions = UiState.Ready(result.value.data)
+                    cache?.write(result.value.data, clock())
+                }
+                is HermesResult.Err -> {
+                    val cached = io { cache?.read() }
+                    if (cached != null && cached.sessions.isNotEmpty()) {
+                        offline = OfflineState(cached.cachedAtEpochSeconds, result.error)
+                        sessions = UiState.Ready(cached.sessions)
+                    } else {
+                        offline = null
+                        sessions = UiState.Failed(result.error)
+                    }
+                }
             }
         }
     }
