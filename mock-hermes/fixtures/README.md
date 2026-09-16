@@ -40,3 +40,33 @@ isn't worth doing on the live instance. Its fields are known from source
 have **not** been observed on the wire. Do not write a fixture for it pretending otherwise —
 if Slice 3 needs one, derive it from source and label it source-derived.
 
+## Slice 2 additions (2026-09-16)
+
+- `capabilities.json`: the full live `GET /v1/capabilities` response — 29 feature flags and
+  28 endpoints, verbatim. It contains no host-specific or secret values (`platform`, `model`
+  and `runtime` are generic strings), so nothing needed sanitizing. This is what makes the
+  app's existing connection probe testable without a live Hermes.
+- `session-create.json`: a live `POST /api/sessions` 201 response. Note the envelope is
+  `{object, session}` — a single object under `session`, **not** under `data` like the list
+  and history endpoints. Id, title and `started_at` are synthetic; every field and type is
+  preserved.
+- `error-responses.json`: the error shapes, five of them captured live —
+
+  | Case | Status | Notes |
+  |---|---|---|
+  | `auth_failed` | 401 | Missing header, wrong key and non-Bearer scheme are all this one shape |
+  | `session_not_found` | 404 | JSON envelope with `code: "session_not_found"` |
+  | `unknown_path` | 404 | **Plain text `404: Not Found`, not JSON** |
+  | `missing_message` | 400 | `{"message":""}` and `{}` both produce it |
+  | `invalid_json` | 400 | `code` is `null` here |
+  | `rate_limited` | 429 | **Source-derived, not observed** — see below |
+
+  The `unknown_path` row is the trap: a client that assumes a JSON error envelope on every
+  non-2xx response will throw a parse error instead of reporting the 404.
+
+  `rate_limited` is the one shape not reproduced live — triggering it would mean running 11
+  concurrent turns against the homelab. Its body and its `Retry-After: 1` header are read
+  from `gateway/platforms/api_server.py:3529` (`_concurrency_limited_response`) and it is
+  labelled `observed: false` in the fixture. Honour `Retry-After` rather than inventing a
+  backoff curve.
+

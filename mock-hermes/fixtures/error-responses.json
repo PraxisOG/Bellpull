@@ -1,0 +1,83 @@
+{
+  "_note": "Captured from live Hermes 0.21.1 on 2026-09-16 unless marked source_derived.",
+  "auth_failed": {
+    "status": 401,
+    "observed": true,
+    "body": {
+      "error": {
+        "message": "Invalid gateway API key (API_SERVER_KEY)",
+        "type": "gateway_auth_error",
+        "code": "gateway_auth_failed"
+      }
+    },
+    "triggers": [
+      "no Authorization header",
+      "wrong bearer key",
+      "non-Bearer auth scheme"
+    ]
+  },
+  "session_not_found": {
+    "status": 404,
+    "observed": true,
+    "body": {
+      "error": {
+        "message": "Session not found: {id}",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "session_not_found"
+      }
+    }
+  },
+  "unknown_path": {
+    "status": 404,
+    "observed": true,
+    "content_type": "text/plain",
+    "body_text": "404: Not Found",
+    "_warning": "NOT JSON. An unknown path returns plain text. A client that assumes a JSON error envelope on every non-2xx will fail to parse this."
+  },
+  "missing_message": {
+    "status": 400,
+    "observed": true,
+    "body": {
+      "error": {
+        "message": "Missing 'message' field",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "missing_message"
+      }
+    },
+    "triggers": [
+      "{\"message\":\"\"}",
+      "{}"
+    ]
+  },
+  "invalid_json": {
+    "status": 400,
+    "observed": true,
+    "body": {
+      "error": {
+        "message": "Invalid JSON in request body",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": null
+      }
+    }
+  },
+  "rate_limited": {
+    "status": 429,
+    "observed": false,
+    "source_derived": "gateway/platforms/api_server.py:3529 _concurrency_limited_response",
+    "headers": {
+      "Retry-After": "1"
+    },
+    "body": {
+      "error": {
+        "message": "Too many concurrent runs (max 10)",
+        "type": "rate_limit_error",
+        "param": null,
+        "code": "rate_limit_exceeded"
+      }
+    },
+    "_note": "Not reproduced live: would need 11 concurrent runs against the homelab. Shape read from source; honour Retry-After rather than guessing a backoff."
+  }
+}

@@ -112,9 +112,12 @@ cd android && ./gradlew recordRoborazziDebug   # after an intentional UI change
 # Instrumentation on the Gradle Managed Device (AOSP ATD image, headless, API 34)
 cd android && ./gradlew aospAtdApi34DebugAndroidTest   # 0 tests today — no androidTest source set yet
 
-# Mock Hermes (fixture replay server; not yet wired into the Gradle test lifecycle —
-# core-hermes contract tests will do that in Slice 2. Run it manually to poke at it.)
+# Mock Hermes (fixture replay server)
 cd mock-hermes && ./run.sh   # http://127.0.0.1:8643, override with MOCK_HERMES_PORT
+# It now requires a bearer key on EVERY route -- a bare curl gets 401. Set MOCK_HERMES_KEY
+# and send it. MOCK_HERMES_SSE_DELAY makes the stream incremental; the X-Mock-Fail header
+# injects auth / rate-limit / stream-abort / slow-headers per request (mock-only, not a
+# Hermes feature). See mock-hermes/server.py's docstring.
 
 # Install to the real phone (wireless debugging — see platform constraints)
 cd android && ./gradlew installDebug
