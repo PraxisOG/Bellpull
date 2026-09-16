@@ -244,6 +244,10 @@ class HermesClient(
      * an unknown path really does return the plain text `404: Not Found`.
      */
     private fun mapHttpError(response: Response, sessionId: String?): HermesError {
+        // Before anything else: a 3xx is not an error envelope and must not be followed.
+        if (response.code in 300..399) {
+            return HermesError.UnexpectedRedirect(response.code, response.header("Location"))
+        }
         val raw = runCatching { response.body.string() }.getOrDefault("")
         val envelope = runCatching {
             json.parseToJsonElement(raw).jsonObject["error"]?.jsonObject
@@ -307,6 +311,12 @@ class HermesClient(
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            // Redirects are refused, not followed. OkHttp follows them by default and drops
+            // the Authorization header only when the host changes, so a same-host redirect
+            // would carry a root-equivalent key to wherever it pointed. The API server has no
+            // legitimate reason to redirect, so this surfaces as UnexpectedRedirect instead.
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
 }

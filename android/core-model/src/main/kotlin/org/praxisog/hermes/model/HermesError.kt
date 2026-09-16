@@ -42,6 +42,16 @@ sealed interface HermesError {
         override val summary get() = "HTTP $status with a non-JSON body: $bodySnippet"
     }
 
+    /**
+     * A 3xx. The API server has no reason to redirect, so one means the base URL is wrong or
+     * something is sitting in front of Hermes that shouldn't be. Never followed: the bearer
+     * key is root-equivalent on the Hermes host, and following a redirect to an unverified
+     * destination is not a risk worth taking to save the user a typo.
+     */
+    data class UnexpectedRedirect(val status: Int, val location: String?) : HermesError {
+        override val summary get() = "Hermes redirected (HTTP $status) to ${location ?: "an unnamed target"}; check the server URL"
+    }
+
     /** A 2xx whose body did not decode — a genuine contract break, not a transport problem. */
     data class MalformedResponse(val detail: String) : HermesError {
         override val summary get() = "Hermes sent a response this client could not parse: $detail"

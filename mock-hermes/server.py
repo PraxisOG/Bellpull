@@ -26,6 +26,8 @@ tests can reach error paths without a broken server. Per request, send the heade
                    event (the "dropped mid-stream" case: a truncated turn must not look
                    finished)
   slow-headers  -> stall before the response headers, to exercise connect/read timeouts
+  redirect      -> 302 to another host, which a client must refuse rather than follow (the
+                   bearer key is root-equivalent; it must not be carried to a redirect target)
 """
 
 import http.server
@@ -61,7 +63,7 @@ SESSION_PATH = re.compile(r"^/api/sessions/([^/?]+)$")
 EXPECTED_KEY = os.environ.get("MOCK_HERMES_KEY", "mock-hermes-test-key")
 SSE_DELAY = float(os.environ.get("MOCK_HERMES_SSE_DELAY", "0"))
 DEFAULT_FAULT = os.environ.get("MOCK_HERMES_FAIL", "")
-FAULTS = ("auth", "rate-limit", "stream-abort", "slow-headers")
+FAULTS = ("auth", "rate-limit", "stream-abort", "slow-headers", "redirect")
 
 
 def _sse_events(raw: str) -> list:
@@ -134,6 +136,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return None
         if fault == "rate-limit":
             self._error("rate_limited")
+            return None
+        if fault == "redirect":
+            self._send(302, "text/plain", b"", {"Location": "http://example.invalid/moved"})
             return None
         return fault or ""
 

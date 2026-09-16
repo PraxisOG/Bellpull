@@ -103,6 +103,19 @@ class HermesClientContractTest {
         assertTrue("should carry the real body", unparseable.bodySnippet.contains("404"))
     }
 
+    @Test fun aRedirectIsRefusedNotFollowed() {
+        // The regression this guards: the client this replaced set instanceFollowRedirects=false
+        // and reported 3xx. OkHttp follows redirects by default, and drops the Authorization
+        // header only on a host change — so a same-host redirect would carry a root-equivalent
+        // key to wherever it pointed.
+        val client = MockHermes.client(httpClient = MockHermes.faultingClient("redirect"))
+        val error = err(client.capabilities())
+        val redirect = error as? HermesError.UnexpectedRedirect
+            ?: throw AssertionError("expected UnexpectedRedirect, got ${error.summary}")
+        assertEquals(302, redirect.status)
+        assertTrue("should report where it was sent", redirect.location!!.contains("example.invalid"))
+    }
+
     @Test fun unreachableServerIsTypedNotThrown() {
         // Port 1 is reserved and nothing listens there.
         val error = err(MockHermes.client(baseUrl = "http://127.0.0.1:1").capabilities())

@@ -5,7 +5,6 @@ import okhttp3.OkHttpClient
 import java.io.File
 import java.io.IOException
 import java.net.Socket
-import java.util.concurrent.TimeUnit
 
 /**
  * Starts and owns the mock-hermes fixture replay server for the test JVM.
@@ -68,10 +67,14 @@ internal object MockHermes {
      * An OkHttp client that injects mock-hermes' `X-Mock-Fail` control header on every
      * request, so a test can reach a server-side failure without the production client
      * exposing any way to ask for one.
+     *
+     * Built by extending [HermesClient.defaultHttpClient] rather than from a fresh builder,
+     * so it differs from the production client by exactly one header. A hand-rolled builder
+     * here silently dropped `followRedirects(false)` and made the redirect test pass through
+     * to real DNS — a test that configures its own transport is testing the wrong transport.
      */
-    fun faultingClient(fault: String): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
+    fun faultingClient(fault: String): OkHttpClient = HermesClient.defaultHttpClient()
+        .newBuilder()
         .addInterceptor(Interceptor { chain ->
             chain.proceed(chain.request().newBuilder().header("X-Mock-Fail", fault).build())
         })
