@@ -62,4 +62,27 @@ class SessionListScreenshotTest {
     /** The empty case is the one that made the missing entry point unrecoverable. */
     @Test @Config(qualifiers = "w393dp-h850dp") fun emptyWithEntryPointCover() =
         capture(UiState.Ready(emptyList()))
+
+    /** Search with matches: apps ranked, sessions matched, Hermes always offered. */
+    @Test @Config(qualifiers = "w393dp-h850dp") fun searchWithMatchesCover() = captureSearch("w")
+
+    /** Search with nothing matching — the case the Ask Hermes row exists for. */
+    @Test @Config(qualifiers = "w393dp-h850dp") fun searchNoMatchesCover() =
+        captureSearch("what is the tailnet IP of the fold")
+
+    private fun captureSearch(query: String) = captureRoboImage {
+        SessionListScreen(
+            state = UiState.Ready(UiFixtures.sessions),
+            now = UiFixtures.NOW,
+            selectedId = null,
+            onOpen = {},
+            onRetry = {},
+            onNewSession = {},
+            query = query,
+            onQueryChange = {},
+            apps = UiFixtures.apps,
+            onLaunchApp = {},
+            onAskHermes = {},
+        )
+    }
 }

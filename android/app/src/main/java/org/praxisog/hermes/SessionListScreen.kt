@@ -15,6 +15,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,8 +42,14 @@ internal fun SessionListScreen(
     onNewSession: () -> Unit,
     creating: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    apps: List<LaunchableApp> = emptyList(),
+    onLaunchApp: (LaunchableApp) -> Unit = {},
+    onAskHermes: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val searching = query.isNotBlank()
     Scaffold(
         modifier = modifier.fillMaxSize(),
         floatingActionButton = {
@@ -56,6 +63,27 @@ internal fun SessionListScreen(
         },
     ) { padding ->
       Surface(modifier = Modifier.fillMaxSize().padding(padding)) {
+       Column(modifier = Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            label = { Text("Search apps and sessions") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        if (searching) {
+            SearchResults(
+                query = query,
+                sessions = (state as? UiState.Ready)?.value.orEmpty(),
+                apps = apps,
+                now = now,
+                selectedId = selectedId,
+                onOpen = onOpen,
+                onLaunchApp = onLaunchApp,
+                onAskHermes = onAskHermes,
+            )
+            return@Column
+        }
         when (state) {
             is UiState.Loading -> Centered { CircularProgressIndicator() }
 
@@ -109,8 +137,109 @@ internal fun SessionListScreen(
                 }
             }
         }
+       }
       }
     }
+}
+
+/**
+ * One field, three kinds of result: sessions whose title or preview matches, installed apps,
+ * and Hermes itself as the always-present fallback.
+ *
+ * The Ask Hermes row is shown for *every* non-empty query, not only when nothing else
+ * matched. A query that happens to collide with an app name is still a perfectly good prompt,
+ * and hiding the option in that case would make the feature feel arbitrary.
+ */
+@Composable
+private fun SearchResults(
+    query: String,
+    sessions: List<Session>,
+    apps: List<LaunchableApp>,
+    now: Double,
+    selectedId: String?,
+    onOpen: (String) -> Unit,
+    onLaunchApp: (LaunchableApp) -> Unit,
+    onAskHermes: (String) -> Unit,
+) {
+    val q = query.trim().lowercase()
+    val matchingSessions = sessions.filter {
+        it.title?.lowercase()?.contains(q) == true || it.preview?.lowercase()?.contains(q) == true
+    }
+    val matchingApps = searchApps(apps, query)
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                onClick = { onAskHermes(query.trim()) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text("Ask Hermes", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        query.trim(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            HorizontalDivider()
+        }
+
+        if (matchingApps.isNotEmpty()) {
+            item { SectionHeader("Apps") }
+            items(matchingApps, key = { it.packageName + it.activityName }) { app ->
+                Surface(onClick = { onLaunchApp(app) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        app.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                    )
+                }
+                HorizontalDivider()
+            }
+        }
+
+        if (matchingSessions.isNotEmpty()) {
+            item { SectionHeader("Sessions") }
+            items(matchingSessions, key = { it.id }) { session ->
+                SessionRow(
+                    session = session,
+                    now = now,
+                    selected = session.id == selectedId,
+                    onClick = { onOpen(session.id) },
+                )
+                HorizontalDivider()
+            }
+        }
+
+        if (matchingApps.isEmpty() && matchingSessions.isEmpty()) {
+            item {
+                Text(
+                    "No apps or sessions match. Ask Hermes instead.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(20.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+    )
 }
 
 @Composable

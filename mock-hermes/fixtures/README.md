@@ -70,3 +70,11 @@ if Slice 3 needs one, derive it from source and label it source-derived.
   labelled `observed: false` in the fixture. Honour `Retry-After` rather than inventing a
   backoff curve.
 
+## Behaviour notes (not fixtures)
+
+`GET /api/sessions/{id}/messages` serves the four-message fixture for `fixture-id-1` and an
+**empty history** for the id in `session-create.json`. A freshly created session is real but
+has no messages, so returning the four-message fixture for it would be false and a 404 would
+be falser. `POST .../chat/stream` accepts turns for both ids. This makes the
+create-then-send journey testable the way a client actually walks it.
+

@@ -64,6 +64,12 @@ internal fun HermesApp(
     onNewSession: () -> Unit,
     creatingSession: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    apps: List<LaunchableApp> = emptyList(),
+    onLaunchApp: (LaunchableApp) -> Unit = {},
+    onAskHermes: (String) -> Unit = {},
+    prefill: String = "",
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -105,6 +111,11 @@ internal fun HermesApp(
                                 onNewSession = onNewSession,
                                 creating = creatingSession,
                                 createError = createError,
+                                query = query,
+                                onQueryChange = onQueryChange,
+                                apps = apps,
+                                onLaunchApp = onLaunchApp,
+                                onAskHermes = onAskHermes,
                                 modifier = Modifier.width(240.dp).fillMaxHeight(),
                             )
                             VerticalDivider()
@@ -128,6 +139,7 @@ internal fun HermesApp(
                                     onSend = onSend,
                                     onStop = onStop,
                                     onRetry = onRetryHistory,
+                                    prefill = prefill,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -152,6 +164,11 @@ internal fun HermesApp(
                             onNewSession = onNewSession,
                             creating = creatingSession,
                             createError = createError,
+                            query = query,
+                            onQueryChange = onQueryChange,
+                            apps = apps,
+                            onLaunchApp = onLaunchApp,
+                            onAskHermes = onAskHermes,
                         )
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
@@ -181,6 +198,7 @@ internal fun HermesApp(
                                     onSend = onSend,
                                     onStop = onStop,
                                     onRetry = onRetryHistory,
+                                    prefill = prefill,
                                     modifier = Modifier.weight(1f),
                                 )
                             }

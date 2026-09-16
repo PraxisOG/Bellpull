@@ -175,6 +175,33 @@ class HermesStoreTest {
         assertTrue(!store.creatingSession)
     }
 
+    @Test fun askHermesCreatesASessionAndPrefillsTheComposerWithoutSending() {
+        val store = store()
+        store.setQuery("what is the tailnet IP")
+        store.askHermes("what is the tailnet IP")
+        awaitUntil("a session to be opened") { store.openSessionId != null }
+        assertEquals("what is the tailnet IP", store.pendingPrompt)
+        // Crucially the turn is NOT started: a search box is a low-confidence surface, and
+        // firing inference (possibly a shell command) off one keystroke too many is hostile.
+        assertEquals(TurnState.Idle, store.turn)
+        assertEquals("the query is consumed", "", store.searchQuery)
+    }
+
+    @Test fun sendingClearsThePrefillSoItDoesNotReappear() {
+        val store = store()
+        store.askHermes("prompt from search")
+        awaitUntil("session") { store.openSessionId != null }
+        awaitUntil("history") { store.history is UiState.Ready }
+        // A newly created session has no messages, which the mock now reflects.
+        assertEquals(0, (store.history as UiState.Ready).value.size)
+
+        store.send("prompt from search")
+        // send() clears the prefill synchronously, before the turn is dispatched, so a
+        // recomposition mid-stream cannot re-seed the composer with text already sent.
+        assertEquals("", store.pendingPrompt)
+        awaitUntil("turn to finish") { store.turn is TurnState.Finished }
+    }
+
     @Test fun blankSendDoesNothing() {
         val store = store()
         store.openSession(MockHermesLauncher.FIXTURE_SESSION_ID)

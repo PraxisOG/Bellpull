@@ -2,6 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+      App enumeration scoped to exactly what the search bar needs: activities that answer
+      ACTION_MAIN + CATEGORY_LAUNCHER, i.e. the things a user could launch anyway.
+
+      Deliberately NOT QUERY_ALL_PACKAGES, which is broader than needed, returns system
+      packages we would immediately filter back out, and is a permission Play treats as
+      sensitive. This <queries> form needs no permission at all.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:label="Hermes"

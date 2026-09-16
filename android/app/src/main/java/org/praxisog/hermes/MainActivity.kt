@@ -61,6 +61,18 @@ class MainActivity : ComponentActivity() {
                     onNewSession = current::newSession,
                     creatingSession = current.creatingSession,
                     createError = current.createError,
+                    query = current.searchQuery,
+                    onQueryChange = current::setQuery,
+                    apps = current.apps,
+                    onLaunchApp = { app ->
+                        if (!InstalledApps.launch(this, app)) {
+                            // A launch can fail if the app was uninstalled since the list was
+                            // read. Say so rather than appearing to do nothing.
+                            status = "Could not open ${app.label}. It may have been uninstalled."
+                        }
+                    },
+                    onAskHermes = current::askHermes,
+                    prefill = current.pendingPrompt,
                 )
             }
         }
@@ -105,7 +117,10 @@ class MainActivity : ComponentActivity() {
                             if (result.value.sessionChatStreaming) {
                                 status = "Authenticated. Session streaming is available."
                                 // Only now is the client known good, so only now is a store built.
-                                store = HermesStore(scope, client).also { it.loadSessions() }
+                                store = HermesStore(scope, client).also { newStore ->
+                                    newStore.loadSessions()
+                                    loadInstalledApps(newStore)
+                                }
                             } else {
                                 status =
                                     "Authenticated, but this Hermes server does not report session streaming."
@@ -121,6 +136,18 @@ class MainActivity : ComponentActivity() {
                     }
                 },
             )
+        }
+    }
+
+    /**
+     * Reads the launchable apps off the main thread. A PackageManager enumeration is not free
+     * on a device with many apps installed, and it is never urgent — the search field works
+     * for sessions and for Hermes before the list arrives.
+     */
+    private fun loadInstalledApps(target: HermesStore) {
+        scope.launch {
+            val loaded = withContext(Dispatchers.IO) { InstalledApps.load(this@MainActivity) }
+            target.updateApps(loaded)
         }
     }
 

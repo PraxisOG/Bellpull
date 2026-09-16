@@ -45,6 +45,21 @@ internal class HermesStore(
     var createError by mutableStateOf<HermesError?>(null)
         private set
 
+    var searchQuery by mutableStateOf("")
+        private set
+
+    /** Launchable apps, supplied by the Activity — this class stays free of Android types. */
+    var apps by mutableStateOf<List<LaunchableApp>>(emptyList())
+        private set
+
+    /**
+     * Text to seed the composer with. Set when a search is handed to Hermes, so the prompt
+     * the user typed in the search field arrives in the new session's composer rather than
+     * being sent blind. Cleared once sent.
+     */
+    var pendingPrompt by mutableStateOf("")
+        private set
+
     /** Non-null while a turn is in flight, so a stop has something to target. */
     private var activeRunId: String? = null
     private var stopRequested = false
@@ -79,6 +94,45 @@ internal class HermesStore(
             when (val result = io { client.createSession() }) {
                 is HermesResult.Ok -> {
                     creatingSession = false
+                    loadSessions()
+                    openSession(result.value.id)
+                }
+                is HermesResult.Err -> {
+                    creatingSession = false
+                    createError = result.error
+                }
+            }
+        }
+    }
+
+    fun setQuery(value: String) {
+        searchQuery = value
+    }
+
+    fun updateApps(value: List<LaunchableApp>) {
+        apps = value
+    }
+
+    /**
+     * Turn a search query into a Hermes turn: create a session, open it, and seed the
+     * composer with the query.
+     *
+     * The prompt is *not* sent automatically. The roadmap's accept criterion is that a
+     * non-matching query "lands in a new session with the text pre-filled", and that is the
+     * right call — a search box is a low-confidence surface, so firing a turn (and its
+     * inference cost, and possibly a shell command) off one keystroke too many would be
+     * hostile. The user still presses Send.
+     */
+    fun askHermes(prompt: String) {
+        if (prompt.isBlank() || creatingSession) return
+        creatingSession = true
+        createError = null
+        scope.launch {
+            when (val result = io { client.createSession(title = prompt.take(60)) }) {
+                is HermesResult.Ok -> {
+                    creatingSession = false
+                    pendingPrompt = prompt
+                    searchQuery = ""
                     loadSessions()
                     openSession(result.value.id)
                 }
@@ -130,6 +184,7 @@ internal class HermesStore(
 
         stopRequested = false
         activeRunId = null
+        pendingPrompt = ""
         turn = TurnState.Streaming(text = "", canStop = false)
 
         scope.launch {

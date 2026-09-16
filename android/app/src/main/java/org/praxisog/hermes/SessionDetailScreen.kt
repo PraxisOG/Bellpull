@@ -42,6 +42,7 @@ internal fun SessionDetailScreen(
     onSend: (String) -> Unit,
     onStop: () -> Unit,
     onRetry: () -> Unit,
+    prefill: String = "",
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
@@ -93,7 +94,7 @@ internal fun SessionDetailScreen(
                     }
                 }
             }
-            Composer(turn = turn, onSend = onSend, onStop = onStop)
+            Composer(turn = turn, onSend = onSend, onStop = onStop, prefill = prefill)
         }
     }
 }
@@ -195,8 +196,15 @@ private fun Banner(text: String, color: androidx.compose.ui.graphics.Color) {
 }
 
 @Composable
-private fun Composer(turn: TurnState, onSend: (String) -> Unit, onStop: () -> Unit) {
-    var draft by remember { mutableStateOf("") }
+private fun Composer(
+    turn: TurnState,
+    onSend: (String) -> Unit,
+    onStop: () -> Unit,
+    prefill: String,
+) {
+    // Keyed on prefill so a query handed over from the search bar seeds the field, and a
+    // later prefill replaces it, without discarding what the user has typed in between.
+    var draft by remember(prefill) { mutableStateOf(prefill) }
     val streaming = turn as? TurnState.Streaming
     Surface(tonalElevation = 3.dp) {
         Row(

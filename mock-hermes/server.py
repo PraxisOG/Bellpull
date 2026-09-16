@@ -60,6 +60,17 @@ ERRORS = json.loads(_load("error-responses.json"))
 
 FIXTURE_SESSION_ID = json.loads(SESSION_LIST)["data"][0]["id"]
 FIXTURE_RUN_ID = json.loads(RUN_STATUS)["run_id"]
+CREATED_SESSION_ID = json.loads(SESSION_CREATE)["session"]["id"]
+
+# A freshly created session exists and has no messages. Returning the four-message fixture
+# for it would be wrong, and 404 is wronger still -- the session is real. Serving an empty
+# history makes the create-then-send journey testable the way a client actually walks it.
+EMPTY_HISTORY = json.dumps({
+    "object": "list",
+    "session_id": CREATED_SESSION_ID,
+    "data": [],
+    "pagination": {"limit": 500, "offset": 0, "order": "latest", "returned": 0},
+})
 
 MESSAGES_PATH = re.compile(r"^/api/sessions/([^/?]+)/messages$")
 STREAM_PATH = re.compile(r"^/api/sessions/([^/?]+)/chat/stream$")
@@ -165,6 +176,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if match:
             if match.group(1) == FIXTURE_SESSION_ID:
                 self._json(200, SESSION_MESSAGES)
+            elif match.group(1) == CREATED_SESSION_ID:
+                self._json(200, EMPTY_HISTORY)
             else:
                 self._error("session_not_found", id=match.group(1))
             return
@@ -215,7 +228,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _chat_stream(self, session_id: str, fault: str) -> None:
         raw = self._read_body()
-        if session_id != FIXTURE_SESSION_ID:
+        if session_id not in (FIXTURE_SESSION_ID, CREATED_SESSION_ID):
             self._error("session_not_found", id=session_id)
             return
         # Body validation matches the real server's observed behaviour: invalid JSON and a

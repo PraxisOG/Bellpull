@@ -82,6 +82,12 @@ internal object UiFixtures {
         Message(id = 7, role = "assistant", content = "The safe-root write was refused, so I left it alone.", timestamp = NOW - 294),
     )
 
+    val apps = listOf(
+        LaunchableApp("Organic Maps", "org.organicmaps", "org.organicmaps.Main"),
+        LaunchableApp("Aegis Authenticator", "com.beemdevelopment.aegis", "com.beemdevelopment.aegis.Main"),
+        LaunchableApp("Weather", "org.breezyweather", "org.breezyweather.Main"),
+    )
+
     val truncation = HermesError.StreamTruncated(14, "EOFException")
     val authFailure = HermesError.AuthFailed("Invalid gateway API key (API_SERVER_KEY)")
 }
