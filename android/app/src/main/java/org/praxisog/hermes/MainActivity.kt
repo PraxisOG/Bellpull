@@ -71,23 +71,28 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Replaces the hand-rolled HermesProbe with core-hermes. The two success strings are
-     * unchanged so the swap is behaviour-neutral and the existing screenshots still prove it.
-     *
-     * The failure branch deliberately uses [HermesError.summary], which is operator-facing
-     * text, as a stopgap: mapping each error case to proper user-facing wording is the next
-     * commit, kept separate so it can be bisected on its own.
+     * Replaces the hand-rolled HermesProbe with core-hermes. The success strings are
+     * unchanged from HermesProbe, and failures go through [toUserMessage], which is the single
+     * place that decides user-facing wording.
      */
     private fun checkCapabilities(baseUrl: String, key: String): String {
         val client = HermesClient(baseUrl, { key })
-        return when (val outcome = client.capabilities()) {
+        // SecurityException is not an IOException, so core-hermes does not catch it: a pure
+        // Kotlin module has no business knowing what Android permission denial means. It is
+        // handled here, where it does, and it preserves the message the app shipped with.
+        val outcome = try {
+            client.capabilities()
+        } catch (_: SecurityException) {
+            return "Network access was denied by Android. Check app permissions."
+        }
+        return when (outcome) {
             is HermesResult.Ok ->
                 if (outcome.value.sessionChatStreaming) {
                     "Authenticated. Session streaming is available."
                 } else {
                     "Authenticated, but this Hermes server does not report session streaming."
                 }
-            is HermesResult.Err -> outcome.error.summary
+            is HermesResult.Err -> outcome.error.toUserMessage()
         }
     }
 
