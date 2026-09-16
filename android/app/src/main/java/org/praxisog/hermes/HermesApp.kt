@@ -1,6 +1,11 @@
 package org.praxisog.hermes
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,9 +13,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +29,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.Session
@@ -73,30 +86,42 @@ internal fun HermesApp(
                 // the list and context now take 240dp and 200dp, leaving ~400dp — wider than
                 // the cover display the transcript already renders fine on.
                 val roomForThreePanes = maxWidth >= 820.dp
+
+                // Both side panes collapse, so the transcript can take the whole width when
+                // you want it to. Keyed on the width so a fold transition re-derives sensible
+                // defaults instead of carrying a cover-width choice into the unfolded layout.
+                var showList by remember(sideBySide) { mutableStateOf(true) }
                 var showContext by remember(roomForThreePanes) { mutableStateOf(roomForThreePanes) }
 
                 if (sideBySide) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        SessionListScreen(
-                            state = sessions,
-                            now = now,
-                            selectedId = openSessionId,
-                            onOpen = onOpenSession,
-                            onRetry = onRetrySessions,
-                            onNewSession = onNewSession,
-                            creating = creatingSession,
-                            createError = createError,
-                            modifier = Modifier.width(240.dp).fillMaxHeight(),
-                        )
-                        VerticalDivider()
+                        if (showList) {
+                            SessionListScreen(
+                                state = sessions,
+                                now = now,
+                                selectedId = openSessionId,
+                                onOpen = onOpenSession,
+                                onRetry = onRetrySessions,
+                                onNewSession = onNewSession,
+                                creating = creatingSession,
+                                createError = createError,
+                                modifier = Modifier.width(240.dp).fillMaxHeight(),
+                            )
+                            VerticalDivider()
+                        }
                         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            // Always present, even with no session open, or hiding the list
+                            // would leave no way to bring it back.
+                            PaneToggleBar(
+                                showList = showList,
+                                onToggleList = { showList = !showList },
+                                showContext = showContext,
+                                onToggleContext = { showContext = !showContext },
+                                contextEnabled = openSessionId != null,
+                            )
                             if (openSessionId == null) {
                                 EmptyDetail()
                             } else {
-                                ContextToggleRow(
-                                    showContext = showContext,
-                                    onToggle = { showContext = !showContext },
-                                )
                                 SessionDetailScreen(
                                     history = history,
                                     turn = turn,
@@ -135,9 +160,11 @@ internal fun HermesApp(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 TextButton(onClick = onCloseSession) { Text("← Sessions") }
-                                TextButton(onClick = { showContext = !showContext }) {
-                                    Text(if (showContext) "Hide context" else "Context")
-                                }
+                                IconToggle(
+                                    onClick = { showContext = !showContext },
+                                    active = showContext,
+                                    description = if (showContext) "Hide stats" else "Show stats",
+                                ) { InfoGlyph(it) }
                             }
                             if (showContext) {
                                 // Folded has no room for two panes, so context replaces the
@@ -165,15 +192,95 @@ internal fun HermesApp(
     }
 }
 
+/**
+ * Toggles for the two side panes: sessions on the left, stats on the right.
+ *
+ * The glyphs are drawn rather than pulled from material-icons, which is not a declared
+ * dependency here — three lines and a circled "i" are cheap to draw and render identically in
+ * screenshot tests. Each carries a content description, since a Canvas has no text for
+ * accessibility services or UI tests to read.
+ */
 @Composable
-private fun ContextToggleRow(showContext: Boolean, onToggle: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-    ) {
-        TextButton(onClick = onToggle) {
-            Text(if (showContext) "Hide context" else "Context")
+private fun PaneToggleBar(
+    showList: Boolean,
+    onToggleList: () -> Unit,
+    showContext: Boolean,
+    onToggleContext: () -> Unit,
+    contextEnabled: Boolean,
+) {
+    Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            IconToggle(
+                onClick = onToggleList,
+                active = showList,
+                description = if (showList) "Hide sessions" else "Show sessions",
+            ) { MenuGlyph(it) }
+            IconToggle(
+                onClick = onToggleContext,
+                active = showContext,
+                enabled = contextEnabled,
+                description = if (showContext) "Hide stats" else "Show stats",
+            ) { InfoGlyph(it) }
         }
+    }
+}
+
+@Composable
+private fun IconToggle(
+    onClick: () -> Unit,
+    active: Boolean,
+    description: String,
+    enabled: Boolean = true,
+    glyph: @Composable (Color) -> Unit,
+) {
+    val tint = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+        active -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.semantics { contentDescription = description },
+    ) { glyph(tint) }
+}
+
+/** Three lines. */
+@Composable
+private fun MenuGlyph(tint: Color) {
+    Canvas(modifier = Modifier.size(width = 20.dp, height = 14.dp)) {
+        val stroke = 2.dp.toPx()
+        listOf(0f, size.height / 2f, size.height).forEach { y ->
+            drawLine(
+                color = tint,
+                start = Offset(0f, y.coerceIn(stroke / 2f, size.height - stroke / 2f)),
+                end = Offset(size.width, y.coerceIn(stroke / 2f, size.height - stroke / 2f)),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
+/** A circled "i". */
+@Composable
+private fun InfoGlyph(tint: Color) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .border(width = 2.dp, color = tint, shape = CircleShape),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        Text(
+            "i",
+            color = tint,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
