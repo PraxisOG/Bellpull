@@ -4,6 +4,17 @@ Single-APK Android client for a self-hosted Hermes Agent instance. Kotlin + Comp
 Target device: Pixel 10 Pro Fold, GrapheneOS (Android 17), bootloader relocked, no Google
 Play Services.
 
+> **Naming — read this before searching anything "Hermes."** NousResearch ships two
+> different things under that name. **Hermes Agent**
+> (`github.com/NousResearch/hermes-agent`, docs at `hermes-agent.nousresearch.com/docs`) is
+> the self-hosted agent *software* this client is built against — API server, web dashboard,
+> gateway, sessions, tools. **Hermes** (Hermes 2 / 3 / 4) is a separate, unrelated-in-use
+> NousResearch *LLM family* — fine-tuned model weights served by an inference provider. This
+> homelab's Hermes Agent instance routes inference to whatever model its config points at
+> (seen so far: an Anthropic model that 404'd, then a DeepSeek model on Fireworks — not
+> Hermes-the-model). A Hermes-the-model card, benchmark, or release note is never a source
+> for this app's API contract. That contract is `docs/hermes-api.md`, full stop.
+
 ## Non-negotiables
 
 - **No launcher shell.** This is a normal app. No home-screen-replacement code.

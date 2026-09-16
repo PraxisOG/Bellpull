@@ -1,5 +1,14 @@
 # Hermes API contract
 
+> **Naming:** this file documents **Hermes Agent**, NousResearch's self-hosted agent
+> software (`github.com/NousResearch/hermes-agent`,
+> `hermes-agent.nousresearch.com/docs`) — API server, dashboard, gateway, sessions.
+> It is a different artifact from NousResearch's **Hermes** LLM family (Hermes 2/3/4,
+> model weights). Hermes Agent's inference backend is whatever model its config points
+> at — not necessarily a Hermes-branded model. Never pull endpoint, field, or auth
+> details from a Hermes-model doc/card/benchmark; only `hermes-agent.nousresearch.com/docs`
+> and this file's own verified fixtures count as sources here.
+
 **Source:** Hermes Agent official docs (API Server, Programmatic Integration, Web Dashboard),
 read 2026-09-16. **Partially verified against installed Hermes 0.21.1 on 2026-09-16.**
 The capabilities response and session list/history endpoints are confirmed; verify remaining
