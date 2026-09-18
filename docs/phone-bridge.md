@@ -79,7 +79,7 @@ before it handles personal data.
 | App backgrounded five minutes | Pass, 2026-09-16 13:59 PDT | Launcher was the resumed activity for five minutes; foreground service stayed registered and answered `gate-background-five-minutes`. |
 | Screen off one hour | **Pass**, 2026-09-17 00:39 PDT, 0.17 s | In deep Doze (`deep=IDLE`) and **not** battery-exempt. |
 | Screen off overnight | **Pass**, 2026-09-17 07:24 PDT, 0.26 s | 11/11 pings answered sub-second across 7h45m unplugged. See results below. |
-| Phone unreachable | Pass in handler, 2026-09-16 13:55 PDT | Publishing to an unhandled request topic returned `phone_unreachable` after 25 seconds. Hermes tool rendering remains untested. |
+| Phone unreachable | **Pass through real Hermes**, 2026-09-18 01:47 PDT | The agent called the plugin tool in an `api_server` session; it returned `phone_unreachable` after 25 s and the assistant reported it verbatim. No hang. |
 
 ## Gate harness
 
@@ -267,3 +267,162 @@ this transport on this device. Option B (phone calls out, woken over ntfy) is co
   *over* `dumpsys` polling on the theory that repeated adb invocations might perturb Doze. The
   opposite held: polling did not prevent deep Doze, and it supplied the only Doze evidence
   there is. Use `dumpsys deviceidle get deep` at sample points.
+
+## Plugin installed on the live Hermes — 2026-09-18
+
+Closes the "Hermes has never loaded the plugin" gap. Researched from the running Hermes
+0.21.1 source (`/proc/<gateway-pid>/root/opt/hermes`) before anything was touched; the source
+overrides the upstream docs where they disagree.
+
+### How Hermes plugin discovery actually works here
+
+| Question | Answer, from source |
+|---|---|
+| User plugin dir | `get_hermes_home()/plugins` → `~/hermes-data/plugins/`. **Our docs were right**; `plugins/AGENTS.md` says `~/.hermes/plugins/` but that is generic prose for a non-container install. |
+| Layout | `<plugins>/<dir>/plugin.yaml` (or `.yml`, or portable `plugin.json`). Category nesting one level, depth cap two. |
+| Enable key | `key = f"{prefix}/{dir}" if prefix else name` (`plugins_manifest.py:413`) — for a flat install it is the manifest's **`name:` field**, not the directory name. Ours is `phone_ping_gate`. |
+| Enable gate | `plugins.enabled` is an opt-in allow-list. A missing key means *nothing* is enabled, not "everything". `plugins.disabled` is a deny-list that wins. |
+| Platform exposure | `api_server.py:2122` resolves `_get_platform_tools(config, "api_server")`. Plugin toolsets are **on by default** unless default-off or already "known" for the platform (`tools_config.py:538`). |
+| Capabilities | Seven declarable capabilities, all about overriding built-ins / LLM routing / platform actions. `phone_ping` needs none — which matters, because consent **fails closed in any non-interactive context**. |
+
+`kind: standalone` is the valid default and `provides_tools` is a real known field, so the
+manifest written for the gate needed no changes.
+
+### Changes made to the live instance
+
+All three were approved explicitly. The gateway was **not** restarted; it kept PID 1048105
+across every step.
+
+1. **`~/hermes-data/plugins/` replaced.** The original root-owned directory was renamed to
+   `plugins.root-old` and a user-owned `plugins/` created. No `sudo` was needed: the parent
+   `~/hermes-data` is user-writable, and renaming needs write permission on the *parent*, not
+   the directory. The four `hermes-launcher-*` directories were re-verified empty first and
+   are preserved untouched inside `plugins.root-old`.
+2. **Plugin copied** to `~/hermes-data/plugins/phone_ping_gate/`. A **copy, not a symlink** —
+   a symlink would point at the repo path, which does not exist inside the container.
+3. **`config.yaml`** gained a `plugins.enabled: [phone_ping_gate]` block, appended at end of
+   file. **`.env`** gained the three non-secret `PHONE_PING_*` variables. Backups:
+   `config.yaml.bak-20260918`, `.env.bak-20260918`, modes preserved, `.env` still `0600`.
+
+### Verified before restarting anything
+
+Hermes' own discovery code was run against the installed directory with `HERMES_HOME` and
+`PYTHONPATH` pointed at the live paths — read-only, no gateway involvement:
+
+- Before the config edit: `GATE -> placeholder`, error *"not enabled in config"*.
+- After: `GATE -> load`, no error. (`ManifestGate.enabled` is a dataclass default on the
+  `load` branch and is meaningful only for `placeholder` records; the action is the verdict.)
+- `config.yaml` parses, 24 top-level keys, exactly one `plugins:` block.
+- The installed copy imports, `_config()` resolves the `.env` values, `register(ctx)` calls
+  `register_tool(name=phone_ping, toolset=phone_ping_gate)`, and `phone_ping` degrades to
+  `phone_unreachable` with the phone service stopped.
+
+### Two corrections to earlier docs
+
+- **The container shares the host network namespace.** The gateway's `127.0.0.1:8642` socket
+  appears in the *host's* `ss` output with its own PID, as does ntfy on `127.0.0.1:2586`. So
+  the plugin reaches ntfy over loopback from inside the container and the **server side needs
+  no tailnet route at all**. The `:8443` Serve route is only for the *phone*.
+- **`docker` is installed** at `/usr/bin/docker`, so "the docker CLI is not available to this
+  user" is imprecise. The binary exists; the daemon socket is `/var/run/docker.sock`,
+  root-owned, permission denied. No `docker exec`, no `docker restart`. That socket path also
+  makes the "rootless Docker" description doubtful — a rootless daemon would use
+  `/run/user/1000/docker.sock`, which does not exist here.
+
+### Rollback
+
+```bash
+cd ~/hermes-data && mv config.yaml.bak-20260918 config.yaml && mv .env.bak-20260918 .env \
+  && rm -rf plugins && mv plugins.root-old plugins
+```
+
+### Gateway restarted and the plugin loaded — 2026-09-18 01:39 PDT
+
+The restart risk turned out to be small. The gateway's direct parent is
+`s6-supervise gateway-default`, so `kill -TERM` on the gateway PID is a supervised restart,
+not an outage: **the new process was up and answering in 6 seconds** (PID 1048105 →
+1210127), and `gateway-starts.log` recorded the new start. Container logs are UTC; the host
+is PDT.
+
+Pre-flight before the signal, all through Hermes' own code rather than a YAML parse:
+`load_config()` succeeded with 95 keys, `plugins.enabled` resolved to `['phone_ping_gate']`,
+and `_get_platform_tools(config, "api_server")` **already included `phone_ping_gate`** — so
+the platform exposure was confirmed by the real resolver rather than left to the default.
+
+**Confirmed loaded** by `GET /v1/toolsets` (`platform: api_server`), which lists 28 toolsets
+ending with `phone_ping_gate | tools: ['phone_ping']`.
+
+> `/v1/toolsets` is **not** in `docs/hermes-api.md`. It was read from the installed source
+> (`api_server.py:1511`) and used here only as a read-only diagnostic, not as client surface.
+> It is now verified live and is a candidate for the contract file if the app ever needs it.
+
+### End-to-end through a real session
+
+Session `api_1789720850_a262a904` (`source: api_server`), one real inference call:
+
+1. The agent called `tool_describe` and got the plugin's schema — the tool is genuinely
+   visible to the model, not merely registered.
+2. It called `phone_ping`, which executed **inside the gateway process**, published to ntfy
+   over container loopback, waited, and returned
+   `{"ok": false, "error": "phone_unreachable", "detail": "No reply within 25 seconds"}`.
+3. The assistant reported that verbatim. **It did not hang** — which is the accept criterion
+   `ROADMAP-TIER2.md` states for the unreachable case.
+
+Not verified in this run: the SSE event names. The parser keyed on a field inside the JSON
+payload rather than the SSE `event:` line and collected nothing, so the evidence above comes
+from message history, not from the stream. The stream event contract is unchanged from what
+`docs/hermes-api.md` already records; this run simply did not re-test it.
+
+### What is left to close Gate T2-0 completely
+
+**One thing: a real `phone_pong` through the real plugin.** Everything else is done. The
+phone was off the LAN at 01:45 (no adb, no ping to `192.168.254.134`), so the ping service
+could not be started. When the phone is back:
+
+1. Re-enable the route (it was turned off again — with the phone unreachable it exposed ntfy
+   to the tailnet for no benefit, and the *server* side needs only loopback).
+2. Start `PingBridgeService` with the two night topics.
+3. Re-run the same prompt and expect `{"ok": true, "echo": "...", "received_at_ms": ...}`.
+
+The plugin, the config, the toolset exposure and the failure path are all proven. What
+remains is the success path.
+
+### Decided 2026-09-18: T2-1 closes the join, not the harness
+
+**Do not spend further effort closing this with the gate harness.** The reason the last step
+needs adb is that `PingBridgeService` lives in `app/src/debug/` with **no in-app entry point** —
+nothing in the app references it, so the only way to start it is an external intent. That is a
+property of the disposable probe, not of the design.
+
+T2-1 already requires **a kill switch — one toggle that stops answering without uninstalling
+anything**, which is an in-app control in the release build. So the real bridge starts and stops
+from the app UI and never touches adb, and the one untested step — Hermes calling the plugin
+while a phone is actually listening — is exercised by construction the first time T2-1 runs,
+with the real separately-revocable credential instead of an unauthenticated probe topic.
+
+Closing it now with the harness would prove a configuration that is about to be deleted.
+
+Why the residual risk is low: the installed plugin is **byte-identical** to the module the phone
+answered 11/11 times overnight (`md5 cf25991dc260325f40c35da86e39593d` for both
+`phone-ping-plugin/__init__.py` and `~/hermes-data/plugins/phone_ping_gate/__init__.py`). Last
+night was not a mock of this code; it *was* this code, invoked from the repo rather than by
+Hermes. Both halves are proven independently and they meet over the same topics and JSON.
+
+Reachability from outside the LAN was confirmed while writing this: the Fold showed `idle` on the
+tailnet from a different network, and `tailscale nc 100.97.154.105 <port>` returned **connection
+refused** rather than a timeout — packets reach the phone; only `adbd` is not listening. A local
+TCP bridge through `tailscale nc` would work (direct TCP cannot: `tailscaled` runs
+`--tun=userspace-networking`, so this host has no route into `100.64.0.0/10`). It was not used.
+
+### Security note to carry into T2-1
+
+The gate service is declared `android:exported="true"` with **no permission guard**, and it takes
+`server`, `request_topic` and `reply_topic` as intent extras. Any app on the device could
+therefore start it and point it at a server of its choosing. That is why adb can start it at all.
+
+Acceptable for a debug-only probe carrying nothing but an echo string on a personal phone. **The
+real bridge must not inherit it.** A Tier 2 non-negotiable is that the phone answers because a
+capability is on the allowlist, not because something asked — an externally startable service
+aimed at an arbitrary endpoint is that same hole one layer down. The T2-1 service should be
+unexported (or permission-guarded), take its endpoint from stored configuration rather than from
+the intent that starts it, and log every start to the on-device audit log.
