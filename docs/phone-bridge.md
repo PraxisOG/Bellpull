@@ -17,8 +17,17 @@ the existing Hermes route on `/` remains. The live Hermes config and plugin dire
 not changed. No one-hour or overnight screen-off run has started.
 
 Verification before pausing: `./gradlew test`, `:app:assembleDebug`, and
-`:app:assembleRelease` passed; the release merged manifest contains no ping service or
-foreground-service permission. The plugin handler registered against a test context and
+`:app:assembleRelease` passed; the release merged manifest contains no ping service.
+
+> **Corrected 2026-09-18.** The original claim here also said the release manifest contains no
+> foreground-service permission. That is wrong. It contains no
+> `FOREGROUND_SERVICE_SPECIAL_USE` — the one the gate harness declares, and the one that
+> matters — but the **base `android.permission.FOREGROUND_SERVICE` is present**, together with
+> `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED` and `ACCESS_NETWORK_STATE`. All four are injected by
+> `androidx.work` (`work-runtime-ktx` 2.7.1), pulled in transitively by `glance-appwidget`.
+> The app's own manifest declares only `INTERNET`. Re-verified against
+> `app/build/intermediates/merged_manifests/release/`: `PingBridgeService` 0 occurrences,
+> `FOREGROUND_SERVICE_SPECIAL_USE` 0 occurrences, no `exported="true"` service. The plugin handler registered against a test context and
 completed a real ntfy round trip, but it has not been loaded by the running Hermes gateway.
 
 To resume, first arrange a period when the Fold can remain powered, on Tailscale, and
