@@ -122,14 +122,42 @@ phone produces a scoped error rather than a hang. Record it in `docs/phone-bridg
 state 4 fails, that's a finding, not a failure — it means Tier 2 tools are
 "works-when-recently-used" and the tool descriptions should say so to the model.
 
+> ## CLOSED 2026-09-18 — all four states pass
+>
+> **11 of 11 pings answered sub-second across 7h45m**, unplugged, screen off, app not opened.
+> `deep=IDLE` at every ping, so the device was genuinely in deep Doze each time. Battery 90% →
+> 72% (~2.3%/h). Evidence: `docs/phone-bridge.md`.
+>
+> Three results that change this roadmap:
+>
+> 1. **The 6-hour foreground-service cap does not apply to `specialUse`.** The service was
+>    still alive and answering at T+7h45. This file marked that behaviour assumed-not-verified;
+>    it is now verified.
+> 2. **No battery-optimisation exemption is needed.** The first three pings ran with the app
+>    *off* the whitelist — the out-of-the-box state — and answered in 0.25/0.17/0.23 s. An
+>    exemption applied mid-run changed nothing measurable. A foreground service with an ongoing
+>    notification keeps its network access through Doze. That removes a setup step and a
+>    permission prompt from T2-1.
+> 3. **Tier 2 tools are not "works-when-recently-used."** The pessimistic framing below does
+>    not hold for this transport on this device.
+>
+> Option B (phone calls out, woken over ntfy) is confirmed, and the plugin half is done too:
+> `phone_ping` is installed, enabled, loaded by the live gateway, and callable from an
+> `api_server` session, where it returns a scoped `phone_unreachable` rather than hanging.
+> One line stays open by choice — Hermes calling it while a phone is actually listening — and
+> **T2-1 closes it by construction**, because that slice's kill switch is an in-app control
+> and the harness needed adb only for lack of one.
+
 ---
 
 ## Slices
 
 ### T2-1 — Bridge + plugin skeleton
 The transport chosen in T2-0, plus the Hermes-side plugin scaffold: a directory in
-`~/.hermes/plugins/` with a `plugin.yaml` and Python, which Hermes discovers at startup and
-exposes alongside built-in tools. These are **Tools, not Skills** — they need end-to-end
+`$HERMES_HOME/plugins/` — **`~/hermes-data/plugins/` on this host, not `~/.hermes/plugins/`** —
+with a `plugin.yaml` and Python, which Hermes discovers at startup and
+exposes alongside built-in tools. The pattern is already proven end to end by the gate plugin;
+mechanics, enable-key rules and the supervised-restart procedure are in `docs/phone-bridge.md`. These are **Tools, not Skills** — they need end-to-end
 integration with auth, which is the documented dividing line.
 
 Build in the security model now, not later:
@@ -139,7 +167,16 @@ Build in the security model now, not later:
 - **A capability allowlist on the phone.** The bridge answers `contacts.lookup` because it's
   on the list, not because the server asked nicely.
 - **An on-device audit log** of every request the server made, visible in the app.
-- **A kill switch** — one toggle that stops answering, without uninstalling anything.
+- **A kill switch** — one toggle that stops answering, without uninstalling anything. Being an
+  in-app control, it is also what frees the bridge from the gate harness's adb dependency.
+- **The service must not be externally startable.** The gate harness is `exported="true"` with
+  no permission guard and takes its server and topics from intent extras, so any app on the
+  device could start it and aim it anywhere. Acceptable for an echo-only probe; not for this.
+  Unexport it (or guard it), read the endpoint from stored config rather than the starting
+  intent, and log every start to the audit log.
+- **Do not request a battery-optimisation exemption.** Gate T2-0 showed it is unnecessary. The
+  ongoing foreground-service notification is the mechanism that makes this work — and it is a
+  visible, permanent cost, so decide on it deliberately rather than inheriting it.
 
 Write the plugin to be installable by someone else from the start: config through env vars,
 no hardcoded tailnet addresses. Your stated reason for building server-side work as plugins
@@ -204,11 +241,12 @@ turn out to be impossible.
 **Content providers: A−.** Well-documented APIs, clear scope, your fixtures already designed.
 The contacts and SMS slices are the kind of work Tier 1's pace actually predicts.
 
-**Transport: C+, and it's the whole tier.** Not because it's hard to write, but because the
-platform is actively hostile to what it needs, the usual workaround depends on the Google
-stack you deliberately removed, and you can't find out whether it holds without leaving a
-phone alone overnight. Budget real calendar time for T2-0, not real coding time — most of it
-is waiting.
+**Transport: C+ when written, and it was the whole tier. Regraded A− on 2026-09-18.** The
+worry was legitimate and the mitigation — run the gate first, spend calendar time on it — was
+the right call. But the measurement came back clean: 11/11 sub-second in deep Doze over 7h45m,
+no 6-hour cap on `specialUse`, no battery exemption required. The platform turned out not to be
+hostile to *this* shape, because a foreground service keeps its network through Doze. The grade
+stands corrected rather than deleted, so the reasoning that produced it stays visible.
 
 ## Blast radius, stated plainly
 

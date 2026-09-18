@@ -14,16 +14,28 @@ Rewritten 2026-09-17. Entry point for whoever picks this up next, human or agent
 
 ## State in one paragraph
 
-**Tier 1 is code-complete and partly confirmed on the device. Gate T2-0 is in progress on
-`tier2-gate-phone-ping`; see `docs/phone-bridge.md`.** Tier 1 built six
+**Tier 1 is code-complete and partly confirmed on the device. Gate T2-0 is closed — the
+phone is reachable overnight and the plugin runs on the live Hermes; see
+`docs/phone-bridge.md`. T2-1 is startable.** Tier 1 built six
 slices (1–3, 5–7) and cut Slice 4 with evidence. All three things Tier 1 called "done" exist:
 the widget, the app-search bar, and sessions/streaming with visible context.
 
-**Pause checkpoint, 2026-09-16:** The user asked to resume later. The Gate T2-0 foreground
-and five-minute background pings passed on the real Fold; the one-hour and overnight runs
-have not started. The debug listener is stopped and the temporary ntfy Tailscale Serve route
-is off. The installed debug APK remains on the phone. `docs/phone-bridge.md` has the restart
-commands, evidence, and host plugin installation blocker.
+**Gate T2-0 result, 2026-09-18.** The phone answered **11 of 11** pings sub-second across
+7h45m unplugged, screen off, in deep Doze (`deep=IDLE` at every ping) — and **without** a
+battery-optimisation exemption, so T2-1 need not ask for one. The `specialUse` foreground
+service was still alive at T+7h45, so the 6-hour `dataSync` cap does not apply to it. The
+plugin is installed at `~/hermes-data/plugins/phone_ping_gate/`, enabled in the live
+`config.yaml`, loaded by the gateway, and callable from an `api_server` session.
+
+One line remains open by choice: Hermes calling the plugin while a phone is actually
+listening. It needs adb only because the debug harness has no in-app entry point, and
+**T2-1 closes it by construction** — that slice's kill switch is an in-app control. Do not
+spend effort closing it with the harness. Reasoning and the residual-risk argument are in
+`docs/phone-bridge.md`.
+
+Current parked state: the `:8443` route is **off**, the phone's ping service is **stopped**,
+the gateway is healthy with the plugin loaded, and `config.yaml.bak-20260918` /
+`.env.bak-20260918` exist with a one-line rollback in `docs/phone-bridge.md`.
 
 | | |
 |---|---|
@@ -176,12 +188,21 @@ Stated so nobody mistakes a green run for full coverage.
 ## Next
 
 1. The on-glass list above, then the carry-over items.
-2. **Gate T2-0** — prove the phone is reachable when it has been asleep for hours. It is the
-   only part of Tier 2 that can turn out to be impossible, and compressing it to reach the
-   content providers sooner is the specific mistake `ROADMAP-TIER2.md` warns about. It has a
-   prerequisite that roadmap did not list: ntfy needed a tailnet route. A temporary port
-   8443 route proved SSE on the Fold, then was disabled pending screen-off timing. See
-   `docs/phone-bridge.md`; one-hour and overnight results are still pending.
-3. Then T2-1 (bridge + plugin skeleton). The four
-   `~/hermes-data/plugins/hermes-launcher-*` directories are empty, despite the earlier
-   handoff claim; see `docs/phone-bridge.md`. Use bundled Hermes plugins as examples.
+2. **T2-1 — bridge + plugin skeleton.** Gate T2-0 is closed, so this is the live slice. The
+   plugin pattern is already established and working: `~/hermes-data/plugins/<name>/` with a
+   `plugin.yaml` whose `name:` field is the enable key, `register(ctx)` calling
+   `ctx.register_tool(...)`, and the plugin added to `plugins.enabled` in `config.yaml`.
+   Restarting the gateway is a supervised `kill -TERM` on its PID and takes ~6 seconds.
+   Full mechanics in `docs/phone-bridge.md`.
+
+   Four constraints for this slice, all already decided:
+   - A **separate token** from `API_SERVER_KEY`, independently revocable.
+   - A **capability allowlist on the phone**, plus an **on-device audit log** and a
+     **kill switch** — the kill switch being an in-app control is what removes the harness's
+     adb dependency.
+   - The bridge service must **not** be `exported` without a guard, and must take its
+     endpoint from stored configuration rather than from the intent that starts it. The gate
+     harness does the opposite; see the security note in `docs/phone-bridge.md`.
+   - No battery-optimisation exemption is needed — a foreground service with an ongoing
+     notification keeps network access through deep Doze. That notification is the mechanism
+     *and* a cost; decide on it deliberately rather than inheriting it from the harness.
