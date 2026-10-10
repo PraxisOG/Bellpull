@@ -1,4 +1,4 @@
-Bellpull README images — version 0.3.2
+Bellpull README images — version 0.3.3
 
 bellpull-icon.png is an unchanged copy of the app icon in
 android/app/src/main/res/drawable-nodpi/bellpull_icon.png.

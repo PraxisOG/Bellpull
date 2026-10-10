@@ -82,11 +82,12 @@ internal fun ToolResultView(
         else -> scheme.outlineVariant
     }
     val title = toolDisplayName(toolName)
+    val embedded = LocalInResponseBubble.current
     Surface(
         color = container,
-        shape = if (grouped) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
-        border = if (grouped) null else BorderStroke(1.dp, outline),
-        modifier = modifier.fillMaxWidth().clickable(onClickLabel = "Open $title details") { expanded = true },
+        shape = if (grouped || embedded) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
+        border = if (grouped || embedded) null else BorderStroke(1.dp, outline),
+        modifier = modifier.fillMaxWidth().responseRowEdges().clickable(onClickLabel = "Open $title details") { expanded = true },
     ) {
         Row(
             modifier = Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 4.dp),

@@ -1,5 +1,43 @@
 # Bellpull / Hermes app handoff
 
+## Tool and artifact rows share the response outline — 2026-10-10
+
+Android **0.3.3 (code 6)** refines the combined response bubble to match the user's
+clarification. Terminal, search, file, thinking and artifact rows now span the full
+response width. Internal rows are square with shared horizontal separators, no
+nested outlines or side gutters. The parent response clips the first/last rows to
+its outer corners, so a final artifact or tool forms the bottom of the bubble.
+Response corners are 18 dp except the 4 dp lower-left corner; user bubbles use
+18 dp all around. Prose retains its inset and tool status colors/details remain.
+Standalone artifact lists keep their own row containers. No server changes.
+
+Validation: **316 JVM tests passed, one opt-in live smoke skipped; 113 screenshot
+baselines verified; APK/lint passed with zero errors, 36 advisory warnings and four
+hints.** Existing response screenshots now assert exact row/bubble edge alignment;
+two new cover/dark-wide screenshots exercise a middle artifact and a final tool.
+Saved and streaming response diffs were inspected. On the naturally unfolded phone,
+the update preserves Dense mode and the configured profile; full-width rows, tool
+details and the final PDF artifact's preview were checked. No phone data was cleared,
+fold state forced, new inference run, or desktop emulator started for this slice.
+The user saw and approved the appearance while these checks were being completed.
+Physical fold transitions remain untested; cover geometry has rendered coverage.
+
+APK SHA-256: `11f79d6d1ab33888069c90837db0ff5bd5891740d444f2e657a9056f98e4fec1`.
+Release: `android-v0.3.3-preview.1`, asset `Bellpull.apk`; branch
+`phone/integrated-response-rows`, also published to `master`. README download/gallery
+now reflect 0.3.3. Private phone captures stay under ignored
+`android/app/build/device-tests/integrated-rows/`. This release is the current tested
+checkpoint; 0.3.2 remains available. Stop for further instructions.
+
+The user is considering trying a cheaper coding model for the next phase. Suggested
+handoff: read this document, CLAUDE.md, docs/hermes-api.md and the current
+Bellpull-Implementation-Prompt.txt; preserve existing work and branch from the latest
+tested origin/master; start with Phase 4A (saved answers and lightweight projects),
+briefly explain the approach, then implement/test with cover/unfolded checks and
+small commits. Keep that future experiment off master and do not publish its APK
+until the user reviews it. Phase 4 has not begun; the obsolete Tier 1/2/3 plan is
+not the next-phase authority. Git checkpoints do not back up live server data/config.
+
 ## Dense chat, complete response bubbles and Back navigation — 2026-10-10
 
 Android **0.3.2 (code 5)** completes the requested Phase 3 UI refinements:

@@ -294,7 +294,7 @@ internal fun SessionDetailScreen(
                                             if (group.tools) ToolGroup(group.messages.size,
                                                 forceExpanded = group.messages.any { it.id == highlightedId }) {
                                                 group.messages.forEachIndexed { index, message ->
-                                                    if (index > 0) HorizontalDivider()
+                                                    if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
                                                     androidx.compose.runtime.key(message.id) { render(message) }
                                                 }
                                             } else render(group.messages.single())
@@ -310,7 +310,7 @@ internal fun SessionDetailScreen(
                                                 reading = readingMessageId == message.id, onRead = onReadMessage,
                                                 onBranch = onBranchMessage, canBranch = canBranch,
                                                 onFollowUp = { quoteMessage = it }) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Column {
                                                     block.entries.forEach { entry ->
                                                         androidx.compose.runtime.key(entry.key) { renderEntry(entry) }
                                                     }
@@ -378,14 +378,15 @@ private fun MessageView(
             }
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = if (LocalInResponseBubble.current) Arrangement.Top else Arrangement.spacedBy(8.dp),
             ) {
                 val reasoning = message.reasoningContent?.takeIf { it.isNotBlank() }
                     ?: message.reasoning?.takeIf { it.isNotBlank() }
                 if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
                 if (!message.content.isNullOrBlank()) {
                     if (message.role == "assistant") {
-                        Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge)
+                        Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp))
                     } else {
                         Text(message.role, style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -402,6 +403,7 @@ private fun MessageView(
                         "Cut off by the model's output limit.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -437,12 +439,13 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
     ) {
         val prose: @Composable (String) -> Unit = { value ->
             Text(transcriptText(value), style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.semantics(mergeDescendants = true) {})
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp)
+                    .semantics(mergeDescendants = true) {})
         }
         if (!dense && (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed)) AssistantHeading()
         MessageBubble(Message(Int.MIN_VALUE, role = "assistant", content = text), dense, onSelectText,
             reading = reading, onRead = onRead) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column {
                 when (turn) {
                     is TurnState.Idle -> Unit
 
@@ -459,7 +462,8 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                             if (turn.stopRequested) "Stopping…" else turn.statusLabel,
                             style = MaterialTheme.typography.labelSmall,
                             color = scheme.primary,
-                            modifier = Modifier.testTag("stream-tail").semantics(mergeDescendants = true) {},
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (dense) 8.dp else 12.dp)
+                                .testTag("stream-tail").semantics(mergeDescendants = true) {},
                         )
                     }
 
@@ -503,7 +507,9 @@ private fun AssistantHeading() {
 
 @Composable
 private fun Banner(text: String, color: androidx.compose.ui.graphics.Color) {
-    Surface(color = color, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+    Surface(color = color,
+        shape = if (LocalInResponseBubble.current) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().responseRowEdges()) {
         Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(12.dp))
     }
 }

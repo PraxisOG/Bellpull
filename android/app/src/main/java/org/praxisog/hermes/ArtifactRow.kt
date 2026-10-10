@@ -22,9 +22,11 @@ import org.praxisog.hermes.model.Artifact
 /** Shares the compact outline, type scale and surface of a tool result. */
 @Composable
 internal fun ArtifactRow(item: Artifact, onDownload: (Artifact) -> Unit, onView: (Artifact) -> Unit) {
-    Surface(Modifier.fillMaxWidth().testTag("artifact-${item.id}").semantics(mergeDescendants = true) {}, shape = MaterialTheme.shapes.small,
+    val embedded = LocalInResponseBubble.current
+    Surface(Modifier.fillMaxWidth().testTag("artifact-${item.id}").semantics(mergeDescendants = true) {}.responseRowEdges(),
+        shape = if (embedded) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        border = if (embedded) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             Row(Modifier.heightIn(min = 36.dp).padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

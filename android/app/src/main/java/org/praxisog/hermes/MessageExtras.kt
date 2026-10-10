@@ -18,7 +18,8 @@ internal fun transcriptText(text: String): String = text.lineSequence().dropWhil
 @Composable
 internal fun ThinkingBlock(text: String, collapseByDefault: Boolean) {
     var expanded by rememberSaveable { mutableStateOf(!collapseByDefault) }
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.responseRowEdges(),
+        shape = if (LocalInResponseBubble.current) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth()) {
             CompactDisclosure(if (expanded) "Thinking ▴" else "Thinking ▾") { expanded = !expanded }
             if (expanded) SelectionContainer {
@@ -59,9 +60,10 @@ internal fun QuoteDialog(message: Message, onDismiss: () -> Unit, onQuote: (Stri
 internal fun ToolGroup(count: Int, forceExpanded: Boolean = false, content: @Composable () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(forceExpanded) { if (forceExpanded) expanded = true }
-    Surface(shape = MaterialTheme.shapes.small,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+    val embedded = LocalInResponseBubble.current
+    Surface(shape = if (embedded) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
+        border = if (embedded) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().responseRowEdges()) {
         Column {
             if (count > 4) CompactDisclosure("$count tool calls · " + if (expanded) "Collapse" else "Expand") { expanded = !expanded }
             if (count <= 4 || expanded) content()
@@ -91,7 +93,7 @@ internal fun LiveTranscriptView(parts: List<LivePart>, collapseThinking: Boolean
                                     androidx.compose.animation.slideInVertically { -it / 2 },
                                 exit = androidx.compose.animation.ExitTransition.None) {
                                 Column {
-                                    if (index > 0) HorizontalDivider()
+                                    if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
                                     ToolResultView(row.name, rawContent = null, arguments = row.preview,
                                         running = row.running, grouped = true,
                                         statusOverride = if (row.running) "Running…" else "Finished")

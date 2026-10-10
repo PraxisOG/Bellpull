@@ -2,7 +2,7 @@
 
 # Bellpull — Hermes Android
 
-**[Download Bellpull 0.3.2 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.2-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.2-preview.1)
+**[Download Bellpull 0.3.3 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.3-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1)
 
 ## Try it on your phone
 
@@ -29,7 +29,7 @@ A native Android chat client for a self-hosted [Hermes Agent](https://github.com
 ## A look inside
 
 Foldable layouts, compact message controls, light and dark themes, and optional server
-profiles. These screenshots are rendered from Bellpull 0.3.2 using fictional chats
+profiles. These screenshots are rendered from Bellpull 0.3.3 using fictional chats
 and example server addresses. Click any image to view it at full size.
 
 | Maroon · unfolded with camera cutout | Black · conversations, chat and context |
@@ -64,7 +64,8 @@ local Qwen route supports thinking On/Off, not graded effort. GPU cards appear o
 when the plugin can read actual hardware; missing tools/sensors show unavailable.
 
 Each Hermes response now shares one outlined bubble across its text, thinking,
-tool calls and generated artifacts. **Settings → Dense chat window** hides speaker
+tool calls and generated artifacts. Tool and file rows reach the bubble edges,
+sharing its outline and outer corners. **Settings → Dense chat window** hides speaker
 names and permanent action bars; long-press a bubble for its actions. Copy and Select
 text cover the response's prose, while tool rows retain their own details and data.
 The chat's three-dot menu includes **View artifacts**. Android Back returns from
@@ -79,7 +80,7 @@ tests, Android content-provider imports, failed-upload retry, native PDF/image p
 camera capture and an actual Sharesheet recipient with read-only grants. A live Hermes
 test identified an uploaded image, read a PDF and generated a new downloadable PDF.
 See [the handoff](docs/HANDOFF.md) for exact counts, phone acceptance, advisory lint
-warnings and remaining hardware/network limits. The gallery above shows the 0.3.2 UI;
+warnings and remaining hardware/network limits. The gallery above shows the 0.3.3 UI;
 its [source list](docs/images/README.txt) is included. No private phone screenshots are published.
 
 ## Build and test

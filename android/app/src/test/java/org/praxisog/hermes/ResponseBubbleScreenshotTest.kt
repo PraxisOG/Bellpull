@@ -33,6 +33,13 @@ class ResponseBubbleScreenshotTest {
         Message(7, role = "assistant", content = "Use a soft chair, a small lamp, and one trailing plant.")
     )
     private val artifact = Artifact("plan", "s", "reading-nook.png", "image/png", 64, "0".repeat(64), 1.0, "agent", messageId = 7)
+    private fun edgeToEdge(bubbleId: Int, tag: String, bottom: Boolean = false) {
+        val bubble = compose.onNodeWithTag("bubble-$bubbleId").fetchSemanticsNode().boundsInRoot
+        val row = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+        assertEquals(bubble.left, row.left, .5f)
+        assertEquals(bubble.right, row.right, .5f)
+        if (bottom) assertEquals(bubble.bottom, row.bottom, .5f)
+    }
     private fun show() {
         compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history), TurnState.Idle, {}, {}, {},
             denseChatWindow = true, artifacts = listOf(artifact)) } }
@@ -42,6 +49,9 @@ class ResponseBubbleScreenshotTest {
         }
         compose.onNodeWithText(history[1].content!!).assertIsDisplayed()
         compose.onNodeWithText(history.last().content!!).assertIsDisplayed()
+        edgeToEdge(7, "message-3")
+        edgeToEdge(7, "message-6")
+        edgeToEdge(7, "artifact-plan", bottom = true)
         captureScreenRoboImage()
     }
     @Test fun oneResponseCover() {
@@ -55,6 +65,17 @@ class ResponseBubbleScreenshotTest {
         compose.onNodeWithText("Copy data").assertIsDisplayed()
     }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun oneResponseUnfoldedDark() = show()
+    private fun middleArtifactAndFinalTool() {
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history.dropLast(1)), TurnState.Idle, {}, {}, {},
+            denseChatWindow = true, artifacts = listOf(artifact.copy(messageId = 2))) } }
+        edgeToEdge(5, "artifact-plan")
+        edgeToEdge(5, "message-6", bottom = true)
+        captureScreenRoboImage()
+        compose.onNodeWithText("Read file").performClick()
+        compose.onNodeWithText("Copy data").assertIsDisplayed()
+    }
+    @Test fun middleArtifactAndFinalToolCover() = middleArtifactAndFinalTool()
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun middleArtifactAndFinalToolUnfolded() = middleArtifactAndFinalTool()
     @Test fun searchCanRevealALateSegmentInsideATallResponse() {
         val long = history.map { if (it.id == 5) it.copy(content = "Room details.\n".repeat(100)) else it }
         var nav by androidx.compose.runtime.mutableStateOf<ChatNavigation?>(ChatNavigation.SEARCH)
