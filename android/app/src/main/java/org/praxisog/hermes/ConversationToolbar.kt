@@ -31,6 +31,7 @@ internal fun ConversationToolbar(
     onPrompts: () -> Unit,
     onSearch: () -> Unit,
     onSettings: () -> Unit = {},
+    onShare: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -75,12 +76,8 @@ internal fun ConversationToolbar(
                             onClick = { menuOpen = false; onSearch() })
                         HorizontalDivider()
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onSettings() })
-                        DropdownMenuItem(enabled = false, onClick = {}, text = {
-                            Column {
-                                Text("Share conversation")
-                                Text("Coming soon", style = MaterialTheme.typography.labelSmall)
-                            }
-                        })
+                        DropdownMenuItem(enabled = onShare != null, onClick = { menuOpen = false; onShare?.invoke() },
+                            text = { Text("Share conversation") })
                     }
                 }
             }

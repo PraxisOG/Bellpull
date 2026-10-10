@@ -65,14 +65,18 @@ class ConversationControlsTest {
         compose.onNodeWithText("Newly created branch").assertIsDisplayed()
     }
 
-    @Test fun newChatButtonWorksAndShareIsAnHonestPlaceholder() {
+    @Test fun newChatButtonWorksAndShareOpensAndroidChooser() {
         var starts = 0
         app(onNew = { starts++ })
         compose.onNodeWithTag("toolbar-new-chat").performClick()
         assertEquals(1, starts)
         compose.onNodeWithContentDescription("More options").performClick()
-        compose.onNodeWithText("Share conversation").assertIsNotEnabled()
-        compose.onNodeWithText("Coming soon").assertIsDisplayed()
+        compose.onNodeWithText("Share conversation").assertIsEnabled().performClick()
+        val started = org.robolectric.Shadows.shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
+        assertEquals(android.content.Intent.ACTION_CHOOSER, started.action)
+        @Suppress("DEPRECATION") val shared = started.getParcelableExtra<android.content.Intent>(android.content.Intent.EXTRA_INTENT)!!
+        assertEquals(android.content.Intent.ACTION_SEND, shared.action)
+        org.junit.Assert.assertTrue(shared.getStringExtra(android.content.Intent.EXTRA_TEXT)!!.contains("Message 1."))
     }
 
     @Test fun newChatIsDisabledWhileCreatingAndFailureIsVisible() {

@@ -22,6 +22,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var client: HermesClient? = null
         private set
+    var phase3 by mutableStateOf<Phase3Workspace?>(null)
+        private set
     var notificationEventsAvailable by mutableStateOf(false)
         private set
     private var notifications: ReplyNotifications? = null
@@ -60,9 +62,14 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         store = next
+        phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
+            capabilities.features["bellpull_persistent_artifacts"] == true,
+            capabilities.features["bellpull_model_controls"] == true) }
+        next.defaultModel = { phase3?.defaultSelection }
+        next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
         notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId }
-        next.onReply = { id, message -> notifications?.reply(id, message.id) }
+        next.onReply = { id, message -> notifications?.reply(id, message.id); phase3?.refreshArtifacts() }
         next.onAttention = { id, identity -> notifications?.attention(id, identity) }
         cache?.let {
             val catchUp = ReplyCatchUp(scope, client, it, receipts, next::discoveredReply)
@@ -82,6 +89,12 @@ internal class BellpullRuntime private constructor(context: Context) {
             val result = withContext(Dispatchers.IO) { current.capabilities() }
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
+            val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
+            val modelSupport = result.value.features["bellpull_model_controls"] == true
+            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport) {
+                phase3?.close()
+                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport) }
+            }
             store?.runs?.interactiveApprovals = result.value.interactiveApprovals
             cache?.writeCapabilities(result.value.raw.toString())
         }
@@ -119,6 +132,8 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun disconnect() {
+        phase3?.close()
+        phase3 = null
         store?.close()
         client?.close()
         cache?.close()

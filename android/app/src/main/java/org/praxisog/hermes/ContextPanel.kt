@@ -48,6 +48,7 @@ internal fun ContextPanel(
     onDisconnect: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onClose: (() -> Unit)? = null,
+    modelControl: (@Composable () -> Unit)? = null,
 ) {
     Surface(modifier = modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxSize()) {
@@ -92,7 +93,7 @@ internal fun ContextPanel(
 
                 // Shortened and truncated from the left: the distinctive tail of a model id is
                 // what identifies it, so losing the front costs nothing.
-                session.model?.let {
+                if (modelControl != null) modelControl() else session.model?.let {
                     Surface(color = MaterialTheme.colorScheme.primaryContainer,
                         shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -1,6 +1,8 @@
 package org.praxisog.hermes
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -42,12 +44,13 @@ internal fun WorkspaceModes(selected: WorkspaceMode, onSelect: (WorkspaceMode) -
 }
 
 @Composable
-internal fun ToolsWorkspace(onSearch: () -> Unit, onContext: (() -> Unit)?) {
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+internal fun ToolsWorkspace(onSearch: () -> Unit, onContext: (() -> Unit)?,
+    extraTools: (@Composable () -> Unit)? = null) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Open an app or turn a search into a new chat draft.", style = MaterialTheme.typography.bodyMedium)
         OutlinedButton(onClick = onSearch) { Text("Search apps & chats") }
         if (onContext != null) OutlinedButton(onClick = onContext) { Text("Conversation context") }
-        Text("Attachments and memory editing will appear here when connected.",
+        if (extraTools != null) extraTools() else Text("Connect a server in Settings to use server tools.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

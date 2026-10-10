@@ -21,6 +21,8 @@ import org.praxisog.hermes.model.Session
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
 internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore {
+    private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
+    private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
     @Synchronized fun close() { closed = true }
 
@@ -103,6 +105,17 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
     fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw).apply() }
 
+    fun defaultModel(): org.praxisog.hermes.model.ModelSelection? = preferences.getString("default_model", null)?.let {
+        runCatching { json.decodeFromString<org.praxisog.hermes.model.ModelSelection>(it) }.getOrNull()
+    }
+    fun writeDefaultModel(value: org.praxisog.hermes.model.ModelSelection?): Boolean = !closed && preferences.edit()
+        .putString("default_model", value?.let { json.encodeToString(it) }).commit()
+    fun draftFiles(): List<org.praxisog.hermes.model.DraftFile> = preferences.getString("draft_files", null)?.let {
+        runCatching { json.decodeFromString<List<org.praxisog.hermes.model.DraftFile>>(it) }.getOrNull()
+    }.orEmpty()
+    fun writeDraftFiles(values: List<org.praxisog.hermes.model.DraftFile>): Boolean = !closed && preferences.edit()
+        .putString("draft_files", json.encodeToString(values)).commit()
+
     override fun readRuns(): List<org.praxisog.hermes.model.RunSubmission> = preferences.all
         .filterKeys { it.startsWith("run:") }.values.mapNotNull { raw ->
             runCatching { json.decodeFromString<org.praxisog.hermes.model.RunSubmission>(raw as String) }.getOrNull()
@@ -129,7 +142,8 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
         check(clearChecked())
     }
 
-    fun clearChecked(): Boolean = preferences.edit().clear().commit()
+    fun clearChecked(): Boolean = profileFiles.deleteRecursively() && sharedFiles.deleteRecursively() &&
+        preferences.edit().clear().commit()
 
     companion object {
         fun fileName(profileId: String): String {

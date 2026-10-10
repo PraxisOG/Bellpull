@@ -71,6 +71,7 @@ data class RunSubmission(
     val historySynced: Boolean = false,
     val error: String? = null,
     val interactiveApprovals: Boolean = false,
+    val bellpull: BellpullRunOptions? = null,
 ) {
     val terminal: Boolean get() = status in setOf("completed", "failed", "cancelled", "stopped", "interrupted", "rejected", "abandoned")
 }

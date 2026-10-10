@@ -53,6 +53,7 @@ internal class DurableRuns(
     var onCompleted: (String, Message?) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onChanged: (String) -> Unit = {}
+    var onAccepted: (RunSubmission) -> Unit = {}
     var storageError by mutableStateOf<String?>(null)
         private set
     @Volatile private var closed = false
@@ -66,10 +67,10 @@ internal class DurableRuns(
         }
     }
 
-    fun send(sessionId: String, text: String, previousIds: Set<Int>) {
+    fun send(sessionId: String, text: String, previousIds: Set<Int>, bellpull: BellpullRunOptions? = null) {
         if (text.isBlank() || states[sessionId]?.busy == true || closed) return
         val record = RunSubmission("bellpull-${UUID.randomUUID()}", sessionId, text, clock(), drafts.revision(sessionId), previousIds,
-            interactiveApprovals = interactiveApprovals)
+            interactiveApprovals = interactiveApprovals, bellpull = bellpull)
         states[sessionId] = RunPresentation(record, TurnState.Streaming("", statusLabel = "Sending…"))
         onChanged(sessionId)
         track(sessionId, fresh = true)
@@ -142,7 +143,7 @@ internal class DurableRuns(
                         turn = TurnState.Streaming("", statusLabel = "Delivery needs review")) }
                     return@launch
                 }
-                val accepted = io { client.submitRun(record.sessionId, record.text, record.requestId, record.interactiveApprovals) }
+                val accepted = io { client.submitRun(record.sessionId, record.text, record.requestId, record.interactiveApprovals, record.bellpull) }
                 when (accepted) {
                     is HermesResult.Ok -> {
                         record = record.copy(runId = accepted.value.runId, status = accepted.value.status)
@@ -150,6 +151,7 @@ internal class DurableRuns(
                         update(sessionId) { it.copy(submission = record, notice = null,
                             turn = TurnState.Streaming("", canStop = true, statusLabel = "Running…")) }
                         drafts.accepted(sessionId, record.draftRevision)
+                        onAccepted(record)
                     }
                     is HermesResult.Err -> {
                         val error = accepted.error
@@ -271,7 +273,7 @@ internal class DurableRuns(
             val synced = record.copy(historySynced = true)
             save(synced)
             update(sessionId) { it.copy(submission = synced, notice = null,
-                turn = reconcileTurn(it.turn, messages, record.previousIds, record.text)) }
+                turn = reconcileDurableTurn(it.turn, messages, record)) }
         }
         return true
     }

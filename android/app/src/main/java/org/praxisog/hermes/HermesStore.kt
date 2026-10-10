@@ -43,6 +43,7 @@ internal class HermesStore(
     var onReply: (String, Message) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onSessions: (List<Session>) -> Unit = {}
+    var defaultModel: () -> org.praxisog.hermes.model.ModelSelection? = { null }
     val runPresentation: RunPresentation? get() = openSessionId?.let { runs?.states?.get(it) }
     val runLabels: Map<String, String> get() = runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
 
@@ -80,7 +81,7 @@ internal class HermesStore(
         val run = runs?.states?.get(id) ?: return
         turn = run.turn
         val saved = (history as? UiState.Ready)?.value.orEmpty()
-        pendingUserText = run.submission.text.takeIf { run.submission.runId != null && saved.none { message ->
+        pendingUserText = run.submission.text.takeIf { it.isNotBlank() && run.submission.runId != null && saved.none { message ->
             message.id !in run.submission.previousIds && message.role == "user" && message.content?.trim() == it.trim()
         } }
     }
@@ -203,7 +204,8 @@ internal class HermesStore(
         creatingSession = true
         createError = null
         scope.launch {
-            when (val result = io { client.createSession() }) {
+            val selection = defaultModel()
+            when (val result = io { client.createSession(selection = selection) }) {
                 is HermesResult.Ok -> {
                     creatingSession = false
                     loadSessions()
@@ -353,7 +355,7 @@ internal class HermesStore(
                     if (runs != null) {
                         showDurableRun(sessionId)
                         val record = runs.states[sessionId]?.submission
-                        if (record != null) turn = reconcileTurn(turn, result.value.data, record.previousIds, record.text)
+                        if (record != null) turn = reconcileDurableTurn(turn, result.value.data, record)
                     }
                     if (result.value.data.any { it.id !in turnHistoryIds && it.role == "user" &&
                             it.content?.trim() == pendingUserText?.trim() }) pendingUserText = null
@@ -378,7 +380,7 @@ internal class HermesStore(
      * that dropped first would never refetch, so the transcript kept tool previews with no
      * output. Tool results only exist in history anyway, since `tool.completed` carries none.
      */
-    fun send(text: String) {
+    fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null) {
         val sessionId = openSessionId ?: return
         if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return
 
@@ -386,7 +388,7 @@ internal class HermesStore(
             // Do not submit while the prior canonical history is unknown.
             val saved = (history as? UiState.Ready)?.value ?: return
             pendingPrompt = ""
-            runs.send(sessionId, text, saved.map { it.id }.toSet())
+            runs.send(sessionId, text, saved.map { it.id }.toSet(), bellpull)
             return
         }
 

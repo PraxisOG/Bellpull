@@ -69,3 +69,19 @@ internal fun reconcileTurn(
         else -> turn
     }
 }
+
+/** A notification-observed run has no phone-authored prompt to match. */
+internal fun reconcileDurableTurn(turn: TurnState, messages: List<org.praxisog.hermes.model.Message>,
+    record: org.praxisog.hermes.model.RunSubmission): TurnState {
+    if (!record.requestId.startsWith("observed:")) return reconcileTurn(turn, messages, record.previousIds, record.text)
+    val output = when (turn) {
+        is TurnState.Finished -> turn.text
+        is TurnState.StoppedByUser -> turn.text
+        else -> return turn
+    }
+    fun normalized(text: String) = text.trim().replace(Regex("\\s+"), " ")
+    val present = output.isBlank() || messages.any { it.role == "assistant" &&
+        normalized(it.content.orEmpty()) == normalized(output) }
+    if (!present) return turn
+    return if (turn is TurnState.StoppedByUser) turn.copy(text = "") else TurnState.Idle
+}

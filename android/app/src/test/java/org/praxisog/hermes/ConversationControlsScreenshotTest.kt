@@ -66,7 +66,7 @@ class ConversationControlsScreenshotTest {
     @Test fun overflowMenuCover() {
         app()
         compose.onNodeWithContentDescription("More options").performClick()
-        compose.onNodeWithText("Coming soon").assertIsDisplayed()
+        compose.onNodeWithText("Share conversation").assertIsEnabled()
         captureOverlay()
     }
     @Test fun toolDataCover() {

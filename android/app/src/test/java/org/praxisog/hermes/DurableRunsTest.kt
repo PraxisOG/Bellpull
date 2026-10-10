@@ -14,6 +14,19 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
 class DurableRunsTest {
+    @Test fun lostAcknowledgementRetriesThePersistedModelAndAttachmentsUnchanged() {
+        loseAck = true
+        val options = BellpullRunOptions(selection = ModelSelection("fixture-model", "fixture", ModelOptions(ReasoningChoice(false))),
+            artifactIds = listOf("a".repeat(32)))
+        val manager = manager()
+        manager.send("one", "hello", emptySet(), options)
+        await { manager.states["one"]?.submission?.runId != null }
+        val submissions = calls.filter { it.url.encodedPath == "/v1/runs" }
+        assertEquals(2, submissions.size)
+        assertEquals(options, saved.values.single().bellpull)
+        val bodies = submissions.map { request -> okio.Buffer().also { request.body!!.writeTo(it) }.readUtf8() }
+        assertEquals(bodies.first(), bodies.last())
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
     private val calls = CopyOnWriteArrayList<Request>()
     private val saved = java.util.concurrent.ConcurrentHashMap<String, RunSubmission>()
@@ -92,6 +105,16 @@ class DurableRunsTest {
         manager.send("one", "hello", emptySet())
         await { manager.states["one"]?.submission?.status == "rejected" }
         assertTrue(calls.isEmpty())
+    }
+    @Test fun observedCompletionUsesSavedReplyWithoutInventingPromptOrDuplicatingOutput() {
+        runStatus = "completed"
+        drafts.set("one", TextFieldValue("Keep my new draft"))
+        val manager = manager()
+        manager.observe("run_same", "one", 11) // The reply may already have been read.
+        await { manager.states["one"]?.submission?.historySynced == true }
+        assertTrue(manager.states["one"]!!.turn is TurnState.Idle)
+        assertEquals("Keep my new draft", drafts["one"].text)
+        assertTrue(calls.none { it.url.encodedPath == "/v1/runs" })
     }
     @Test fun coldRecoveryFindsSavedReplyWithoutNewSubmission() {
         saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")

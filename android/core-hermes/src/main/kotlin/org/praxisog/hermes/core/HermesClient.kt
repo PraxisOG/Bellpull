@@ -8,6 +8,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.encodeToJsonElement
+import org.praxisog.hermes.model.*
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -84,6 +86,81 @@ class HermesClient(
 
     // ---- endpoints ------------------------------------------------------------
 
+    /** Optional bellpull_gpu Hermes plugin. A 404 means it is not installed. */
+    fun gpuTemperatures(): HermesResult<org.praxisog.hermes.model.GpuTelemetry> =
+        get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
+
+    fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
+    fun sessionModel(sessionId: String): HermesResult<SessionModel> =
+        get("/api/bellpull/sessions/$sessionId/model", sessionId) { json.decodeFromString(it) }
+    fun selectModel(sessionId: String, selection: ModelSelection): HermesResult<SessionModel> =
+        execute(authed("/api/bellpull/sessions/$sessionId/model")
+            .put(json.encodeToString(selection).toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }
+    fun artifacts(sessionId: String? = null): HermesResult<ArtifactList> =
+        get("/api/bellpull/artifacts" + (sessionId?.let { "?session_id=" + urlPart(it) } ?: "")) { json.decodeFromString(it) }
+
+    fun uploadArtifact(file: java.io.File, draft: DraftFile, onStart: (Streaming) -> Unit,
+        onProgress: (Long) -> Unit): HermesResult<Artifact> {
+        require(draft.id.matches(Regex("[a-f0-9]{32}")))
+        val body = object : okhttp3.RequestBody() {
+            override fun contentType() = draft.mime.toMediaType()
+            override fun contentLength() = file.length()
+            override fun writeTo(sink: okio.BufferedSink) {
+                file.inputStream().use { input ->
+                    val buffer = ByteArray(65536)
+                    var sent = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        sink.write(buffer, 0, count); sent += count; onProgress(sent)
+                    }
+                }
+            }
+        }
+        val request = authed("/api/bellpull/artifacts/${draft.id}?session_id=${urlPart(draft.sessionId)}&name=${urlPart(draft.name)}")
+            .put(body).build()
+        val call = trackedCall(httpClient, request)
+        onStart(Streaming(call))
+        return try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) HermesResult.Err(mapHttpError(response, draft.sessionId))
+                else runCatching { HermesResult.Ok(json.decodeFromString<Artifact>(response.body.string())) }
+                    .getOrElse { HermesResult.Err(HermesError.MalformedResponse("Invalid attachment metadata")) }
+            }
+        } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+        finally { finished(call) }
+    }
+
+    /** Caller owns a private temporary file; publish it only after byte count/hash checks. */
+    fun downloadArtifact(artifact: Artifact, destination: java.io.File, onStart: (Streaming) -> Unit): HermesResult<Unit> {
+        require(artifact.id.matches(Regex("[a-f0-9]{32}")))
+        val call = trackedCall(httpClient, authed("/api/bellpull/artifacts/${artifact.id}/content").get().build())
+        onStart(Streaming(call))
+        return try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) return@use HermesResult.Err(mapHttpError(response, artifact.sessionId))
+                val hash = java.security.MessageDigest.getInstance("SHA-256")
+                var size = 0L
+                response.body.byteStream().use { input -> destination.outputStream().use { output ->
+                    val bytes = ByteArray(65536)
+                    while (true) {
+                        val count = input.read(bytes)
+                        if (count < 0) break
+                        size += count
+                        if (size > 25 * 1024 * 1024 || size > artifact.size) throw IOException("Attachment exceeds expected size")
+                        hash.update(bytes, 0, count); output.write(bytes, 0, count)
+                    }
+                } }
+                val digest = hash.digest().joinToString("") { "%02x".format(it) }
+                if (size != artifact.size || digest != artifact.sha256) throw IOException("Attachment verification failed")
+                HermesResult.Ok(Unit)
+            }
+        } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+        finally { finished(call) }
+    }
+
+    private fun urlPart(value: String) = java.net.URLEncoder.encode(value, Charsets.UTF_8.name())
+
     /**
      * `GET /v1/capabilities`. Returns the feature flags. This is the cheapest authenticated
      * call, so it doubles as the connection check.
@@ -121,8 +198,14 @@ class HermesClient(
     }
 
     /** `POST /api/sessions`. Unwraps the `session` envelope. */
-    fun createSession(title: String? = null): HermesResult<Session> {
-        val payload = if (title == null) "{}" else json.encodeToString(mapOf("title" to title))
+    fun createSession(title: String? = null, selection: ModelSelection? = null): HermesResult<Session> {
+        val payload = buildJsonObject {
+            title?.let { put("title", it) }
+            selection?.let {
+                put("model", it.model); put("provider", it.provider)
+                put("model_options", json.encodeToJsonElement(it.options)); put("require_model_lock", true)
+            }
+        }.toString()
         return post("/api/sessions", payload) {
             json.decodeFromString<SessionCreated>(it).session
         }
@@ -234,11 +317,13 @@ class HermesClient(
         get("/v1/runs/$runId") { json.decodeFromString(it) }
 
     /** Repeating this exact body/key recovers admission; never substitute a fresh key. */
-    fun submitRun(sessionId: String, input: String, requestId: String, interactiveApprovals: Boolean = false): HermesResult<RunAdmission> {
+    fun submitRun(sessionId: String, input: String, requestId: String, interactiveApprovals: Boolean = false,
+        bellpull: BellpullRunOptions? = null): HermesResult<RunAdmission> {
         require(input.isNotBlank() && requestId.isNotBlank())
         val body = buildJsonObject {
             put("input", input); put("session_id", sessionId)
             if (interactiveApprovals) put("interactive_approvals", true)
+            bellpull?.let { put("bellpull", json.encodeToJsonElement(it)) }
         }.toString()
         return execute(authed("/v1/runs").header("Idempotency-Key", requestId)
             .post(body.toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }

@@ -45,6 +45,7 @@ internal fun MessageActions(
     onFollowUp: ((Message) -> Unit)? = null,
 ) {
     val copy = rememberMessageCopy()
+    val context = LocalContext.current
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Row {
@@ -53,6 +54,7 @@ internal fun MessageActions(
                     onClick = { onRead(message) })
                 MessageAction("Branch into new chat", "branch", enabled = canBranch, onClick = { onBranch(message) })
                 if (onFollowUp != null) MessageAction("Follow up", "follow", onClick = { onFollowUp(message) })
+                MessageAction("Share message", "share", onClick = { ArtifactSharing.text(context, message.content.orEmpty()) })
             }
         }
     }
@@ -68,6 +70,13 @@ private fun MessageAction(label: String, glyph: String, enabled: Boolean = true,
             val h = size.height
             val stroke = 1.7.dp.toPx()
             when (glyph) {
+                "share" -> {
+                    val a = Offset(w * .18f, h * .5f)
+                    val b = Offset(w * .8f, h * .16f)
+                    val c = Offset(w * .8f, h * .84f)
+                    drawLine(tint, a, b, stroke); drawLine(tint, a, c, stroke)
+                    listOf(a, b, c).forEach { drawCircle(tint, w * .14f, it) }
+                }
                 "copy" -> {
                     drawRect(tint, Offset(w * .3f, h * .3f), Size(w * .6f, h * .6f), style = Stroke(stroke))
                     drawPath(Path().apply { moveTo(w * .7f, h * .1f); lineTo(w * .1f, h * .1f)

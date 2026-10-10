@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.*
+import org.praxisog.hermes.model.Artifact
 
 class MainActivity : ComponentActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -20,6 +21,10 @@ class MainActivity : ComponentActivity() {
     private var windowCutouts by mutableStateOf(emptyList<androidx.compose.ui.geometry.Rect>())
     private var focusChatRevision by mutableStateOf(0)
     private var pendingNewChat = false
+    private var pendingShare by mutableStateOf<IncomingShare?>(null)
+    private var shareBusy by mutableStateOf(false)
+    private var shareError by mutableStateOf<String?>(null)
+    private var showShare by mutableStateOf(true)
     private var pendingNotification: Pair<String, String>? = null
     private var permissionProfile: String? = null
     private val notificationPermission = registerForActivityResult(
@@ -56,6 +61,21 @@ class MainActivity : ComponentActivity() {
                 // Discard all saved UI navigation/selection when the account changes.
                 key(profiles.activeId) {
                     val current = store
+                    pendingShare?.takeIf { showShare }?.let { incoming ->
+                        HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
+                            IncomingShareDialog(incoming, (current?.sessions as? UiState.Ready)?.value.orEmpty(), current != null,
+                                shareBusy, shareError, ::acceptShare,
+                                { showShare = false; profiles.showSettings() }, { pendingShare = null; intent?.putExtra(IncomingShare.CONSUMED, true) })
+                        }
+                    }
+                    val files = runtime.phase3
+                    var preview by remember { mutableStateOf<Artifact?>(null) }
+                    val showPreview: (Artifact) -> Unit = { item ->
+                        if (current?.openSessionId != item.sessionId) current?.openSession(item.sessionId)
+                        preview = item
+                        focusChatRevision++
+                    }
+                    LaunchedEffect(files, current?.openSessionId) { files?.open(current?.openSessionId) }
                     var exampleId by rememberSaveable { mutableStateOf<String?>(null) }
                     var exampleDraft by remember { mutableStateOf(TextFieldValue()) }
                     var exampleQuery by remember { mutableStateOf("") }
@@ -70,11 +90,11 @@ class MainActivity : ComponentActivity() {
                         openSessionId = current?.openSessionId ?: exampleId.takeIf { current == null },
                         openSession = current?.openSession ?: BellpullExample.session.takeIf { current == null && exampleId != null },
                         now = System.currentTimeMillis() / 1000.0,
-                        onOpenSession = { if (current == null) exampleId = BellpullExample.ID else current.openSession(it) },
+                        onOpenSession = { preview = null; if (current == null) exampleId = BellpullExample.ID else current.openSession(it) },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
-                        onSend = { current?.send(it) }, onStop = { current?.stop() },
+                        onSend = { text -> if (current != null) { if (files != null) files.send(current, text) else current.send(text) } }, onStop = { current?.stop() },
                         onRetrySessions = { current?.loadSessions() }, onRetryHistory = { current?.refreshHistory() },
-                        onNewSession = { if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },
+                        onNewSession = { preview = null; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },
                         creatingSession = current?.creatingSession ?: false,
                         createError = current?.createError, offline = current?.offline,
                         onDisconnect = profiles::showSettings,
@@ -105,10 +125,32 @@ class MainActivity : ComponentActivity() {
                         branchingSession = current?.branchingSession ?: false, branchError = current?.branchError,
                         onDismissBranchError = { current?.dismissBranchError() },
                         disconnected = current == null, settingsRevision = profiles.settingsRevision,
+                        extraTools = runtime.client?.let { client -> {
+                            if (files?.filesSupported == true) AttachmentBrowser(files.artifacts,
+                                (current?.sessions as? UiState.Ready)?.value.orEmpty(), files.errors["artifacts"],
+                                files::refreshArtifacts, showPreview, { preview = null; current?.openSession(it); focusChatRevision++ })
+                            LiveGpuPanel(client, foreground)
+                        } },
+                        modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
+                            { ModelControl(workspace, id) }
+                        } },
+                        composerLeading = files?.takeIf { it.filesSupported }?.let { workspace -> current?.openSessionId?.let { id ->
+                            { AttachButton(workspace, id) { target ->
+                                if (current.drafts[target].text.isBlank()) current.drafts.set(target, TextFieldValue("Attached files"))
+                            } }
+                        } },
+                        attachmentStrip = files?.takeIf { it.filesSupported || it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
+                            { AttachmentStrip(workspace, id, showPreview) }
+                        } },
+                        uploading = files?.sending?.get(current?.openSessionId) == true || (files?.importing?.get(current?.openSessionId) ?: 0) > 0,
+                        previewPane = preview?.let { item -> files?.let { workspace ->
+                            { modifier -> ArtifactPreview(workspace, item, modifier) { preview = null } }
+                        } },
                         serverProfiles = {
                             ServerProfilesPanel(profiles.profiles, profiles.activeId, profiles.status, profiles.checking,
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,
                                 profiles::removeAll, profiles::rename)
+                            if (files?.modelsSupported == true) ModelControl(files, null)
                         },
                     )
                 }
@@ -117,6 +159,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun connected(current: HermesStore) {
+        showShare = true
         pendingNotification?.let { (profile, session) ->
             if (profile == runtime.profileId) { current.openSession(session); focusChatRevision++ }
         }
@@ -130,6 +173,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        IncomingShare.from(intent)?.let {
+            pendingShare = it; shareError = null; showShare = true
+            return
+        }
         ReplyNotifications.session(intent)?.let { session ->
             if (!ReplyNotifications.belongsTo(intent, profiles.activeId)) {
                 profiles.showSettings()
@@ -144,6 +191,34 @@ class MainActivity : ComponentActivity() {
         if (WidgetIntents.isNewChat(intent)) {
             if (store != null) store?.newSession()
             else if (profiles.activeId != null) pendingNewChat = true
+        }
+    }
+
+    private fun acceptShare(selectedId: String?) {
+        val incoming = pendingShare ?: return
+        val current = store ?: return
+        val client = runtime.client ?: return
+        val files = runtime.phase3
+        if (incoming.uris.isNotEmpty() && files?.filesSupported != true) {
+            shareError = "This server needs the Bellpull attachment extension to accept shared files."
+            return
+        }
+        if (shareBusy) return
+        shareBusy = true; shareError = null
+        scope.launch {
+            try {
+                val id = selectedId ?: when (val result = withContext(Dispatchers.IO) { client.createSession(selection = files?.defaultSelection) }) {
+                    is org.praxisog.hermes.model.HermesResult.Ok -> result.value.id
+                    is org.praxisog.hermes.model.HermesResult.Err -> { shareError = result.error.toUserMessage(); return@launch }
+                }
+                if (store !== current) { shareError = "The server profile changed. Choose the destination again."; return@launch }
+                val addition = incoming.text.ifBlank { "Attached files" }
+                val combined = listOf(current.drafts[id].text, addition).filter { it.isNotBlank() }.joinToString("\n\n")
+                current.drafts.set(id, TextFieldValue(combined, androidx.compose.ui.text.TextRange(combined.length)))
+                files?.addUris(id, incoming.uris)
+                current.loadSessions(); current.openSession(id); focusChatRevision++
+                pendingShare = null; intent?.putExtra(IncomingShare.CONSUMED, true)
+            } finally { shareBusy = false }
         }
     }
 

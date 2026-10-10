@@ -93,6 +93,8 @@ internal fun SessionDetailScreen(
     readEnabled: Boolean = true,
     onReadThrough: (Int) -> Unit = {},
     sendBlocked: Boolean = false,
+    composerLeading: (@Composable () -> Unit)? = null,
+    attachmentStrip: (@Composable () -> Unit)? = null,
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
     val composerDraft = draft ?: localDraft
@@ -304,8 +306,9 @@ internal fun SessionDetailScreen(
                 Text("Creating branch…", style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
+            attachmentStrip?.invoke()
             Composer(turn = turn, onSend = onSend, onStop = onStop, busy = branchingSession, sendBlocked = sendBlocked,
-                draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus)
+                draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus, leading = composerLeading)
         }
     }
 }
@@ -490,6 +493,7 @@ private fun Composer(
     onDraftChange: (TextFieldValue) -> Unit,
     focusRequester: FocusRequester,
     sendBlocked: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val streaming = turn as? TurnState.Streaming
     var focused by remember { mutableStateOf(false) }
@@ -502,6 +506,7 @@ private fun Composer(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
+                    leading?.invoke()
                     BasicTextField(
                         value = draft,
                         onValueChange = onDraftChange,

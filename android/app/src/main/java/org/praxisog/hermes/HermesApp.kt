@@ -80,6 +80,12 @@ internal fun HermesApp(
     disconnected: Boolean = false,
     serverProfiles: (@Composable () -> Unit)? = null,
     settingsRevision: Int = 0,
+    extraTools: (@Composable () -> Unit)? = null,
+    modelControl: (@Composable () -> Unit)? = null,
+    composerLeading: (@Composable () -> Unit)? = null,
+    attachmentStrip: (@Composable () -> Unit)? = null,
+    uploading: Boolean = false,
+    previewPane: (@Composable (Modifier) -> Unit)? = null,
 ) {
     var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
@@ -90,6 +96,7 @@ internal fun HermesApp(
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val androidContext = androidx.compose.ui.platform.LocalContext.current
     val openSettings: () -> Unit = {
         mode = WorkspaceMode.SETTINGS; drawerOnCover = false; expandedSearch = false; infoSheet = false
     }
@@ -132,7 +139,7 @@ internal fun HermesApp(
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
                     val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null }
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null && previewPane == null }
                     DisposableEffect(visibleSession) {
                         onVisibleSession(visibleSession)
                         onDispose { onVisibleSession(null) }
@@ -142,7 +149,7 @@ internal fun HermesApp(
                         ModalBottomSheet(onDismissRequest = { infoSheet = false },
                             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                             ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
-                                modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false })
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false }, modelControl = modelControl)
                         }
                     }
                     val animate = paneMotionEnabled(preferences.reduceMotion)
@@ -171,6 +178,10 @@ internal fun HermesApp(
                                 onPrompts = { navigation = ChatNavigation.PROMPTS },
                                 onSearch = { navigation = ChatNavigation.SEARCH },
                                 onSettings = openSettings,
+                                onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
+                                    ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }
+                                        .joinToString("\n\n") { "${if (it.role == "user") "You" else "Hermes"}:\n${it.content}" })
+                                }) else null,
                                 showContext = sideBySide && showContext,
                                 onContext = { if (sideBySide) showContext = !showContext else infoSheet = true })
                             if (createError != null) NewChatFailure(createError)
@@ -178,7 +189,7 @@ internal fun HermesApp(
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
                                     notificationsAvailable, onNotificationsChange, serverProfiles)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
-                                    if (openSessionId == null) null else ({ infoSheet = true }))
+                                    if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
                                 WorkspaceMode.PROJECTS, WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
                                     Text("Coming soon", style = MaterialTheme.typography.titleLarge)
                                     Text(if (mode == WorkspaceMode.PROJECTS) "Collect chats, notes and attachments in projects."
@@ -196,7 +207,8 @@ internal fun HermesApp(
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
                                             pendingUserText = pendingUserText,
-                                            sendBlocked = disconnected || runPresentation?.busy == true,
+                                            sendBlocked = disconnected || runPresentation?.busy == true || uploading,
+                                            composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
@@ -211,19 +223,20 @@ internal fun HermesApp(
                     }
                     if (sideBySide) {
                         Row(Modifier.fillMaxSize()) {
-                            SlidingPane(showList, fromLeft = true, animate = animate) {
+                            SlidingPane(showList && previewPane == null, fromLeft = true, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     listPane(Modifier.width(240.dp).fillMaxHeight())
                                     VerticalDivider()
                                 }
                             }
                             detailPane(Modifier.weight(1f).fillMaxHeight())
-                            SlidingPane(showContext && openSessionId != null && mode == WorkspaceMode.CHATS,
+                            SlidingPane(previewPane != null || (showContext && openSessionId != null && mode == WorkspaceMode.CHATS),
                                 fromLeft = false, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     VerticalDivider()
-                                    ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
-                                        modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false })
+                                    if (previewPane != null) previewPane(Modifier.width(360.dp).fillMaxHeight())
+                                    else ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
+                                        modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false }, modelControl = modelControl)
                                 }
                             }
                         }
@@ -240,6 +253,7 @@ internal fun HermesApp(
                             if (listVisible) listPane(Modifier.fillMaxSize()) else detailPane(Modifier.fillMaxSize())
                         }
                     }
+                    if (!sideBySide && previewPane != null) previewPane(Modifier.fillMaxSize())
                 }
             }
         }
