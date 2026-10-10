@@ -26,4 +26,26 @@ class ArtifactTranscriptTest {
             listOf(artifact, artifact)).map { it.key })
         assertEquals(listOf("artifact-output"), artifactTranscript(emptyList(), listOf(artifact)).map { it.key })
     }
+    @Test fun aResponseIncludesInterleavedToolsAndGeneratedFilesUntilTheNextPrompt() {
+        val messages = listOf(Message(1, role = "user"), Message(2, role = "assistant", content = "First"),
+            Message(3, role = "tool", content = "Tool output"), Message(4, role = "assistant", content = "Last"),
+            Message(5, role = "user"), Message(6, role = "assistant", content = "Next response"))
+        val blocks = responseBlocks(artifactTranscript(groupTranscript(messages), listOf(file("output", 1.0, 3))))
+        assertEquals(listOf(false, true, false, true), blocks.map { it.assistant })
+        assertEquals(listOf(2, 3, 4), blocks[1].messages.map { it.id })
+        assertEquals("artifact-output", blocks[1].entries[2].key)
+        assertEquals(4, blocks[1].actionMessage.id)
+        assertEquals("First\n\nLast", blocks[1].actionMessage.content)
+        assertEquals("Next response", blocks.last().actionMessage.content)
+    }
+    @Test fun systemMessagesAndUploadsDoNotBecomeAssistantContent() {
+        val messages = listOf(Message(1, role = "assistant", content = "Before"), Message(2, role = "system", content = "Boundary"),
+            Message(3, role = "assistant", content = "After"))
+        val upload = file("input", 1.0, 3).copy(source = "upload")
+        val blocks = responseBlocks(artifactTranscript(groupTranscript(messages), listOf(upload)))
+        assertEquals(listOf(true, false, true, false), blocks.map { it.assistant })
+        assertEquals("After", blocks[2].actionMessage.content)
+        assertEquals(upload, blocks.last().entries.single().artifact)
+        assertTrue(responseBlocks(emptyList()).isEmpty())
+    }
 }

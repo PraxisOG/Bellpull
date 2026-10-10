@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 internal enum class Appearance(val label: String) { SYSTEM("System"), LIGHT("White"), DARK("Black") }
 internal enum class Palette(val label: String, val seed: Long) {
@@ -28,6 +30,7 @@ internal data class BellpullPreferences(
     val customAccent: String = "59091E",
     val notifications: Boolean = false,
     val immersiveMode: Boolean = false,
+    val denseChatWindow: Boolean = false,
 )
 
 internal fun normalizedAccent(text: String): String? = text.trim().removePrefix("#")
@@ -45,6 +48,7 @@ internal class BellpullSettings(context: Context) {
         customAccent = normalizedAccent(prefs.getString("custom_accent", "59091E").orEmpty()) ?: "59091E",
         notifications = prefs.getBoolean("notifications", false),
         immersiveMode = prefs.getBoolean("immersive_mode", false),
+        denseChatWindow = prefs.getBoolean("dense_chat_window", false),
     ))
         private set
     fun update(next: BellpullPreferences) {
@@ -54,6 +58,7 @@ internal class BellpullSettings(context: Context) {
             .putBoolean("collapse_thinking", validated.collapseThinking)
             .putBoolean("reduce_motion", validated.reduceMotion)
             .putBoolean("immersive_mode", validated.immersiveMode)
+            .putBoolean("dense_chat_window", validated.denseChatWindow)
             .putString("palette", validated.palette.name)
             .putString("custom_accent", validated.customAccent).apply()
         prefs.edit().putBoolean("notifications", validated.notifications).apply()
@@ -121,11 +126,16 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                     Text("Your message", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium)
                 }
-                Text("Hermes", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                Text("A little more you.", style = MaterialTheme.typography.bodyMedium)
+                if (!preferences.denseChatWindow) Text("Hermes", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                Surface(color = Color.Transparent, shape = MaterialTheme.shapes.small,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    Text("A little more you.", Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
         HorizontalDivider()
+        PreferenceSwitch("Dense chat window", "Hide speaker names and action bars. Long-press a message for its actions.",
+            preferences.denseChatWindow) { onChange(preferences.copy(denseChatWindow = it)) }
         PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
             preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
         PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",
@@ -143,6 +153,6 @@ private fun PreferenceSwitch(title: String, detail: String, checked: Boolean, on
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(detail, style = MaterialTheme.typography.bodySmall)
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.semantics { contentDescription = title })
     }
 }

@@ -1,5 +1,64 @@
 # Bellpull / Hermes app handoff
 
+## Dense chat, complete response bubbles and Back navigation — 2026-10-10
+
+Android **0.3.2 (code 5)** completes the requested Phase 3 UI refinements:
+
+- Each assistant response has one transparent outlined bubble containing its prose,
+  thinking, terminal/search/file rows and generated artifacts. A new user prompt or
+  system message separates responses; uploaded files retain their own placement.
+  Streaming replies use the same presentation. Tool rows keep their details controls.
+- Settings adds **Dense chat window**, off by default. It hides visible speaker names
+  and permanent action bars while preserving accessible speaker descriptions. User
+  messages stay filled; assistant bubbles stay unfilled. The preference persists.
+- Long-press a user message for Copy, Select text, Follow up and Fork & edit. Assistant
+  messages offer Copy, Select text, Read/Stop, Branch, Follow up and Share. Select text
+  opens a read-only native selection dialog; copying a selection does not summon the
+  keyboard or change the conversation. Streaming menus retain the text pressed.
+- Copy/read/select/share use the complete response's prose without tool output or
+  reasoning. Branch targets its final displayed canonical assistant message. Existing
+  capability checks still gate branching/editing; Follow up creates an unsent quote.
+- The chat overflow menu adds **View artifacts**, listing the current conversation's
+  files with Download/View, including an explicit empty state. Viewing opens the
+  existing preview dialog; it can still dock in the right drawer.
+- Android Back returns from Settings to the last chat with its draft/scroll intact.
+  Back closes an open conversations panel on cover and wide layouts. Once it is
+  closed, Back can leave the app instead of reopening the panel in a loop.
+- Search can reveal a specific segment inside a response taller than the viewport;
+  tail following, read receipts and artifact chronology remain covered.
+
+Validation: **314 JVM tests passed, one opt-in live smoke skipped; 111 screenshot
+baselines verified; APK and lint passed with zero errors, 36 advisory warnings and
+four hints.** Nine new fictional-data snapshots cover dense layouts, long-press menus,
+selection, artifact browsing and mixed text/tool/file responses. Updated cover and
+unfolded diffs were reviewed. The README gallery now uses current 0.3.2 baselines.
+
+Two native Android acceptance tests passed at both 393×850 and 1280×800 on the
+isolated emulator: real long presses, partial copying, read callbacks, unsent follow-up,
+exact fork/edit targeting, tool details inside a combined bubble, whole-response
+selection and both Back behaviors. The emulator is stopped. A cover-width Robolectric
+QuoteDialog layout loop initially exhausted the desktop test worker's heap; that
+particular JVM flow now uses the wide configuration, while native Android covers both
+widths. The full suite passes at the original 512 MiB test heap; no memory override
+or app heap setting was added.
+
+Real-phone acceptance on the naturally unfolded Pixel 10 Pro Fold verified the
+in-place upgrade, persisted Dense mode, grouped live-history text/tool/artifact rows,
+user/bot action menus, selection dialog, View artifacts → PDF preview, Settings → chat
+Back and conversations-panel Back. Dense is enabled on the user's phone; fresh installs
+retain the standard layout. No credentials were removed, fold state forced, or new
+inference requested. Physical cover/fold transitions remain untested; cover layout
+and gestures are covered by rendered and native emulator tests.
+
+Installed/released APK SHA-256:
+`f97556892ac7571521acc801162d940adb548279323a6a6afea8675d13aac202`.
+Release: `android-v0.3.2-preview.1`, asset `Bellpull.apk`; source branch
+`phone/dense-chat-window`, also published to `master`. Phone captures stay in ignored
+`android/app/build/device-tests/dense-chat/`. This tagged release is the rollback
+checkpoint before the next phase. Future work should start on its own branch; Git
+reverts tracked source, not server configuration, databases or device account data.
+Phase 4 and further desktop packaging have not begun. Stop for further instruction.
+
 ## Inline artifacts and dialog previews — 2026-10-10
 
 Android **0.3.1 (code 4)** refines Phase 3's saved-file presentation:

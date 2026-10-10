@@ -22,7 +22,7 @@ import org.praxisog.hermes.model.Artifact
 /** Shares the compact outline, type scale and surface of a tool result. */
 @Composable
 internal fun ArtifactRow(item: Artifact, onDownload: (Artifact) -> Unit, onView: (Artifact) -> Unit) {
-    Surface(Modifier.fillMaxWidth().testTag("artifact-${item.id}"), shape = MaterialTheme.shapes.small,
+    Surface(Modifier.fillMaxWidth().testTag("artifact-${item.id}").semantics(mergeDescendants = true) {}, shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {

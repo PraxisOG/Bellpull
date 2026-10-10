@@ -179,9 +179,10 @@ class ConversationControlsTest {
         compose.onNodeWithText("/workspace/plan.txt").assertIsDisplayed()
     }
 
-    @Test fun longPressCopiesTheWholeUserMessage() {
+    @Test fun longPressOffersCopyForTheWholeUserMessage() {
         app(history = UiState.Ready(listOf(Message(101, role = "user", content = "Copy this whole message 🌳"))))
         compose.onNodeWithTag("message-101").performTouchInput { longClick() }
+        compose.onNodeWithContentDescription("Copy message").performClick()
         val clipboard = RuntimeEnvironment.getApplication().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         assertEquals("Copy this whole message 🌳", clipboard.primaryClip!!.getItemAt(0).text.toString())
     }

@@ -71,13 +71,13 @@ internal fun ToolGroup(count: Int, forceExpanded: Boolean = false, content: @Com
 
 @Composable
 internal fun LiveTranscriptView(parts: List<LivePart>, collapseThinking: Boolean, reduceMotion: Boolean,
-    seenRows: List<String>, onRowSeen: (String) -> Unit) {
+    seenRows: List<String>, onRowSeen: (String) -> Unit, prose: @Composable (String) -> Unit) {
     parts.forEach { part ->
         key(part.id) {
             when (part) {
                 is LivePart.Prose -> if (part.text.isNotBlank()) {
                     if (part.thinking) ThinkingBlock(part.text, collapseThinking)
-                    else SelectionContainer { Text(transcriptText(part.text), style = MaterialTheme.typography.bodyLarge) }
+                    else prose(part.text)
                 }
                 is LivePart.Tools -> ToolGroup(part.rows.size) {
                     part.rows.forEachIndexed { index, row ->

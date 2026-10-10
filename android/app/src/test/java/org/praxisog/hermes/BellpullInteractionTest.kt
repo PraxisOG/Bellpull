@@ -107,7 +107,7 @@ class BellpullInteractionTest {
     @Test fun presentationPreferencesPersistWithoutCredentials() {
         val context = RuntimeEnvironment.getApplication()
         val settings = BellpullSettings(context)
-        settings.update(BellpullPreferences(Appearance.DARK, collapseThinking = false, reduceMotion = true, palette = Palette.CUSTOM, customAccent = "2E5577"))
+        settings.update(BellpullPreferences(Appearance.DARK, collapseThinking = false, reduceMotion = true, palette = Palette.CUSTOM, customAccent = "2E5577", denseChatWindow = true))
         assertEquals(settings.value, BellpullSettings(context).value)
     }
 }

@@ -95,6 +95,7 @@ internal fun HermesApp(
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
+    var artifactsOpen by remember(openSessionId) { mutableStateOf(false) }
     var navigation by remember(openSessionId) { mutableStateOf<ChatNavigation?>(null) }
     val screenState = rememberSaveableStateHolder()
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
@@ -126,6 +127,8 @@ internal fun HermesApp(
                     title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
                     confirmButton = { TextButton(onClick = onDismissBranchError) { Text("Dismiss") } })
             }
+            if (artifactsOpen) ConversationArtifactsDialog(artifacts, onDownloadArtifact,
+                onView = { artifactsOpen = false; onViewArtifact(it) }, onClose = { artifactsOpen = false })
             if (expandedSearch) WorkspaceSearch(
                 (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
                 query, onQueryChange, open, onLaunchApp,
@@ -143,12 +146,21 @@ internal fun HermesApp(
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
                     val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null && previewPane == null && previewDialog == null }
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewPane == null && previewDialog == null }
                     DisposableEffect(visibleSession) {
                         onVisibleSession(visibleSession)
                         onDispose { onVisibleSession(null) }
                     }
-                    BackHandler(enabled = !sideBySide && !drawerOnCover) { drawerOnCover = true }
+                    BackHandler(enabled = mode != WorkspaceMode.SETTINGS && !expandedSearch && !infoSheet && !artifactsOpen &&
+                        previewPane == null && previewDialog == null && (if (sideBySide) showList else drawerOnCover)) {
+                        if (sideBySide) showList = false else drawerOnCover = false
+                    }
+                    BackHandler(enabled = mode == WorkspaceMode.SETTINGS && !expandedSearch && !infoSheet) {
+                        mode = WorkspaceMode.CHATS
+                        drawerOnCover = openSessionId == null && !disconnected
+                        focusManager.clearFocus(force = true)
+                        keyboard?.hide()
+                    }
                     if (infoSheet && openSessionId != null) {
                         ModalBottomSheet(onDismissRequest = { infoSheet = false },
                             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -182,6 +194,7 @@ internal fun HermesApp(
                                 onPrompts = { navigation = ChatNavigation.PROMPTS },
                                 onSearch = { navigation = ChatNavigation.SEARCH },
                                 onSettings = openSettings,
+                                onArtifacts = { artifactsOpen = true },
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
                                     ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }
                                         .joinToString("\n\n") { "${if (it.role == "user") "You" else "Hermes"}:\n${it.content}" })
@@ -210,11 +223,12 @@ internal fun HermesApp(
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
+                                            denseChatWindow = preferences.denseChatWindow,
                                             pendingUserText = pendingUserText,
                                             sendBlocked = disconnected || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
-                                            readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null && previewDialog == null && previewPane == null,
+                                            readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewDialog == null && previewPane == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
                                             onReadMessage = onReadMessage, onBranchMessage = onBranchMessage,

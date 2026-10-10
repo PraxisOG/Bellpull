@@ -1,6 +1,7 @@
 package org.praxisog.hermes
 
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
@@ -89,6 +90,7 @@ internal fun SessionDetailScreen(
     onDraftChange: (TextFieldValue) -> Unit = {},
     collapseThinking: Boolean = true,
     reduceMotion: Boolean = false,
+    denseChatWindow: Boolean = false,
     pendingUserText: String? = null,
     readEnabled: Boolean = true,
     onReadThrough: (Int) -> Unit = {},
@@ -118,6 +120,8 @@ internal fun SessionDetailScreen(
             TextButton(enabled = !branchingSession && editedText.isNotBlank(),
                 onClick = { onForkEdit(editingMessage, editedText) }) { Text(if (branchingSession) "Creating branch…" else "Create edited branch") }
         }, dismissButton = { TextButton(enabled = !branchingSession, onClick = { editingMessageId = null }) { Text("Cancel") } })
+    var selectingMessage by remember { mutableStateOf<Message?>(null) }
+    selectingMessage?.let { SelectMessageTextDialog(it) { selectingMessage = null } }
     var quoteMessage by remember { mutableStateOf<Message?>(null) }
     quoteMessage?.let { source ->
         QuoteDialog(source, onDismiss = { quoteMessage = null }, onQuote = { quote ->
@@ -171,13 +175,13 @@ internal fun SessionDetailScreen(
             callsWithoutResults[it.id].isNullOrEmpty() && it.finishReason != "length" && it.reasoning.isNullOrBlank() && it.reasoningContent.isNullOrBlank() }
     }
     val groups = remember(visibleMessages) { groupTranscript(visibleMessages) }
-    val entries = remember(groups, artifacts) { artifactTranscript(groups, artifacts) }
+    val entries = remember(groups, artifacts) { responseBlocks(artifactTranscript(groups, artifacts)) }
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
-    val mayRead = readEnabled && navigation == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
+    val mayRead = readEnabled && navigation == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
     LaunchedEffect(listState, latestReply?.id, mayRead, entries) {
         if (mayRead && latestReply != null) {
-            val replyIndex = entries.indexOfFirst { entry -> entry.group?.messages?.any { it.id == latestReply.id } == true }
+            val replyIndex = entries.indexOfFirst { entry -> entry.messages.any { it.id == latestReply.id } }
             snapshotFlow {
                 replyIndex >= 0 && !listState.canScrollForward && listState.layoutInfo.visibleItemsInfo.any { it.index >= replyIndex }
             }.collect { visible -> if (visible) readCallback(latestReply.id) }
@@ -186,12 +190,12 @@ internal fun SessionDetailScreen(
     if (navigation != null) {
         ConversationNavigator(mode = navigation, messages = visibleMessages, onDismiss = onDismissNavigation,
             onJump = { id ->
-                val index = entries.indexOfFirst { entry -> entry.group?.messages?.any { it.id == id } == true }
+                val index = entries.indexOfFirst { entry -> entry.messages.any { it.id == id } }
                 if (index >= 0) {
                     browsingHistory = true
                     followingTail = false
-                    highlightedId = id
-                    scope.launch { listState.scrollToItem(index) }
+                    highlightedId = null
+                    scope.launch { listState.scrollToItem(index); highlightedId = id }
                 }
                 onDismissNavigation()
             })
@@ -261,39 +265,70 @@ internal fun SessionDetailScreen(
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                items(entries, key = { it.key }) { entry ->
-                                    if (entry.artifact != null) {
-                                        ArtifactRow(entry.artifact, onDownloadArtifact, onViewArtifact)
-                                        return@items
-                                    }
-                                    val group = requireNotNull(entry.group)
-                                    val render: @Composable (Message) -> Unit = { message ->
-                                        Box(Modifier.testTag("message-${message.id}").then(
-                                            if (highlightedId == message.id) Modifier.border(2.dp,
-                                                MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium).padding(6.dp)
-                                            else Modifier)) {
-                                            MessageView(message, toolCalls[message.toolCallId], callsWithoutResults[message.id].orEmpty(),
-                                                onReadMessage, onBranchMessage, readingMessageId == message.id,
-                                                branchingEnabled && !branchingSession && turn !is TurnState.Streaming,
-                                                collapseThinking, onFollowUp = { quoteMessage = it }, groupedTool = group.tools,
-                                                canEdit = editingEnabled && !branchingSession && turn !is TurnState.Streaming,
-                                                onEdit = { editingMessageId = it.id; editedText = it.content.orEmpty() })
+                                items(entries, key = { it.key }) { block ->
+                                    val renderEntry: @Composable (TranscriptEntry) -> Unit = { entry ->
+                                        if (entry.artifact != null) ArtifactRow(entry.artifact, onDownloadArtifact, onViewArtifact)
+                                        else {
+                                            val group = requireNotNull(entry.group)
+                                            val render: @Composable (Message) -> Unit = { message ->
+                                                val target = remember { BringIntoViewRequester() }
+                                                LaunchedEffect(highlightedId) {
+                                                    if (highlightedId == message.id) {
+                                                        androidx.compose.runtime.withFrameNanos { }
+                                                        target.bringIntoView()
+                                                    }
+                                                }
+                                                Box(Modifier.testTag("message-${message.id}")
+                                                    .then(if (block.assistant) Modifier.semantics(mergeDescendants = true) {} else Modifier)
+                                                    .bringIntoViewRequester(target).then(
+                                                    if (highlightedId == message.id) Modifier.border(2.dp,
+                                                        MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium).padding(6.dp)
+                                                    else Modifier)) {
+                                                    MessageView(message, toolCalls[message.toolCallId], callsWithoutResults[message.id].orEmpty(),
+                                                        collapseThinking, onFollowUp = { quoteMessage = it }, groupedTool = group.tools,
+                                                        canEdit = editingEnabled && !branchingSession && turn !is TurnState.Streaming,
+                                                        onEdit = { editingMessageId = it.id; editedText = it.content.orEmpty() },
+                                                        dense = denseChatWindow, onSelectText = { selectingMessage = it })
+                                                }
+                                            }
+                                            if (group.tools) ToolGroup(group.messages.size,
+                                                forceExpanded = group.messages.any { it.id == highlightedId }) {
+                                                group.messages.forEachIndexed { index, message ->
+                                                    if (index > 0) HorizontalDivider()
+                                                    androidx.compose.runtime.key(message.id) { render(message) }
+                                                }
+                                            } else render(group.messages.single())
                                         }
                                     }
-                                    if (group.tools) ToolGroup(group.messages.size,
-                                        forceExpanded = group.messages.any { it.id == highlightedId }) {
-                                        group.messages.forEachIndexed { index, message ->
-                                            if (index > 0) HorizontalDivider()
-                                            androidx.compose.runtime.key(message.id) { render(message) }
+                                    if (block.assistant) {
+                                        val message = block.actionMessage
+                                        val canBranch = branchingEnabled && !branchingSession && turn !is TurnState.Streaming &&
+                                            block.messages.any { it.role == "assistant" }
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            if (!denseChatWindow) AssistantHeading()
+                                            MessageBubble(message, denseChatWindow, { selectingMessage = it },
+                                                reading = readingMessageId == message.id, onRead = onReadMessage,
+                                                onBranch = onBranchMessage, canBranch = canBranch,
+                                                onFollowUp = { quoteMessage = it }) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    block.entries.forEach { entry ->
+                                                        androidx.compose.runtime.key(entry.key) { renderEntry(entry) }
+                                                    }
+                                                }
+                                            }
+                                            if (!denseChatWindow && !message.content.isNullOrBlank()) MessageActions(message,
+                                                readingMessageId == message.id, onReadMessage, onBranchMessage, canBranch,
+                                                { quoteMessage = it }, { selectingMessage = it })
                                         }
-                                    } else render(group.messages.single())
+                                    } else block.entries.forEach { renderEntry(it) }
                                 }
                                 if (pendingUserText != null) item(key = "pending-user") {
-                                    PendingUserMessage(pendingUserText)
+                                    PendingUserMessage(pendingUserText, denseChatWindow) { selectingMessage = it }
                                 }
                                 if (turn !is TurnState.Idle) {
                                     item(key = "live-turn") { TurnView(turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
-                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it }) }
+                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
+                                        denseChatWindow, { selectingMessage = it }) }
                                 }
                             }
                             if (browsingHistory || listState.canScrollForward) {
@@ -325,9 +360,9 @@ internal fun SessionDetailScreen(
 @Composable
 private fun MessageView(
     message: Message, toolCall: ToolCall?, callsWithoutResults: List<ToolCall>,
-    onRead: (Message) -> Unit, onBranch: (Message) -> Unit, reading: Boolean, canBranch: Boolean,
     collapseThinking: Boolean, onFollowUp: (Message) -> Unit, groupedTool: Boolean = false,
     canEdit: Boolean = false, onEdit: (Message) -> Unit = {},
+    dense: Boolean = false, onSelectText: (Message) -> Unit = {},
 ) {
     when (message.role) {
         "tool" -> ToolResultView(toolName = message.toolName ?: toolCall?.function?.name,
@@ -335,28 +370,9 @@ private fun MessageView(
         else -> {
             val isUser = message.role == "user"
             if (isUser) {
-                val copy = rememberMessageCopy()
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-                        modifier = Modifier.fillMaxWidth(0.93f).combinedClickable(
-                            onClick = {}, onLongClickLabel = "Copy message",
-                            onLongClick = { copy(message.content.orEmpty()) },
-                        ),
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("You", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary)
-                            Text(message.content.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-                            Row {
-                                TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
-                                if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
-                            }
-                        }
-                    }
+                    MessageBubble(message, dense, onSelectText, onFollowUp = onFollowUp, canEdit = canEdit,
+                        onEdit = onEdit, modifier = Modifier.fillMaxWidth(.93f))
                 }
                 return
             }
@@ -368,14 +384,15 @@ private fun MessageView(
                     ?: message.reasoning?.takeIf { it.isNotBlank() }
                 if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
                 if (!message.content.isNullOrBlank()) {
-                    if (message.role == "assistant") AssistantHeading()
-                    else Text(message.role, style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    SelectionContainer { Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge) }
-                    if (message.role == "assistant" && !message.content.isNullOrBlank()) {
-                        MessageActions(message, reading, onRead, onBranch, canBranch, onFollowUp)
+                    if (message.role == "assistant") {
+                        Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge)
+                    } else {
+                        Text(message.role, style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        SelectionContainer { Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge) }
                     }
                 }
+
                 callsWithoutResults.forEach { call ->
                     ToolResultView(toolName = call.function?.name, rawContent = null, arguments = call.function?.arguments)
                 }
@@ -394,29 +411,21 @@ private fun MessageView(
 
 /** Local send acknowledged by Hermes, waiting for the canonical history row. */
 @Composable
-private fun PendingUserMessage(text: String) {
-    val copy = rememberMessageCopy()
+private fun PendingUserMessage(text: String, dense: Boolean, onSelectText: (Message) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Surface(color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-            modifier = Modifier.fillMaxWidth(.93f).combinedClickable(onClick = {},
-                onLongClickLabel = "Copy message", onLongClick = { copy(text) })) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("You", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Text(text, style = MaterialTheme.typography.bodyLarge)
-            }
-        }
+        MessageBubble(Message(Int.MIN_VALUE + 1, role = "user", content = text), dense, onSelectText,
+            modifier = Modifier.fillMaxWidth(.93f))
     }
 }
 
 /** The turn in flight, or how the last one ended. */
 @Composable
 private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolean, collapseThinking: Boolean, reduceMotion: Boolean,
-    seenToolRows: List<String>, onToolRowSeen: (String) -> Unit) {
+    seenToolRows: List<String>, onToolRowSeen: (String) -> Unit, dense: Boolean, onSelectText: (Message) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val text = when (turn) {
-        is TurnState.Streaming -> turn.text
+        is TurnState.Streaming -> turn.parts.filterIsInstance<LivePart.Prose>().filter { !it.thinking && it.text.isNotBlank() }
+            .joinToString("\n\n") { it.text }.ifEmpty { turn.text }
         is TurnState.Finished -> turn.text
         is TurnState.StoppedByUser -> turn.text
         is TurnState.Truncated -> turn.text
@@ -426,52 +435,59 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed) AssistantHeading()
-        when (turn) {
-            is TurnState.Idle -> Unit
-
-            is TurnState.Streaming -> {
-                if (turn.parts.isNotEmpty()) LiveTranscriptView(turn.parts, collapseThinking, reduceMotion, seenToolRows, onToolRowSeen)
-                else {
-                if (turn.reasoning.isNotBlank()) ThinkingBlock(turn.reasoning, collapseThinking)
-                if (turn.text.isNotEmpty()) {
-                    Text(transcriptText(turn.text), style = MaterialTheme.typography.bodyLarge)
-                }
-                turn.runningTool?.let {
-                    ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
-                }
-                }
-                Text(
-                    if (turn.stopRequested) "Stopping…" else turn.statusLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = scheme.primary,
-                    modifier = Modifier.testTag("stream-tail"),
-                )
-            }
-
-            // Gate 0d: the server reports a stopped turn as completed, so this label comes
-            // from the client remembering that it asked, not from a flag.
-            is TurnState.StoppedByUser -> {
-                if (turn.text.isNotEmpty()) {
-                    Text(turn.text, style = MaterialTheme.typography.bodyLarge)
-                }
-                Banner("Stopped. This reply is partial.", scheme.tertiaryContainer)
-            }
-
-            is TurnState.Truncated -> {
-                if (turn.text.isNotEmpty()) {
-                    Text(turn.text, style = MaterialTheme.typography.bodyLarge)
-                }
-                Banner(turn.error.toUserMessage(), scheme.errorContainer)
-            }
-
-            is TurnState.Finished -> if (turn.text.isNotBlank()) Text(turn.text, style = MaterialTheme.typography.bodyLarge)
-
-            is TurnState.Failed -> Banner(turn.error.toUserMessage(), scheme.errorContainer)
+        val prose: @Composable (String) -> Unit = { value ->
+            Text(transcriptText(value), style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.semantics(mergeDescendants = true) {})
         }
-        if (turn !is TurnState.Streaming && text.isNotBlank()) {
+        if (!dense && (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed)) AssistantHeading()
+        MessageBubble(Message(Int.MIN_VALUE, role = "assistant", content = text), dense, onSelectText,
+            reading = reading, onRead = onRead) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (turn) {
+                    is TurnState.Idle -> Unit
+
+                    is TurnState.Streaming -> {
+                        if (turn.parts.isNotEmpty()) LiveTranscriptView(turn.parts, collapseThinking, reduceMotion, seenToolRows, onToolRowSeen, prose)
+                        else {
+                            if (turn.reasoning.isNotBlank()) ThinkingBlock(turn.reasoning, collapseThinking)
+                            if (turn.text.isNotEmpty()) prose(turn.text)
+                            turn.runningTool?.let {
+                                ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
+                            }
+                        }
+                        Text(
+                            if (turn.stopRequested) "Stopping…" else turn.statusLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.primary,
+                            modifier = Modifier.testTag("stream-tail").semantics(mergeDescendants = true) {},
+                        )
+                    }
+
+                    // Gate 0d: the server reports a stopped turn as completed, so this label comes
+                    // from the client remembering that it asked, not from a flag.
+                    is TurnState.StoppedByUser -> {
+                        if (turn.text.isNotEmpty()) {
+                            prose(turn.text)
+                        }
+                        Banner("Stopped. This reply is partial.", scheme.tertiaryContainer)
+                    }
+
+                    is TurnState.Truncated -> {
+                        if (turn.text.isNotEmpty()) {
+                            prose(turn.text)
+                        }
+                        Banner(turn.error.toUserMessage(), scheme.errorContainer)
+                    }
+
+                    is TurnState.Finished -> if (turn.text.isNotBlank()) prose(turn.text)
+
+                    is TurnState.Failed -> Banner(turn.error.toUserMessage(), scheme.errorContainer)
+                }
+            }
+        }
+        if (!dense && turn !is TurnState.Streaming && text.isNotBlank()) {
             MessageActions(Message(id = Int.MIN_VALUE, role = "assistant", content = text),
-                reading, onRead, {}, canBranch = false)
+                reading, onRead, {}, canBranch = false, onSelectText = onSelectText)
         }
     }
 }

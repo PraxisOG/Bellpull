@@ -43,19 +43,36 @@ internal fun MessageActions(
     onBranch: (Message) -> Unit,
     canBranch: Boolean,
     onFollowUp: ((Message) -> Unit)? = null,
+    onSelectText: ((Message) -> Unit)? = null,
+    onAction: () -> Unit = {},
 ) {
     val copy = rememberMessageCopy()
     val context = LocalContext.current
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Row {
-                MessageAction("Copy message", "copy", onClick = { copy(message.content.orEmpty()) })
+                MessageAction("Copy message", "copy", onClick = { onAction(); copy(message.content.orEmpty()) })
+                if (onSelectText != null) MessageAction("Select text", "select", onClick = { onAction(); onSelectText(message) })
                 MessageAction(if (reading) "Stop reading" else "Read message", if (reading) "stop" else "read",
-                    onClick = { onRead(message) })
-                MessageAction("Branch into new chat", "branch", enabled = canBranch, onClick = { onBranch(message) })
-                if (onFollowUp != null) MessageAction("Follow up", "follow", onClick = { onFollowUp(message) })
-                MessageAction("Share message", "share", onClick = { ArtifactSharing.text(context, message.content.orEmpty()) })
+                    onClick = { onAction(); onRead(message) })
+                MessageAction("Branch into new chat", "branch", enabled = canBranch, onClick = { onAction(); onBranch(message) })
+                if (onFollowUp != null) MessageAction("Follow up", "follow", onClick = { onAction(); onFollowUp(message) })
+                MessageAction("Share message", "share", onClick = { onAction(); ArtifactSharing.text(context, message.content.orEmpty()) })
             }
+        }
+    }
+}
+
+@Composable
+internal fun UserMessageActions(message: Message, onSelectText: (Message) -> Unit,
+    onFollowUp: ((Message) -> Unit)?, onEdit: (Message) -> Unit, canEdit: Boolean, onAction: () -> Unit) {
+    val copy = rememberMessageCopy()
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        Row {
+            MessageAction("Copy message", "copy", onClick = { onAction(); copy(message.content.orEmpty()) })
+            MessageAction("Select text", "select", onClick = { onAction(); onSelectText(message) })
+            MessageAction("Follow up", "follow", enabled = onFollowUp != null, onClick = { onAction(); onFollowUp?.invoke(message) })
+            MessageAction("Fork & edit", "edit", enabled = canEdit, onClick = { onAction(); onEdit(message) })
         }
     }
 }
@@ -70,6 +87,21 @@ private fun MessageAction(label: String, glyph: String, enabled: Boolean = true,
             val h = size.height
             val stroke = 1.7.dp.toPx()
             when (glyph) {
+                "select" -> {
+                    drawLine(tint, Offset(w * .35f, h * .12f), Offset(w * .65f, h * .12f), stroke)
+                    drawLine(tint, Offset(w * .5f, h * .12f), Offset(w * .5f, h * .88f), stroke)
+                    drawLine(tint, Offset(w * .35f, h * .88f), Offset(w * .65f, h * .88f), stroke)
+                    drawLine(tint, Offset(w * .12f, h * .3f), Offset(w * .12f, h * .7f), stroke)
+                    drawLine(tint, Offset(w * .88f, h * .3f), Offset(w * .88f, h * .7f), stroke)
+                }
+                "edit" -> {
+                    drawPath(Path().apply {
+                        moveTo(w * .12f, h * .88f); lineTo(w * .2f, h * .62f)
+                        lineTo(w * .72f, h * .1f); lineTo(w * .9f, h * .28f)
+                        lineTo(w * .38f, h * .8f); close()
+                        moveTo(w * .6f, h * .22f); lineTo(w * .78f, h * .4f)
+                    }, tint, style = Stroke(stroke))
+                }
                 "share" -> {
                     val a = Offset(w * .18f, h * .5f)
                     val b = Offset(w * .8f, h * .16f)
