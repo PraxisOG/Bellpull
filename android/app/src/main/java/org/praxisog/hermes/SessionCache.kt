@@ -20,11 +20,13 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, ReplyCursorStore {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore {
+    @Volatile private var closed = false
+    @Synchronized fun close() { closed = true }
 
     private val preferences = EncryptedSharedPreferences.create(
         context,
-        "hermes_session_cache",
+        fileName(profileId),
         MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
@@ -45,6 +47,7 @@ internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, Re
     }
 
     override fun write(sessions: List<Session>, atEpochSeconds: Double) {
+        if (closed) return
         runCatching {
             preferences.edit()
                 .putString(KEY_SESSIONS, json.encodeToString(sessions))
@@ -67,6 +70,7 @@ internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, Re
     }.getOrDefault(emptyMap())
 
     fun writeDraft(id: String, value: androidx.compose.ui.text.input.TextFieldValue, revision: Long = 0) {
+        if (closed) return
         val edit = preferences.edit()
         edit.putLong("draft_revision:$id", revision)
         if (value.text.isEmpty()) edit.remove("draft:$id")
@@ -76,7 +80,7 @@ internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, Re
     }
 
     fun lastSession(): String? = preferences.getString("last_session", null)
-    fun rememberSession(id: String?) { preferences.edit().putString("last_session", id).apply() }
+    fun rememberSession(id: String?) { if (!closed) preferences.edit().putString("last_session", id).apply() }
 
     fun readReceipts(): Map<String, ConversationReceipt> = runCatching {
         preferences.all.filterKeys { it.startsWith("read:") }.mapNotNull { (key, raw) ->
@@ -88,6 +92,7 @@ internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, Re
     }.getOrDefault(emptyMap())
 
     fun writeReceipt(id: String, receipt: ConversationReceipt) {
+        if (closed) return
         preferences.edit().putString("read:$id", json.encodeToString(mapOf(
             "readThrough" to receipt.readThrough, "unreadReply" to receipt.unreadReply))).apply()
     }
@@ -96,34 +101,42 @@ internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, Re
     fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
         .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
-    fun writeCapabilities(raw: String) { preferences.edit().putString("capabilities", raw).apply() }
+    fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw).apply() }
 
     override fun readRuns(): List<org.praxisog.hermes.model.RunSubmission> = preferences.all
         .filterKeys { it.startsWith("run:") }.values.mapNotNull { raw ->
             runCatching { json.decodeFromString<org.praxisog.hermes.model.RunSubmission>(raw as String) }.getOrNull()
         }
 
-    override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = preferences.edit()
+    @Synchronized override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = !closed && preferences.edit()
         .putString("run:${value.requestId}", json.encodeToString(value)).commit()
 
     override fun readCursor(id: String): ReplyCursor? = preferences.getString("reply_cursor:$id", null)?.let { raw ->
         runCatching { org.json.JSONObject(raw).let { ReplyCursor(it.getDouble("activity"), it.getInt("count"), it.getInt("replyId")) } }.getOrNull()
     }
-    override fun writeCursor(id: String, value: ReplyCursor) {
+    @Synchronized override fun writeCursor(id: String, value: ReplyCursor) {
+        if (closed) return
         check(preferences.edit().putString("reply_cursor:$id", org.json.JSONObject()
             .put("activity", value.activity).put("count", value.count).put("replyId", value.replyId).toString()).commit())
     }
     fun notifiedReply(id: String): Int = preferences.getInt("notified_reply:$id", 0)
-    fun rememberNotifiedReply(id: String, messageId: Int) { preferences.edit().putInt("notified_reply:$id", messageId).apply() }
+    fun rememberNotifiedReply(id: String, messageId: Int) { if (!closed) preferences.edit().putInt("notified_reply:$id", messageId).apply() }
     fun wasNotified(identity: String): Boolean = preferences.getBoolean("notified:$identity", false)
-    fun rememberNotified(identity: String) { preferences.edit().putBoolean("notified:$identity", true).apply() }
+    fun rememberNotified(identity: String) { if (!closed) preferences.edit().putBoolean("notified:$identity", true).apply() }
 
-    /** Wiped on disconnect: a rotated key must not leave the previous transcripts readable. */
+    /** Profile removal is explicit; ordinary switching/sign-out retains its isolated cache. */
     override fun clear() {
-        runCatching { preferences.edit().clear().commit() }
+        check(clearChecked())
     }
 
-    private companion object {
+    fun clearChecked(): Boolean = preferences.edit().clear().commit()
+
+    companion object {
+        fun fileName(profileId: String): String {
+            require(profileId.matches(Regex("[a-zA-Z0-9_-]{1,80}")))
+            return if (profileId == SecureConnectionStore.LEGACY) "hermes_session_cache"
+                else "hermes_session_cache_$profileId"
+        }
         const val KEY_SESSIONS = "sessions"
         const val KEY_CACHED_AT = "cached_at"
     }

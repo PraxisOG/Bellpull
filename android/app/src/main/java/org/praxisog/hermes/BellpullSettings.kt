@@ -62,9 +62,11 @@ internal class BellpullSettings(context: Context) {
 
 @Composable
 internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (BellpullPreferences) -> Unit,
-    notificationsAvailable: Boolean = false, onNotificationsChange: (Boolean) -> Unit = {}) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+    notificationsAvailable: Boolean = false, onNotificationsChange: (Boolean) -> Unit = {},
+    serverProfiles: (@Composable () -> Unit)? = null) {
+    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        serverProfiles?.invoke()
         if (notificationsAvailable) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

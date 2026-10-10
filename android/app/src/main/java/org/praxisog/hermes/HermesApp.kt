@@ -77,9 +77,12 @@ internal fun HermesApp(
     focusChatRevision: Int = 0,
     onVisibleSession: (String?) -> Unit = {},
     onAbandonRun: () -> Unit = {},
+    disconnected: Boolean = false,
+    serverProfiles: (@Composable () -> Unit)? = null,
+    settingsRevision: Int = 0,
 ) {
     var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
-    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null) }
+    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
     var navigation by remember(openSessionId) { mutableStateOf<ChatNavigation?>(null) }
@@ -87,6 +90,10 @@ internal fun HermesApp(
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val openSettings: () -> Unit = {
+        mode = WorkspaceMode.SETTINGS; drawerOnCover = false; expandedSearch = false; infoSheet = false
+    }
+    LaunchedEffect(settingsRevision) { if (settingsRevision > 0) openSettings() }
     LaunchedEffect(openSessionId) {
         if (openSessionId != null && openSessionId != previousSessionId) {
             mode = WorkspaceMode.CHATS; drawerOnCover = false
@@ -111,7 +118,9 @@ internal fun HermesApp(
             if (expandedSearch) WorkspaceSearch(
                 (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
                 query, onQueryChange, open, onLaunchApp,
-                onAsk = { onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS },
+                onAsk = { if (disconnected) openSettings() else {
+                    onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS
+                } },
                 onDismiss = { expandedSearch = false })
             Surface(Modifier.fillMaxSize()) {
                 val insets = if (preferences.immersiveMode)
@@ -132,7 +141,7 @@ internal fun HermesApp(
                     if (infoSheet && openSessionId != null) {
                         ModalBottomSheet(onDismissRequest = { infoSheet = false },
                             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-                            ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                            ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
                                 modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false })
                         }
                     }
@@ -153,20 +162,21 @@ internal fun HermesApp(
                         Column(paneModifier) {
                             ConversationToolbar(
                                 title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
-                                    ?: "Conversation" else mode.title,
+                                    ?: (if (disconnected) "Bellpull" else "Conversation") else mode.title,
                                 showList = sideBySide && showList, sideBySide = sideBySide,
                                 onNavigate = { if (sideBySide) showList = !showList else drawerOnCover = true },
-                                onNewSession = onNewSession, creatingSession = creatingSession,
+                                onNewSession = { mode = WorkspaceMode.CHATS; drawerOnCover = false; onNewSession() }, creatingSession = creatingSession,
                                 hasSession = mode == WorkspaceMode.CHATS && openSessionId != null,
                                 hasHistory = mode == WorkspaceMode.CHATS && history is UiState.Ready,
                                 onPrompts = { navigation = ChatNavigation.PROMPTS },
                                 onSearch = { navigation = ChatNavigation.SEARCH },
+                                onSettings = openSettings,
                                 showContext = sideBySide && showContext,
                                 onContext = { if (sideBySide) showContext = !showContext else infoSheet = true })
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }))
                                 WorkspaceMode.PROJECTS, WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
@@ -174,7 +184,11 @@ internal fun HermesApp(
                                     Text(if (mode == WorkspaceMode.PROJECTS) "Collect chats, notes and attachments in projects."
                                         else "Reminders and follow-ups will appear here.")
                                 }
-                                WorkspaceMode.CHATS -> if (openSessionId == null) EmptyDetail() else {
+                                WorkspaceMode.CHATS -> if (openSessionId == null) {
+                                    if (disconnected) DisconnectedWelcome({ open(BellpullExample.ID) }, openSettings)
+                                    else EmptyDetail()
+                                } else {
+                                    if (disconnected) DisconnectedBanner(openSettings)
                                     RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
                                     screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
@@ -182,7 +196,7 @@ internal fun HermesApp(
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
                                             pendingUserText = pendingUserText,
-                                            sendBlocked = runPresentation?.busy == true,
+                                            sendBlocked = disconnected || runPresentation?.busy == true,
                                             readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
@@ -208,7 +222,7 @@ internal fun HermesApp(
                                 fromLeft = false, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     VerticalDivider()
-                                    ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                                    ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
                                         modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false })
                                 }
                             }

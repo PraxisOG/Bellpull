@@ -63,6 +63,11 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Current authority (2026-10-09):** `Bellpull-Implementation-Prompt.txt` and later
+user refinements define Bellpull Phases 0–7. The Tier 1/2/3 paragraphs below are
+historical, not the active phase plan. Bellpull Phase 2 is reliable runs, unread
+state, notifications, approvals, and the added server-profile/disconnected slice.
+
 **Tier 1 is code-complete** (see `ROADMAP.md`). **Tier 2 is planned and startable** — see
 `ROADMAP-TIER2.md`, which has its own gate, slices, and a set of decisions marked *do not
 relitigate*. Tier 3 (on-device llama.cpp agent loop) remains out of scope.

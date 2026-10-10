@@ -3,6 +3,13 @@
 The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
 older tier deferrals below; existing behavior and installed identity remain protected.
 
+Completed Phase 2 addition: named encrypted server profiles, profile-isolated local
+state, Settings-based sign-in/switch/sign-out/removal, and useful disconnected
+exploration. The GitHub APK quickstart shipped first; the 0.2.0 update now documents
+Settings-based setup and no-login exploration. See Phase 2E in the implementation
+prompt and the latest validation in `docs/HANDOFF.md`. Stop after publishing this
+tested update; further development requires the user's next instruction.
+
 - Phase 0: baseline build/test/screenshot verification passes (cached Gradle checks).
   Kotlin 2.3.21 / Compose BOM 2026.08.00 / AGP 9.4.0; SDK 29–37;
   app ID `org.praxisog.hermes`. Existing working tree preserved, no commit/reset.

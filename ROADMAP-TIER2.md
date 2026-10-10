@@ -1,5 +1,11 @@
 # Tier 2 Roadmap — the phone-agency layer
 
+> Historical plan, superseded for current development by
+> [Bellpull-Implementation-Prompt.txt](Bellpull-Implementation-Prompt.txt).
+> This older Tier 1/2/3 document does **not** define Bellpull Phase 2. Use the
+> current Bellpull Phase 0–7 plan and later user refinements; retain this file
+> only as background for future device-assistant work.
+
 *Written 2026-09-16, after Tier 1 went code-complete. No hard deadline; Blue Origin starts
 09/28 and this becomes evening and weekend work at that point. Everything before then is
 slack that Tier 1 didn't use.*

@@ -142,25 +142,19 @@ internal fun ContextPanel(
 }
 
 /**
- * The rotation path for a lost phone, kept behind the info panel rather than beside Send:
- * it is rare, and it is the one control that discards credentials.
- *
- * Rotating is a two-part job and the wording says so — changing `API_SERVER_KEY` on the host
- * is what actually revokes the lost phone's access. Forgetting the key here only stops *this*
- * device using it.
+ * Account actions live in Settings, not in a conversation's context panel.
  */
 @Composable
 private fun DisconnectSection(onDisconnect: () -> Unit) {
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
     Text("Connection", style = MaterialTheme.typography.labelLarge)
     Text(
-        "Forgets the stored key and cached sessions on this device. To revoke a lost phone, " +
-            "rotate API_SERVER_KEY on the Hermes host as well.",
+        "Switch servers, sign out, or remove saved credentials in Settings.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
-        Text("Disconnect")
+        Text("Server profiles")
     }
 }
 

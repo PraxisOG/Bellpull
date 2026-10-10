@@ -11,6 +11,7 @@ import kotlinx.coroutines.*
 
 internal class ReplyNotifications(private val context: Context, private val scope: CoroutineScope,
                                   private val cache: SessionCache?, private val store: HermesStore,
+                                  private val profileId: String = SecureConnectionStore.LEGACY,
                                   private val isVisible: (String) -> Boolean = { false }) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val pending = mutableMapOf<String, Job>()
@@ -39,7 +40,7 @@ internal class ReplyNotifications(private val context: Context, private val scop
     private fun post(id: String, kind: String, text: String, channel: String) {
         val title = (store.sessions as? UiState.Ready)?.value?.firstOrNull { it.id == id }?.title?.takeIf { it.isNotBlank() } ?: "Bellpull"
         val notification = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title).setContentText(text).setContentIntent(openChat(context, id))
+            .setContentTitle(title).setContentText(text).setContentIntent(openChat(context, id, profileId))
             .setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Bellpull").setContentText(text).build()).build()
@@ -49,11 +50,15 @@ internal class ReplyNotifications(private val context: Context, private val scop
         const val REPLIES = "bellpull_replies"
         const val ATTENTION = "bellpull_attention"
         const val EXTRA_SESSION = "bellpull_notification_session"
-        fun openChat(context: Context, id: String): PendingIntent = PendingIntent.getActivity(context, 0,
-            Intent(context, MainActivity::class.java).setData(Uri.parse("bellpull://chat/${Uri.encode(id)}"))
-                .putExtra(EXTRA_SESSION, id).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        const val EXTRA_PROFILE = "bellpull_notification_profile"
+        fun openChat(context: Context, id: String, profileId: String = SecureConnectionStore.LEGACY): PendingIntent = PendingIntent.getActivity(context, 0,
+            Intent(context, MainActivity::class.java).setData(Uri.parse("bellpull://profile/${Uri.encode(profileId)}/chat/${Uri.encode(id)}"))
+                .putExtra(EXTRA_SESSION, id).putExtra(EXTRA_PROFILE, profileId)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         fun session(intent: Intent?): String? = intent?.getStringExtra(EXTRA_SESSION)
             ?.takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,200}")) }
+        fun belongsTo(intent: Intent?, profileId: String?): Boolean = profileId != null &&
+            (intent?.getStringExtra(EXTRA_PROFILE) ?: SecureConnectionStore.LEGACY) == profileId
     }
 }

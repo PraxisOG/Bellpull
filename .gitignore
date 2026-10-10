@@ -5,6 +5,7 @@
 !*.env.example
 local.properties
 .gradle/
+.kotlin/
 build/
 __pycache__/
 *.pyc

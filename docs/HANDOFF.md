@@ -1,5 +1,69 @@
 # Bellpull / Hermes app handoff
 
+## Phase 2E server profiles and disconnected exploration — 2026-10-09
+
+This completes the user's addition to the current Bellpull Phase 2, not the older
+Tier 1/2/3 phone-bridge roadmap. The GitHub APK/quickstart shipped first as
+`android-preview-20261009.1`; the current Android update is version 0.2.0 (code 2),
+released as `android-v0.2.0-preview.1`. The README download and instructions now match
+the new build. The repository remains private; its releases require repository access.
+The existing Mint emulator release still bundles the earlier 0.1.0 APK.
+
+- Fresh installs open Bellpull without a login gate. The welcome page offers a
+  clearly labelled local sample conversation and Settings. The sample makes no
+  inference/network requests; sending is disabled. Copy, device read-aloud,
+  navigation and appearance can be explored without connecting an agent.
+- Settings begins with Server profiles: named encrypted URL/key pairs, add/connect,
+  use/reconnect, rename, sign out, remove one profile, and remove all credentials.
+  Sign-out persists without forgetting saved profiles. Confirmed removal deletes
+  local credentials and that profile's cached chats, drafts and recovery data;
+  it neither deletes remote chats nor revokes a key on the server.
+- The old encrypted connection migrates atomically into `legacy` / Existing server.
+  That profile retains the original cache filename and all its saved local state.
+  Other profile IDs get separate encrypted caches for sessions, drafts/revisions,
+  receipts, capability documents, run journals, cursors and notification identities.
+- Switching detaches the old store, cancels HTTP/SSE requests and pending probes,
+  stops speech/listener and resets visible navigation. Closed caches reject late
+  writes, including journal writes racing removal. Draft callbacks capture their
+  own cache. Profile-tagged notification intents cannot open an identically named
+  chat on another server. Notifications follow the selected profile.
+- Remote work continues when switching or signing out. Returning to a saved profile
+  resumes its normal durable-run reconciliation. Removing its local state deliberately
+  forgets that recovery journal. Cached verified capabilities still permit offline
+  opening. API keys never enter Compose saved-state bundles or connection toString.
+
+Validation: `test verifyRoborazziDebug :app:assembleDebug :app:lintDebug` passes:
+266 JVM tests passed, one opt-in live smoke skipped, 89 screenshot baselines verified,
+zero lint errors, 32 advisory warnings and four hints. Five instrumentation tests
+passed on the dedicated API 36 emulator: encrypted storage/isolation/migration,
+closed-cache write protection, and existing window chrome checks. Credential-clearing
+instrumentation ran only on that disposable emulator, never on the configured phone.
+
+Two local synthetic HTTP/SSE servers with identical session IDs verified A -> B -> A
+history/draft isolation, switching during B's admitted run, completed B recovery
+without contaminating A, clearing only the submitted draft, sign-out surviving
+force-stop/relaunch, and confirmed removal of all credentials surviving relaunch.
+They use a public dummy fixture key, require no inference and modify no live server.
+
+The physical Pixel 10 Pro Fold was updated in place without clearing application data.
+Its existing connection migrated, its original chat/empty draft returned, sign-out
+survived force-stop/relaunch, the local example opened, and Use profile reconnected
+without re-entering the key. White/Maroon, notifications on, immersive on and Reduce
+motion off were preserved. No display/density/fold overrides or new live inference.
+Physical cover/fold transitions remain untested; cover layouts have rendered coverage.
+No compute-server address was supplied, so only the existing real profile is configured.
+
+Installed/released APK SHA-256:
+`393025cd3455b47d67ce5fc6e6a4913f459a003c45d110244c97d86325f9cc73`.
+Local evidence is under `android/app/build/device-tests/2026-10-09-profiles/`, excluded
+from Git and release assets. The encrypted pre-upgrade preference backup remains
+private in that ignored directory. No keys, chats or phone screenshots are published.
+
+User direction: after testing, update GitHub and stop for further instruction.
+Phase 3 remains pending. OpenClaw received only a brief documentation investigation;
+there is no OpenClaw adapter in this build. Prior recovery/notification operational
+limits below still apply, including force-stop suppressing delivery until reopening.
+
 ## Linux Mint emulator preview — 2026-10-09
 
 User requested a desktop Android-emulator build after the phone was handed back,

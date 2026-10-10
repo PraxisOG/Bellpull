@@ -39,7 +39,7 @@ class NotificationListenerService : Service() {
                     if (client != null && runtime.notificationEventsAvailable) {
                         withContext(Dispatchers.IO) {
                             client.notificationEvents(onStart = { stream = it; if (!scope.isActive) it.cancel() }) { runId, sessionId ->
-                                scope.launch { runtime.wake(runId, sessionId) }
+                                scope.launch { if (runtime.client === client) runtime.wake(runId, sessionId) }
                             }
                         }
                     }

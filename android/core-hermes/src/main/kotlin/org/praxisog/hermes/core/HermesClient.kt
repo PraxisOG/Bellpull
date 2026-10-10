@@ -59,6 +59,20 @@ class HermesClient(
 
     /** Same pool and settings as [httpClient], minus the read timeout. See [streamingClient]. */
     private val streamingHttpClient = streamingClient(httpClient)
+    private val calls = mutableSetOf<Call>()
+    private var closed = false
+
+    /** Ends this profile's transports without requesting that remote runs stop. */
+    fun close() = synchronized(calls) {
+        closed = true
+        calls.forEach { it.cancel() }
+        calls.clear()
+    }
+
+    private fun trackedCall(client: OkHttpClient, request: Request): Call = synchronized(calls) {
+        client.newCall(request).also { if (closed) it.cancel() else calls.add(it) }
+    }
+    private fun finished(call: Call) { synchronized(calls) { calls.remove(call) } }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -162,7 +176,8 @@ class HermesClient(
             .header("Accept", "text/event-stream")
             .build()
 
-        val call = streamingHttpClient.newCall(request)
+        val call = trackedCall(streamingHttpClient, request)
+        try {
         onStart(Streaming(call))
 
         // Delivered outside the read so a mid-stream failure still reports how far it got.
@@ -206,6 +221,7 @@ class HermesClient(
                 )
             }
         }
+        } finally { finished(call) }
     }
 
     /**
@@ -243,7 +259,7 @@ class HermesClient(
         }
 
     private fun events(path: String, onStart: (Streaming) -> Unit, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
-        val call = streamingHttpClient.newCall(authed(path)
+        val call = trackedCall(streamingHttpClient, authed(path)
             .header("Accept", "text/event-stream").get().build())
         onStart(Streaming(call))
         return try {
@@ -252,6 +268,7 @@ class HermesClient(
                 else { SseReader(response.body.source()).read(onEvent); HermesResult.Ok(Unit) }
             }
         } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+        finally { finished(call) }
     }
 
     fun respondToApproval(runId: String, requestId: String, choice: String): HermesResult<Unit> {
@@ -313,8 +330,9 @@ class HermesClient(
     private fun <T> execute(request: Request, sessionId: String?, decode: (String) -> T): HermesResult<T> {
         var attempt = 0
         while (true) {
+            val call = trackedCall(httpClient, request)
             val result = try {
-                httpClient.newCall(request).execute().use { response ->
+                call.execute().use { response ->
                     if (response.isSuccessful) {
                         val body = response.body.string()
                         runCatching { HermesResult.Ok(decode(body)) }.getOrElse { e ->
@@ -326,7 +344,7 @@ class HermesClient(
                 }
             } catch (e: IOException) {
                 HermesResult.Err(mapIoError(e))
-            }
+            } finally { finished(call) }
 
             val error = (result as? HermesResult.Err)?.error
             if (error is HermesError.RateLimited && attempt < MAX_RATE_LIMIT_RETRIES) {

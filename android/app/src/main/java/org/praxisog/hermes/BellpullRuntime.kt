@@ -11,8 +11,12 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
-    val cache = runCatching { SessionCache(this.context) }.getOrNull()
-    val drafts = ChatDrafts()
+    var cache: SessionCache? = null
+        private set
+    var drafts = ChatDrafts()
+        private set
+    var profileId by mutableStateOf<String?>(null)
+        private set
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     var store by mutableStateOf<HermesStore?>(null)
         private set
@@ -22,13 +26,24 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     private var notifications: ReplyNotifications? = null
     var visibleSessionId: String? = null
-    init {
+    private fun loadDrafts() {
+        val profileCache = cache
+        drafts = ChatDrafts()
         val values = cache?.readDrafts().orEmpty()
         val versions = cache?.readDraftRevisions().orEmpty()
         (values.keys + versions.keys).forEach { id ->
             drafts.restore(id, values[id] ?: androidx.compose.ui.text.input.TextFieldValue(), versions[id] ?: 1L)
         }
-        drafts.onChange = { id, value -> cache?.writeDraft(id, value, drafts.revision(id)) }
+        val profileDrafts = drafts
+        drafts.onChange = { id, value -> profileCache?.writeDraft(id, value, profileDrafts.revision(id)) }
+    }
+
+    fun prepare(id: String) {
+        if (profileId == id) return
+        disconnect()
+        cache = SessionCache(context, id)
+        profileId = id
+        loadDrafts()
     }
 
     fun connect(client: HermesClient, capabilities: HermesClient.Capabilities): HermesStore {
@@ -46,7 +61,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         } }
         store = next
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
-        notifications = ReplyNotifications(context, scope, cache, next) { it == visibleSessionId }
+        notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId }
         next.onReply = { id, message -> notifications?.reply(id, message.id) }
         next.onAttention = { id, identity -> notifications?.attention(id, identity) }
         cache?.let {
@@ -89,17 +104,24 @@ internal class BellpullRuntime private constructor(context: Context) {
     fun restore() {
         if (store != null) return
         val secure = runCatching { SecureConnectionStore(context) }.getOrNull() ?: return
-        val url = secure.loadUrl().orEmpty()
-        val key = secure.loadKey().orEmpty()
-        if (url.isBlank() || key.isBlank()) return
+        val connection = secure.active() ?: return
+        prepare(connection.profile.id)
+        restore(connection)
+    }
+
+    fun restore(connection: ServerConnection) {
+        if (store != null) return
+        prepare(connection.profile.id)
         val raw = cache?.readCapabilities() ?: return
         val obj = runCatching { Json.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return
         val flags = obj["features"]?.jsonObject?.mapValues { runCatching { it.value.jsonPrimitive.booleanOrNull == true }.getOrDefault(false) }.orEmpty()
-        connect(HermesClient(url, { key }, memoryScopeKey = "hermes-android"), HermesClient.Capabilities(obj, flags))
+        connect(HermesClient(connection.profile.url, { connection.key }, memoryScopeKey = "hermes-android"), HermesClient.Capabilities(obj, flags))
     }
 
     fun disconnect() {
         store?.close()
+        client?.close()
+        cache?.close()
         store = null
         client = null
         notifications = null
@@ -107,6 +129,11 @@ internal class BellpullRuntime private constructor(context: Context) {
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         drafts.clear()
+        drafts.onChange = { _, _ -> }
+        cache = null
+        profileId = null
+        visibleSessionId = null
+        context.getSystemService(android.app.NotificationManager::class.java).cancelAll()
     }
     companion object {
         @Volatile private var instance: BellpullRuntime? = null

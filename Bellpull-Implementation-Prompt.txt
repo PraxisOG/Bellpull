@@ -176,7 +176,8 @@ ROADMAP AND DEPENDENCIES
 
 Phase 0: Inspect the real system and establish capability/data contracts.
 Phase 1: Bellpull branding, navigation, and everyday chat interaction.
-Phase 2: Reliable runs, delivery state, unread state, notifications, approvals.
+Phase 2: Reliable runs, delivery state, unread state, notifications, approvals,
+         server profiles and a usable disconnected experience.
 Phase 3: Model controls, uploads, artifact previews, sharing, GPU telemetry.
 Phase 4: Projects, saved answers, contextual search, memory, history imports.
 Phase 5: Complete natural voice conversation.
@@ -375,8 +376,34 @@ what needs attention. This phase covers the user's R1–R3 priorities.
 - Reuse existing policy and operation handlers. Do not add blanket confirmation
   for every harmless action or remove configured approvals for convenience.
 
+2E. Server profiles and disconnected exploration (user addition, 2026-10-09)
+
+- Open directly into Bellpull without a mandatory login screen. Settings, appearance
+  and clearly labelled local examples work without a server. Never imply that a
+  disconnected demo runs an LLM or sends requests to the user's agents.
+- Put server URL/API-key setup in Settings > Server profiles. Save named profiles
+  so desktop testing and compute-server use can be switched without retyping keys.
+- Keep credentials encrypted. Isolate cached sessions, drafts, read state, pending
+  runs and notification identity by profile, including identical session IDs.
+- Sign out to the disconnected workspace while retaining saved profiles for reuse.
+  Offer explicit removal of one profile or all saved credentials and local account
+  data. Explain that removal does not revoke a key on the server.
+- Switching profiles closes old subscriptions and speech, clears visible old-server
+  state, and prevents delayed responses/notification taps from affecting the new
+  profile. Server work may continue; recover it when that profile is selected again.
+- Migrate the existing saved connection and local state without losing user data.
+  Never save API keys in UI saved-state bundles, logs, screenshots, or packages.
+- Lead the GitHub README with a tested precompiled APK and install instructions.
+  Once this slice ships, explain optional Settings-based connection and no-login
+  exploration. Do not document unshipped behavior for an older APK.
+
 Acceptance
 
+- Fresh install opens a useful disconnected app; Settings and local examples work.
+- Switching server A -> B -> A preserves each profile's own drafts and history.
+- Sign-out persists after restart; removing a profile or all credentials actually
+  deletes that local account data without modifying the remote agent.
+- A late response, pending send, or notification from A never acts on B.
 - Start a run, lock/close the app, and reopen: work remains tracked and history
   reconciles. A disconnect does not turn one submission into two runs.
 - Lose the connection immediately around submission acknowledgement: reconcile
