@@ -8,6 +8,7 @@ Build the image chain in this order from the repository root:
 docker build -t hermes-agent:selected-reply-fork-20261008 server-patches/selected-reply-fork
 docker build -t hermes-agent:bellpull-edit-fork-20261009 server-patches/bellpull-edit-fork
 docker build -t hermes-agent:bellpull-phase2-20261009 server-patches/bellpull-phase2
+docker build -t hermes-agent:bellpull-phase3-20261010 server-patches/bellpull-phase3
 ```
 
 The first Dockerfile is based on `nousresearch/hermes-agent:v2026.9.7`; the later images extend it. These are snapshots against that tested server version, not automatic upgrades for arbitrary newer Hermes versions.
@@ -15,6 +16,7 @@ The first Dockerfile is based on `nousresearch/hermes-agent:v2026.9.7`; the late
 - [selected-reply-fork](selected-reply-fork/README.md) adds branching through a saved assistant reply while preserving the original chat.
 - [bellpull-edit-fork](bellpull-edit-fork/README.md) adds branching immediately before a saved user message for prompt editing.
 - [bellpull-phase2](bellpull-phase2/README.md) adds request-scoped interactive approvals and an authenticated ntfy event relay. It builds on the durable run API already present in the tested base.
+- [bellpull-phase3](bellpull-phase3/README.md) adds configured model/reasoning controls and persistent authenticated attachments. Local GPU telemetry is a separate [Hermes plugin](../plugins/bellpull_gpu/README.md).
 
 Each bundle includes its test instructions. The latest validation passed eight Phase 2 tests and 16 branch/edit regressions in isolated containers with no live mounts or inference access. The Android contract and device results are in [the API documentation](../docs/hermes-api.md) and [handoff](../docs/HANDOFF.md).
 

@@ -1,3 +1,80 @@
+## Bellpull Phase 3 contract — 2026-10-10
+
+Implemented by `server-patches/bellpull-phase3`, extending the tested Phase 2
+adapter. Native bearer authentication, session/profile context and existing API
+origin apply. New routes fail closed without a configured API key and return
+`Cache-Control: no-store`. No upstream key or public artifact URL is returned.
+Capabilities: `features.bellpull_model_controls` and
+`features.bellpull_persistent_artifacts`. Clients must check these before use.
+
+| Method and path | Contract |
+| --- | --- |
+| GET `/api/bellpull/models` | `{version:1, default:{provider,model,model_options}, models:[{provider,model,configured,vision,reasoning:{efforts,can_disable,can_enable?,note}}], note}` |
+| GET `/api/bellpull/sessions/{id}/model` | `{session_id,selection:{provider,model,model_options}}`; effective saved lock or server default |
+| PUT same model path | Body is a selection; validates configured route and reasoning, saves native session model lock; same response |
+| GET `/api/bellpull/artifacts` | `{data:[artifact...]}`; optional `session_id` filter |
+| PUT `/api/bellpull/artifacts/{id}?session_id=...&name=...` | Raw bytes, MIME in Content-Type, URL-encoded filename. Caller supplies stable 32-character lowercase hex ID. Returns 201 artifact; exact retry returns same record, changed identity/body conflicts |
+| GET `/api/bellpull/artifacts/{id}/content` | Repeatable authenticated original bytes; attachment disposition, nosniff, exact Content-Length; missing content 410 |
+
+Artifact metadata: `id`, `session_id`, `name`, `mime`, `size` (bytes), `sha256`,
+`created_at` (Unix seconds), `source` (`upload` or `agent`), nullable `request_id`
+(admitted run ID) and `message_id`, plus `available`. Message-level association
+is reserved; this release links files to the conversation/run. No filesystem paths
+are sent to the phone. Internal storage is scoped by authenticated principal/profile.
+Files persist under `$HERMES_HOME/bellpull-artifacts` with SQLite metadata, a 512 MiB
+scope quota, maximum 25 MiB per file/combined turn and eight attachments per turn.
+PNG/JPEG/WebP, PDF, plain/Markdown/CSV text, JSON, ZIP, OOXML and binary fallback
+are accepted. Empty, oversized, unsafe names/IDs and cross-session files are rejected.
+Only the artifact PUT path gets the larger body limit; ordinary JSON remains bounded.
+
+Bellpull adds this immutable field to the existing durable admission body:
+
+```json
+{"bellpull":{"version":1,"selection":{"provider":"configured-provider","model":"configured-model","model_options":{"reasoning":{"enabled":false}}},"artifact_ids":["0123456789abcdef0123456789abcdef"]}}
+```
+
+Omit `reasoning` for server defaults; `enabled:false` means genuine Off, never minimum
+effort. Supported effort requests use `{enabled:true,effort:"..."}`. The exact
+selection/IDs join the existing idempotency fingerprint and Android persistent journal.
+An accepted replay resolves before fresh model/file discovery. Locked durable runs
+now honor the session selection and disable fallback; old unmodified clients remain
+compatible. Changing one session or a profile's new-chat default does not edit global
+Hermes configuration. Settings defaults are local to the Android server profile.
+
+The catalog reads native Hermes inventory and model capability metadata. A configured
+provider does not guarantee every catalog model will accept a request; errors remain
+visible. Images require confirmed native vision metadata and enter the selected
+model's multimodal request; the persisted user text is separate from base64 content.
+Documents retain original bytes and use existing bounded `read_file` extraction.
+Every Bellpull run gets a scoped output directory; regular files written there become
+the same authenticated artifact records. Arbitrary paths/URLs mentioned by an agent
+do not become downloadable. Generated output is collected after normal agent return;
+an interrupted process may leave unpublished files until a later successful turn.
+
+Verified reasoning translations: Fireworks DeepSeek V4/V4.1 low/high/max/Off maps
+to top-level `reasoning_effort` (`none` for Off); GPT-OSS has low/medium/high and no
+Off. The exact custom model `qwen38-flash-next` supports On/Off via
+`extra_body.chat_template_kwargs.enable_thinking`. A direct local probe gave 0 versus
+23 reasoning tokens for the same prompt. No graded local effort was verified. This
+patch does not configure a local route. Other models use their actual provider's
+declared supported values; unknown controls remain unavailable.
+
+The separate `plugins/bellpull_gpu` Hermes plugin registers authenticated GET
+`/api/bellpull/plugins/gpu` (and the native `/p/{profile}` prefix). Response is
+`{version:1,checked_at,refresh_seconds:15,cards:[...],errors:[...],scale_note}`.
+Cards carry stable UUID/PCI identity, name/vendor/bus, sample time/stale and typed
+sensors with Celsius or null plus fixed display ranges. Local `amd-smi`/`nvidia-smi`
+commands run on demand with a shared 15-second cache, bounded timeout and no model
+turn. The phone polls only while Tools is visible and foreground. Missing tools/cards
+are unavailable, never fabricated four-card data. See the plugin README for commands
+and scale semantics. The user explicitly superseded the original Moe/SSH requirement:
+telemetry belongs on the Hermes plugin host.
+
+Android copies granted content-provider streams into profile-private durable drafts,
+offers retry/cancel, renders native image/PDF previews, and shares only selected copies
+via temporary FileProvider read grants. Share-in creates drafts only. HTML has no
+embedded browser/bridge. Removing a profile deletes local files, not server artifacts.
+
 ## Bellpull Phase 2 contract — 2026-10-09
 
 Live admission probe: POST `/v1/runs` with `input`, `session_id`, stable `Idempotency-Key`

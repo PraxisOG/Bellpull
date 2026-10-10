@@ -479,8 +479,9 @@ PDF and image previews are a high-priority outcome, not optional visual polish.
 
 3D. GPU temperature panel
 
-- Read actual amd-smi output or its supported library interface on Moe through a
-  narrow authenticated endpoint. Cache readings server-side as appropriate.
+- User refinement (2026-10-10): telemetry belongs in the Hermes plugin, which
+  reads local amd-smi or nvidia-smi on its host through a narrow authenticated
+  endpoint. No SSH or separate Moe access is required. Cache readings server-side.
 - Show four stable GPU rows, each with a green-left to red-right temperature bar,
   a current marker/value, and an explicit sensor label (edge/hotspot/memory).
 - Use meaningful fixed scales/thresholds for the selected sensor, documented from

@@ -1,0 +1,7 @@
+name: bellpull_gpu
+version: 0.1.0
+description: Read-only local AMD/NVIDIA GPU temperatures for Bellpull over the authenticated Hermes API.
+author: Bellpull
+kind: standalone
+platforms:
+  - linux

@@ -1,0 +1,18 @@
+{
+  "gateway/platforms/api_server.py": {
+    "original": "a461ceb84686b25bb65a1942addb85249db191ad2083ec38f7ba1b7cda8e2888",
+    "patched": "820c81b3ea817eef8705eca732f96fe7f23864bf4f618861104d39561e599a9e"
+  },
+  "gateway/platforms/api_server_bellpull_artifacts.py": {
+    "original": null,
+    "patched": "e4d8ef31c707cecfd5d5a6ddb47737190ebef335fa2698aa7edb9103aaef4f78"
+  },
+  "gateway/platforms/api_server_bellpull_phase3.py": {
+    "original": null,
+    "patched": "44abc22bdaa554299a335b59bd31b6e78a4a904e27dc8576cbcdcc76dfe91b9a"
+  },
+  "gateway/platforms/api_server_runs.py": {
+    "original": "2c3682a73061e67a46d7dc9d8aebbf2de6331c50bb1792492d214ab9c82cdb20",
+    "patched": "e9927587ed80a8d3f696b325adda6aac8b20f8ed298875519f5c914d988c0cdd"
+  }
+}

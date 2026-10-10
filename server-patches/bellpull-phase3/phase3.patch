@@ -1,0 +1,660 @@
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -797,7 +797,11 @@
+             cl = request.headers.get("Content-Length")
+             if cl is not None:
+                 try:
+-                    if int(cl) > MAX_REQUEST_BYTES:
++                    # Bellpull streams bounded binary uploads; keep all JSON routes at 10 MB.
++                    upload = request.method == "PUT" and re.fullmatch(
++                        r"(?:/p/[^/]+)?/api/bellpull/artifacts/[a-f0-9]{32}", request.path)
++                    limit = 25 * 1024 * 1024 if upload else MAX_REQUEST_BYTES
++                    if int(cl) > limit:
+                         return _error_response("Request body too large.", 413, code="body_too_large")
+                 except ValueError:
+                     return _error_response("Invalid Content-Length header.", 400, code="invalid_content_length")
+@@ -1542,6 +1546,8 @@
+         routes.extend(_api_runs._http_routes(self))
+         from gateway.platforms import api_server_bellpull
+         routes.extend(api_server_bellpull.routes(self))
++        from gateway.platforms import api_server_bellpull_phase3
++        routes.extend(api_server_bellpull_phase3.routes(self))
+         if _CRON_AVAILABLE:
+             # Chronos fire webhook (NAS -> agent): authenticated by a NAS-minted JWT.
+             routes.append(("POST", "/api/cron/fire", self._handle_cron_fire))
+@@ -2153,6 +2159,10 @@
+             "gateway_session_key": gateway_session_key}
+         if request_service_tier is not _REQUEST_OPTION_MISSING:
+             agent_kwargs["service_tier"] = request_service_tier
++        from gateway.platforms.api_server_bellpull_phase3 import request_overrides as _bellpull_request_overrides
++        wire_options = _bellpull_request_overrides(runtime_kwargs.get("provider"), model, model_options)
++        if wire_options:
++            agent_kwargs["request_overrides"] = {**(agent_kwargs.get("request_overrides") or {}), **wire_options}
+         agent = AIAgent(**agent_kwargs)
+         route_source = (
+             "session_model_lock" if confirmed_runtime_lock
+@@ -2254,6 +2264,8 @@
+                 **_STATIC_FEATURE_FLAGS,
+                 "run_interactive_approvals": True,
+                 "bellpull_notification_events": True,
++                "bellpull_persistent_artifacts": True,
++                "bellpull_model_controls": True,
+                 "cors": bool(self._cors_origins),
+                 # Always advertised for feature-detection; enabled follows config.
+                 "browser_extension_control": {
+--- /dev/null
++++ b/gateway/platforms/api_server_bellpull_artifacts.py
+@@ -0,0 +1,236 @@
++"""Persistent, principal-scoped Bellpull artifacts. No network or inference dependencies."""
++from __future__ import annotations
++
++import hashlib
++from contextlib import contextmanager
++import mimetypes
++import os
++from pathlib import Path
++import re
++import sqlite3
++import stat
++import time
++import uuid
++
++MAX_BYTES = 25 * 1024 * 1024
++MAX_SCOPE_BYTES = 512 * 1024 * 1024
++MAX_ATTACHMENTS = 8
++_ID = re.compile(r"[a-f0-9]{32}")
++_SCOPE = re.compile(r"[a-f0-9]{64}")
++_SESSION = re.compile(r"[a-zA-Z0-9_-]{1,200}")
++_TYPES = {
++    "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp",
++    "application/pdf": ".pdf", "text/plain": ".txt", "text/markdown": ".md",
++    "text/csv": ".csv", "application/json": ".json", "application/zip": ".zip",
++    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
++    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
++    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
++    "application/octet-stream": ".bin",
++}
++
++
++class ArtifactError(ValueError):
++    def __init__(self, message, status=400):
++        super().__init__(message)
++        self.status = status
++
++
++def checked_name(value):
++    value = str(value or "").strip()
++    if not value or len(value) > 180 or any(ord(c) < 32 or c in "/\\" for c in value) or value in (".", ".."):
++        raise ArtifactError("Use a filename without folders or control characters.")
++    return value
++
++
++def checked_session(value):
++    if not isinstance(value, str) or not _SESSION.fullmatch(value):
++        raise ArtifactError("Invalid conversation identity.")
++    return value
++
++
++def checked_type(value):
++    value = str(value or "application/octet-stream").split(";", 1)[0].strip().lower()
++    if value not in _TYPES:
++        raise ArtifactError("This file type is not supported for upload.", 415)
++    return value
++
++
++class ArtifactStore:
++    """Immutable content plus metadata. All paths are generated, never supplied by clients.
++
++    SQLite serializes quota/identity decisions between concurrent upload workers.
++    Durable request retries use the same upload ID and digest; changed bytes conflict.
++    Each call owns its connection, so no SQLite connection crosses request threads.
++    """
++    def __init__(self, home: Path, scope: str):
++        if not _SCOPE.fullmatch(scope):
++            raise ArtifactError("Invalid artifact scope.")
++        self.root = Path(home) / "bellpull-artifacts" / scope
++        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
++        self.blobs = self.root / "content"
++        self.blobs.mkdir(exist_ok=True, mode=0o700)
++        self.output = self.root / "outputs"
++        self.output.mkdir(exist_ok=True, mode=0o700)
++        with self._db() as db:
++            db.execute("""CREATE TABLE IF NOT EXISTS artifacts (
++                id TEXT PRIMARY KEY, session_id TEXT NOT NULL, name TEXT NOT NULL,
++                mime TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL,
++                created_at REAL NOT NULL, source TEXT NOT NULL, request_id TEXT,
++                message_id INTEGER, blob TEXT NOT NULL)""")
++            db.execute("CREATE INDEX IF NOT EXISTS artifacts_session ON artifacts(session_id, created_at)")
++
++    @contextmanager
++    def _db(self):
++        db = sqlite3.connect(self.root / "metadata.sqlite", timeout=15)
++        db.row_factory = sqlite3.Row
++        try:
++            with db:
++                yield db
++        finally:
++            db.close()
++
++    def _row(self, artifact_id):
++        if not isinstance(artifact_id, str) or not _ID.fullmatch(artifact_id):
++            raise ArtifactError("Invalid attachment identity.")
++        with self._db() as db:
++            row = db.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
++        if row is None:
++            raise ArtifactError("Attachment is unavailable on this server.", 404)
++        return dict(row)
++
++    def _path(self, row):
++        candidate = self.blobs / row["blob"]
++        if candidate.is_symlink() or candidate.parent.resolve() != self.blobs.resolve():
++            raise ArtifactError("Attachment content is unavailable.", 410)
++        return candidate
++
++    def _public(self, row):
++        value = {key: row[key] for key in (
++            "id", "session_id", "name", "mime", "size", "sha256", "created_at", "source", "request_id", "message_id")}
++        path = self._path(row)
++        value["available"] = path.is_file() and path.stat().st_size == row["size"]
++        return value
++
++    def list(self, session_id=None):
++        if session_id is not None:
++            checked_session(session_id)
++        with self._db() as db:
++            rows = db.execute("SELECT * FROM artifacts" + (" WHERE session_id = ?" if session_id else "") +
++                              " ORDER BY created_at DESC LIMIT 2000", (session_id,) if session_id else ()).fetchall()
++        return [self._public(dict(row)) for row in rows]
++
++    def metadata(self, artifact_id):
++        return self._public(self._row(artifact_id))
++
++    def path(self, artifact_id, session_id=None):
++        row = self._row(artifact_id)
++        if session_id is not None and row["session_id"] != session_id:
++            raise ArtifactError("Attachment belongs to another conversation.", 409)
++        path = self._path(row)
++        if not path.is_file() or path.stat().st_size != row["size"]:
++            raise ArtifactError("Attachment content is no longer available.", 410)
++        return path, self._public(row)
++
++    def store(self, chunks, *, session_id, name, mime, artifact_id=None, source="upload"):
++        session_id, name, mime = checked_session(session_id), checked_name(name), checked_type(mime)
++        artifact_id = artifact_id or uuid.uuid4().hex
++        if not _ID.fullmatch(artifact_id) or source not in ("upload", "agent"):
++            raise ArtifactError("Invalid attachment identity or source.")
++        # Keep a type-derived extension for the existing paginated document tools.
++        blob = artifact_id + _TYPES[mime]
++        temporary = self.blobs / (".upload-" + uuid.uuid4().hex)
++        size = 0
++        digest = hashlib.sha256()
++        try:
++            with temporary.open("xb") as file:
++                os.chmod(temporary, 0o600)
++                for chunk in chunks:
++                    size += len(chunk)
++                    if size > MAX_BYTES:
++                        raise ArtifactError("File exceeds the 25 MiB upload limit.", 413)
++                    digest.update(chunk)
++                    file.write(chunk)
++                if size == 0:
++                    raise ArtifactError("The selected file is empty.")
++                file.flush()
++                os.fsync(file.fileno())
++            sha256 = digest.hexdigest()
++            with self._db() as db:
++                db.execute("BEGIN IMMEDIATE")
++                old = db.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
++                if old:
++                    if any(old[key] != value for key, value in {
++                        "session_id": session_id, "name": name, "mime": mime,
++                        "sha256": sha256, "size": size, "source": source}.items()):
++                        raise ArtifactError("Upload identity already belongs to different content.", 409)
++                    if not self._public(dict(old))["available"]:
++                        os.replace(temporary, self._path(dict(old)))
++                    return self._public(dict(old))
++                total = db.execute("SELECT COALESCE(SUM(size), 0) FROM artifacts").fetchone()[0]
++                if total + size > MAX_SCOPE_BYTES:
++                    raise ArtifactError("Server attachment storage is full (512 MiB per account).", 507)
++                os.replace(temporary, self.blobs / blob)
++                db.execute("INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)",
++                           (artifact_id, session_id, name, mime, size, sha256, time.time(), source, blob))
++            return self.metadata(artifact_id)
++        finally:
++            temporary.unlink(missing_ok=True)
++
++    def attach(self, ids, session_id, request_id):
++        if (not isinstance(ids, list) or len(ids) > MAX_ATTACHMENTS or
++                any(not isinstance(value, str) for value in ids) or len(set(ids)) != len(ids)):
++            raise ArtifactError("Choose up to eight different attachments.")
++        checked_session(session_id)
++        rows = [self.path(value, session_id)[1] for value in ids]
++        if sum(row["size"] for row in rows) > MAX_BYTES:
++            raise ArtifactError("Combined attachments exceed 25 MiB.", 413)
++        with self._db() as db:
++            db.execute("BEGIN IMMEDIATE")
++            for row in rows:
++                current = db.execute("SELECT request_id FROM artifacts WHERE id = ?", (row["id"],)).fetchone()[0]
++                if current not in (None, request_id):
++                    raise ArtifactError("Attachment was already submitted with another message.", 409)
++                db.execute("UPDATE artifacts SET request_id = ? WHERE id = ?", (request_id, row["id"]))
++        return rows
++
++    def output_directory(self, session_id):
++        folder = self.output / checked_session(session_id)
++        if folder.is_symlink():
++            raise ArtifactError("Conversation output folder is unavailable.", 410)
++        folder.mkdir(exist_ok=True, mode=0o700)
++        return folder
++
++    def collect_outputs(self, session_id, request_id):
++        """Copy bounded regular generated files into immutable authenticated records.
++
++        Never follow symlinks, devices, hard links, subfolders or caller-supplied paths.
++        A file recreated with identical bytes deduplicates; changed bytes get a new ID.
++        """
++        folder = self.output_directory(session_id)
++        records = []
++        for index, source in enumerate(sorted(folder.iterdir())):
++            if index >= 64:
++                break
++            try:
++                name = checked_name(source.name)
++                fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
++                with os.fdopen(fd, "rb") as file:
++                    info = os.fstat(file.fileno())
++                    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= MAX_BYTES:
++                        continue
++                    data = file.read(MAX_BYTES + 1)
++                digest = hashlib.sha256(data).hexdigest()
++                identity = hashlib.sha256((session_id + "\0" + name + "\0" + digest).encode()).hexdigest()[:32]
++                mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
++                if mime not in _TYPES:
++                    mime = "application/octet-stream"
++                row = self.store([data], session_id=session_id, name=name, mime=mime,
++                                 artifact_id=identity, source="agent")
++                with self._db() as db:
++                    db.execute("UPDATE artifacts SET request_id = COALESCE(request_id, ?) WHERE id = ?",
++                               (request_id, identity))
++                records.append(row)
++            except (OSError, ArtifactError):
++                # One unavailable output must not hide the other valid artifacts.
++                continue
++        return records
+--- /dev/null
++++ b/gateway/platforms/api_server_bellpull_phase3.py
+@@ -0,0 +1,298 @@
++"""Opt-in Bellpull model controls and persistent, bearer-protected attachments."""
++from __future__ import annotations
++
++import asyncio
++import base64
++import json
++import os
++import stat
++from pathlib import Path
++import tempfile
++import time
++from urllib.parse import quote
++
++from aiohttp import web
++from gateway.platforms.api_server_bellpull_artifacts import (
++    ArtifactError, ArtifactStore, MAX_BYTES, MAX_ATTACHMENTS, checked_name, checked_session, checked_type)
++
++
++def error(exc):
++    return web.json_response({"error": {"message": str(exc), "code": "bellpull_rejected"}}, status=exc.status)
++
++
++def store_for(adapter, request):
++    from hermes_constants import get_hermes_home
++    return ArtifactStore(Path(get_hermes_home()), adapter._run_idempotency_scope(request))
++
++
++def reasoning_capabilities(provider, model):
++    """Only expose values declared by the actual provider transport, not picker guesses."""
++    if local_qwen_toggle(provider, model):
++        return {"efforts": [], "can_disable": True, "can_enable": True,
++                "note": "Verified thinking on/off. Graded effort is not exposed by this local model."}
++    from providers import get_provider_profile
++    profile = get_provider_profile(provider)
++    efforts = fireworks_efforts(model) if provider == "fireworks" else None
++    if efforts is None:
++        efforts = profile.supported_reasoning_efforts(model) if profile else None
++    efforts = list(efforts) if efforts else []
++    off = "none" in efforts or "off" in efforts
++    return {"efforts": [value for value in efforts if value not in ("none", "off")],
++            "can_disable": off,
++            "note": "" if efforts else "This runtime does not declare supported reasoning controls; server defaults apply."}
++
++
++def local_qwen_toggle(provider, model):
++    # Verified against the existing local OpenAI-compatible qwen38-flash-next
++    # service, with 0 vs 23 reasoning tokens for off/on. This does NOT create a
++    # route or hardcode a host. Hermes must already configure this custom model.
++    return provider == "custom" and model == "qwen38-flash-next"
++
++
++def fireworks_efforts(model):
++    # Verified provider contract, not a minimum-effort-as-off approximation:
++    # https://docs.fireworks.ai/api-reference/post-chatcompletions#body-reasoning-effort
++    name = str(model).rsplit("/", 1)[-1]
++    if name.startswith("deepseek-v4"):
++        return ("low", "high", "max", "none")
++    if name in ("gpt-oss-120b", "gpt-oss-20b"):
++        return ("low", "medium", "high")
++    return None
++
++
++def request_overrides(provider, model, options):
++    """Fireworks requires top-level reasoning_effort; its generic profile drops reasoning.
++
++    Only explicit per-session/request choices are translated. Server/global defaults
++    and agents on other platforms are untouched.
++    """
++    if not isinstance(options, dict):
++        return {}
++    reasoning = options.get("reasoning")
++    if not isinstance(reasoning, dict):
++        return {}
++    if local_qwen_toggle(provider, model):
++        if reasoning.get("effort") is not None:
++            raise ArtifactError("This local model exposes thinking on/off, not graded effort.", 409)
++        return {"extra_body": {"chat_template_kwargs": {"enable_thinking": reasoning.get("enabled") is not False}}}
++    if provider != "fireworks" or not fireworks_efforts(model):
++        return {}
++    effort = "none" if reasoning.get("enabled") is False else reasoning.get("effort")
++    if effort not in fireworks_efforts(model):
++        raise ArtifactError("Unsupported reasoning choice for this Fireworks model.", 409)
++    return {"reasoning_effort": effort}
++
++
++def catalog(adapter):
++    from hermes_cli.inventory import build_model_options_payload, load_picker_context
++    from agent.models_dev import get_model_capabilities
++    from gateway.run import _resolve_runtime_agent_kwargs, _resolve_gateway_model
++    inventory = build_model_options_payload(load_picker_context(), include_unconfigured=True, refresh=False)
++    runtime = _resolve_runtime_agent_kwargs()
++    default_provider, default_model = runtime.get("provider"), _resolve_gateway_model()
++    models = []
++    for provider in inventory.get("providers", []):
++        slug = provider.get("slug")
++        # MoA is a virtual orchestration route, not a configured single-model provider.
++        if not slug or slug == "moa":
++            continue
++        configured = provider.get("authenticated") is True
++        ids = list(provider.get("models", []))
++        if slug == default_provider and default_model not in ids:
++            ids.insert(0, default_model)
++        for model in ids:
++            if not isinstance(model, str) or not model:
++                continue
++            caps = get_model_capabilities(slug, model) or {}
++            models.append({"provider": slug, "model": model, "configured": configured,
++                           "vision": (caps.get("supports_vision") if isinstance(caps, dict) else getattr(caps, "supports_vision", None)) is True,
++                           "reasoning": reasoning_capabilities(slug, model)})
++    return {"version": 1, "models": models, "default": {
++        "provider": default_provider, "model": default_model, "model_options": {}},
++        "note": "Configured provider catalog. Availability is confirmed when the provider accepts a request; models are not loaded by this picker."}
++
++
++def validate_selection(value, available):
++    if not isinstance(value, dict) or set(value) - {"model", "provider", "model_options"}:
++        raise ArtifactError("Invalid model selection.")
++    route = next((item for item in available["models"] if item["model"] == value.get("model") and
++                  item["provider"] == value.get("provider") and item["configured"]), None)
++    if route is None:
++        raise ArtifactError("This model does not have a configured provider route.", 409)
++    options = value.get("model_options") or {}
++    if not isinstance(options, dict) or set(options) - {"reasoning"}:
++        raise ArtifactError("Unsupported model options.")
++    reasoning = options.get("reasoning")
++    if reasoning is not None:
++        if not isinstance(reasoning, dict) or set(reasoning) - {"enabled", "effort"}:
++            raise ArtifactError("Invalid reasoning options.")
++        enabled, effort = reasoning.get("enabled"), reasoning.get("effort")
++        if enabled is not None and not isinstance(enabled, bool):
++            raise ArtifactError("Thinking must be enabled or disabled.")
++        caps = route["reasoning"]
++        if enabled is False:
++            if not caps["can_disable"] or effort is not None:
++                raise ArtifactError("This runtime cannot honor this thinking-off request.", 409)
++        elif effort is None and enabled is True and caps.get("can_enable"):
++            pass
++        elif effort not in caps["efforts"]:
++            raise ArtifactError("This runtime does not support the requested reasoning effort.", 409)
++    return {"model": route["model"], "provider": route["provider"], "model_options": options}, route
++
++
++def session_selection(adapter, session, available):
++    locked = adapter._runtime_request_from_persisted_session_lock(session, {})
++    if locked:
++        requested = locked["requested"]
++        return {"model": requested.get("model"), "provider": requested.get("provider"),
++                "model_options": locked.get("model_options") or {}}
++    return available["default"]
++
++
++def routes(adapter):
++    uploads = asyncio.Semaphore(2)
++    cached = {}  # Per native connection; profile/principal separated, bounded.
++
++    async def models(request):
++        key = adapter._run_idempotency_scope(request)
++        existing = cached.get(key)
++        if existing and time.monotonic() - existing[0] < 30:
++            return existing[1]
++        value = await asyncio.to_thread(catalog, adapter)
++        if len(cached) >= 16:
++            cached.clear()
++        cached[key] = (time.monotonic(), value)
++        return value
++
++    def authenticated(handler):
++        async def guarded(request):
++            if not adapter._expected_api_key():
++                return web.json_response({"error": {"message": "API authentication required"}}, status=401)
++            rejection = adapter._check_auth(request)
++            if rejection is not None:
++                return rejection
++            try:
++                return await handler(request)
++            except ArtifactError as exc:
++                return error(exc)
++        return guarded
++
++    async def get_models(request):
++        return web.json_response(await models(request), headers={"Cache-Control": "no-store"})
++
++    async def model_choice(request):
++        session_id = checked_session(request.match_info["session_id"])
++        session, rejection = await adapter._get_existing_session_or_404(session_id)
++        if rejection is not None:
++            return rejection
++        available = await models(request)
++        if request.method == "PUT":
++            body, rejection = await adapter._read_json_body(request)
++            if rejection is not None:
++                return rejection
++            selected, _ = validate_selection(body, available)
++            selection = adapter._session_runtime_request_from_body(dict(selected, require_model_lock=True))
++            if not adapter._persist_session_runtime_lock(session_id, selection):
++                raise ArtifactError("Could not save the session model selection.", 500)
++        else:
++            selected = session_selection(adapter, session, available)
++        return web.json_response({"session_id": session_id, "selection": selected}, headers={"Cache-Control": "no-store"})
++
++    async def list_artifacts(request):
++        store = store_for(adapter, request)
++        records = await asyncio.to_thread(store.list, request.query.get("session_id"))
++        return web.json_response({"data": records}, headers={"Cache-Control": "no-store"})
++
++    async def upload(request):
++        session_id = checked_session(request.query.get("session_id"))
++        _, rejection = await adapter._get_existing_session_or_404(session_id)
++        if rejection is not None:
++            return rejection
++        name, mime = checked_name(request.query.get("name")), checked_type(request.headers.get("Content-Type"))
++        if request.content_length is not None and request.content_length > MAX_BYTES:
++            raise ArtifactError("File exceeds the 25 MiB upload limit.", 413)
++        store = store_for(adapter, request)
++        async with uploads:
++            # Disk spool avoids buffering the file in memory; a disconnect discards it.
++            with tempfile.TemporaryFile(dir=store.root) as temporary:
++                size = 0
++                async for chunk in request.content.iter_chunked(65536):
++                    size += len(chunk)
++                    if size > MAX_BYTES:
++                        raise ArtifactError("File exceeds the 25 MiB upload limit.", 413)
++                    temporary.write(chunk)
++                temporary.seek(0)
++                copy = asyncio.create_task(asyncio.to_thread(store.store, iter(lambda: temporary.read(65536), b""),
++                    session_id=session_id, name=name, mime=mime, artifact_id=request.match_info["artifact_id"]))
++                try:
++                    row = await asyncio.shield(copy)
++                except asyncio.CancelledError:
++                    # Do not close the spool while the worker is reading it. A lost
++                    # response can be retried using the same stable upload ID.
++                    await copy
++                    raise
++        return web.json_response(row, status=201, headers={"Cache-Control": "no-store"})
++
++    async def download(request):
++        store = store_for(adapter, request)
++        path, metadata = await asyncio.to_thread(store.path, request.match_info["artifact_id"])
++        try:
++            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
++        except OSError:
++            raise ArtifactError("Attachment content is no longer available.", 410)
++        with os.fdopen(descriptor, "rb") as content:
++            info = os.fstat(content.fileno())
++            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size != metadata["size"]:
++                raise ArtifactError("Attachment content is no longer available.", 410)
++            response = web.StreamResponse(headers={"Content-Type": metadata["mime"],
++                "Content-Length": str(metadata["size"]),
++                "Content-Disposition": "attachment; filename*=UTF-8''" + quote(metadata["name"], safe=""),
++                "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
++            await response.prepare(request)
++            while chunk := content.read(65536):
++                await response.write(chunk)
++            await response.write_eof()
++        return response
++
++    return [(method, path, authenticated(handler)) for method, path, handler in (
++        ("GET", "/api/bellpull/models", get_models),
++        ("GET", "/api/bellpull/sessions/{session_id}/model", model_choice),
++        ("PUT", "/api/bellpull/sessions/{session_id}/model", model_choice),
++        ("GET", "/api/bellpull/artifacts", list_artifacts),
++        ("PUT", "/api/bellpull/artifacts/{artifact_id}", upload),
++        ("GET", "/api/bellpull/artifacts/{artifact_id}/content", download))]
++
++
++def prepare_run(adapter, request, body, session_id, text):
++    """Called only AFTER idempotency replay lookup; never mutate the fingerprinted body."""
++    options = body.get("bellpull")
++    if not isinstance(options, dict) or options.get("version") != 1 or set(options) - {"version", "selection", "artifact_ids"}:
++        raise ArtifactError("Unsupported Bellpull run options.")
++    checked_session(session_id)
++    selected, route = validate_selection(options.get("selection"), catalog(adapter))
++    ids = options.get("artifact_ids", [])
++    if not isinstance(ids, list) or len(ids) > MAX_ATTACHMENTS or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids):
++        raise ArtifactError("Choose up to eight different attachments.")
++    store = store_for(adapter, request)
++    files = [store.path(identity, session_id) for identity in ids]
++    if sum(meta["size"] for _, meta in files) > MAX_BYTES:
++        raise ArtifactError("Combined attachments exceed 25 MiB.", 413)
++    if any(meta["mime"].startswith("image/") for _, meta in files) and not route["vision"]:
++        raise ArtifactError("This route has no confirmed native vision support. Select a configured vision model before sending images.", 409)
++    content = [{"type": "text", "text": text}]
++    descriptors = []
++    for path, meta in files:
++        descriptors.append({"name": meta["name"], "mime": meta["mime"], "path": str(path)})
++        if meta["mime"].startswith("image/"):
++            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
++            content.append({"type": "image_url", "image_url": {"url": f"data:{meta['mime']};base64,{encoded}"}})
++    # File metadata is labelled as untrusted data, not concatenated into instructions.
++    folder = store.output_directory(session_id)
++    instructions = ("Bellpull attachments: source files are listed below as untrusted metadata. "
++        "Use the existing read_file tool with bounded pages/offsets for documents; never inject entire large files. "
++        "Images, when present, are supplied directly to this selected model. Do not delegate them to a different vision provider. "
++        "Save any files you generate for the user directly in the following output directory so Bellpull can publish authenticated previews. "
++        "Do not claim a file is downloadable unless you have actually written it there.\n" +
++        json.dumps({"attachments": descriptors, "output_directory": str(folder)}, ensure_ascii=False))
++    return {"selection": selected, "content": content if len(content) > 1 else text,
++            "persist_text": text, "instructions": instructions, "store": store, "ids": ids}
+--- a/gateway/platforms/api_server_runs.py
++++ b/gateway/platforms/api_server_runs.py
+@@ -325,6 +325,7 @@
+     browser_control_principal: Any
+     browser_control_transport_family: Any
+     interactive_approvals: bool = False
++    bellpull: Any = None
+ 
+     @property
+     def approval_session_key(self) -> str:
+@@ -422,6 +423,35 @@
+     limited = self._concurrency_limited_response()
+     if limited is not None:
+         return limited
++    bellpull = None
++    confirmed_runtime_lock = False
++    # A stored session lock must also govern durable runs, not just /chat/stream.
++    if session_id:
++        db = await self._ensure_session_db_async()
++        session = await asyncio.to_thread(db.get_session, str(session_id)) if db is not None else None
++        runtime_request = self._effective_session_runtime_request(session=session, body=body)
++        if runtime_request.get("require_model_lock"):
++            route = runtime_request.get("route")
++            requested = runtime_request.get("requested") or {}
++            agent_overrides.update(requested_model=requested.get("model"),
++                requested_provider=requested.get("provider"), model_options=runtime_request.get("model_options"))
++            confirmed_runtime_lock = True
++    if "bellpull" in body:
++        from gateway.platforms import api_server_bellpull_phase3 as phase3
++        auth_error = self._check_auth(request)
++        if auth_error is not None:
++            return auth_error
++        try:
++            bellpull = await asyncio.to_thread(phase3.prepare_run, self, request, body, session_id, user_message)
++        except phase3.ArtifactError as exc:
++            return phase3.error(exc)
++        choice = bellpull["selection"]
++        agent_overrides.update(requested_model=choice["model"], requested_provider=choice["provider"],
++                               model_options=choice["model_options"])
++        route = {"model": choice["model"], "provider": choice["provider"]}
++        confirmed_runtime_lock = True
++        instructions = "\n\n".join(filter(None, [instructions, bellpull["instructions"]]))
++        user_message = bellpull["content"]
+     if not conversation_history and session_id and not previous_response_id:
+         conversation_history = await self._conversation_history_for_session(str(session_id))
+     run_id = f"run_{uuid.uuid4().hex}"
+@@ -453,11 +483,12 @@
+         agent_kwargs=dict(
+             ephemeral_system_prompt=instructions, session_id=session_id, gateway_session_key=gateway_session_key,
+             route=route, room_dispatch=room_dispatch, room_execution_policy=room_execution_policy,
++            confirmed_runtime_lock=confirmed_runtime_lock,
+             **{k: agent_overrides.get(k) for k in ("requested_model", "requested_provider", "model_options")}),
+         request_profile=_api_server._api_request_profile.get(),
+         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
+         browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get(),
+-        interactive_approvals=body.get("interactive_approvals") is True)
++        interactive_approvals=body.get("interactive_approvals") is True, bellpull=bellpull)
+     self._activate_admitted_request()
+     task = self._active_run_tasks[run_id] = asyncio.create_task(_execute_run(self, launch, _api_server=_api_server))
+     with suppress(TypeError):
+@@ -505,9 +536,14 @@
+             # /v1/runs owns its agent lifecycle (no TurnRunner): record process ownership
+             # so stop/cancel reaps only the background processes this run created.
+             _api_server._publish_turn_process_ownership(agent, effective_task_id)
++            if run.bellpull:
++                run.bellpull["store"].attach(run.bellpull["ids"], session_id, run.run_id)
+             r = agent.run_conversation(
+                 user_message=run.user_message, conversation_history=run.conversation_history,
+-                task_id=effective_task_id)
++                task_id=effective_task_id,
++                **({"persist_user_message": run.bellpull["persist_text"]} if run.bellpull else {}))
++            if run.bellpull:
++                run.bellpull["store"].collect_outputs(session_id, run.run_id)
+         finally:
+             # Clear ownership now so a later stop can't reap work this run left running.
+             _api_server._clear_turn_process_ownership(agent)
