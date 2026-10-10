@@ -51,9 +51,7 @@ internal fun ContextPanel(
 ) {
     Surface(modifier = modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("Context", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            val closeButton: @Composable () -> Unit = {
                 onClose?.let { close ->
                     val tint = MaterialTheme.colorScheme.onSurfaceVariant
                     IconButton(onClick = close, modifier = Modifier.semantics { contentDescription = "Close context" }) {
@@ -63,6 +61,16 @@ internal fun ContextPanel(
                         }
                     }
                 }
+            }
+            if (LocalImmersiveHeaders.current) {
+                CutoutHeader(title = {
+                    Text("Context", style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }, trailing = closeButton)
+            } else Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Context", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                closeButton()
             }
             Column(
                 modifier = Modifier.weight(1f).fillMaxWidth()

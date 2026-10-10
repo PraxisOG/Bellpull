@@ -33,60 +33,69 @@ internal fun ConversationToolbar(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onNavigate, modifier = Modifier.semantics {
-                contentDescription = if (!sideBySide) "Back to sessions"
-                    else if (showList) "Hide sessions" else "Show sessions"
-            }) {
-                Canvas(Modifier.size(20.dp)) {
-                    val stroke = 2.dp.toPx()
-                    if (sideBySide) {
-                        listOf(.2f, .5f, .8f).forEach { y ->
-                            drawLine(tint, Offset(0f, size.height * y), Offset(size.width, size.height * y), stroke, StrokeCap.Round)
+    val navigate: @Composable () -> Unit = {
+        IconButton(onClick = onNavigate, modifier = Modifier.semantics {
+            contentDescription = if (!sideBySide) "Back to sessions"
+                else if (showList) "Hide sessions" else "Show sessions"
+        }) {
+            Canvas(Modifier.size(20.dp)) {
+                val stroke = 2.dp.toPx()
+                if (sideBySide) {
+                    listOf(.2f, .5f, .8f).forEach { y ->
+                        drawLine(tint, Offset(0f, size.height * y), Offset(size.width, size.height * y), stroke, StrokeCap.Round)
+                    }
+                } else {
+                    drawLine(tint, Offset(size.width, center.y), Offset(0f, center.y), stroke, StrokeCap.Round)
+                    drawLine(tint, Offset(0f, center.y), Offset(size.width * .4f, size.height * .1f), stroke, StrokeCap.Round)
+                    drawLine(tint, Offset(0f, center.y), Offset(size.width * .4f, size.height * .9f), stroke, StrokeCap.Round)
+                }
+            }
+        }
+    }
+    val actions: @Composable () -> Unit = {
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NewChatButton(onNewSession, creatingSession, highlighted = false)
+                Box {
+                    val actionTint = MaterialTheme.colorScheme.primary
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.semantics { contentDescription = "More options" }) {
+                        Canvas(Modifier.size(20.dp)) {
+                            listOf(.15f, .5f, .85f).forEach { y -> drawCircle(actionTint, 1.8.dp.toPx(), Offset(center.x, size.height * y)) }
                         }
-                    } else {
-                        drawLine(tint, Offset(size.width, center.y), Offset(0f, center.y), stroke, StrokeCap.Round)
-                        drawLine(tint, Offset(0f, center.y), Offset(size.width * .4f, size.height * .1f), stroke, StrokeCap.Round)
-                        drawLine(tint, Offset(0f, center.y), Offset(size.width * .4f, size.height * .9f), stroke, StrokeCap.Round)
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(if (sideBySide && showContext && hasSession) "Hide session info" else "Session info") },
+                            enabled = hasSession, onClick = { menuOpen = false; onContext() },
+                        )
+                        DropdownMenuItem(text = { Text("Prompt history") }, enabled = hasSession && hasHistory,
+                            onClick = { menuOpen = false; onPrompts() })
+                        DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
+                            onClick = { menuOpen = false; onSearch() })
+                        HorizontalDivider()
+                        DropdownMenuItem(enabled = false, onClick = {}, text = {
+                            Column {
+                                Text("Share conversation")
+                                Text("Coming soon", style = MaterialTheme.typography.labelSmall)
+                            }
+                        })
                     }
                 }
             }
+        }
+    }
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        if (LocalImmersiveHeaders.current) {
+            CutoutHeader(leading = navigate, trailing = actions, title = {
+                Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+            })
+        } else Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            navigate()
             Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    NewChatButton(onNewSession, creatingSession, highlighted = false)
-                    Box {
-                        val actionTint = MaterialTheme.colorScheme.primary
-                        IconButton(onClick = { menuOpen = true }, modifier = Modifier.semantics { contentDescription = "More options" }) {
-                            Canvas(Modifier.size(20.dp)) {
-                                listOf(.15f, .5f, .85f).forEach { y -> drawCircle(actionTint, 1.8.dp.toPx(), Offset(center.x, size.height * y)) }
-                            }
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(if (sideBySide && showContext && hasSession) "Hide session info" else "Session info") },
-                                enabled = hasSession, onClick = { menuOpen = false; onContext() },
-                            )
-                            DropdownMenuItem(text = { Text("Prompt history") }, enabled = hasSession && hasHistory,
-                                onClick = { menuOpen = false; onPrompts() })
-                            DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
-                                onClick = { menuOpen = false; onSearch() })
-                            HorizontalDivider()
-                            DropdownMenuItem(enabled = false, onClick = {}, text = {
-                                Column {
-                                    Text("Share conversation")
-                                    Text("Coming soon", style = MaterialTheme.typography.labelSmall)
-                                }
-                            })
-                        }
-                    }
-                }
-            }
+            actions()
         }
     }
 }

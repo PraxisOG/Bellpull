@@ -1,6 +1,8 @@
 package org.praxisog.hermes
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -100,38 +102,43 @@ internal fun HermesApp(
         }
     }
     HermesTheme(appearance = preferences.appearance, palette = preferences.palette, customAccent = preferences.customAccent) {
-        branchError?.let { error ->
-            AlertDialog(onDismissRequest = onDismissBranchError,
-                title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
-                confirmButton = { TextButton(onClick = onDismissBranchError) { Text("Dismiss") } })
-        }
-        if (expandedSearch) WorkspaceSearch(
-            (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
-            query, onQueryChange, open, onLaunchApp,
-            onAsk = { onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS },
-            onDismiss = { expandedSearch = false })
-        Surface(Modifier.fillMaxSize()) {
-            BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                val sideBySide = maxWidth >= 720.dp
-                var showList by rememberSaveable { mutableStateOf(true) }
-                var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
-                val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                    (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null }
-                DisposableEffect(visibleSession) {
-                    onVisibleSession(visibleSession)
-                    onDispose { onVisibleSession(null) }
-                }
-                BackHandler(enabled = !sideBySide && !drawerOnCover) { drawerOnCover = true }
-                if (infoSheet && openSessionId != null) {
-                    ModalBottomSheet(onDismissRequest = { infoSheet = false },
-                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-                        ContextPanel(openSession, now, onDisconnect = onDisconnect,
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false })
+        CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode) {
+            branchError?.let { error ->
+                AlertDialog(onDismissRequest = onDismissBranchError,
+                    title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
+                    confirmButton = { TextButton(onClick = onDismissBranchError) { Text("Dismiss") } })
+            }
+            if (expandedSearch) WorkspaceSearch(
+                (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
+                query, onQueryChange, open, onLaunchApp,
+                onAsk = { onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS },
+                onDismiss = { expandedSearch = false })
+            Surface(Modifier.fillMaxSize()) {
+                val insets = if (preferences.immersiveMode)
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                        .union(WindowInsets.captionBar.only(WindowInsetsSides.Top))
+                else WindowInsets.safeDrawing
+                BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(insets)) {
+                    val sideBySide = maxWidth >= 720.dp
+                    var showList by rememberSaveable { mutableStateOf(true) }
+                    var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
+                    val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null }
+                    DisposableEffect(visibleSession) {
+                        onVisibleSession(visibleSession)
+                        onDispose { onVisibleSession(null) }
                     }
-                }
-                Row(Modifier.fillMaxSize()) {
-                    if ((sideBySide && showList) || (!sideBySide && drawerOnCover)) {
-                        Column(if (sideBySide) Modifier.width(240.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
+                    BackHandler(enabled = !sideBySide && !drawerOnCover) { drawerOnCover = true }
+                    if (infoSheet && openSessionId != null) {
+                        ModalBottomSheet(onDismissRequest = { infoSheet = false },
+                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                            ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false })
+                        }
+                    }
+                    val animate = paneMotionEnabled(preferences.reduceMotion)
+                    val listPane: @Composable (Modifier) -> Unit = { paneModifier ->
+                        Column(paneModifier) {
                             SessionListScreen(state = sessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
                                 creating = creatingSession, createError = createError, offline = offline,
@@ -141,10 +148,9 @@ internal fun HermesApp(
                                 onExpandedSearch = { expandedSearch = true })
                             WorkspaceModes(mode) { mode = it; drawerOnCover = false }
                         }
-                        if (sideBySide) VerticalDivider()
                     }
-                    if (sideBySide || !drawerOnCover) {
-                        Column(Modifier.weight(1f).fillMaxHeight()) {
+                    val detailPane: @Composable (Modifier) -> Unit = { paneModifier ->
+                        Column(paneModifier) {
                             ConversationToolbar(
                                 title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
                                     ?: "Conversation" else mode.title,
@@ -188,10 +194,36 @@ internal fun HermesApp(
                                 }
                             }
                         }
-                        if (sideBySide && showContext && openSessionId != null && mode == WorkspaceMode.CHATS) {
-                            VerticalDivider()
-                            ContextPanel(openSession, now, onDisconnect = onDisconnect,
-                                modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false })
+                    }
+                    if (sideBySide) {
+                        Row(Modifier.fillMaxSize()) {
+                            SlidingPane(showList, fromLeft = true, animate = animate) {
+                                Row(Modifier.fillMaxHeight()) {
+                                    listPane(Modifier.width(240.dp).fillMaxHeight())
+                                    VerticalDivider()
+                                }
+                            }
+                            detailPane(Modifier.weight(1f).fillMaxHeight())
+                            SlidingPane(showContext && openSessionId != null && mode == WorkspaceMode.CHATS,
+                                fromLeft = false, animate = animate) {
+                                Row(Modifier.fillMaxHeight()) {
+                                    VerticalDivider()
+                                    ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                                        modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false })
+                                }
+                            }
+                        }
+                    } else {
+                        AnimatedContent(drawerOnCover, label = "Conversations navigation",
+                            transitionSpec = {
+                                if (!animate) EnterTransition.None togetherWith ExitTransition.None
+                                else {
+                                    val direction = if (targetState) AnimatedContentTransitionScope.SlideDirection.Right
+                                        else AnimatedContentTransitionScope.SlideDirection.Left
+                                    slideIntoContainer(direction, tween(180)) togetherWith slideOutOfContainer(direction, tween(180))
+                                }
+                            }, modifier = Modifier.fillMaxSize()) { listVisible ->
+                            if (listVisible) listPane(Modifier.fillMaxSize()) else detailPane(Modifier.fillMaxSize())
                         }
                     }
                 }

@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var preferences: BellpullSettings
     private var restoredSessionId: String? = null
     private var foreground by mutableStateOf(false)
+    private var windowCutouts by mutableStateOf(emptyList<androidx.compose.ui.geometry.Rect>())
     private var focusChatRevision by mutableStateOf(0)
     private val notificationPermission = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
@@ -56,6 +58,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferences = BellpullSettings(this)
+        configureWindowChrome(window, preferences.value.immersiveMode)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
+            windowCutouts = insets.displayCutout?.boundingRects.orEmpty().map {
+                androidx.compose.ui.geometry.Rect(it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat())
+            }
+            insets // Descendants still need the IME and system-bar insets.
+        }
+        androidx.core.view.ViewCompat.requestApplyInsets(window.decorView)
         val reader = MessageReader(this)
         messageReader = reader
         val secureStore = runCatching { SecureConnectionStore(this) }.getOrElse {
@@ -93,74 +103,85 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val current = store
-            DisposableEffect(current?.openSessionId) {
-                if (current != null) runCatching { sessionCache?.rememberSession(current.openSessionId) }
-                onDispose { reader.stop() }
+            DisposableEffect(preferences.value.immersiveMode) {
+                configureWindowChrome(window, preferences.value.immersiveMode)
+                onDispose { }
             }
-            if (current == null) {
-                ConnectionScreen(initialUrl, initialKey, status, checking, preferences.value, ::checkConnection)
-            } else {
-                HermesApp(
-                    sessions = current.sessions,
-                    history = current.history,
-                    turn = current.turn,
-                    openSessionId = current.openSessionId,
-                    openSession = current.openSession,
-                    now = System.currentTimeMillis() / 1000.0,
-                    onOpenSession = current::openSession,
-                    onCloseSession = current::closeSession,
-                    onSend = current::send,
-                    onStop = current::stop,
-                    onRetrySessions = current::loadSessions,
-                    onRetryHistory = current::refreshHistory,
-                    onNewSession = current::newSession,
-                    creatingSession = current.creatingSession,
-                    createError = current.createError,
-                    offline = current.offline,
-                    onDisconnect = ::disconnect,
-                    query = current.searchQuery,
-                    onQueryChange = current::setQuery,
-                    apps = current.apps,
-                    onLaunchApp = { app ->
-                        if (!InstalledApps.launch(this, app)) {
-                            // A launch can fail if the app was uninstalled since the list was
-                            // read. Say so rather than appearing to do nothing.
-                            status = "Could not open ${app.label}. It may have been uninstalled."
-                        }
-                    },
-                    onAskHermes = current::askHermes,
-                    prefill = current.pendingPrompt,
-                    pendingUserText = current.pendingUserText,
-                    unreadIds = current.readState.unreadIds,
-                    completionRevision = current.completionRevision,
-                    onReadThrough = current.readState::readThrough,
-                    foreground = foreground,
-                    runPresentation = current.runPresentation,
-                    runLabels = current.runLabels,
-                    onRetryRun = current::retryRun,
-                    onAbandonRun = current::abandonRunAfterReview,
-                    onApproval = current::respondToApproval,
-                    notificationsAvailable = runtime.notificationEventsAvailable,
-                    onNotificationsChange = ::requestNotifications,
-                    focusChatRevision = focusChatRevision,
-                    onVisibleSession = { runtime.visibleSessionId = it },
-                    draft = current.draft,
-                    onDraftChange = current::updateDraft,
-                    preferences = preferences.value,
-                    onPreferencesChange = preferences::update,
-                    onReadMessage = { reader.read(it.id, it.content.orEmpty()) },
-                    readingMessageId = reader.readingMessageId,
-                    onBranchMessage = current::branchMessage,
-                    branchingEnabled = current.supportsMessageBranching,
-                    editingEnabled = current.supportsPromptEditing,
-                    onForkEdit = current::forkAndEdit,
-                    branchingSession = current.branchingSession,
-                    branchError = current.branchError,
-                    onDismissBranchError = current::dismissBranchError,
-                )
+            CompositionLocalProvider(LocalWindowCutouts provides windowCutouts) {
+                val current = store
+                DisposableEffect(current?.openSessionId) {
+                    if (current != null) runCatching { sessionCache?.rememberSession(current.openSessionId) }
+                    onDispose { reader.stop() }
+                }
+                if (current == null) {
+                    ConnectionScreen(initialUrl, initialKey, status, checking, preferences.value, ::checkConnection)
+                } else {
+                    HermesApp(
+                        sessions = current.sessions,
+                        history = current.history,
+                        turn = current.turn,
+                        openSessionId = current.openSessionId,
+                        openSession = current.openSession,
+                        now = System.currentTimeMillis() / 1000.0,
+                        onOpenSession = current::openSession,
+                        onCloseSession = current::closeSession,
+                        onSend = current::send,
+                        onStop = current::stop,
+                        onRetrySessions = current::loadSessions,
+                        onRetryHistory = current::refreshHistory,
+                        onNewSession = current::newSession,
+                        creatingSession = current.creatingSession,
+                        createError = current.createError,
+                        offline = current.offline,
+                        onDisconnect = ::disconnect,
+                        query = current.searchQuery,
+                        onQueryChange = current::setQuery,
+                        apps = current.apps,
+                        onLaunchApp = { app ->
+                            if (!InstalledApps.launch(this, app)) {
+                                // A launch can fail if the app was uninstalled since the list was
+                                // read. Say so rather than appearing to do nothing.
+                                status = "Could not open ${app.label}. It may have been uninstalled."
+                            }
+                        },
+                        onAskHermes = current::askHermes,
+                        prefill = current.pendingPrompt,
+                        pendingUserText = current.pendingUserText,
+                        unreadIds = current.readState.unreadIds,
+                        completionRevision = current.completionRevision,
+                        onReadThrough = current.readState::readThrough,
+                        foreground = foreground,
+                        runPresentation = current.runPresentation,
+                        runLabels = current.runLabels,
+                        onRetryRun = current::retryRun,
+                        onAbandonRun = current::abandonRunAfterReview,
+                        onApproval = current::respondToApproval,
+                        notificationsAvailable = runtime.notificationEventsAvailable,
+                        onNotificationsChange = ::requestNotifications,
+                        focusChatRevision = focusChatRevision,
+                        onVisibleSession = { runtime.visibleSessionId = it },
+                        draft = current.draft,
+                        onDraftChange = current::updateDraft,
+                        preferences = preferences.value,
+                        onPreferencesChange = preferences::update,
+                        onReadMessage = { reader.read(it.id, it.content.orEmpty()) },
+                        readingMessageId = reader.readingMessageId,
+                        onBranchMessage = current::branchMessage,
+                        branchingEnabled = current.supportsMessageBranching,
+                        editingEnabled = current.supportsPromptEditing,
+                        onForkEdit = current::forkAndEdit,
+                        branchingSession = current.branchingSession,
+                        branchError = current.branchError,
+                        onDismissBranchError = current::dismissBranchError,
+                    )
+                }
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && ::preferences.isInitialized) configureWindowChrome(window, preferences.value.immersiveMode)
     }
 
     private fun checkConnection(rawUrl: String, rawKey: String) {

@@ -1,5 +1,12 @@
 # References — what to borrow from where
 
+Immersive experiment (2026-10-09): Android's
+[system-bar controller](https://developer.android.com/develop/ui/views/layout/immersive),
+[reported display cutouts](https://developer.android.com/develop/ui/views/layout/display-cutout)
+and [Compose visibility transitions](https://developer.android.com/develop/ui/compose/animation/composables-modifiers)
+are used without new dependencies. The earlier system-bar discussion below is historical;
+the opt-in experiment is now implemented and tested as recorded in `HANDOFF.md`.
+
 Companion to the **"Borrow, don't build"** non-negotiable in `CLAUDE.md`. Check this file
 before writing a subsystem. Pull the specific piece, not the feature set.
 

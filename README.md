@@ -6,9 +6,9 @@ A native Android chat client for a self-hosted [Hermes Agent](https://github.com
 
 Bellpull Phase 2 is implemented: streaming conversations, compact tool/thinking rows, searchable history, context panels, message copying and read-aloud, selected-message branching, prompt editing, themes and Android wallpaper colors. Durable runs recover from disconnects and app restarts; unread conversations rise to the top. Optional ntfy-backed notifications and exact-request tool approvals use the accompanying server extensions.
 
-Projects and Today currently have placeholder pages. Attachments, model/reasoning controls and GPU metrics are planned for Phase 3. Experimental immersive mode, camera-cutout-aware headers and sliding side panels are requested but **not implemented**. Phone testing and UI development are paused at this publication checkpoint.
+Projects and Today currently have placeholder pages. Attachments, model/reasoning controls and GPU metrics are planned for Phase 3. Settings now include experimental immersive mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion or Android's animation settings disable motion. Phone testing of this experiment is complete; see the handoff for the physical-versus-rendered coverage.
 
-The latest completed validation passed 238 tests with one opt-in live smoke test skipped, verified 79 screenshot baselines, built the debug APK and reported zero lint errors. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The screenshot gallery in [beauty-shots](beauty-shots/README.txt) uses fictional data and illustrates earlier UI revisions; test baselines reflect the current tested UI.
+The latest completed validation passed 250 tests with one opt-in live smoke test skipped, verified 83 screenshot baselines, built the debug APK and reported zero lint errors. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The screenshot gallery in [beauty-shots](beauty-shots/README.txt) uses fictional data and illustrates earlier UI revisions; test baselines reflect the current tested UI.
 
 ## Build and test
 

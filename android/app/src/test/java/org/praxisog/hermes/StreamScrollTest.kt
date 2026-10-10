@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.*
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -101,5 +104,22 @@ class StreamScrollTest {
         turn = TurnState.Streaming((1..90).joinToString("\n") { "More content $it" }, canStop = true)
         compose.waitForIdle()
         compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = "w840dp-h900dp") fun shrinkingPaneKeepsLatestReplyVisibleWithoutNewTokens() {
+        var width by mutableStateOf(754)
+        val history = (1..12).map { Message(it, role = if (it % 2 == 0) "assistant" else "user",
+            content = "A saved paragraph that rewraps when the context panel slides into the window. ".repeat(3)) }
+        compose.setContent {
+            HermesTheme {
+                SessionDetailScreen(UiState.Ready(history), TurnState.Idle, {}, {}, {}, modifier = Modifier.width(width.dp))
+            }
+        }
+        for (next in listOf(680, 570, 450, 380, 313)) {
+            compose.runOnIdle { width = next }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag("message-12").assertIsDisplayed()
+        compose.onNodeWithText("Jump to latest ↓").assertDoesNotExist()
     }
 }

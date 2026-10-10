@@ -29,7 +29,7 @@ class PaneToggleTest {
     /** Appears only in the context pane. */
     private val contextOnlyText = "Cache read"
 
-    private fun setUp(openSessionId: String? = "api_1_alpha") {
+    private fun setUp(openSessionId: String? = "api_1_alpha", reduceMotion: Boolean = false) {
         compose.setContent {
             HermesApp(
                 sessions = UiState.Ready(UiFixtures.sessions),
@@ -45,6 +45,7 @@ class PaneToggleTest {
                 onRetrySessions = {},
                 onRetryHistory = {},
                 onNewSession = {},
+                preferences = BellpullPreferences(reduceMotion = reduceMotion),
             )
         }
     }
@@ -67,6 +68,32 @@ class PaneToggleTest {
         compose.onNodeWithText(listOnlyText).assertDoesNotExist()
         compose.onNodeWithContentDescription("Show sessions").performClick()
         compose.onNodeWithText(listOnlyText).assertIsDisplayed()
+    }
+
+    @Test fun sessionsPaneMovesThroughAnIntermediatePosition() {
+        setUp()
+        val start = compose.onNodeWithContentDescription("Hide sessions").fetchSemanticsNode().boundsInRoot.left
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Hide sessions").performClick()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(96)
+        val middle = compose.onNodeWithContentDescription("Show sessions").fetchSemanticsNode().boundsInRoot.left
+        org.junit.Assert.assertTrue("Panel should be partway through its slide: $middle / $start", middle > 0 && middle < start)
+        compose.mainClock.advanceTimeBy(250)
+        compose.onNodeWithText(listOnlyText).assertDoesNotExist()
+    }
+
+    @Test fun reduceMotionClosesPanelsWithoutAnIntermediateFrame() {
+        setUp(reduceMotion = true)
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Hide sessions").performClick()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNodeWithText(listOnlyText).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Close context").performClick()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNodeWithText(contextOnlyText).assertDoesNotExist()
     }
 
     @Test fun statsPaneCollapsesAndRestores() {

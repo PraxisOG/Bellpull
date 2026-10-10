@@ -96,7 +96,19 @@ internal fun SessionListScreen(
                     contentDescription = "Search apps and sessions"
                 },
             )
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (LocalImmersiveHeaders.current && onExpandedSearch != null) {
+                CutoutHeader(title = {
+                    Text("Conversations", style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface)
+                }, trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.IconButton(onClick = onExpandedSearch,
+                            modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }
+                        if (showNewChatButton) NewChatButton(onNewSession, creating)
+                    }
+                })
+            } else Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onExpandedSearch == null) Box(Modifier.weight(1f)) {
                     SectionHeader(if (searching) "Search results" else "Conversations")
                 } else {

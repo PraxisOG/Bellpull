@@ -232,13 +232,19 @@ internal fun SessionDetailScreen(
                                     listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
                                 }
                             }
-                            // Layout also grows with reasoning, tool animations, font scale or the keyboard.
+                            // Pane slides rewrap earlier rows even if the final row's height is unchanged.
+                            // Reader intent survives those resizes, keyboard changes and incoming content.
                             LaunchedEffect(listState) {
                                 snapshotFlow {
                                     val info = listState.layoutInfo
-                                    Triple(info.totalItemsCount, info.visibleItemsInfo.lastOrNull()?.size, info.viewportEndOffset)
-                                }.collect { (count, _, _) ->
-                                    if (count > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
+                                    listOf(info.totalItemsCount, info.visibleItemsInfo.lastOrNull()?.size ?: 0,
+                                        info.viewportSize.width, info.viewportEndOffset,
+                                        if (listState.canScrollForward) 1 else 0,
+                                        if (listState.isScrollInProgress) 1 else 0)
+                                }.collect { layout ->
+                                    val count = layout.first()
+                                    if (count > 0 && followingTail && !browsingHistory &&
+                                        listState.canScrollForward && !listState.isScrollInProgress) {
                                         listState.scrollToItem(count - 1, SCROLL_TO_ITEM_END)
                                     }
                                 }

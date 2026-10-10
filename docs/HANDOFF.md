@@ -1,5 +1,49 @@
 # Bellpull / Hermes app handoff
 
+## Immersive chrome and sliding panels — 2026-10-09
+
+Implemented and installed the resumed GUI experiment on branch `ui/immersive-chrome`.
+The user has the phone back; subsequent desktop testing must target its own emulator,
+never the physical phone unless the user requests phone work again.
+
+- Settings has an opt-in Immersive mode switch, default off. Status/navigation bars
+  hide with Android's transient edge-swipe behavior; disabling the switch restores them.
+- Headers use Android-reported cutout rectangles in window coordinates. Whole controls
+  move into safe intervals; titles ellipsize within one interval. A very wide notch
+  falls back to a row below it. The remaining body starts below the camera area.
+  IME, side/bottom safety and desktop caption-bar insets remain respected.
+- Unfolded side panes and cover navigation slide in 180ms. Reduce motion and Android's
+  disabled animator setting suppress panel motion. Existing nonimmersive spacing remains.
+- Sliding a pane exposed a transcript-follow regression: earlier messages could rewrap
+  without changing the final row's height. Following now observes width and scrollability
+  as well, keeping the latest reply visible while respecting deliberate history browsing.
+
+Validation: `test verifyRoborazziDebug :app:assembleDebug :app:lintDebug` passes, with
+250 tests passed, one opt-in live smoke skipped, 83 screenshot baselines and zero lint
+errors (28 existing warnings, 3 hints). New tests cover camera positions across pane
+widths, centered/corner rendered layouts, toggling both panels, intermediate animation
+frames, Reduce motion, and transcript following through repeated width changes.
+
+On the actual native unfolded Pixel Fold, all five header buttons clear the reported
+camera bounds `[1940,0][2076,160]`; the context close button occupies `[1791,22][1923,154]`.
+Verified keyboard directly below the composer, both pane toggles, immersive on/off,
+normal system-bar restoration and immersive persistence after Home/reopening. Original
+chat, empty draft and White/Maroon theme are preserved. No fold/display/density overrides,
+credential-clearing tests or new inference requests. Physical cover/fold-transition
+behavior is not verified; centered-cover coverage is rendered tests only.
+
+The installed APK matches SHA-256
+`5b78fdc4c1a06f9602a50cbf686e73c562cfe9ed5172574d04880223800f57a0`.
+Evidence is under `android/app/build/device-tests/2026-10-09-immersive/verification.json`
+with screenshots beside it. Phone was handed back with immersive on, Reduce motion off,
+the original chat open and both side panels visible.
+
+Desktop discussion: Compose Desktop could reuse JVM networking/models and suitable UI
+after separating Android storage/speech/notification services. Existing durable-run SSE
+is a consuming queue, so simultaneous phone/desktop live subscriptions need a verified
+fan-out/replay design before promising full multi-client streaming. User instead requested
+an initial Mint Android-emulator preview, to be built and tested after phone handoff.
+
 ## Phase 2 recovery, notifications, approvals and compact controls — 2026-10-09
 
 Implemented and installed Phase 2 from the Bellpull brief (not the older phone-bridge

@@ -27,6 +27,7 @@ internal data class BellpullPreferences(
     val palette: Palette = Palette.NEUTRAL,
     val customAccent: String = "59091E",
     val notifications: Boolean = false,
+    val immersiveMode: Boolean = false,
 )
 
 internal fun normalizedAccent(text: String): String? = text.trim().removePrefix("#")
@@ -43,6 +44,7 @@ internal class BellpullSettings(context: Context) {
         palette = runCatching { Palette.valueOf(prefs.getString("palette", "NEUTRAL")!!) }.getOrDefault(Palette.NEUTRAL),
         customAccent = normalizedAccent(prefs.getString("custom_accent", "59091E").orEmpty()) ?: "59091E",
         notifications = prefs.getBoolean("notifications", false),
+        immersiveMode = prefs.getBoolean("immersive_mode", false),
     ))
         private set
     fun update(next: BellpullPreferences) {
@@ -51,6 +53,7 @@ internal class BellpullSettings(context: Context) {
         prefs.edit().putString("appearance", validated.appearance.name)
             .putBoolean("collapse_thinking", validated.collapseThinking)
             .putBoolean("reduce_motion", validated.reduceMotion)
+            .putBoolean("immersive_mode", validated.immersiveMode)
             .putString("palette", validated.palette.name)
             .putString("custom_accent", validated.customAccent).apply()
         prefs.edit().putBoolean("notifications", validated.notifications).apply()
@@ -123,8 +126,10 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
         HorizontalDivider()
         PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
             preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
-        PreferenceSwitch("Reduce motion", "Show new tool rows without an entrance animation.",
+        PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",
             preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
+        PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
+            preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
     }
 }
 
