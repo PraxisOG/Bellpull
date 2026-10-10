@@ -1,12 +1,24 @@
 # Bellpull / Hermes app handoff
 
+## Public README gallery — 2026-10-09
+
+The user made the repository public. The README now displays the app icon and five
+current GUI screenshots: maroon unfolded/camera-cutout layout, dark three-pane layout,
+disconnected welcome, compact message controls, and saved server profiles/themes.
+`docs/images/README.txt` records their source assets. All images are unchanged copies
+of the app icon or verified screenshot baselines with fictional data; no phone captures
+or private account data were added. The Android APK download remains at the top.
+The current release notes now reflect public availability. This is a documentation-only
+update; the tested 0.2.0 APK is unchanged.
+
 ## Phase 2E server profiles and disconnected exploration — 2026-10-09
 
 This completes the user's addition to the current Bellpull Phase 2, not the older
 Tier 1/2/3 phone-bridge roadmap. The GitHub APK/quickstart shipped first as
 `android-preview-20261009.1`; the current Android update is version 0.2.0 (code 2),
 released as `android-v0.2.0-preview.1`. The README download and instructions now match
-the new build. The repository remains private; its releases require repository access.
+the new build. The repository was private at this release's initial publication;
+the user subsequently made it public (see the gallery update above).
 The existing Mint emulator release still bundles the earlier 0.1.0 APK.
 
 - Fresh installs open Bellpull without a login gate. The welcome page offers a

@@ -1,3 +1,5 @@
+<img src="docs/images/bellpull-icon.png" alt="Bellpull app icon: a white hand pulling a bell cord on maroon" width="96" height="96" align="right">
+
 # Bellpull — Hermes Android
 
 **[Download Bellpull 0.2.0 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.2.0-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.2.0-preview.1)
@@ -24,6 +26,20 @@ what your server supports. Source/build details follow below.
 
 A native Android chat client for a self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built with Kotlin and Jetpack Compose. Designed for compact, adaptive conversation layouts on a Pixel Fold running GrapheneOS, without Firebase or Google Play Services.
 
+## A look inside
+
+Foldable layouts, compact message controls, light and dark themes, and optional server
+profiles. These screenshots are rendered from Bellpull 0.2.0 using fictional chats
+and example server addresses. Click any image to view it at full size.
+
+| Maroon · unfolded with camera cutout | Black · conversations, chat and context |
+| :---: | :---: |
+| [<img src="docs/images/unfolded-maroon.png" alt="Maroon unfolded layout with conversations, compact message actions, tool results and a context panel beside the camera cutout" width="420">](docs/images/unfolded-maroon.png) | [<img src="docs/images/unfolded-dark.png" alt="Black theme with three panes for conversations, chat and context" width="420">](docs/images/unfolded-dark.png) |
+
+| Explore without connecting | Compact message controls | Server profiles and themes |
+| :---: | :---: | :---: |
+| [<img src="docs/images/welcome.png" alt="Bellpull welcome screen offering a local sample chat and optional Settings" width="250">](docs/images/welcome.png) | [<img src="docs/images/message-controls.png" alt="Maroon chat with compact response action buttons and tool results" width="250">](docs/images/message-controls.png) | [<img src="docs/images/server-profiles.png" alt="Settings showing fictional desktop and compute server profiles, sign out, credential removal and theme choices" width="250">](docs/images/server-profiles.png) |
+
 ## Current state
 
 Bellpull Phase 2 is implemented: streaming conversations, compact tool/thinking rows, searchable history, context panels, message copying and read-aloud, selected-message branching, prompt editing, themes and Android wallpaper colors. Durable runs recover from disconnects and app restarts; unread conversations rise to the top. Optional ntfy-backed notifications and exact-request tool approvals use the accompanying server extensions.
@@ -34,7 +50,7 @@ New installations open a useful disconnected workspace with optional setup in Se
 
 Projects and Today currently have placeholder pages. Attachments, model/reasoning controls and GPU metrics are planned for Phase 3. Settings now include experimental immersive mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion or Android's animation settings disable motion. Phone testing of this experiment is complete; see the handoff for the physical-versus-rendered coverage.
 
-The latest completed validation passed 266 JVM tests with one opt-in live smoke test skipped, verified 89 screenshot baselines, passed five emulator instrumentation tests, built the debug APK and reported zero lint errors. Two synthetic servers exercised profile switching during a run, independent drafts, restart and credential removal. The physical phone passed upgrade migration, sign-out, disconnected exploration and reconnection. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The screenshot gallery in [beauty-shots](beauty-shots/README.txt) uses fictional data and illustrates earlier UI revisions; test baselines reflect the current tested UI.
+The latest completed validation passed 266 JVM tests with one opt-in live smoke test skipped, verified 89 screenshot baselines, passed five emulator instrumentation tests, built the debug APK and reported zero lint errors. Two synthetic servers exercised profile switching during a run, independent drafts, restart and credential removal. The physical phone passed upgrade migration, sign-out, disconnected exploration and reconnection. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The images above come from the current verified test baselines; their [source list](docs/images/README.txt) is included. The older gallery in [beauty-shots](beauty-shots/README.txt) illustrates earlier UI revisions with fictional data.
 
 ## Build and test
 
