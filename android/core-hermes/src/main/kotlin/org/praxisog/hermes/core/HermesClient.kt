@@ -6,6 +6,8 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -16,6 +18,7 @@ import org.praxisog.hermes.model.HermesError
 import org.praxisog.hermes.model.HermesResult
 import org.praxisog.hermes.model.MessageHistory
 import org.praxisog.hermes.model.RunStatus
+import org.praxisog.hermes.model.RunAdmission
 import org.praxisog.hermes.model.Session
 import org.praxisog.hermes.model.SessionCreated
 import org.praxisog.hermes.model.SessionList
@@ -111,6 +114,24 @@ class HermesClient(
         }
     }
 
+    /** Requires the explicitly advertised session_fork_at_message server extension. */
+    fun branchSession(sessionId: String, throughMessageId: Int): HermesResult<Session> {
+        require(throughMessageId > 0)
+        val payload = buildJsonObject { put("through_message_id", throughMessageId) }.toString()
+        return post("/api/sessions/$sessionId/fork-at-message", payload, sessionId) {
+            json.decodeFromString<SessionCreated>(it).session
+        }
+    }
+
+    /** Branch before a saved user prompt; preserves the source's routing and prior history. */
+    fun branchBeforeMessage(sessionId: String, messageId: Int): HermesResult<Session> {
+        require(messageId > 0)
+        val payload = buildJsonObject { put("before_message_id", messageId) }.toString()
+        return post("/api/sessions/$sessionId/fork-before-message", payload, sessionId) {
+            json.decodeFromString<SessionCreated>(it).session
+        }
+    }
+
     /** `GET /api/sessions/{id}/messages`. */
     fun messages(sessionId: String): HermesResult<MessageHistory> =
         get("/api/sessions/$sessionId/messages", sessionId) { json.decodeFromString(it) }
@@ -195,6 +216,50 @@ class HermesClient(
      */
     fun runStatus(runId: String): HermesResult<RunStatus> =
         get("/v1/runs/$runId") { json.decodeFromString(it) }
+
+    /** Repeating this exact body/key recovers admission; never substitute a fresh key. */
+    fun submitRun(sessionId: String, input: String, requestId: String, interactiveApprovals: Boolean = false): HermesResult<RunAdmission> {
+        require(input.isNotBlank() && requestId.isNotBlank())
+        val body = buildJsonObject {
+            put("input", input); put("session_id", sessionId)
+            if (interactiveApprovals) put("interactive_approvals", true)
+        }.toString()
+        return execute(authed("/v1/runs").header("Idempotency-Key", requestId)
+            .post(body.toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }
+    }
+
+    /** Status/history remain authoritative: this queue cannot replay consumed events. */
+    fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
+        events("/v1/runs/$runId/events", onStart, onEvent)
+
+    /** Authenticated gateway proxy to the existing loopback ntfy broker. Wake hints only. */
+    fun notificationEvents(onStart: (Streaming) -> Unit, onWake: (String, String) -> Unit): HermesResult<Unit> =
+        events("/api/bellpull/events", onStart) { event ->
+            if (event is StreamEvent.Unknown && event.event == "bellpull.wake") {
+                val runId = event.raw["run_id"]?.jsonPrimitive?.content.orEmpty()
+                val sessionId = event.raw["session_id"]?.jsonPrimitive?.content.orEmpty()
+                if (runId.matches(Regex("run_[a-zA-Z0-9_-]{1,100}")) && sessionId.matches(Regex("[a-zA-Z0-9_-]{1,200}"))) onWake(runId, sessionId)
+            }
+        }
+
+    private fun events(path: String, onStart: (Streaming) -> Unit, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
+        val call = streamingHttpClient.newCall(authed(path)
+            .header("Accept", "text/event-stream").get().build())
+        onStart(Streaming(call))
+        return try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) HermesResult.Err(mapHttpError(response, null))
+                else { SseReader(response.body.source()).read(onEvent); HermesResult.Ok(Unit) }
+            }
+        } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+    }
+
+    fun respondToApproval(runId: String, requestId: String, choice: String): HermesResult<Unit> {
+        require(requestId.isNotBlank() && choice in setOf("once", "deny"))
+        return post("/v1/runs/$runId/approval", buildJsonObject {
+            put("request_id", requestId); put("choice", choice); put("resolve_all", false)
+        }.toString()) { Unit }
+    }
 
     /**
      * `POST /v1/runs/{run_id}/stop`. Verified in Gate 0d: it really does interrupt the turn,
@@ -329,6 +394,17 @@ class HermesClient(
     /** Feature flags from `/v1/capabilities`, plus the untouched payload. */
     data class Capabilities(val raw: JsonObject, val features: Map<String, Boolean>) {
         val sessionChatStreaming: Boolean get() = features["session_chat_streaming"] == true
+        val sessionForkAtMessage: Boolean get() = features["session_fork_at_message"] == true
+        val sessionForkBeforeMessage: Boolean get() = features["session_fork_before_message"] == true
+        val interactiveApprovals: Boolean get() = features["run_interactive_approvals"] == true
+        val notificationEvents: Boolean get() = features["bellpull_notification_events"] == true
+        val durableRunRetention: Long? get() = runCatching {
+            val flags = raw["features"]?.jsonObject?.get("runs_idempotency")?.jsonObject ?: return@runCatching null
+            if (flags["supported"]?.jsonPrimitive?.booleanOrNull == true &&
+                flags["durable"]?.jsonPrimitive?.booleanOrNull == true)
+                flags["retention_seconds"]?.jsonPrimitive?.longOrNull?.takeIf { it > 60 }
+            else null
+        }.getOrNull()
     }
 
     companion object {

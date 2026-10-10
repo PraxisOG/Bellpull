@@ -91,10 +91,11 @@ sealed interface StreamEvent {
                     obj,
                     runCatching { obj["message"]?.jsonObject?.str("id") }.getOrNull(),
                 )
-                "assistant.delta" -> AssistantDelta(obj, obj.str("message_id"), obj.str("delta") ?: "")
+                "assistant.delta", "message.delta" -> AssistantDelta(obj, obj.str("message_id"), obj.str("delta") ?: "")
+                "reasoning.available" -> ToolProgress(obj, "_thinking", obj.str("text"))
                 "tool.progress" -> ToolProgress(obj, obj.str("tool_name"), obj.str("delta"))
-                "tool.started" -> ToolStarted(obj, obj.str("tool_name"), obj.str("preview"))
-                "tool.completed" -> ToolCompleted(obj, obj.str("tool_name"))
+                "tool.started" -> ToolStarted(obj, obj.str("tool_name") ?: obj.str("tool"), obj.str("preview"))
+                "tool.completed" -> ToolCompleted(obj, obj.str("tool_name") ?: obj.str("tool"))
                 "assistant.completed" -> AssistantCompleted(
                     obj, obj.str("message_id"), obj.str("content"),
                     completed = obj.bool("completed"),

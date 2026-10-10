@@ -1,3 +1,89 @@
+## Bellpull Phase 2 contract — 2026-10-09
+
+Live admission probe: POST `/v1/runs` with `input`, `session_id`, stable `Idempotency-Key`
+and `X-Hermes-Session-Key: hermes-android` returns 202 `{run_id,status,replayed}`.
+Repeating the exact body/header identity returns the same run with `replayed:true`.
+The probe completed and saved its user/assistant messages to the requested session.
+Status includes `output`, `error`, `approval` when applicable; `interrupted` is terminal.
+Durable SSE uses `message.delta` (`delta`), `tool.started/completed` (`tool`, `preview`),
+`reasoning.available` (`text`), and terminal `run.completed/failed/cancelled`. Unlike the
+legacy transport, it has no sequence or tool-call IDs. After any gap, poll status/history;
+do not concatenate an unknown stream suffix or create another run. Retry retention is
+86,400 seconds; clients stop retries before expiry or when their clock moves backward.
+
+Inspection uncovered a capability/policy mismatch: `/v1/runs` had an approval callback,
+but `approval_context.py` still classified all API runs as unattended. The isolated
+`~/hermes-agent/patches/bellpull-phase2/` patch adds explicit boolean request field
+`interactive_approvals`, advertised by `features.run_interactive_approvals`. It binds a
+context variable only during that admitted run. Legacy/default requests retain their
+policy. The choice is part of the persisted request fingerprint, so clients never change
+it when retrying. No live approval policy/configuration is relaxed.
+
+Approval status/event: `approval.request` includes a nonblank `request_id`, redacted
+`command`, `description`, and `choices`. POST `/v1/runs/{run_id}/approval` uses
+`{request_id,choice:"once"|"deny",resolve_all:false}`. HTTP 409 means stale/not pending;
+reconcile status rather than targeting the next request. Isolated tests execute the real
+approval gate and HTTP handlers with a harmless fixture agent: accept/deny, stale IDs,
+repeated decisions, concurrent unattended policy, dedupe and opt-in payload conflicts.
+
+The patch also advertises `features.bellpull_notification_events` and adds authenticated
+GET `/api/bellpull/events`. It proxies a scope-specific loopback ntfy subscription through
+the existing API origin. SSE `bellpull.wake` contains only `run_id`, `session_id`, `status`.
+The phone verifies hints against authenticated canonical status/history. Broker messages
+contain no credentials, prose, tool arguments or approval commands. No new public port;
+ntfy is still `127.0.0.1:2586`. Scope topics use a full SHA-256 digest as
+unpadded URL-safe base64 plus prefix (52 characters; ntfy permits at most 64). Cached hints may repeat; they are not transcript authority.
+Application read receipts and notification identities deduplicate delivery. If a hint is
+missed, reconnect/periodic history synchronization and the run journal provide catch-up.
+
+Activation is hash guarded and refuses to restart with active agent/background work.
+`activate.py apply|rollback|check`; derived image `hermes-agent:bellpull-phase2-20261009`.
+See HANDOFF.md for final deployment and device evidence; source/contract tests alone do
+not establish a live deployment or locked-screen notification result.
+
+## Bellpull discovery and prompt editing — 2026-10-09
+
+This update supersedes earlier transport-specific assumptions where stated.
+The installed gateway reports version `0.21.1` from `hermes_cli.__version__`, image
+`nousresearch/hermes-agent:v2026.9.7`; no Git metadata is included in the container.
+Existing host remains PowermacG3. Model options report provider `auto` and model
+`accounts/fireworks/models/deepseek-v4p1-flash`; `/v1/models` advertises only the
+`hermes-agent` alias. No local Qwen/Moe route has been verified or substituted.
+
+`/v1/runs` exposes actual asynchronous admission (`input`, `session_id`, optional
+model/options), scoped `Idempotency-Key`, pollable status, stop, steering and genuine
+approval requests. Capabilities report durable idempotency with 86,400-second
+retention. Installed source `api_server_runs.py` confirms independent executor tasks,
+status persistence for idempotent runs, and a dead-owner status of `interrupted` after
+restart. `/events` is a consuming in-memory queue which is dropped on disconnect;
+there is no event-ID replay contract. Do not treat socket loss as run failure or
+resubmit with a new key. Phase 2 now uses these paths for Android sends when durable
+idempotency is advertised; see the contract update above.
+The old Gate 0c approval limitation remains true for the legacy session stream.
+
+Native memory-write, audio, realtime voice and jobs-admin capabilities are false.
+Model options/locks and job routes exist but need scoped behavior probes. Browser
+artifact upload/download is gated/scoped, 10 MiB maximum, 300-second TTL; it is not
+a suitable persistent user attachment repository. Moe telemetry/voice services and
+coding runner interfaces remain unknown pending host access.
+
+Added authenticated `POST /api/sessions/{id}/fork-before-message`, guarded by
+`features.session_fork_before_message`. JSON: `{"before_message_id": <positive user message ID>}`.
+Only an active user message in the resolved source is valid. It clones the exact
+preceding prefix (empty for the first prompt), model config/lock, system prompt and
+lineage without modifying the source. It invokes no model/tool. Android opens the
+edited text as a draft in the branch; the user presses Send separately. Older servers
+leave editing unavailable and never fall back to the legacy whole-session fork.
+
+Patch/build/rollback: `~/hermes-agent/patches/bellpull-edit-fork/`, built image
+`hermes-agent:bellpull-edit-fork-20261009`. Sixteen isolated HTTP/SQLite tests pass,
+including first/later user prompt, invalid/foreign cutoff, auth, source preservation,
+model/prompt retention and the previous assistant-cutoff tests. Activated only after
+zero active work and source hash checks. Module changes survive restart; container
+recreation must use the derived image. Live device edit created a 0-message branch
+from the first prompt; authenticated reads confirmed the source session/messages
+unchanged. No inference was used for this test.
+
 # Hermes API contract
 
 > **Naming:** this file documents **Hermes Agent**, NousResearch's self-hosted agent
@@ -14,7 +100,7 @@ read 2026-09-16. **Partially verified against installed Hermes 0.21.1 on 2026-09
 Confirmed live: `/v1/capabilities`, `GET /api/sessions`, `POST /api/sessions`,
 `GET /api/sessions/{id}/messages`, `POST /api/sessions/{id}/chat/stream` (two full turns,
 including a `terminal` tool call). Still unverified: `PATCH`/`DELETE /api/sessions/{id}`,
-`/fork`, the non-streaming `/chat`, and every `/v1/runs/*` operation. Verify before
+the live behavior of `/fork`, the non-streaming `/chat`, and every `/v1/runs/*` operation. Verify before
 implementing. Claude Code must not use any endpoint not listed here.
 
 ## Decision: use the API server, not the dashboard, not the TUI gateway
@@ -124,6 +210,61 @@ All under `Authorization: Bearer $API_SERVER_KEY`.
 sessions out of the human chat list. The dashboard's own Chats/Automation split works the
 same way. Get this right in slice 2 or the session list is mostly noise.
 
+### Fork limitation — installed source inspected 2026-10-08
+
+Read-only inspection of `/opt/hermes/gateway/platforms/api_server.py`,
+`_handle_fork_session`, in the running `hermes-gateway` container
+(`nousresearch/hermes-agent:v2026.9.7`) confirmed:
+
+- `POST /api/sessions/{id}/fork` reads optional `id`/`session_id` and `title` fields.
+  There is **no selected-message cutoff field**.
+- It ends the source session with reason `branched`, creates a child session with the
+  source model/system prompt and `parent_session_id`, and copies **all** source messages.
+- It returns HTTP 201 with `{object: "hermes.session", session: {...}}`.
+
+This is source verification, not a live mutation test; no fork request was sent. It does
+not provide ChatGPT-style branching at a selected reply while preserving the original.
+That behavior needs an explicit server extension and verified contract. Do not send a
+guessed cutoff field: the current handler would ignore it and copy the entire history.
+The installed database's normal list filter retains children carrying its native
+`model_config._branched_from` marker even with `include_children=false`. A selected-reply
+implementation must set that marker; it also prevents resume resolution from following
+the original into its branch.
+
+### Selected-reply fork — activated and verified 2026-10-08
+
+The isolated, tested patch at
+`/home/praxisog/hermes-agent/patches/selected-reply-fork/` introduces:
+
+| Method | Path | Request and behavior |
+|---|---|---|
+| `POST` | `/api/sessions/{id}/fork-at-message` | `{"through_message_id": 123}`; inclusive saved assistant message, preserve original |
+
+It advertises `features.session_fork_at_message: true`. The app requires that flag. The
+separate endpoint makes older servers return 404, rather than ignoring a cutoff and
+performing their existing destructive full fork if a cached capability becomes stale.
+There is no fallback to `/fork`.
+
+Success returns HTTP 201 with the normal `{object: "hermes.session", session: {...}}`
+envelope. The source is resolved as for the history endpoint; only its active saved prefix
+through the selected assistant message is copied. Model configuration and system prompt
+are preserved. Copied messages receive the branch creation timestamp so the new chat
+appears first in the recent list; original message timestamps are unchanged.
+Pending tool calls on the selected message are omitted because their
+results are outside that prefix. Creation/copy/count updates are atomic; invalid or
+foreign cutoffs fail with 400, missing sources with 404, duplicate IDs with 409, and title
+conflicts with 400. Failures leave the original and partial destination unchanged/absent.
+No inference or tools run during creation. The old `/fork` behavior remains unchanged.
+
+Verified with 12 HTTP/database tests in an isolated container using temporary data and no
+network access, including auth, rollback, concurrency, compressed-session resolution,
+model/system-prompt preservation, visibility, recent-list sorting, and tool history.
+The user explicitly authorized activation; the gateway now advertises the capability.
+A real phone branch at the first of two replies copied only the first exchange and left
+the original's four messages and metadata unchanged. See the patch's `README.md` and
+`activate.sh` for deployment and rollback details. The patch is installed in the current
+container; use the prepared image when recreating it.
+
 ### Response envelopes — three different shapes
 
 Confirmed against live 0.21.1. Do not model these as one generic wrapper:
@@ -182,10 +323,10 @@ assistant message, so the client must also recognize an empty or failed inferenc
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/v1/runs/{run_id}` | Status without holding SSE open. **Verified 2026-09-16** |
-| `GET` | `/v1/runs/{run_id}/events` | SSE, attach/detach without losing state. Still unverified |
+| `GET` | `/v1/runs/{run_id}/events` | Consuming live SSE queue, not replay; Phase 2 verified, status/history recover gaps |
 | `POST` | `/v1/runs/{run_id}/stop` | **Verified 2026-09-16 — works, but does *not* settle as `cancelled`. See Gate 0d.** |
 | `POST` | `/v1/runs/{run_id}/steer` | Observed in live capabilities 2026-09-16 (`run_steer: true`). Not used by Tier 1; noted so it isn't mistaken for invented later. |
-| `POST` | `/v1/runs/{run_id}/approval` | Exists, but **unreachable from this client** — see "Approvals cannot reach this client" below |
+| `POST` | `/v1/runs/{run_id}/approval` | Phase 2 explicit interactive durable runs only; legacy limitation recorded below |
 
 ### Discovery
 
@@ -197,7 +338,7 @@ assistant message, so the client must also recognize an empty or failed inferenc
 - **Approvals cannot reach this client, by design.** *Settled by Gate 0c, 2026-09-16 —
   this bullet previously said the opposite.* `/v1/capabilities` advertises
   `approval_events: true` and `run_approval_response: true`, and
-  `POST /v1/runs/{run_id}/approval` exists. None of that applies to us, because the
+  `POST /v1/runs/{run_id}/approval` exists. Before the explicit Phase 2 opt-in patch, this was unreachable because the
   **`api_server` platform is explicitly excluded from being an approval context.**
   `tools/approval_context.py:166-170` is unambiguous:
 

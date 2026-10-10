@@ -1,0 +1,44 @@
+# Bellpull — Hermes Android
+
+A native Android chat client for a self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built with Kotlin and Jetpack Compose. Designed for compact, adaptive conversation layouts on a Pixel Fold running GrapheneOS, without Firebase or Google Play Services.
+
+## Current state
+
+Bellpull Phase 2 is implemented: streaming conversations, compact tool/thinking rows, searchable history, context panels, message copying and read-aloud, selected-message branching, prompt editing, themes and Android wallpaper colors. Durable runs recover from disconnects and app restarts; unread conversations rise to the top. Optional ntfy-backed notifications and exact-request tool approvals use the accompanying server extensions.
+
+Projects and Today currently have placeholder pages. Attachments, model/reasoning controls and GPU metrics are planned for Phase 3. Experimental immersive mode, camera-cutout-aware headers and sliding side panels are requested but **not implemented**. Phone testing and UI development are paused at this publication checkpoint.
+
+The latest completed validation passed 238 tests with one opt-in live smoke test skipped, verified 79 screenshot baselines, built the debug APK and reported zero lint errors. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The screenshot gallery in [beauty-shots](beauty-shots/README.txt) uses fictional data and illustrates earlier UI revisions; test baselines reflect the current tested UI.
+
+## Build and test
+
+Requires JDK 17, Android SDK Platform 37, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
+
+From the repository root:
+
+```sh
+./android/gradlew -p android test verifyRoborazziDebug :app:assembleDebug :app:lintDebug
+```
+
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. These checks run locally without a phone or live inference; the live smoke test is opt-in. Device instrumentation includes a credential-clearing test and should not be run indiscriminately on a configured personal phone.
+
+Android 10 (API 29) is the minimum supported version; the current target is API 37. Release signing is optional and configured through ignored `android/keystore.properties` and your own keystore. A release build without those credentials is unsigned.
+
+## Connect a server
+
+Enter your reachable Hermes API URL and bearer key in the app's connection screen. The verified deployment uses Tailscale; provide your own server access and credentials. Keys are stored through Android encrypted preferences and are never part of this repository.
+
+[docs/hermes-api.md](docs/hermes-api.md) is the API contract. Some features require the capability-gated extensions in [server-patches](server-patches/README.md); they are not assumed to exist in an arbitrary upstream Hermes installation. The patches include their tested base versions, build order, isolated tests and deployment caveats. No live server configuration or credentials are included.
+
+## Where to start
+
+- [docs/HANDOFF.md](docs/HANDOFF.md): latest implementation, verification and remaining work, followed by historical entries.
+- [ROADMAP.md](ROADMAP.md) and [Bellpull-Implementation-Prompt.txt](Bellpull-Implementation-Prompt.txt): Bellpull direction and phased work. Later user refinements recorded in the handoff supersede the original brief.
+- [CLAUDE.md](CLAUDE.md): repository conventions and constraints; older status sections should be read alongside the latest handoff.
+- `android/app`: Compose UI, local state, recovery, notifications and Android services.
+- `android/core-hermes` and `android/core-model`: HTTP/SSE client and shared data types.
+- `mock-hermes`: local contract-test fixtures.
+- `server-patches`: versioned server extensions needed by the current client.
+- `phone-ping-plugin` and [ROADMAP-TIER2.md](ROADMAP-TIER2.md): the older phone-bridge track, separate from Bellpull Phase 2.
+
+The upstream Hermes code included under `server-patches` retains its [MIT notice](server-patches/LICENSE.hermes-agent). No project-wide open-source license has been selected for the app.

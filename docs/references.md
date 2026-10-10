@@ -43,7 +43,33 @@ mistyped key surfaces as a generic auth failure.
   `docs/hermes-api.md` § Decision.
 - **The TUI gateway.** Richest surface, but JSON-RPC over stdio/WebSocket built for the Ink
   TUI, and it sends server→client requests a host must answer or the agent hangs. Tier 2+.
-- **Any approval-prompt implementation.** Settled by Gate 0c: unreachable on this transport.
-  See `docs/hermes-api.md` § Gate 0c.
+- **Legacy session-stream approvals.** Gate 0c still applies there. Bellpull Phase 2
+  must use the verified `/v1/runs` request/response path for real approvals; see
+  `docs/hermes-api.md` § Bellpull discovery (2026-10-09).
 - **Anything Google.** No Firebase, no Play Services, no Play-dependent library. Push is
   ntfy. The device has zero Google surface.
+
+## Bellpull appearance (2026-10-09)
+
+Native wallpaper palette integration follows [Android's Material 3 dynamic color guidance](https://developer.android.com/develop/ui/compose/designsystems/material3#dynamic_color):
+`dynamicLightColorScheme` / `dynamicDarkColorScheme` on API 31+, an ordinary preset
+fallback below that. Uses the existing AndroidX Material dependency; no wallpaper
+image access, Play services or new library. Supplied Bellpull PNGs provide the maroon
+and brown seed colors; custom schemes use checked text contrast.
+
+## Bellpull Phase 2 and compact layout (2026-10-09)
+
+- Reuse the existing authenticated gateway, encrypted SessionCache, run status/history,
+  and loopback ntfy deployment; no new app dependency or Google push surface.
+- [ntfy subscription API](https://docs.ntfy.sh/subscribe/api/): cached JSON stream is a
+  wake hint; canonical authenticated Hermes state and saved notification IDs deduplicate.
+- [Android foreground service types](https://developer.android.com/develop/background-work/services/fgs/service-types):
+  user-enabled `specialUse` listener with visible connection notification and Turn off.
+- [Android notification permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission):
+  request on explicit notification enablement; preserve denied/off state.
+- Compose foundation already provides `BasicText` autosizing and `BasicTextField` with
+  selection/IME support. Reused for single-line metadata and the compact growing composer.
+- System bars were discussed only, per user instruction. Options are matching edge-to-edge
+  backgrounds or optional immersive hiding; do not change them without a later request.
+  [Android edge-to-edge](https://developer.android.com/develop/ui/compose/system/setup-e2e),
+  [immersive mode](https://developer.android.com/develop/ui/views/layout/immersive).

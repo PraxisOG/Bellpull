@@ -25,6 +25,10 @@ internal sealed interface TurnState {
         val runningTool: String? = null,
         val canStop: Boolean = false,
         val stopRequested: Boolean = false,
+        val runningToolName: String? = null,
+        val reasoning: String = "",
+        val parts: List<LivePart> = emptyList(),
+        val statusLabel: String = "Writing…",
     ) : TurnState
 
     /** The user stopped it. Partial text is kept and labelled as partial. */
@@ -38,4 +42,30 @@ internal sealed interface TurnState {
 
     /** The request failed before or during the turn, with nothing usable. */
     data class Failed(val error: HermesError) : TurnState
+}
+
+/** Only retire stream text after this turn is present in authoritative history. */
+internal fun reconcileTurn(
+    turn: TurnState,
+    messages: List<org.praxisog.hermes.model.Message>,
+    previousIds: Set<Int>,
+    prompt: String?,
+): TurnState {
+    if (prompt == null || turn is TurnState.Streaming || turn is TurnState.Idle) return turn
+    val fresh = messages.filter { it.id !in previousIds }
+    val start = fresh.indexOfLast { it.role == "user" && it.content?.trim() == prompt.trim() }
+    if (start < 0) return turn
+    val replies = fresh.drop(start + 1).filter { it.role == "assistant" && !it.content.isNullOrBlank() }
+    if (replies.isEmpty()) return turn
+    if (turn is TurnState.Finished) return TurnState.Idle
+
+    // After a dropped stream the server may still be writing. Keep any text not yet in
+    // history, and always retain the explicit stopped/truncated outcome banner.
+    fun normalized(text: String) = text.trim().replace(Regex("\\s+"), " ")
+    val saved = normalized(replies.joinToString("\n") { it.content.orEmpty() })
+    return when (turn) {
+        is TurnState.StoppedByUser -> if (saved.contains(normalized(turn.text))) turn.copy(text = "") else turn
+        is TurnState.Truncated -> if (saved.contains(normalized(turn.text))) turn.copy(text = "") else turn
+        else -> turn
+    }
 }

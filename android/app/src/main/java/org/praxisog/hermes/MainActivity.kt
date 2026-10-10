@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -22,9 +23,20 @@ class MainActivity : ComponentActivity() {
 
     private var status by mutableStateOf("Enter a server URL and API key.")
     private var checking by mutableStateOf(false)
-    private var store by mutableStateOf<HermesStore?>(null)
+    private val runtime get() = BellpullRuntime.get(applicationContext)
+    private val store get() = runtime.store
     private var connectionStore: SecureConnectionStore? = null
     private var sessionCache: SessionCache? = null
+    private var messageReader: MessageReader? = null
+    private val chatDrafts get() = runtime.drafts
+    private lateinit var preferences: BellpullSettings
+    private var restoredSessionId: String? = null
+    private var foreground by mutableStateOf(false)
+    private var focusChatRevision by mutableStateOf(0)
+    private val notificationPermission = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        setNotifications(granted)
+    }
 
     /**
      * Set when the launch came from the widget. Held rather than acted on immediately,
@@ -43,12 +55,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferences = BellpullSettings(this)
+        val reader = MessageReader(this)
+        messageReader = reader
         val secureStore = runCatching { SecureConnectionStore(this) }.getOrElse {
             status = "Secure storage is unavailable on this device."
             null
         }
         connectionStore = secureStore
-        sessionCache = runCatching { SessionCache(this) }.getOrNull()
+        sessionCache = runtime.cache
+        runtime.restore()
+        restoredSessionId = ReplyNotifications.session(intent) ?: savedInstanceState?.getString("bellpull_open_session") ?: sessionCache?.lastSession()
+        if (ReplyNotifications.session(intent) != null) focusChatRevision++
         initialUrl = runCatching { secureStore?.loadUrl().orEmpty() }.getOrElse {
             status = "Saved connection settings could not be read."
             ""
@@ -64,14 +82,24 @@ class MainActivity : ComponentActivity() {
         // three taps -- widget, Check connection, New chat -- and the accept criterion is a
         // fresh session in under two from cold start. It also means the app does not ask the
         // user to re-confirm a connection it already has on every launch.
-        if (initialUrl.isNotBlank() && initialKey.isNotBlank()) {
+        if (store == null && initialUrl.isNotBlank() && initialKey.isNotBlank()) {
             checkConnection(initialUrl, initialKey)
+        }
+        store?.let { current ->
+            if (pendingNewChat) { pendingNewChat = false; current.newSession() }
+            else restoredSessionId?.let(current::openSession)
+            restoredSessionId = null
+            loadInstalledApps(current)
         }
 
         setContent {
             val current = store
+            DisposableEffect(current?.openSessionId) {
+                if (current != null) runCatching { sessionCache?.rememberSession(current.openSessionId) }
+                onDispose { reader.stop() }
+            }
             if (current == null) {
-                ConnectionScreen(initialUrl, initialKey, status, checking, ::checkConnection)
+                ConnectionScreen(initialUrl, initialKey, status, checking, preferences.value, ::checkConnection)
             } else {
                 HermesApp(
                     sessions = current.sessions,
@@ -103,6 +131,33 @@ class MainActivity : ComponentActivity() {
                     },
                     onAskHermes = current::askHermes,
                     prefill = current.pendingPrompt,
+                    pendingUserText = current.pendingUserText,
+                    unreadIds = current.readState.unreadIds,
+                    completionRevision = current.completionRevision,
+                    onReadThrough = current.readState::readThrough,
+                    foreground = foreground,
+                    runPresentation = current.runPresentation,
+                    runLabels = current.runLabels,
+                    onRetryRun = current::retryRun,
+                    onAbandonRun = current::abandonRunAfterReview,
+                    onApproval = current::respondToApproval,
+                    notificationsAvailable = runtime.notificationEventsAvailable,
+                    onNotificationsChange = ::requestNotifications,
+                    focusChatRevision = focusChatRevision,
+                    onVisibleSession = { runtime.visibleSessionId = it },
+                    draft = current.draft,
+                    onDraftChange = current::updateDraft,
+                    preferences = preferences.value,
+                    onPreferencesChange = preferences::update,
+                    onReadMessage = { reader.read(it.id, it.content.orEmpty()) },
+                    readingMessageId = reader.readingMessageId,
+                    onBranchMessage = current::branchMessage,
+                    branchingEnabled = current.supportsMessageBranching,
+                    editingEnabled = current.supportsPromptEditing,
+                    onForkEdit = current::forkAndEdit,
+                    branchingSession = current.branchingSession,
+                    branchError = current.branchError,
+                    onDismissBranchError = current::dismissBranchError,
                 )
             }
         }
@@ -147,12 +202,10 @@ class MainActivity : ComponentActivity() {
                             if (result.value.sessionChatStreaming) {
                                 status = "Authenticated. Session streaming is available."
                                 // Only now is the client known good, so only now is a store built.
-                                store = HermesStore(
-                                    scope,
-                                    client,
-                                    cache = sessionCache,
-                                ).also { newStore ->
+                                runtime.connect(client, result.value).also { newStore ->
                                     newStore.loadSessions()
+                                    restoredSessionId?.let { newStore.openSession(it) }
+                                    restoredSessionId = null
                                     loadInstalledApps(newStore)
                                     if (pendingNewChat) {
                                         pendingNewChat = false
@@ -184,7 +237,10 @@ class MainActivity : ComponentActivity() {
      * after a key is rotated would keep the previous conversations readable on the device.
      */
     private fun disconnect() {
-        store = null
+        stopService(Intent(this, NotificationListenerService::class.java))
+        preferences.update(preferences.value.copy(notifications = false))
+        runtime.disconnect()
+        restoredSessionId = null
         pendingNewChat = false
         runCatching { connectionStore?.clear() }
         runCatching { sessionCache?.clear() }
@@ -201,6 +257,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        ReplyNotifications.session(intent)?.let { id ->
+            focusChatRevision++
+            if (store != null) store?.openSession(id) else restoredSessionId = id
+            return
+        }
         if (!WidgetIntents.isNewChat(intent)) return
         val current = store
         if (current != null) {
@@ -223,9 +284,56 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("bellpull_open_session", store?.openSessionId)
+
+    }
+
+    override fun onStop() {
+        runCatching { sessionCache?.rememberSession(if (store != null) store?.openSessionId else restoredSessionId) }
+        messageReader?.stop()
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        preferences = BellpullSettings(this)
+        foreground = true
+        store?.loadSessions()
+        store?.refreshHistory()
+        runtime.refreshCapabilities()
+        if (preferences.value.notifications) setNotifications(true)
+    }
+
+    override fun onPause() {
+        foreground = false
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        messageReader?.close()
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun requestNotifications(enabled: Boolean) {
+        if (enabled && android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else setNotifications(enabled)
+    }
+
+    private fun setNotifications(enabled: Boolean) {
+        preferences.update(preferences.value.copy(notifications = enabled))
+        val listener = Intent(this, NotificationListenerService::class.java)
+        if (enabled) {
+            runCatching { startForegroundService(listener) }.onFailure {
+                preferences.update(preferences.value.copy(notifications = false))
+                android.widget.Toast.makeText(this, "Could not start notifications. Try enabling them again.", android.widget.Toast.LENGTH_LONG).show()
+            }
+            runtime.catchUpNotifications()
+        } else stopService(listener)
     }
 
     private companion object {

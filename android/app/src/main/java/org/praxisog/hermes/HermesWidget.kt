@@ -19,7 +19,9 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
+import androidx.glance.color.ColorProvider
+import androidx.compose.ui.graphics.Color
+import android.content.res.Configuration
 
 /**
  * Home-screen widget that opens a fresh Hermes chat.
@@ -42,7 +44,7 @@ internal class HermesWidget : GlanceAppWidget() {
             Column(
                 modifier = GlanceModifier
                     .fillMaxSize()
-                    .background(ColorProvider(R.color.widget_background))
+                    .background(widgetColor(context, R.color.widget_background))
                     .cornerRadius(16.dp)
                     .padding(12.dp)
                     .clickable(actionStartActivity(WidgetIntents.newChat(context))),
@@ -50,9 +52,9 @@ internal class HermesWidget : GlanceAppWidget() {
                 horizontalAlignment = Alignment.Horizontal.Start,
             ) {
                 Text(
-                    "Hermes",
+                    "Bellpull",
                     style = TextStyle(
-                        color = ColorProvider(R.color.widget_on_background),
+                        color = widgetColor(context, R.color.widget_on_background),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                     ),
@@ -60,7 +62,7 @@ internal class HermesWidget : GlanceAppWidget() {
                 Text(
                     "New chat",
                     style = TextStyle(
-                        color = ColorProvider(R.color.widget_on_background),
+                        color = widgetColor(context, R.color.widget_on_background),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     ),
@@ -73,4 +75,14 @@ internal class HermesWidget : GlanceAppWidget() {
 /** Registered in the manifest; hands the host our [HermesWidget]. */
 internal class HermesWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = HermesWidget()
+}
+
+/** Glance's resource-ID factory is restricted; the public day/night factory keeps resource colours. */
+private fun widgetColor(context: Context, resource: Int): androidx.glance.unit.ColorProvider {
+    fun color(mode: Int): Color {
+        val configuration = Configuration(context.resources.configuration)
+        configuration.uiMode = (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
+        return Color(context.createConfigurationContext(configuration).getColor(resource))
+    }
+    return ColorProvider(day = color(Configuration.UI_MODE_NIGHT_NO), night = color(Configuration.UI_MODE_NIGHT_YES))
 }

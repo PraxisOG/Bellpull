@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes — GUI beauty shots</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;color:#e0e9e1;background:#111b17}
+*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:56px 32px 64px}
+header{display:flex;gap:20px;align-items:center;margin-bottom:24px}.mark{display:grid;place-items:center;width:64px;height:64px;border-radius:19px;background:#9dd5c4;color:#073b30;font:bold 43px Georgia,serif;flex-shrink:0}
+h1{font:400 clamp(30px,4vw,48px)/1.1 Georgia,serif;margin:0 0 8px}p{color:#b1c2b6;margin:0;line-height:1.6}.meta{margin:20px 0 28px;max-width:750px}
+nav{display:flex;gap:8px;margin:24px 0}button{font:inherit;color:#b1c2b6;background:transparent;border:1px solid #34493c;padding:10px 20px;border-radius:99px;cursor:pointer}button[aria-pressed=true]{background:#9dd5c4;color:#073b30;border-color:#9dd5c4}
+.gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;align-items:start}figure{margin:0;border:1px solid #34493c;border-radius:18px;overflow:hidden;background:#18241e}figure.fold,figure.landscape{grid-column:span 2}figure[hidden]{display:none}
+.image{display:block;padding:14px;background:#0c1511}.image img{display:block;width:100%;height:auto;border-radius:7px;box-shadow:0 12px 28px #0003}
+figcaption{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:16px}strong{font-size:14px;font-weight:600}span{display:block;font-size:12px;color:#91a69a;margin-top:5px}a{color:#9dd5c4;text-decoration:none}figcaption a{font-size:12px;white-space:nowrap}a:hover{text-decoration:underline}a:focus-visible,button:focus-visible{outline:3px solid #e6c080;outline-offset:4px}
+footer{border-top:1px solid #34493c;padding-top:22px;margin-top:36px;color:#91a69a;font-size:13px}
+@media(max-width:1000px){.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){main{padding:32px 18px}.gallery{gap:14px}figure.phone{grid-column:span 2}header{gap:14px}.mark{width:48px;height:48px;font-size:32px}}
+</style>
+</head>
+<body><main>
+<header><div class="mark" aria-hidden="true">H</div><div><h1>Hermes, in detail.</h1><p>GUI beauty shots · light &amp; dark</p></div></header>
+<p class="meta">Twelve full-resolution renders of the actual Compose UI, using sample conversations. Folded, unfolded, and wide layouts, rendered at 2× density. Click any image for the original PNG.</p>
+<p><a href="conversation-controls/index.html">See the new conversation controls →</a></p>
+<nav aria-label="Filter screenshots by theme"><button type="button" data-filter="all" aria-pressed="true">All shots</button><button type="button" data-filter="light" aria-pressed="false">Light</button><button type="button" data-filter="dark" aria-pressed="false">Dark</button></nav>
+<section class="gallery" aria-label="GUI screenshot gallery"><figure data-theme="light" class="fold">
+<a class="image" href="01-unfolded-light.png" target="_blank" rel="noopener" aria-label="Open Unfolded · light at full resolution"><img src="01-unfolded-light.png" width="1680" height="1800" alt="Hermes Unfolded · light" loading="lazy"></a>
+<figcaption><div><strong>Unfolded · light</strong><span>1,680 × 1,800 px</span></div><a href="01-unfolded-light.png" download aria-label="Download Unfolded · light">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="fold">
+<a class="image" href="02-unfolded-dark.png" target="_blank" rel="noopener" aria-label="Open Unfolded · dark at full resolution"><img src="02-unfolded-dark.png" width="1680" height="1800" alt="Hermes Unfolded · dark" loading="lazy"></a>
+<figcaption><div><strong>Unfolded · dark</strong><span>1,680 × 1,800 px</span></div><a href="02-unfolded-dark.png" download aria-label="Download Unfolded · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="light" class="phone">
+<a class="image" href="03-chat-light.png" target="_blank" rel="noopener" aria-label="Open Conversation · light at full resolution"><img src="03-chat-light.png" width="786" height="1700" alt="Hermes Conversation · light" loading="lazy"></a>
+<figcaption><div><strong>Conversation · light</strong><span>786 × 1,700 px</span></div><a href="03-chat-light.png" download aria-label="Download Conversation · light">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="phone">
+<a class="image" href="04-chat-dark.png" target="_blank" rel="noopener" aria-label="Open Conversation · dark at full resolution"><img src="04-chat-dark.png" width="786" height="1700" alt="Hermes Conversation · dark" loading="lazy"></a>
+<figcaption><div><strong>Conversation · dark</strong><span>786 × 1,700 px</span></div><a href="04-chat-dark.png" download aria-label="Download Conversation · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="light" class="phone">
+<a class="image" href="05-sessions-light.png" target="_blank" rel="noopener" aria-label="Open Sessions · light at full resolution"><img src="05-sessions-light.png" width="786" height="1700" alt="Hermes Sessions · light" loading="lazy"></a>
+<figcaption><div><strong>Sessions · light</strong><span>786 × 1,700 px</span></div><a href="05-sessions-light.png" download aria-label="Download Sessions · light">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="phone">
+<a class="image" href="06-sessions-dark.png" target="_blank" rel="noopener" aria-label="Open Sessions · dark at full resolution"><img src="06-sessions-dark.png" width="786" height="1700" alt="Hermes Sessions · dark" loading="lazy"></a>
+<figcaption><div><strong>Sessions · dark</strong><span>786 × 1,700 px</span></div><a href="06-sessions-dark.png" download aria-label="Download Sessions · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="light" class="phone">
+<a class="image" href="07-connection-light.png" target="_blank" rel="noopener" aria-label="Open Connection · light at full resolution"><img src="07-connection-light.png" width="786" height="1700" alt="Hermes Connection · light" loading="lazy"></a>
+<figcaption><div><strong>Connection · light</strong><span>786 × 1,700 px</span></div><a href="07-connection-light.png" download aria-label="Download Connection · light">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="phone">
+<a class="image" href="08-connection-dark.png" target="_blank" rel="noopener" aria-label="Open Connection · dark at full resolution"><img src="08-connection-dark.png" width="786" height="1700" alt="Hermes Connection · dark" loading="lazy"></a>
+<figcaption><div><strong>Connection · dark</strong><span>786 × 1,700 px</span></div><a href="08-connection-dark.png" download aria-label="Download Connection · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="light" class="landscape">
+<a class="image" href="09-wide-light.png" target="_blank" rel="noopener" aria-label="Open Wide workspace · light at full resolution"><img src="09-wide-light.png" width="2560" height="1800" alt="Hermes Wide workspace · light" loading="lazy"></a>
+<figcaption><div><strong>Wide workspace · light</strong><span>2,560 × 1,800 px</span></div><a href="09-wide-light.png" download aria-label="Download Wide workspace · light">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="landscape">
+<a class="image" href="10-wide-dark.png" target="_blank" rel="noopener" aria-label="Open Wide workspace · dark at full resolution"><img src="10-wide-dark.png" width="2560" height="1800" alt="Hermes Wide workspace · dark" loading="lazy"></a>
+<figcaption><div><strong>Wide workspace · dark</strong><span>2,560 × 1,800 px</span></div><a href="10-wide-dark.png" download aria-label="Download Wide workspace · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="dark" class="fold">
+<a class="image" href="11-streaming-dark.png" target="_blank" rel="noopener" aria-label="Open Streaming · dark at full resolution"><img src="11-streaming-dark.png" width="1680" height="1800" alt="Hermes Streaming · dark" loading="lazy"></a>
+<figcaption><div><strong>Streaming · dark</strong><span>1,680 × 1,800 px</span></div><a href="11-streaming-dark.png" download aria-label="Download Streaming · dark">Save PNG ↗</a></figcaption>
+</figure><figure data-theme="light" class="phone">
+<a class="image" href="12-search-light.png" target="_blank" rel="noopener" aria-label="Open Search · light at full resolution"><img src="12-search-light.png" width="786" height="1700" alt="Hermes Search · light" loading="lazy"></a>
+<figcaption><div><strong>Search · light</strong><span>786 × 1,700 px</span></div><a href="12-search-light.png" download aria-label="Download Search · light">Save PNG ↗</a></figcaption>
+</figure></section>
+<footer>Local development renders · October 3, 2026 · Demo conversation and usage figures</footer>
+</main><script>
+const buttons=document.querySelectorAll('[data-filter]');
+buttons.forEach(button=>button.addEventListener('click',()=>{
+  buttons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+  document.querySelectorAll('figure[data-theme]').forEach(card=>{
+    card.hidden=button.dataset.filter!=='all' && card.dataset.theme!==button.dataset.filter;
+  });
+}));
+</script></body></html>

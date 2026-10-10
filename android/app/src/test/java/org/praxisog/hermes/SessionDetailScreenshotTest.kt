@@ -25,10 +25,22 @@ class SessionDetailScreenshotTest {
         history: UiState<List<org.praxisog.hermes.model.Message>> = UiState.Ready(UiFixtures.history),
         turn: TurnState = TurnState.Idle,
     ) = captureRoboImage {
-        SessionDetailScreen(history = history, turn = turn, onSend = {}, onStop = {}, onRetry = {})
+        HermesTheme {
+            SessionDetailScreen(history = history, turn = turn, onSend = {}, onStop = {}, onRetry = {})
+        }
     }
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun transcriptCover() = capture()
+
+    @Test @Config(qualifiers = "w393dp-h850dp-night") fun streamingCoverDark() = capture(
+        turn = TurnState.Streaming("Checking the serve configuration", canStop = true),
+    )
+
+    @Test @Config(qualifiers = "w393dp-h850dp") fun newConversationCover() =
+        capture(history = UiState.Ready(emptyList()))
+
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun newConversationUnfoldedDark() =
+        capture(history = UiState.Ready(emptyList()))
 
     @Test @Config(qualifiers = "w840dp-h900dp") fun transcriptUnfolded() = capture()
 
@@ -36,6 +48,7 @@ class SessionDetailScreenshotTest {
         turn = TurnState.Streaming(
             text = "Checking the serve configuration",
             runningTool = "tailscale serve status",
+            runningToolName = "terminal",
             canStop = true,
         ),
     )

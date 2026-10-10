@@ -11,6 +11,18 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35])
 class ConnectionScreenScreenshotTest {
+    @Test @Config(qualifiers = "w393dp-h850dp-night") fun coverDark() {
+        captureRoboImage {
+            ConnectionScreen("", "", "Enter a server URL and API key.", false) { _, _ -> }
+        }
+    }
+
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun unfoldedDark() {
+        captureRoboImage {
+            ConnectionScreen("", "", "Enter a server URL and API key.", false) { _, _ -> }
+        }
+    }
+
     @Test
     @Config(qualifiers = "w393dp-h850dp")
     fun cover() {

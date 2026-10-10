@@ -1,0 +1,118 @@
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -69,6 +69,7 @@
+     "run_approval_response": True, "tool_progress_events": True, "approval_events": True,
+     "session_resources": True, "model_options": True, "session_chat": True,
+     "session_chat_streaming": True, "session_fork": True, "session_model_lock": True,
++    "session_fork_at_message": True,
+     "admin_config_rw": False, "jobs_admin": False, "memory_write_api": False,
+     "skills_api": True, "audio_api": False, "realtime_voice": False,
+     "session_continuity_header": "X-Hermes-Session-Id",
+@@ -1516,6 +1517,7 @@
+             ("DELETE", "/api/sessions/{session_id}", self._handle_delete_session),
+             ("GET", "/api/sessions/{session_id}/messages", self._handle_session_messages),
+             ("POST", "/api/sessions/{session_id}/fork", self._handle_fork_session),
++            ("POST", "/api/sessions/{session_id}/fork-at-message", self._handle_fork_at_message),
+             ("POST", "/api/sessions/{session_id}/chat", self._handle_session_chat),
+             ("POST", "/api/sessions/{session_id}/chat/stream", self._handle_session_chat_stream),
+             ("POST", "/api/sessions/{session_id}/model", self._handle_session_model_lock),
+@@ -2963,6 +2965,99 @@
+         except ValueError as exc:
+             return _error_response(str(exc), 400, code="invalid_title")
+         fork = await asyncio.to_thread(db.get_session, fork_id) or {"id": fork_id, "parent_session_id": source_id}
++        return web.json_response({"object": "hermes.session", "session": self._session_response(fork)}, status=201)
++
++    @_require_auth
++    async def _handle_fork_at_message(self, request: "web.Request") -> "web.Response":
++        """Selected-reply fork. A distinct route fails closed on older gateways."""
++        source_id = request.match_info["session_id"]
++        _, err = await self._get_existing_session_or_404(source_id)
++        if err:
++            return err
++        body, err = await self._read_json_body(request)
++        if err:
++            return err
++        fork_id = str(body.get("id") or body.get("session_id") or f"api_{int(time.time())}_{uuid.uuid4().hex[:8]}").strip()
++        if not fork_id or re.search(r'[\r\n\x00]', fork_id):
++            return _error_response("Invalid session ID", 400, code="invalid_session_id")
++        db = await self._ensure_session_db_async()
++        return await self._fork_at_message(db, source_id, fork_id, body)
++
++    async def _fork_at_message(self, db, source_id: str, fork_id: str, body: dict):
++        """Copy the selected transcript prefix atomically; leave the source untouched.
++
++        The native _branched_from marker keeps the copy visible in normal session lists
++        and prevents resume resolution from redirecting the original to its new branch.
++        """
++        cutoff = body.get("through_message_id")
++        if isinstance(cutoff, bool) or not isinstance(cutoff, int) or cutoff <= 0:
++            return _error_response("through_message_id must be a positive integer", 400,
++                                   code="invalid_branch_message")
++        from gateway.session import _is_path_unsafe
++        if _is_path_unsafe(fork_id) or len(fork_id) > self._MAX_SESSION_HEADER_LEN:
++            return _error_response("Invalid session ID", 400, code="invalid_session_id")
++        resolved_id = await asyncio.to_thread(db.resolve_resume_session_id, source_id)
++
++        def _atomic(conn):
++            source = conn.execute("SELECT * FROM sessions WHERE id = ?", (resolved_id,)).fetchone()
++            if source is None:
++                return None, "session_not_found"
++            if conn.execute("SELECT 1 FROM sessions WHERE id = ?", (fork_id,)).fetchone():
++                return None, "session_exists"
++            rows = conn.execute(
++                "SELECT * FROM messages WHERE session_id = ? AND active = 1 AND id <= ? ORDER BY id",
++                (resolved_id, cutoff)).fetchall()
++            if not rows or rows[-1]["id"] != cutoff or rows[-1]["role"] != "assistant":
++                return None, "invalid_branch_message"
++            messages = [db._row_to_message_dict(row, warn_context="fork_at_message", summary_flag=True)
++                        for row in rows]
++            if not isinstance(messages[-1].get("content"), str) or not messages[-1]["content"].strip():
++                return None, "invalid_branch_message"
++            # These are new rows in a newly created conversation. Copying old timestamps
++            # would bury a fresh branch outside the sidebar's most-recent page.
++            created_at = time.time()
++            for message in messages:
++                message["timestamp"] = created_at
++            # An assistant may speak before requesting tools. A prefix ending there must
++            # not carry requests whose results occur after the selected message.
++            if messages[-1].get("tool_calls"):
++                messages[-1]["tool_calls"] = None
++                messages[-1]["api_content"] = None
++                messages[-1]["codex_message_items"] = None
++                messages[-1]["finish_reason"] = "stop"
++            config = self._parse_session_model_config(source["model_config"])
++            config.pop("_delegate_from", None)
++            config.pop("_reset_from", None)
++            config.update({"_branched_from": source_id, "_branched_at_message_id": cutoff})
++            title = body.get("title")
++            if title is None:
++                base = source["title"] or "Conversation"
++                title = f"{base[:db.MAX_TITLE_LENGTH - 24]} — branch {fork_id[-8:]}"
++            title = db.sanitize_title(str(title))
++            if title and conn.execute("SELECT 1 FROM sessions WHERE title = ?", (title,)).fetchone():
++                return None, "invalid_title"
++            conn.execute(
++                "INSERT INTO sessions (id, source, model, model_config, system_prompt, system_prompt_hash, parent_session_id, "
++                "title, started_at) VALUES (?, 'api_server', ?, ?, ?, ?, ?, ?, ?)",
++                (fork_id, source["model"], json.dumps(config), source["system_prompt"], source["system_prompt_hash"],
++                 source_id, title, created_at))
++            count, tool_count = db._insert_message_rows(conn, fork_id, messages)
++            conn.execute("UPDATE sessions SET message_count = ?, tool_call_count = ? WHERE id = ?",
++                         (count, tool_count, fork_id))
++            row = conn.execute(
++                "SELECT s.*, COALESCE(sp.prompt, s.system_prompt) AS _system_prompt_resolved "
++                "FROM sessions s LEFT JOIN system_prompts sp ON sp.hash = s.system_prompt_hash WHERE s.id = ?",
++                (fork_id,)).fetchone()
++            return db._session_row_dict(row), None
++
++        fork, error = await asyncio.to_thread(db._execute_write, _atomic)
++        if error:
++            status = 404 if error == "session_not_found" else 409 if error == "session_exists" else 400
++            message = {"invalid_branch_message": "Choose an assistant message from the current saved transcript.",
++                       "invalid_title": "Branch title is already in use.",
++                       "session_exists": "Branch session already exists.",
++                       "session_not_found": "Source session no longer exists."}[error]
++            return _error_response(message, status, code=error)
+         return web.json_response({"object": "hermes.session", "session": self._session_response(fork)}, status=201)
+ 
+     async def _prepare_session_chat(self, request: "web.Request") -> tuple:

@@ -4,9 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.hasScrollAction
-import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,7 +52,22 @@ class StreamScrollTest {
         )
         compose.waitForIdle()
 
-        compose.onNodeWithText("THE NEWEST LINE", substring = true).assertExists()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+    }
+
+    @Test fun toolAndThinkingGrowthAlsoFollowWithoutAnyAssistantText() {
+        var turn by mutableStateOf<TurnState>(TurnState.Streaming("", canStop = true))
+        compose.setContent {
+            HermesTheme {
+                SessionDetailScreen(UiState.Ready(longHistory), turn, {}, {}, {}, collapseThinking = false, reduceMotion = true)
+            }
+        }
+        compose.waitForIdle()
+        turn = TurnState.Streaming("", canStop = true, parts = (1..12).flatMap { n -> listOf(
+            LivePart.Prose("thinking-$n", "Thinking through source $n\n".repeat(6), thinking = true),
+            LivePart.Tools("tools-$n", listOf(LiveTool("tool-$n", "web_search", "Source $n", true)))) })
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
     }
 
     @Test fun scrollingUpToReadIsNotYankedBackByTheNextToken() {
@@ -72,10 +85,8 @@ class StreamScrollTest {
         }
         compose.waitForIdle()
 
-        // Deliberately scroll away from the tail. Scrolled by index, because a LazyColumn
-        // only composes what is visible — the early messages are not in the tree to target
-        // by text until the list has been scrolled to them.
-        compose.onNode(hasScrollAction()).performScrollToIndex(0)
+        // Exercise the actual reader gesture, so the test distinguishes input from layout growth.
+        compose.onNodeWithTag("transcript").performTouchInput { swipeDown() }
         compose.waitForIdle()
 
         // A further delta arrives.
@@ -83,6 +94,12 @@ class StreamScrollTest {
         compose.waitForIdle()
 
         // Still where the user put it.
-        compose.onNodeWithText("Message number 1").assertExists()
+        compose.onNodeWithText("Jump to latest ↓").assertIsDisplayed()
+        compose.onNodeWithTag("stream-tail").assertIsNotDisplayed()
+        compose.onNodeWithText("Jump to latest ↓").performClick()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+        turn = TurnState.Streaming((1..90).joinToString("\n") { "More content $it" }, canStop = true)
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
     }
 }

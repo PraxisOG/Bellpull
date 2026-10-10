@@ -1,0 +1,7 @@
+original
+revisions
+test_selected_fork.py
+*.log
+*.md
+*.patch
+*.txt

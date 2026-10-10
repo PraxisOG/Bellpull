@@ -6,6 +6,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -260,6 +266,42 @@ class HermesStoreTest {
         // recomposition mid-stream cannot re-seed the composer with text already sent.
         assertEquals("", store.pendingPrompt)
         awaitUntil("turn to finish") { store.turn is TurnState.Finished }
+    }
+
+    @Test fun completionPublishesCanonicalHistoryAndRefreshesSessionMetadata() {
+        val sent = AtomicBoolean(false)
+        val lists = AtomicInteger()
+        val client = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val path = request.url.encodedPath
+            val body = when {
+                path.endsWith("/chat/stream") -> { sent.set(true); null }
+                path.endsWith("/messages") -> if (sent.get())
+                    """{"data":[{"id":3,"role":"user","content":"hello"},{"id":4,"role":"assistant","content":"Saved answer"}]}"""
+                    else """{"data":[]}"""
+                path == "/api/sessions" -> {
+                    lists.incrementAndGet()
+                    if (sent.get()) """{"data":[{"id":"fixture-id-1","title":"Updated title","message_count":2,"tool_call_count":1}]}"""
+                    else """{"data":[{"id":"fixture-id-1","message_count":0}]}"""
+                }
+                else -> null
+            }
+            if (body == null) chain.proceed(request) else Response.Builder().request(request)
+                .protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val store = store(httpClient = client)
+        store.loadSessions()
+        store.openSession(MockHermesLauncher.FIXTURE_SESSION_ID)
+        awaitUntil("initial state") { store.sessions is UiState.Ready && store.history is UiState.Ready }
+        store.send("hello")
+        awaitUntil("canonical answer and metadata") {
+            store.turn is TurnState.Idle && store.openSession?.messageCount == 2 &&
+                (store.history as? UiState.Ready)?.value?.lastOrNull()?.content == "Saved answer"
+        }
+        assertEquals("Updated title", store.openSession?.title)
+        assertEquals(1, store.openSession?.toolCallCount)
+        assertTrue("completion must reload the session list", lists.get() >= 2)
     }
 
     @Test fun blankSendDoesNothing() {

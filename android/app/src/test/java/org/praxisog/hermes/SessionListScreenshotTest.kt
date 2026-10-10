@@ -23,17 +23,19 @@ class SessionListScreenshotTest {
         createError: org.praxisog.hermes.model.HermesError? = null,
         offline: OfflineState? = null,
     ) = captureRoboImage {
-        SessionListScreen(
-            state = state,
-            now = UiFixtures.NOW,
-            selectedId = selected,
-            onOpen = {},
-            onRetry = {},
-            onNewSession = {},
-            creating = creating,
-            createError = createError,
-            offline = offline,
-        )
+        HermesTheme {
+            SessionListScreen(
+                state = state,
+                now = UiFixtures.NOW,
+                selectedId = selected,
+                onOpen = {},
+                onRetry = {},
+                onNewSession = {},
+                creating = creating,
+                createError = createError,
+                offline = offline,
+            )
+        }
     }
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun readyCover() =
@@ -61,6 +63,9 @@ class SessionListScreenshotTest {
     @Test @Config(qualifiers = "w393dp-h850dp") fun createFailedCover() =
         capture(UiState.Ready(UiFixtures.sessions), createError = UiFixtures.authFailure)
 
+    @Test @Config(qualifiers = "w393dp-h850dp-night") fun createFailedEmptyDark() =
+        capture(UiState.Ready(emptyList()), createError = UiFixtures.authFailure)
+
     /** The empty case is the one that made the missing entry point unrecoverable. */
     @Test @Config(qualifiers = "w393dp-h850dp") fun emptyWithEntryPointCover() =
         capture(UiState.Ready(emptyList()))
@@ -73,19 +78,21 @@ class SessionListScreenshotTest {
         captureSearch("what is the tailnet IP of the fold")
 
     private fun captureSearch(query: String) = captureRoboImage {
-        SessionListScreen(
-            state = UiState.Ready(UiFixtures.sessions),
-            now = UiFixtures.NOW,
-            selectedId = null,
-            onOpen = {},
-            onRetry = {},
-            onNewSession = {},
-            query = query,
-            onQueryChange = {},
-            apps = UiFixtures.apps,
-            onLaunchApp = {},
-            onAskHermes = {},
-        )
+        HermesTheme {
+            SessionListScreen(
+                state = UiState.Ready(UiFixtures.sessions),
+                now = UiFixtures.NOW,
+                selectedId = null,
+                onOpen = {},
+                onRetry = {},
+                onNewSession = {},
+                query = query,
+                onQueryChange = {},
+                apps = UiFixtures.apps,
+                onLaunchApp = {},
+                onAskHermes = {},
+            )
+        }
     }
 
     /**

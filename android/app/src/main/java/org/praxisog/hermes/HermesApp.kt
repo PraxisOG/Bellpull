@@ -1,40 +1,15 @@
 package org.praxisog.hermes
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.Session
@@ -47,6 +22,7 @@ import org.praxisog.hermes.model.Session
  * side by side; folded shows one at a time with a back affordance. There is no navigation
  * library: three destinations driven by whether a session is open do not need a backstack.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HermesApp(
     sessions: UiState<List<Session>>,
@@ -72,142 +48,150 @@ internal fun HermesApp(
     onLaunchApp: (LaunchableApp) -> Unit = {},
     onAskHermes: (String) -> Unit = {},
     prefill: String = "",
+    onReadMessage: (Message) -> Unit = {},
+    onBranchMessage: (Message) -> Unit = {},
+    readingMessageId: Int? = null,
+    branchingEnabled: Boolean = false,
+    editingEnabled: Boolean = false,
+    onForkEdit: (Message, String) -> Unit = { _, _ -> },
+    branchingSession: Boolean = false,
+    branchError: org.praxisog.hermes.model.HermesError? = null,
+    onDismissBranchError: () -> Unit = {},
+    draft: TextFieldValue? = null,
+    onDraftChange: (TextFieldValue) -> Unit = {},
+    preferences: BellpullPreferences = BellpullPreferences(),
+    onPreferencesChange: (BellpullPreferences) -> Unit = {},
+    pendingUserText: String? = null,
+    unreadIds: Set<String> = emptySet(),
+    completionRevision: Long = 0,
+    onReadThrough: (String, Int) -> Unit = { _, _ -> },
+    foreground: Boolean = true,
+    runPresentation: RunPresentation? = null,
+    runLabels: Map<String, String> = emptyMap(),
+    onRetryRun: () -> Unit = {},
+    onApproval: (String, String) -> Unit = { _, _ -> },
+    notificationsAvailable: Boolean = false,
+    onNotificationsChange: (Boolean) -> Unit = {},
+    focusChatRevision: Int = 0,
+    onVisibleSession: (String?) -> Unit = {},
+    onAbandonRun: () -> Unit = {},
 ) {
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
-            ) {
-                // The Fold's cover display is ~393dp and unfolded ~840dp. 720dp sits well
-                // clear of both, so a fold transition cannot land on the boundary.
+    var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
+    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null) }
+    var expandedSearch by rememberSaveable { mutableStateOf(false) }
+    var infoSheet by rememberSaveable { mutableStateOf(false) }
+    var navigation by remember(openSessionId) { mutableStateOf<ChatNavigation?>(null) }
+    val screenState = rememberSaveableStateHolder()
+    var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(openSessionId) {
+        if (openSessionId != null && openSessionId != previousSessionId) {
+            mode = WorkspaceMode.CHATS; drawerOnCover = false
+        }
+        previousSessionId = openSessionId
+    }
+    val open: (String) -> Unit = { mode = WorkspaceMode.CHATS; drawerOnCover = false; expandedSearch = false; onOpenSession(it) }
+    LaunchedEffect(focusChatRevision) {
+        if (focusChatRevision > 0) {
+            mode = WorkspaceMode.CHATS; drawerOnCover = false; expandedSearch = false; infoSheet = false; navigation = null
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
+    HermesTheme(appearance = preferences.appearance, palette = preferences.palette, customAccent = preferences.customAccent) {
+        branchError?.let { error ->
+            AlertDialog(onDismissRequest = onDismissBranchError,
+                title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
+                confirmButton = { TextButton(onClick = onDismissBranchError) { Text("Dismiss") } })
+        }
+        if (expandedSearch) WorkspaceSearch(
+            (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
+            query, onQueryChange, open, onLaunchApp,
+            onAsk = { onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS },
+            onDismiss = { expandedSearch = false })
+        Surface(Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 val sideBySide = maxWidth >= 720.dp
-
-                // Three panes are shown from 820dp, which is just under the Fold's ~840dp
-                // unfolded width — the target device, where all three are wanted.
-                //
-                // An earlier version gated this at 1000dp, which meant the Fold unfolded to
-                // two panes and a toggle. That was the wrong call: it came from three *fixed*
-                // panes at 288dp and 248dp leaving the transcript ~260dp, and the fix for a
-                // cramped transcript is to narrow its neighbours, not to hide one. At 840dp
-                // the list and context now take 240dp and 200dp, leaving ~400dp — wider than
-                // the cover display the transcript already renders fine on.
-                val roomForThreePanes = maxWidth >= 820.dp
-
-                // Both side panes collapse, so the transcript can take the whole width when
-                // you want it to. Keyed on the width so a fold transition re-derives sensible
-                // defaults instead of carrying a cover-width choice into the unfolded layout.
-                var showList by remember(sideBySide) { mutableStateOf(true) }
-                var showContext by remember(roomForThreePanes) { mutableStateOf(roomForThreePanes) }
-
-                if (sideBySide) {
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        if (showList) {
-                            SessionListScreen(
-                                state = sessions,
-                                now = now,
-                                selectedId = openSessionId,
-                                onOpen = onOpenSession,
-                                onRetry = onRetrySessions,
-                                onNewSession = onNewSession,
-                                creating = creatingSession,
-                                createError = createError,
-                                offline = offline,
-                                query = query,
-                                onQueryChange = onQueryChange,
-                                apps = apps,
-                                onLaunchApp = onLaunchApp,
-                                onAskHermes = onAskHermes,
-                                modifier = Modifier.width(240.dp).fillMaxHeight(),
-                            )
-                            VerticalDivider()
-                        }
-                        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                            // Always present, even with no session open, or hiding the list
-                            // would leave no way to bring it back.
-                            PaneToggleBar(
-                                showList = showList,
-                                onToggleList = { showList = !showList },
-                                showContext = showContext,
-                                onToggleContext = { showContext = !showContext },
-                                contextEnabled = openSessionId != null,
-                            )
-                            if (openSessionId == null) {
-                                EmptyDetail()
-                            } else {
-                                SessionDetailScreen(
-                                    history = history,
-                                    turn = turn,
-                                    onSend = onSend,
-                                    onStop = onStop,
-                                    onRetry = onRetryHistory,
-                                    prefill = prefill,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                        if (showContext && openSessionId != null) {
-                            VerticalDivider()
-                            ContextPanel(
-                                session = openSession,
-                                now = now,
-                                onDisconnect = onDisconnect,
-                                modifier = Modifier.width(200.dp).fillMaxHeight(),
-                            )
-                        }
+                var showList by rememberSaveable { mutableStateOf(true) }
+                var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
+                val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
+                    (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null }
+                DisposableEffect(visibleSession) {
+                    onVisibleSession(visibleSession)
+                    onDispose { onVisibleSession(null) }
+                }
+                BackHandler(enabled = !sideBySide && !drawerOnCover) { drawerOnCover = true }
+                if (infoSheet && openSessionId != null) {
+                    ModalBottomSheet(onDismissRequest = { infoSheet = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                        ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(.8f), onClose = { infoSheet = false })
                     }
-                } else {
-                    if (openSessionId == null) {
-                        SessionListScreen(
-                            state = sessions,
-                            now = now,
-                            selectedId = null,
-                            onOpen = onOpenSession,
-                            onRetry = onRetrySessions,
-                            onNewSession = onNewSession,
-                            creating = creatingSession,
-                            createError = createError,
-                            offline = offline,
-                            query = query,
-                            onQueryChange = onQueryChange,
-                            apps = apps,
-                            onLaunchApp = onLaunchApp,
-                            onAskHermes = onAskHermes,
-                        )
-                    } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                TextButton(onClick = onCloseSession) { Text("← Sessions") }
-                                IconToggle(
-                                    onClick = { showContext = !showContext },
-                                    active = showContext,
-                                    description = if (showContext) "Hide stats" else "Show stats",
-                                ) { InfoGlyph(it) }
+                }
+                Row(Modifier.fillMaxSize()) {
+                    if ((sideBySide && showList) || (!sideBySide && drawerOnCover)) {
+                        Column(if (sideBySide) Modifier.width(240.dp).fillMaxHeight() else Modifier.fillMaxSize()) {
+                            SessionListScreen(state = sessions, now = now, selectedId = openSessionId,
+                                onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
+                                creating = creatingSession, createError = createError, offline = offline,
+                                modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
+                                unreadIds = unreadIds, completionRevision = completionRevision,
+                                runLabels = runLabels,
+                                onExpandedSearch = { expandedSearch = true })
+                            WorkspaceModes(mode) { mode = it; drawerOnCover = false }
+                        }
+                        if (sideBySide) VerticalDivider()
+                    }
+                    if (sideBySide || !drawerOnCover) {
+                        Column(Modifier.weight(1f).fillMaxHeight()) {
+                            ConversationToolbar(
+                                title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
+                                    ?: "Conversation" else mode.title,
+                                showList = sideBySide && showList, sideBySide = sideBySide,
+                                onNavigate = { if (sideBySide) showList = !showList else drawerOnCover = true },
+                                onNewSession = onNewSession, creatingSession = creatingSession,
+                                hasSession = mode == WorkspaceMode.CHATS && openSessionId != null,
+                                hasHistory = mode == WorkspaceMode.CHATS && history is UiState.Ready,
+                                onPrompts = { navigation = ChatNavigation.PROMPTS },
+                                onSearch = { navigation = ChatNavigation.SEARCH },
+                                showContext = sideBySide && showContext,
+                                onContext = { if (sideBySide) showContext = !showContext else infoSheet = true })
+                            if (createError != null) NewChatFailure(createError)
+                            when (mode) {
+                                WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
+                                    notificationsAvailable, onNotificationsChange)
+                                WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
+                                    if (openSessionId == null) null else ({ infoSheet = true }))
+                                WorkspaceMode.PROJECTS, WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
+                                    Text("Coming soon", style = MaterialTheme.typography.titleLarge)
+                                    Text(if (mode == WorkspaceMode.PROJECTS) "Collect chats, notes and attachments in projects."
+                                        else "Reminders and follow-ups will appear here.")
+                                }
+                                WorkspaceMode.CHATS -> if (openSessionId == null) EmptyDetail() else {
+                                    RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
+                                    screenState.SaveableStateProvider(openSessionId) {
+                                        SessionDetailScreen(history = history, turn = turn, onSend = onSend,
+                                            onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
+                                            draft = draft, onDraftChange = onDraftChange,
+                                            collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
+                                            pendingUserText = pendingUserText,
+                                            sendBlocked = runPresentation?.busy == true,
+                                            readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null,
+                                            onReadThrough = { onReadThrough(openSessionId, it) },
+                                            navigation = navigation, onDismissNavigation = { navigation = null },
+                                            onReadMessage = onReadMessage, onBranchMessage = onBranchMessage,
+                                            readingMessageId = readingMessageId, branchingEnabled = branchingEnabled,
+                                            editingEnabled = editingEnabled, onForkEdit = onForkEdit,
+                                            branchingSession = branchingSession, modifier = Modifier.weight(1f))
+                                    }
+                                }
                             }
-                            if (showContext) {
-                                // Folded has no room for two panes, so context replaces the
-                                // transcript rather than squeezing it.
-                                ContextPanel(
-                                    session = openSession,
-                                    now = now,
-                                    onDisconnect = onDisconnect,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            } else {
-                                SessionDetailScreen(
-                                    history = history,
-                                    turn = turn,
-                                    onSend = onSend,
-                                    onStop = onStop,
-                                    onRetry = onRetryHistory,
-                                    prefill = prefill,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
+                        }
+                        if (sideBySide && showContext && openSessionId != null && mode == WorkspaceMode.CHATS) {
+                            VerticalDivider()
+                            ContextPanel(openSession, now, onDisconnect = onDisconnect,
+                                modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false })
                         }
                     }
                 }
@@ -216,105 +200,25 @@ internal fun HermesApp(
     }
 }
 
-/**
- * Toggles for the two side panes: sessions on the left, stats on the right.
- *
- * The glyphs are drawn rather than pulled from material-icons, which is not a declared
- * dependency here — three lines and a circled "i" are cheap to draw and render identically in
- * screenshot tests. Each carries a content description, since a Canvas has no text for
- * accessibility services or UI tests to read.
- */
 @Composable
-private fun PaneToggleBar(
-    showList: Boolean,
-    onToggleList: () -> Unit,
-    showContext: Boolean,
-    onToggleContext: () -> Unit,
-    contextEnabled: Boolean,
-) {
-    Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        ) {
-            IconToggle(
-                onClick = onToggleList,
-                active = showList,
-                description = if (showList) "Hide sessions" else "Show sessions",
-            ) { MenuGlyph(it) }
-            IconToggle(
-                onClick = onToggleContext,
-                active = showContext,
-                enabled = contextEnabled,
-                description = if (showContext) "Hide stats" else "Show stats",
-            ) { InfoGlyph(it) }
-        }
-    }
-}
-
-@Composable
-private fun IconToggle(
-    onClick: () -> Unit,
-    active: Boolean,
-    description: String,
-    enabled: Boolean = true,
-    glyph: @Composable (Color) -> Unit,
-) {
-    val tint = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-        active -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.semantics { contentDescription = description },
-    ) { glyph(tint) }
-}
-
-/** Three lines. */
-@Composable
-private fun MenuGlyph(tint: Color) {
-    Canvas(modifier = Modifier.size(width = 20.dp, height = 14.dp)) {
-        val stroke = 2.dp.toPx()
-        listOf(0f, size.height / 2f, size.height).forEach { y ->
-            drawLine(
-                color = tint,
-                start = Offset(0f, y.coerceIn(stroke / 2f, size.height - stroke / 2f)),
-                end = Offset(size.width, y.coerceIn(stroke / 2f, size.height - stroke / 2f)),
-                strokeWidth = stroke,
-                cap = StrokeCap.Round,
-            )
-        }
-    }
-}
-
-/** A circled "i". */
-@Composable
-private fun InfoGlyph(tint: Color) {
-    Box(
-        modifier = Modifier
-            .size(20.dp)
-            .border(width = 2.dp, color = tint, shape = CircleShape),
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-    ) {
-        Text(
-            "i",
-            color = tint,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-        )
+private fun NewChatFailure(error: org.praxisog.hermes.model.HermesError) {
+    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Text("Could not start a new chat. ${error.toUserMessage()}",
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
     }
 }
 
 @Composable
 private fun EmptyDetail() {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize().padding(28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp, androidx.compose.ui.Alignment.CenterVertically),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {
-        Text("Pick a session", style = MaterialTheme.typography.titleMedium)
+        HermesMark(size = 56.dp)
+        Text("Pick a session", style = MaterialTheme.typography.titleLarge)
+        Text("Continue a conversation, or make room for a new idea.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }

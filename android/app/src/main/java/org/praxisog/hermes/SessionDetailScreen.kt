@@ -1,5 +1,9 @@
 package org.praxisog.hermes
 
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -15,20 +22,44 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Message
+import org.praxisog.hermes.model.ToolCall
+import kotlinx.coroutines.launch
 
 /**
  * One session: its transcript, the turn in flight, and the composer.
@@ -45,7 +76,120 @@ internal fun SessionDetailScreen(
     onRetry: () -> Unit,
     prefill: String = "",
     modifier: Modifier = Modifier,
+    navigation: ChatNavigation? = null,
+    onDismissNavigation: () -> Unit = {},
+    onReadMessage: (Message) -> Unit = {},
+    onBranchMessage: (Message) -> Unit = {},
+    readingMessageId: Int? = null,
+    branchingEnabled: Boolean = false,
+    editingEnabled: Boolean = false,
+    onForkEdit: (Message, String) -> Unit = { _, _ -> },
+    branchingSession: Boolean = false,
+    draft: TextFieldValue? = null,
+    onDraftChange: (TextFieldValue) -> Unit = {},
+    collapseThinking: Boolean = true,
+    reduceMotion: Boolean = false,
+    pendingUserText: String? = null,
+    readEnabled: Boolean = true,
+    onReadThrough: (Int) -> Unit = {},
+    sendBlocked: Boolean = false,
 ) {
+    var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
+    val composerDraft = draft ?: localDraft
+    val changeDraft: (TextFieldValue) -> Unit = { if (draft == null) localDraft = it else onDraftChange(it) }
+    val composerFocus = remember { FocusRequester() }
+    var editingMessageId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var editedText by rememberSaveable { mutableStateOf("") }
+    val editingMessage = (history as? UiState.Ready)?.value?.firstOrNull { it.id == editingMessageId }
+    if (editingMessage != null) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!branchingSession) editingMessageId = null },
+        title = { Text("Fork & edit") }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Create a branch before this prompt. Review your edit in the new chat, then press Send. The original stays intact.")
+                OutlinedTextField(value = editedText, onValueChange = { editedText = it },
+                    enabled = !branchingSession, minLines = 3, maxLines = 8, label = { Text("Edited prompt") })
+            }
+        }, confirmButton = {
+            TextButton(enabled = !branchingSession && editedText.isNotBlank(),
+                onClick = { onForkEdit(editingMessage, editedText) }) { Text(if (branchingSession) "Creating branch…" else "Create edited branch") }
+        }, dismissButton = { TextButton(enabled = !branchingSession, onClick = { editingMessageId = null }) { Text("Cancel") } })
+    var quoteMessage by remember { mutableStateOf<Message?>(null) }
+    quoteMessage?.let { source ->
+        QuoteDialog(source, onDismiss = { quoteMessage = null }, onQuote = { quote ->
+            val reference = "From ${source.role} message #${source.id}:\n" + quote.lines().joinToString("\n") { "> $it" }
+            val text = composerDraft.text.let { if (it.isBlank()) "" else it + "\n\n" } + reference + "\n\n"
+            changeDraft(TextFieldValue(text, TextRange(text.length)))
+            quoteMessage = null
+            composerFocus.requestFocus()
+        })
+    }
+    var followingTail by rememberSaveable { mutableStateOf(true) }
+    var seenToolRows by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var highlightedId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var browsingHistory by rememberSaveable { mutableStateOf(false) }
+    // Follow is reader intent, not canScrollForward: arriving content changes the latter.
+    val readerScroll = remember(listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) followingTail = false
+                return Offset.Zero
+            }
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (consumed.y < 0f && !listState.canScrollForward) {
+                    followingTail = true
+                    browsingHistory = false
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    val messages = (history as? UiState.Ready)?.value.orEmpty()
+    val toolCalls = remember(messages) {
+        buildMap {
+            messages.flatMap { it.toolCalls.orEmpty() }.forEach { call ->
+                listOfNotNull(call.id, call.callId, call.responseItemId).forEach { put(it, call) }
+            }
+        }
+    }
+    val callsWithoutResults = remember(messages) {
+        val resultIds = messages.filter { it.role == "tool" }.mapNotNull { it.toolCallId }.toSet()
+        messages.associate { message -> message.id to message.toolCalls.orEmpty().filter { call ->
+            listOfNotNull(call.id, call.callId, call.responseItemId).none { it in resultIds }
+        } }
+    }
+    // A tool-only assistant envelope is represented by its result bars. Keep calls whose
+    // results are absent inspectable too, without adding an empty Hermes bubble.
+    val visibleMessages = remember(messages, callsWithoutResults) {
+        messages.filterNot { it.role == "assistant" && it.content.isNullOrBlank() &&
+            callsWithoutResults[it.id].isNullOrEmpty() && it.finishReason != "length" && it.reasoning.isNullOrBlank() && it.reasoningContent.isNullOrBlank() }
+    }
+    val groups = remember(visibleMessages) { groupTranscript(visibleMessages) }
+    val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
+    val readCallback by rememberUpdatedState(onReadThrough)
+    val mayRead = readEnabled && navigation == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
+    LaunchedEffect(listState, latestReply?.id, mayRead) {
+        if (mayRead && latestReply != null) {
+            val replyKey = groups.firstOrNull { group -> group.messages.any { it.id == latestReply.id } }?.key
+            snapshotFlow {
+                !listState.canScrollForward && listState.layoutInfo.visibleItemsInfo.any { it.key == replyKey }
+            }.collect { visible -> if (visible) readCallback(latestReply.id) }
+        }
+    }
+    if (navigation != null) {
+        ConversationNavigator(mode = navigation, messages = visibleMessages, onDismiss = onDismissNavigation,
+            onJump = { id ->
+                val index = groups.indexOfFirst { group -> group.messages.any { it.id == id } }
+                if (index >= 0) {
+                    browsingHistory = true
+                    followingTail = false
+                    highlightedId = id
+                    scope.launch { listState.scrollToItem(index) }
+                }
+                onDismissNavigation()
+            })
+    }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.weight(1f)) {
@@ -66,77 +210,157 @@ internal fun SessionDetailScreen(
                     }
 
                     is UiState.Ready -> {
-                        val listState = rememberLazyListState()
-                        val itemCount = history.value.size + if (turn is TurnState.Idle) 0 else 1
-                        val streamedLength = when (turn) {
-                            is TurnState.Streaming -> turn.text.length
-                            is TurnState.StoppedByUser -> turn.text.length
-                            is TurnState.Truncated -> turn.text.length
-                            is TurnState.Finished -> turn.text.length
-                            else -> 0
-                        }
-
-                        // Follow the tail as tokens arrive — but only the tail, and only when
-                        // the user is already there.
-                        //
-                        // Two bugs lived here. scrollToItem(index) aligns that item's *top*
-                        // with the viewport top, and a streaming reply is one single item that
-                        // grows, so every delta re-pinned the view to the top of the reply and
-                        // the visible text went backwards as it got longer. Hence the large
-                        // offset: it scrolls within the item to its end instead.
-                        //
-                        // And it re-ran on every delta regardless of where the user was, so
-                        // scrolling up to read earlier messages yanked you back a moment later.
-                        // Following now stops as soon as the last item is off screen, and
-                        // resumes when you scroll back to it.
-                        val followTail by remember {
-                            derivedStateOf {
-                                val info = listState.layoutInfo
-                                val lastVisible = info.visibleItemsInfo.lastOrNull()
-                                // Nothing laid out yet: follow, so a fresh turn starts pinned.
-                                lastVisible == null || lastVisible.index >= info.totalItemsCount - 1
+                        if (history.value.isEmpty() && turn is TurnState.Idle && pendingUserText == null) {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(28.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                BellpullMark(size = 48.dp)
+                                Text("What are we working on?", style = MaterialTheme.typography.titleLarge,
+                                    textAlign = TextAlign.Center)
+                                Text("Ask a question, explore an idea, or give Hermes a task.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center)
                             }
-                        }
-                        LaunchedEffect(itemCount, streamedLength) {
-                            if (itemCount > 0 && followTail) {
-                                listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
+                        } else {
+                            val itemCount = groups.size + (if (pendingUserText == null) 0 else 1) +
+                                (if (turn is TurnState.Idle) 0 else 1)
+                            LaunchedEffect(groups, turn, pendingUserText) {
+                                if (itemCount > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
+                                    listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
+                                }
                             }
-                        }
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(history.value, key = { it.id }) { MessageView(it) }
-                            if (turn !is TurnState.Idle) {
-                                item { TurnView(turn) }
+                            // Layout also grows with reasoning, tool animations, font scale or the keyboard.
+                            LaunchedEffect(listState) {
+                                snapshotFlow {
+                                    val info = listState.layoutInfo
+                                    Triple(info.totalItemsCount, info.visibleItemsInfo.lastOrNull()?.size, info.viewportEndOffset)
+                                }.collect { (count, _, _) ->
+                                    if (count > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
+                                        listState.scrollToItem(count - 1, SCROLL_TO_ITEM_END)
+                                    }
+                                }
+                            }
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize().testTag("transcript").nestedScroll(readerScroll),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                items(groups, key = { it.key }) { group ->
+                                    val render: @Composable (Message) -> Unit = { message ->
+                                        Box(Modifier.testTag("message-${message.id}").then(
+                                            if (highlightedId == message.id) Modifier.border(2.dp,
+                                                MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium).padding(6.dp)
+                                            else Modifier)) {
+                                            MessageView(message, toolCalls[message.toolCallId], callsWithoutResults[message.id].orEmpty(),
+                                                onReadMessage, onBranchMessage, readingMessageId == message.id,
+                                                branchingEnabled && !branchingSession && turn !is TurnState.Streaming,
+                                                collapseThinking, onFollowUp = { quoteMessage = it }, groupedTool = group.tools,
+                                                canEdit = editingEnabled && !branchingSession && turn !is TurnState.Streaming,
+                                                onEdit = { editingMessageId = it.id; editedText = it.content.orEmpty() })
+                                        }
+                                    }
+                                    if (group.tools) ToolGroup(group.messages.size,
+                                        forceExpanded = group.messages.any { it.id == highlightedId }) {
+                                        group.messages.forEachIndexed { index, message ->
+                                            if (index > 0) HorizontalDivider()
+                                            androidx.compose.runtime.key(message.id) { render(message) }
+                                        }
+                                    } else render(group.messages.single())
+                                }
+                                if (pendingUserText != null) item(key = "pending-user") {
+                                    PendingUserMessage(pendingUserText)
+                                }
+                                if (turn !is TurnState.Idle) {
+                                    item(key = "live-turn") { TurnView(turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
+                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it }) }
+                                }
+                            }
+                            if (browsingHistory || listState.canScrollForward) {
+                                Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                                    shape = MaterialTheme.shapes.large, tonalElevation = 6.dp, shadowElevation = 2.dp) {
+                                    TextButton(onClick = {
+                                        browsingHistory = false
+                                        followingTail = true
+                                        highlightedId = null
+                                        scope.launch { listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END) }
+                                    }) { Text("Jump to latest ↓") }
+                                }
                             }
                         }
                     }
                 }
             }
-            Composer(turn = turn, onSend = onSend, onStop = onStop, prefill = prefill)
+            if (branchingSession) {
+                Text("Creating branch…", style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+            Composer(turn = turn, onSend = onSend, onStop = onStop, busy = branchingSession, sendBlocked = sendBlocked,
+                draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus)
         }
     }
 }
 
 @Composable
-private fun MessageView(message: Message) {
+private fun MessageView(
+    message: Message, toolCall: ToolCall?, callsWithoutResults: List<ToolCall>,
+    onRead: (Message) -> Unit, onBranch: (Message) -> Unit, reading: Boolean, canBranch: Boolean,
+    collapseThinking: Boolean, onFollowUp: (Message) -> Unit, groupedTool: Boolean = false,
+    canEdit: Boolean = false, onEdit: (Message) -> Unit = {},
+) {
     when (message.role) {
-        "tool" -> ToolResultView(toolName = message.toolName, rawContent = message.content)
+        "tool" -> ToolResultView(toolName = message.toolName ?: toolCall?.function?.name,
+            rawContent = message.content, arguments = toolCall?.function?.arguments, grouped = groupedTool)
         else -> {
             val isUser = message.role == "user"
+            if (isUser) {
+                val copy = rememberMessageCopy()
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
+                        modifier = Modifier.fillMaxWidth(0.93f).combinedClickable(
+                            onClick = {}, onLongClickLabel = "Copy message",
+                            onLongClick = { copy(message.content.orEmpty()) },
+                        ),
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("You", style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary)
+                            Text(message.content.orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                            Row {
+                                TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
+                                if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
+                            }
+                        }
+                    }
+                }
+                return
+            }
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    if (isUser) "you" else message.role,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(message.content.orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                val reasoning = message.reasoningContent?.takeIf { it.isNotBlank() }
+                    ?: message.reasoning?.takeIf { it.isNotBlank() }
+                if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
+                if (!message.content.isNullOrBlank()) {
+                    if (message.role == "assistant") AssistantHeading()
+                    else Text(message.role, style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SelectionContainer { Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge) }
+                    if (message.role == "assistant" && !message.content.isNullOrBlank()) {
+                        MessageActions(message, reading, onRead, onBranch, canBranch, onFollowUp)
+                    }
+                }
+                callsWithoutResults.forEach { call ->
+                    ToolResultView(toolName = call.function?.name, rawContent = null, arguments = call.function?.arguments)
+                }
                 // A turn cut short by the provider has a finish_reason worth surfacing.
                 message.finishReason?.takeIf { it == "length" }?.let {
                     Text(
@@ -150,40 +374,60 @@ private fun MessageView(message: Message) {
     }
 }
 
+/** Local send acknowledged by Hermes, waiting for the canonical history row. */
+@Composable
+private fun PendingUserMessage(text: String) {
+    val copy = rememberMessageCopy()
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Surface(color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
+            modifier = Modifier.fillMaxWidth(.93f).combinedClickable(onClick = {},
+                onLongClickLabel = "Copy message", onLongClick = { copy(text) })) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("You", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(text, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
 /** The turn in flight, or how the last one ended. */
 @Composable
-private fun TurnView(turn: TurnState) {
+private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolean, collapseThinking: Boolean, reduceMotion: Boolean,
+    seenToolRows: List<String>, onToolRowSeen: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val text = when (turn) {
+        is TurnState.Streaming -> turn.text
+        is TurnState.Finished -> turn.text
+        is TurnState.StoppedByUser -> turn.text
+        is TurnState.Truncated -> turn.text
+        else -> ""
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            "assistant",
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurfaceVariant,
-        )
+        if (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed) AssistantHeading()
         when (turn) {
             is TurnState.Idle -> Unit
 
             is TurnState.Streaming -> {
+                if (turn.parts.isNotEmpty()) LiveTranscriptView(turn.parts, collapseThinking, reduceMotion, seenToolRows, onToolRowSeen)
+                else {
+                if (turn.reasoning.isNotBlank()) ThinkingBlock(turn.reasoning, collapseThinking)
                 if (turn.text.isNotEmpty()) {
-                    Text(turn.text, style = MaterialTheme.typography.bodyLarge)
+                    Text(transcriptText(turn.text), style = MaterialTheme.typography.bodyLarge)
                 }
                 turn.runningTool?.let {
-                    Surface(color = scheme.surfaceVariant, shape = MaterialTheme.shapes.medium) {
-                        Text(
-                            "running $it",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(8.dp),
-                        )
-                    }
+                    ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
+                }
                 }
                 Text(
-                    if (turn.stopRequested) "stopping…" else "streaming…",
+                    if (turn.stopRequested) "Stopping…" else turn.statusLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    color = scheme.onSurfaceVariant,
+                    color = scheme.primary,
+                    modifier = Modifier.testTag("stream-tail"),
                 )
             }
 
@@ -203,10 +447,23 @@ private fun TurnView(turn: TurnState) {
                 Banner(turn.error.toUserMessage(), scheme.errorContainer)
             }
 
-            is TurnState.Finished -> Text(turn.text, style = MaterialTheme.typography.bodyLarge)
+            is TurnState.Finished -> if (turn.text.isNotBlank()) Text(turn.text, style = MaterialTheme.typography.bodyLarge)
 
             is TurnState.Failed -> Banner(turn.error.toUserMessage(), scheme.errorContainer)
         }
+        if (turn !is TurnState.Streaming && text.isNotBlank()) {
+            MessageActions(Message(id = Int.MIN_VALUE, role = "assistant", content = text),
+                reading, onRead, {}, canBranch = false)
+        }
+    }
+}
+
+@Composable
+private fun AssistantHeading() {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        HermesMark(size = 22.dp)
+        Text("Hermes", style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -222,37 +479,64 @@ private fun Composer(
     turn: TurnState,
     onSend: (String) -> Unit,
     onStop: () -> Unit,
-    prefill: String,
+    busy: Boolean,
+    draft: TextFieldValue,
+    onDraftChange: (TextFieldValue) -> Unit,
+    focusRequester: FocusRequester,
+    sendBlocked: Boolean = false,
 ) {
-    // Keyed on prefill so a query handed over from the search bar seeds the field, and a
-    // later prefill replaces it, without discarding what the user has typed in between.
-    var draft by remember(prefill) { mutableStateOf(prefill) }
     val streaming = turn as? TurnState.Streaming
-    Surface(tonalElevation = 3.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                label = { Text("Message Hermes") },
-                enabled = streaming == null,
-                modifier = Modifier.weight(1f),
-            )
-            if (streaming != null) {
-                // Disabled until the first delta: stop before the agent is registered returns
-                // 409 run_not_active (Gate 0d).
-                OutlinedButton(
-                    onClick = onStop,
-                    enabled = streaming.canStop && !streaming.stopRequested,
-                ) { Text("Stop") }
-            } else {
-                Button(
-                    onClick = { onSend(draft); draft = "" },
-                    enabled = draft.isNotBlank(),
-                ) { Text("Send") }
+    var focused by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            Column {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = BottomBarPadding),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    BasicTextField(
+                        value = draft,
+                        onValueChange = onDraftChange,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        maxLines = 5,
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f).focusRequester(focusRequester)
+                            .onFocusChanged { focused = it.isFocused }
+                            .semantics { contentDescription = "Message Hermes" }
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.medium)
+                            .border(1.dp, if (focused) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.shapes.medium),
+                        decorationBox = { field ->
+                            Box(Modifier.heightIn(min = BottomControlHeight).padding(horizontal = 12.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.CenterStart) {
+                                if (draft.text.isEmpty()) Text("Message Hermes", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                field()
+                            }
+                        },
+                    )
+                    if (streaming != null) {
+                        // Disabled until the first delta: stop before the agent is registered returns
+                        // 409 run_not_active (Gate 0d).
+                        OutlinedButton(
+                            onClick = onStop,
+                            enabled = streaming.canStop && !streaming.stopRequested,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.heightIn(min = BottomControlHeight),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        ) { Text("Stop") }
+                    } else {
+                        Button(
+                            onClick = { onSend(draft.text) },
+                            enabled = draft.text.isNotBlank() && !busy && !sendBlocked,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.heightIn(min = BottomControlHeight),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        ) { Text("Send") }
+                    }
+                }
             }
         }
     }

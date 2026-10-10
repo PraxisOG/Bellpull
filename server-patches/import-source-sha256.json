@@ -1,0 +1,143 @@
+{
+  "source": "/home/praxisog/hermes-agent/patches",
+  "imported_on": "2026-10-09",
+  "note": "Source hashes before import. Copied test_phase2.py adds two comments identifying dummy credentials; executable behavior is unchanged.",
+  "files": [
+    {
+      "path": "selected-reply-fork/.dockerignore",
+      "sha256": "5d3d688a375a638e78946ba09b63c6e7fbc5d3734a4378a01211d62a6b178be8"
+    },
+    {
+      "path": "selected-reply-fork/Dockerfile",
+      "sha256": "35b7386289dae49ce6c163d085825e1bdce943f8843ddef07412f6ad5ba7a6e9"
+    },
+    {
+      "path": "selected-reply-fork/README.md",
+      "sha256": "8873cc88811a48cfd2a8f5ecc76d37fa2e9ef4098701764443e978c691477292"
+    },
+    {
+      "path": "selected-reply-fork/activate.sh",
+      "sha256": "8d31a22dea7346e3a36de5a8c6e0bcd23d51f974206c438a7fba7443a94d397a"
+    },
+    {
+      "path": "selected-reply-fork/original/gateway/platforms/api_server.py",
+      "sha256": "221589ae8c45349736bb291b4679b86e9e12cb22f5a33220ae3d22929fea8297"
+    },
+    {
+      "path": "selected-reply-fork/original/hermes_state.py",
+      "sha256": "9353e4fa0a8353b3e50b1945a87a898cf88b647ef726a4bab8ce5f65dffec431"
+    },
+    {
+      "path": "selected-reply-fork/original/hermes_state_messages.py",
+      "sha256": "2aa0a34956ed2c4068c18005cf542117534cefed888cdda1bfa5d74fae699a3b"
+    },
+    {
+      "path": "selected-reply-fork/original/hermes_state_sessions.py",
+      "sha256": "a2f35ae3c296a0beb2869b51d0a1761ae17c2e5163278c6298ee9a0ba9fae931"
+    },
+    {
+      "path": "selected-reply-fork/patched/gateway/platforms/api_server.py",
+      "sha256": "7b6d1e50551f254ec7cc65ba836deb858ce16cd408c5e4667750710eb7d2736a"
+    },
+    {
+      "path": "selected-reply-fork/revisions/initial-api_server.py",
+      "sha256": "7322781490a53524a6d0f9399ccd0266a6eec1789c56a73f90d0dcd05db68044"
+    },
+    {
+      "path": "selected-reply-fork/selected-reply-fork.patch",
+      "sha256": "d48e778ae4efa4f466a65c7533eab7e73241e1e3db3dbeedd8c5a70fb0fed34f"
+    },
+    {
+      "path": "selected-reply-fork/source-sha256.txt",
+      "sha256": "581157ced67521f3024ce248bc706f0101f30e192ad3928a84080148c94167b2"
+    },
+    {
+      "path": "selected-reply-fork/test_selected_fork.py",
+      "sha256": "41a650eeb5f373046c3bd5f51223d79733fd2be92c776e610a5c09aa8907d1b9"
+    },
+    {
+      "path": "bellpull-edit-fork/.dockerignore",
+      "sha256": "8910762cbde3c0af7d6ba94545d97bf4d76f2036aca5c665575d8441a5b7a18a"
+    },
+    {
+      "path": "bellpull-edit-fork/Dockerfile",
+      "sha256": "0146786a7fc308c372bd64f9f0784795582003ace1ee92c0c553385a54865eed"
+    },
+    {
+      "path": "bellpull-edit-fork/README.md",
+      "sha256": "d795d22bb0cf65133f2eb4c27f2bea3ff17be9d33f8a9ce7962fefa2b57aef97"
+    },
+    {
+      "path": "bellpull-edit-fork/activate.sh",
+      "sha256": "8d31a22dea7346e3a36de5a8c6e0bcd23d51f974206c438a7fba7443a94d397a"
+    },
+    {
+      "path": "bellpull-edit-fork/bellpull-edit-fork.patch",
+      "sha256": "1cd2cefb63512a72956210fbae61be37b618bb9cff2c3e3c19db7779b6000fd4"
+    },
+    {
+      "path": "bellpull-edit-fork/original/gateway/platforms/api_server.py",
+      "sha256": "7b6d1e50551f254ec7cc65ba836deb858ce16cd408c5e4667750710eb7d2736a"
+    },
+    {
+      "path": "bellpull-edit-fork/patched/gateway/platforms/api_server.py",
+      "sha256": "c78f7856a4d93ce9b350ab4a920fda9d9f65c5b0b51f4406dc539ad8291e1e3d"
+    },
+    {
+      "path": "bellpull-edit-fork/source-sha256.txt",
+      "sha256": "c64b46cc80b5704bc3f833a84abf735c4dd133f87d3b7cef67c68bf12d0fa71d"
+    },
+    {
+      "path": "bellpull-edit-fork/test_selected_fork.py",
+      "sha256": "d1de231a381505e5a0f3890d8ba74204a2c4336bfdf7fa95159a86dccfbf3db6"
+    },
+    {
+      "path": "bellpull-phase2/Dockerfile",
+      "sha256": "c6c83eb52448c53cd2aacb575063348ea33f4c0ee2bb5ca774c8e401041de68d"
+    },
+    {
+      "path": "bellpull-phase2/README.md",
+      "sha256": "791a6a60949b03fe4668dc687f59deb2b2ba4841473c1707e6e73a67cf77346d"
+    },
+    {
+      "path": "bellpull-phase2/activate.py",
+      "sha256": "51850ed1c9cb3afa10c50c8e5d5bafe4a11257968b5945275bfabdac91c4e594"
+    },
+    {
+      "path": "bellpull-phase2/original/gateway/platforms/api_server.py",
+      "sha256": "c78f7856a4d93ce9b350ab4a920fda9d9f65c5b0b51f4406dc539ad8291e1e3d"
+    },
+    {
+      "path": "bellpull-phase2/original/gateway/platforms/api_server_runs.py",
+      "sha256": "270f7e221b5486a6ac499732d0f5471f3f48dc0c0a0633186bc762bcb1345a39"
+    },
+    {
+      "path": "bellpull-phase2/original/tools/approval_context.py",
+      "sha256": "91b086647fed3d5e23c2ef350d87f963530c0ec53d9373d5ef069dfbad022479"
+    },
+    {
+      "path": "bellpull-phase2/patched/gateway/platforms/api_server.py",
+      "sha256": "a461ceb84686b25bb65a1942addb85249db191ad2083ec38f7ba1b7cda8e2888"
+    },
+    {
+      "path": "bellpull-phase2/patched/gateway/platforms/api_server_bellpull.py",
+      "sha256": "d3a158157737fe3edf60ec53e147f2c71857f58f67a6c476659d40813f8eb101"
+    },
+    {
+      "path": "bellpull-phase2/patched/gateway/platforms/api_server_runs.py",
+      "sha256": "2c3682a73061e67a46d7dc9d8aebbf2de6331c50bb1792492d214ab9c82cdb20"
+    },
+    {
+      "path": "bellpull-phase2/patched/tools/approval_context.py",
+      "sha256": "4d0f89b85f44970776de0e6c229d46070d6f205180776d6fb5759c164b65e36b"
+    },
+    {
+      "path": "bellpull-phase2/phase2.patch",
+      "sha256": "4d04d614f7c82654520db76ba9c886e3dd8c9bc1146a060435a907e388122bde"
+    },
+    {
+      "path": "bellpull-phase2/test_phase2.py",
+      "sha256": "573e4c8cea4871c1b2dbd063eae6ab76eb573fd19509f0258bfd640e1b96e552"
+    }
+  ]
+}

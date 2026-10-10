@@ -5,6 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.assertCountEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,10 +49,16 @@ class PaneToggleTest {
         }
     }
 
+    private fun toggleInfo(label: String) {
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText(label).performClick()
+    }
+
     @Test fun bothPanesStartVisibleAtUnfoldedWidth() {
         setUp()
         compose.onNodeWithText(listOnlyText).assertIsDisplayed()
         compose.onNodeWithText(contextOnlyText).assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("New chat").assertCountEquals(1)
     }
 
     @Test fun sessionsPaneCollapsesAndRestores() {
@@ -63,9 +71,9 @@ class PaneToggleTest {
 
     @Test fun statsPaneCollapsesAndRestores() {
         setUp()
-        compose.onNodeWithContentDescription("Hide stats").performClick()
+        compose.onNodeWithContentDescription("Close context").performClick()
         compose.onNodeWithText(contextOnlyText).assertDoesNotExist()
-        compose.onNodeWithContentDescription("Show stats").performClick()
+        toggleInfo("Session info")
         compose.onNodeWithText(contextOnlyText).assertIsDisplayed()
     }
 
@@ -74,11 +82,12 @@ class PaneToggleTest {
         // way back. The bar lives in the transcript column precisely so that cannot happen.
         setUp()
         compose.onNodeWithContentDescription("Hide sessions").performClick()
-        compose.onNodeWithContentDescription("Hide stats").performClick()
+        toggleInfo("Hide session info")
         compose.onNodeWithText(listOnlyText).assertDoesNotExist()
         compose.onNodeWithText(contextOnlyText).assertDoesNotExist()
         compose.onNodeWithContentDescription("Show sessions").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Show stats").assertIsDisplayed()
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Session info").assertIsDisplayed()
     }
 
     @Test fun theBarIsReachableWithNoSessionOpen() {

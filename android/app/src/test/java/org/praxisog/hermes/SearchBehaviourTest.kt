@@ -31,15 +31,20 @@ class SearchBehaviourTest {
     private var launched: LaunchableApp? = null
     private var asked: String? = null
 
-    private fun setUp(query: String) {
+    private fun setUp(
+        query: String,
+        sessions: List<org.praxisog.hermes.model.Session> = UiFixtures.sessions,
+        createError: org.praxisog.hermes.model.HermesError? = null,
+    ) {
         compose.setContent {
             SessionListScreen(
-                state = UiState.Ready(UiFixtures.sessions),
+                state = UiState.Ready(sessions),
                 now = UiFixtures.NOW,
                 selectedId = null,
                 onOpen = {},
                 onRetry = {},
                 onNewSession = {},
+                createError = createError,
                 query = query,
                 onQueryChange = {},
                 apps = apps,
@@ -88,5 +93,17 @@ class SearchBehaviourTest {
         setUp("")
         compose.onNodeWithText("Ask Hermes").assertDoesNotExist()
         compose.onNodeWithText("Widget cold-start timings").assertIsDisplayed()
+    }
+
+    @Test fun aFailedFirstChatShowsItsErrorOnAnEmptyList() {
+        setUp("", sessions = emptyList(), createError = UiFixtures.authFailure)
+        compose.onNodeWithText(UiFixtures.authFailure.toUserMessage()).assertIsDisplayed()
+        compose.onNodeWithContentDescription("New chat").assertIsDisplayed()
+    }
+
+    @Test fun aFailedAskHermesShowsItsErrorAboveSearchResults() {
+        setUp("what is the tailnet IP", createError = UiFixtures.authFailure)
+        compose.onNodeWithText(UiFixtures.authFailure.toUserMessage()).assertIsDisplayed()
+        compose.onNodeWithText("Ask Hermes").assertIsDisplayed()
     }
 }

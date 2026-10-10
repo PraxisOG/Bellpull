@@ -27,6 +27,9 @@ data class RunStatus(
     @SerialName("updated_at") val updatedAt: Double? = null,
     /** Left as raw JSON: Tier 1 does not read usage, and its shape is not pinned down. */
     val usage: JsonObject? = null,
+    val output: String? = null,
+    val error: String? = null,
+    val approval: RunApproval? = null,
 ) {
     /** Statuses observed live. A stop moves a run here before it settles. */
     val isStopping: Boolean get() = status == "stopping"
@@ -34,6 +37,40 @@ data class RunStatus(
 
 
     companion object {
-        private val TERMINAL = setOf("completed", "failed", "cancelled", "stopped")
+        private val TERMINAL = setOf("completed", "failed", "cancelled", "stopped", "interrupted")
     }
+}
+
+@Serializable
+data class RunAdmission(
+    @SerialName("run_id") val runId: String,
+    val status: String,
+    val replayed: Boolean = false,
+)
+
+@Serializable
+data class RunApproval(
+    @SerialName("request_id") val requestId: String = "",
+    val command: String? = null,
+    val description: String? = null,
+    val choices: List<String> = emptyList(),
+)
+
+/** Exact submitted payload identity, saved before the first network request. */
+@Serializable
+data class RunSubmission(
+    val requestId: String,
+    val sessionId: String,
+    val text: String,
+    val createdAt: Double,
+    val draftRevision: Long,
+    val previousIds: Set<Int>,
+    val runId: String? = null,
+    val status: String = "submitting",
+    val stopRequested: Boolean = false,
+    val historySynced: Boolean = false,
+    val error: String? = null,
+    val interactiveApprovals: Boolean = false,
+) {
+    val terminal: Boolean get() = status in setOf("completed", "failed", "cancelled", "stopped", "interrupted", "rejected", "abandoned")
 }

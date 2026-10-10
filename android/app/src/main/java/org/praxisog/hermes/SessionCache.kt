@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context) : SessionSnapshots {
+internal class SessionCache(context: Context) : SessionSnapshots, RunJournal, ReplyCursorStore {
 
     private val preferences = EncryptedSharedPreferences.create(
         context,
@@ -52,6 +52,71 @@ internal class SessionCache(context: Context) : SessionSnapshots {
                 .commit()
         }
     }
+
+    /** Phone-owned drafts share the existing encrypted storage boundary, never server sync. */
+    fun readDrafts(): Map<String, androidx.compose.ui.text.input.TextFieldValue> = runCatching {
+        preferences.all.filterKeys { it.startsWith("draft:") }.mapNotNull { (key, raw) ->
+            runCatching {
+                val value = org.json.JSONObject(raw as String)
+                val text = value.getString("text")
+                key.removePrefix("draft:") to androidx.compose.ui.text.input.TextFieldValue(text,
+                    androidx.compose.ui.text.TextRange(value.optInt("start").coerceIn(0, text.length),
+                        value.optInt("end").coerceIn(0, text.length)))
+            }.getOrNull()
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    fun writeDraft(id: String, value: androidx.compose.ui.text.input.TextFieldValue, revision: Long = 0) {
+        val edit = preferences.edit()
+        edit.putLong("draft_revision:$id", revision)
+        if (value.text.isEmpty()) edit.remove("draft:$id")
+        else edit.putString("draft:$id", org.json.JSONObject().put("text", value.text)
+            .put("start", value.selection.start).put("end", value.selection.end).toString())
+        edit.apply()
+    }
+
+    fun lastSession(): String? = preferences.getString("last_session", null)
+    fun rememberSession(id: String?) { preferences.edit().putString("last_session", id).apply() }
+
+    fun readReceipts(): Map<String, ConversationReceipt> = runCatching {
+        preferences.all.filterKeys { it.startsWith("read:") }.mapNotNull { (key, raw) ->
+            runCatching {
+                val fields = json.decodeFromString<Map<String, Int>>(raw as String)
+                key.removePrefix("read:") to ConversationReceipt(fields.getValue("readThrough"), fields.getValue("unreadReply"))
+            }.getOrNull()
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    fun writeReceipt(id: String, receipt: ConversationReceipt) {
+        preferences.edit().putString("read:$id", json.encodeToString(mapOf(
+            "readThrough" to receipt.readThrough, "unreadReply" to receipt.unreadReply))).apply()
+    }
+
+    fun draftRevision(id: String): Long = preferences.getLong("draft_revision:$id", 1L)
+    fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
+        .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
+    fun readCapabilities(): String? = preferences.getString("capabilities", null)
+    fun writeCapabilities(raw: String) { preferences.edit().putString("capabilities", raw).apply() }
+
+    override fun readRuns(): List<org.praxisog.hermes.model.RunSubmission> = preferences.all
+        .filterKeys { it.startsWith("run:") }.values.mapNotNull { raw ->
+            runCatching { json.decodeFromString<org.praxisog.hermes.model.RunSubmission>(raw as String) }.getOrNull()
+        }
+
+    override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = preferences.edit()
+        .putString("run:${value.requestId}", json.encodeToString(value)).commit()
+
+    override fun readCursor(id: String): ReplyCursor? = preferences.getString("reply_cursor:$id", null)?.let { raw ->
+        runCatching { org.json.JSONObject(raw).let { ReplyCursor(it.getDouble("activity"), it.getInt("count"), it.getInt("replyId")) } }.getOrNull()
+    }
+    override fun writeCursor(id: String, value: ReplyCursor) {
+        check(preferences.edit().putString("reply_cursor:$id", org.json.JSONObject()
+            .put("activity", value.activity).put("count", value.count).put("replyId", value.replyId).toString()).commit())
+    }
+    fun notifiedReply(id: String): Int = preferences.getInt("notified_reply:$id", 0)
+    fun rememberNotifiedReply(id: String, messageId: Int) { preferences.edit().putInt("notified_reply:$id", messageId).apply() }
+    fun wasNotified(identity: String): Boolean = preferences.getBoolean("notified:$identity", false)
+    fun rememberNotified(identity: String) { preferences.edit().putBoolean("notified:$identity", true).apply() }
 
     /** Wiped on disconnect: a rotated key must not leave the previous transcripts readable. */
     override fun clear() {

@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -31,10 +32,17 @@ class HermesAppScreenshotTest {
         thenTapContentDescription: String? = null,
     ) {
         compose.setContent { app(openSessionId = "api_1_alpha") }
-        compose.onNodeWithContentDescription(tapContentDescription).performClick()
-        thenTapContentDescription?.let {
-            compose.onNodeWithContentDescription(it).performClick()
+        fun tap(description: String) {
+            if (description == "Hide stats") {
+                compose.onNodeWithContentDescription("More options").performClick()
+                compose.onNodeWithText("Hide session info").performClick()
+            } else compose.onNodeWithContentDescription(description).performClick()
         }
+        tap(tapContentDescription)
+        thenTapContentDescription?.let { tap(it) }
+        // Menu dismissal and pane relayout must reach a rendered frame before capture.
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
         compose.onRoot().captureRoboImage()
     }
 
@@ -88,6 +96,14 @@ class HermesAppScreenshotTest {
     /** Wide enough for all three panes, which is where context is shown by default. */
     @Test @Config(qualifiers = "w1280dp-h900dp") fun threePaneWide() =
         capture(openSessionId = "api_1_alpha")
+
+    @Test @Config(qualifiers = "w393dp-h850dp-night") fun detailCoverDark() =
+        capture(openSessionId = "api_1_alpha")
+
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun threePaneUnfoldedDark() =
+        capture(openSessionId = "api_1_alpha")
+
+    @Test @Config(qualifiers = "w393dp-h850dp-night") fun listCoverDark() = capture(openSessionId = null)
 
     // The collapse states. Roborazzi can capture after an interaction, which is what makes
     // these reachable: tap a toggle, then shoot.

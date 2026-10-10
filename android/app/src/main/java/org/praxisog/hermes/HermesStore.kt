@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,7 +31,62 @@ internal class HermesStore(
     /** Null disables caching, which is what the contract tests want. */
     private val cache: SessionSnapshots? = null,
     private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
+    val supportsMessageBranching: Boolean = false,
+    val drafts: ChatDrafts = ChatDrafts(),
+    val supportsPromptEditing: Boolean = false,
+    val readState: ConversationReadState = ConversationReadState(),
+    durableRetention: Long? = null,
+    journal: RunJournal? = null,
 ) {
+    val runs = if (durableRetention != null && journal != null)
+        DurableRuns(scope, client, journal, drafts, durableRetention, clock) else null
+    var onReply: (String, Message) -> Unit = { _, _ -> }
+    var onAttention: (String, String) -> Unit = { _, _ -> }
+    var onSessions: (List<Session>) -> Unit = {}
+    val runPresentation: RunPresentation? get() = openSessionId?.let { runs?.states?.get(it) }
+    val runLabels: Map<String, String> get() = runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
+
+    init {
+        runs?.onChanged = { id -> if (id == openSessionId) showDurableRun(id) }
+        runs?.onHistory = { id, messages ->
+            if (id == openSessionId) {
+                history = UiState.Ready(messages)
+                pendingUserText = null
+            }
+        }
+        runs?.onCompleted = { id, reply ->
+            if (reply != null) {
+                discoveredReply(id, reply)
+            }
+            loadSessions()
+        }
+        runs?.onAttention = { id, identity -> onAttention(id, identity) }
+    }
+
+    fun startRecovery() { runs?.restore() }
+    fun discoveredReply(id: String, reply: Message) {
+        val old = readState.snapshot()[id]?.unreadReply ?: 0
+        readState.completed(id, reply.id)
+        if (reply.id > old) {
+            completionRevision++
+            onReply(id, reply)
+        }
+    }
+    fun close() { runs?.close() }
+    fun retryRun() { openSessionId?.let { runs?.retry(it) } }
+    fun abandonRunAfterReview() { openSessionId?.let { runs?.abandonAfterReview(it) } }
+    fun respondToApproval(requestId: String, choice: String) { openSessionId?.let { runs?.respond(it, requestId, choice) } }
+    private fun showDurableRun(id: String) {
+        val run = runs?.states?.get(id) ?: return
+        turn = run.turn
+        val saved = (history as? UiState.Ready)?.value.orEmpty()
+        pendingUserText = run.submission.text.takeIf { run.submission.runId != null && saved.none { message ->
+            message.id !in run.submission.previousIds && message.role == "user" && message.content?.trim() == it.trim()
+        } }
+    }
+    /** A list reveal request, including a new reply in the chat already at index zero. */
+    var completionRevision by mutableStateOf(0L)
+        private set
     var sessions by mutableStateOf<UiState<List<Session>>>(UiState.Loading)
         private set
     var history by mutableStateOf<UiState<List<Message>>>(UiState.Loading)
@@ -42,6 +98,11 @@ internal class HermesStore(
 
     /** True while a create is in flight, so the button cannot be double-tapped. */
     var creatingSession by mutableStateOf(false)
+        private set
+
+    var branchingSession by mutableStateOf(false)
+        private set
+    var branchError by mutableStateOf<HermesError?>(null)
         private set
 
     /** Set when a create fails; cleared on the next attempt. */
@@ -67,9 +128,25 @@ internal class HermesStore(
     var pendingPrompt by mutableStateOf("")
         private set
 
+    /** Accepted prompt shown in the transcript until its server history row arrives. */
+    var pendingUserText by mutableStateOf<String?>(null)
+        private set
+
     /** Non-null while a turn is in flight, so a stop has something to target. */
     private var activeRunId: String? = null
     private var stopRequested = false
+    @Volatile private var sessionRevision = 0L
+    private var historyRequest = 0L
+    private var sessionsRequest = 0L
+    private var turnHistoryIds = emptySet<Int>()
+    private var sentPrompt: String? = null
+    private data class SubmittedDraft(val revision: Long, val text: String, val previousIds: Set<Int>)
+    private val submittedDrafts = mutableMapOf<String, SubmittedDraft>()
+    val draft: androidx.compose.ui.text.input.TextFieldValue
+        get() = openSessionId?.let { drafts[it] } ?: androidx.compose.ui.text.input.TextFieldValue()
+    fun updateDraft(value: androidx.compose.ui.text.input.TextFieldValue) {
+        openSessionId?.let { drafts.set(it, value) }
+    }
 
     val openSession: Session?
         get() = (sessions as? UiState.Ready)?.value?.firstOrNull { it.id == openSessionId }
@@ -88,13 +165,17 @@ internal class HermesStore(
      * "you have no sessions", which is a different and wrong claim.
      */
     fun loadSessions() {
+        val request = ++sessionsRequest
         scope.launch {
             if (sessions !is UiState.Ready) sessions = UiState.Loading
-            when (val result = io { client.listSessions(source = sessionSource) }) {
+            val result = io { client.listSessions(source = sessionSource) }
+            if (request != sessionsRequest) return@launch
+            when (result) {
                 is HermesResult.Ok -> {
                     offline = null
                     sessions = UiState.Ready(result.value.data)
                     cache?.write(result.value.data, clock())
+                    onSessions(result.value.data)
                 }
                 is HermesResult.Err -> {
                     val cached = io { cache?.read() }
@@ -136,6 +217,53 @@ internal class HermesStore(
         }
     }
 
+    fun branchMessage(message: Message) {
+        val sourceId = openSessionId ?: return
+        if (!supportsMessageBranching || branchingSession || turn is TurnState.Streaming) return
+        val saved = (history as? UiState.Ready)?.value?.firstOrNull { it.id == message.id } ?: return
+        if (saved.role != "assistant" || saved.content.isNullOrBlank()) return
+        val revision = sessionRevision
+        branchingSession = true
+        branchError = null
+        scope.launch {
+            val result = io { client.branchSession(sourceId, saved.id) }
+            branchingSession = false
+            when (result) {
+                is HermesResult.Ok -> {
+                    loadSessions()
+                    // Navigating during the request must not pull the user out of another chat.
+                    if (revision == sessionRevision) openSession(result.value.id)
+                }
+                is HermesResult.Err -> if (revision == sessionRevision) branchError = result.error
+            }
+        }
+    }
+
+    fun forkAndEdit(message: Message, edited: String) {
+        val sourceId = openSessionId ?: return
+        if (!supportsPromptEditing || branchingSession || turn is TurnState.Streaming || edited.isBlank()) return
+        val saved = (history as? UiState.Ready)?.value?.firstOrNull { it.id == message.id } ?: return
+        if (saved.role != "user") return
+        val revision = sessionRevision
+        branchingSession = true
+        branchError = null
+        scope.launch {
+            val result = io { client.branchBeforeMessage(sourceId, saved.id) }
+            branchingSession = false
+            when (result) {
+                is HermesResult.Ok -> {
+                    drafts.set(result.value.id, androidx.compose.ui.text.input.TextFieldValue(
+                        edited, androidx.compose.ui.text.TextRange(edited.length)))
+                    loadSessions()
+                    if (revision == sessionRevision) openSession(result.value.id)
+                }
+                is HermesResult.Err -> if (revision == sessionRevision) branchError = result.error
+            }
+        }
+    }
+
+    fun dismissBranchError() { branchError = null }
+
     fun setQuery(value: String) {
         searchQuery = value
     }
@@ -162,6 +290,8 @@ internal class HermesStore(
             when (val result = io { client.createSession(title = prompt.take(60)) }) {
                 is HermesResult.Ok -> {
                     creatingSession = false
+                    drafts.set(result.value.id, androidx.compose.ui.text.input.TextFieldValue(
+                        prompt, androidx.compose.ui.text.TextRange(prompt.length)))
                     pendingPrompt = prompt
                     searchQuery = ""
                     loadSessions()
@@ -176,14 +306,26 @@ internal class HermesStore(
     }
 
     fun openSession(sessionId: String) {
+        pendingUserText = null
+        sessionRevision++
+        historyRequest++
+        sentPrompt = null
+        branchError = null
+        history = UiState.Loading
         openSessionId = sessionId
         turn = TurnState.Idle
         activeRunId = null
         stopRequested = false
+        showDurableRun(sessionId)
         refreshHistory()
     }
 
     fun closeSession() {
+        pendingUserText = null
+        sessionRevision++
+        historyRequest++
+        sentPrompt = null
+        branchError = null
         openSessionId = null
         history = UiState.Loading
         turn = TurnState.Idle
@@ -191,10 +333,37 @@ internal class HermesStore(
 
     fun refreshHistory() {
         val sessionId = openSessionId ?: return
+        val revision = sessionRevision
+        val request = ++historyRequest
         scope.launch {
-            history = when (val result = io { client.messages(sessionId) }) {
-                is HermesResult.Ok -> UiState.Ready(result.value.data)
-                is HermesResult.Err -> UiState.Failed(result.error)
+            val result = io { client.messages(sessionId) }
+            if (revision != sessionRevision || request != historyRequest) return@launch
+            when (result) {
+                is HermesResult.Ok -> Snapshot.withMutableSnapshot {
+                    // Publish the canonical history and remove its temporary stream copy in
+                    // one snapshot, so there is no frame with two copies of the answer.
+                    submittedDrafts[sessionId]?.let { submitted ->
+                        if (result.value.data.any { it.id !in submitted.previousIds && it.role == "user" &&
+                                it.content?.trim() == submitted.text.trim() }) {
+                            drafts.accepted(sessionId, submitted.revision)
+                            submittedDrafts.remove(sessionId)
+                        }
+                    }
+                    history = UiState.Ready(result.value.data)
+                    if (runs != null) {
+                        showDurableRun(sessionId)
+                        val record = runs.states[sessionId]?.submission
+                        if (record != null) turn = reconcileTurn(turn, result.value.data, record.previousIds, record.text)
+                    }
+                    if (result.value.data.any { it.id !in turnHistoryIds && it.role == "user" &&
+                            it.content?.trim() == pendingUserText?.trim() }) pendingUserText = null
+                    turn = reconcileTurn(turn, result.value.data, turnHistoryIds, sentPrompt)
+                }
+                is HermesResult.Err -> {
+                    // Keep the readable transcript and unsaved stream text on a failed
+                    // refresh. Opening an unreadable session still presents its retry UI.
+                    if (history !is UiState.Ready) history = UiState.Failed(result.error)
+                }
             }
         }
     }
@@ -211,8 +380,21 @@ internal class HermesStore(
      */
     fun send(text: String) {
         val sessionId = openSessionId ?: return
-        if (text.isBlank() || turn is TurnState.Streaming) return
+        if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return
 
+        if (runs != null) {
+            // Do not submit while the prior canonical history is unknown.
+            val saved = (history as? UiState.Ready)?.value ?: return
+            pendingPrompt = ""
+            runs.send(sessionId, text, saved.map { it.id }.toSet())
+            return
+        }
+
+        val revision = sessionRevision
+        turnHistoryIds = (history as? UiState.Ready)?.value.orEmpty().map { it.id }.toSet()
+        sentPrompt = text
+        val submitted = SubmittedDraft(drafts.revision(sessionId), text, turnHistoryIds)
+        submittedDrafts[sessionId] = submitted
         stopRequested = false
         activeRunId = null
         pendingPrompt = ""
@@ -220,29 +402,69 @@ internal class HermesStore(
 
         scope.launch {
             val accumulated = StringBuilder()
+            val reasoning = StringBuilder()
+            val live = LiveTranscript()
             val result = io {
                 client.streamTurn(sessionId, text) { event ->
+                    // run.started acknowledges this request before prose OR tool output.
+                    // Clear only the submitted revision, on the UI scope used by draft persistence.
+                    // Even if the reader switched chats, this acknowledgement belongs to this draft.
+                    if (event is StreamEvent.RunStarted && !event.runId.isNullOrBlank()) scope.launch {
+                        if (submittedDrafts[sessionId] === submitted) {
+                            drafts.accepted(sessionId, submitted.revision)
+                            submittedDrafts.remove(sessionId)
+                            if (revision == sessionRevision && (history as? UiState.Ready)?.value.orEmpty().none {
+                                    it.id !in submitted.previousIds && it.role == "user" && it.content?.trim() == text.trim()
+                                }) pendingUserText = text
+                        }
+                    }
+                    // A response from a session we left must not overwrite the next chat.
+                    if (revision != sessionRevision) return@streamTurn
+                    live.accept(event)
                     when (event) {
                         is StreamEvent.RunStarted -> activeRunId = event.runId
                         is StreamEvent.AssistantDelta -> {
                             accumulated.append(event.delta)
                             // canStop only once a delta has landed: stopping before the agent
                             // is registered returns 409 run_not_active (Gate 0d).
-                            postStreaming(accumulated.toString(), tool = null, canStop = true)
+                            postStreaming(accumulated.toString(), tool = null, canStop = true, parts = live.parts)
+                        }
+                        is StreamEvent.ToolProgress -> if (event.toolName == "_thinking" && event.delta != null) {
+                            reasoning.append(event.delta)
+                            postStreaming(accumulated.toString(), tool = null, canStop = true, reasoning = reasoning.toString(), parts = live.parts)
                         }
                         is StreamEvent.ToolStarted -> postStreaming(
                             accumulated.toString(),
                             tool = event.preview ?: event.toolName,
-                            canStop = true,
+                            toolName = event.toolName,
+                            canStop = true, parts = live.parts,
                         )
                         is StreamEvent.ToolCompleted -> postStreaming(
-                            accumulated.toString(), tool = null, canStop = true,
+                            accumulated.toString(), tool = null, canStop = true, parts = live.parts,
                         )
                         else -> Unit
                     }
                 }
             }
 
+            loadSessions()
+            if (result is HermesResult.Ok) scope.launch {
+                // Completion belongs to the submitted conversation, even after navigation.
+                // Only a fresh saved assistant reply earns an unread dot; tool activity,
+                // failed requests and timestamps alone do not.
+                val saved = io { client.messages(sessionId) }
+                if (saved is HermesResult.Ok) {
+                    val fresh = saved.value.data.filter { it.id !in submitted.previousIds }
+                    val promptIndex = fresh.indexOfLast { it.role == "user" && it.content?.trim() == submitted.text.trim() }
+                    if (promptIndex >= 0) fresh.drop(promptIndex + 1).lastOrNull {
+                        it.role == "assistant" && !it.content.isNullOrBlank()
+                    }?.let { reply ->
+                        readState.completed(sessionId, reply.id)
+                        completionRevision++
+                    }
+                }
+            }
+            if (revision != sessionRevision) return@launch
             val text = accumulated.toString()
             turn = when {
                 // Gate 0d: a stopped turn reports completed:true, interrupted:false, so this
@@ -269,6 +491,7 @@ internal class HermesStore(
      * the user asks, because the server will never tell us the turn was interrupted.
      */
     fun stop() {
+        if (runs != null) { openSessionId?.let { runs.stop(it) }; return }
         val runId = activeRunId ?: return
         val streaming = turn as? TurnState.Streaming ?: return
         if (streaming.stopRequested) return
@@ -289,7 +512,7 @@ internal class HermesStore(
         }
     }
 
-    private fun postStreaming(text: String, tool: String?, canStop: Boolean) {
+    private fun postStreaming(text: String, tool: String?, canStop: Boolean, toolName: String? = null, reasoning: String? = null, parts: List<LivePart> = emptyList()) {
         // Called from the streaming thread; Compose state writes are safe from any thread and
         // recomposition is scheduled on the main thread.
         val current = turn
@@ -297,6 +520,9 @@ internal class HermesStore(
         turn = TurnState.Streaming(
             text = text,
             runningTool = tool,
+            runningToolName = toolName,
+            reasoning = reasoning ?: (current as? TurnState.Streaming)?.reasoning.orEmpty(),
+            parts = parts,
             canStop = canStop,
             stopRequested = alreadyStopping,
         )

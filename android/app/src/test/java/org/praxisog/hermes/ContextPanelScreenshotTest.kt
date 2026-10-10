@@ -13,10 +13,14 @@ import org.robolectric.annotation.GraphicsMode
 class ContextPanelScreenshotTest {
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun populatedCover() = captureRoboImage {
-        ContextPanel(session = UiFixtures.sessions.first(), now = UiFixtures.NOW)
+        HermesTheme {
+            ContextPanel(session = UiFixtures.sessions.first(), now = UiFixtures.NOW, onClose = {})
+        }
     }
 
     @Test @Config(qualifiers = "w393dp-h850dp") fun noSessionCover() = captureRoboImage {
-        ContextPanel(session = null, now = UiFixtures.NOW)
+        HermesTheme {
+            ContextPanel(session = null, now = UiFixtures.NOW, onClose = {})
+        }
     }
 }

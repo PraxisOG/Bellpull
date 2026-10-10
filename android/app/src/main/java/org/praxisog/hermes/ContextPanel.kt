@@ -1,8 +1,17 @@
 package org.praxisog.hermes
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Session
 
@@ -37,62 +47,88 @@ internal fun ContextPanel(
     now: Double,
     onDisconnect: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
 ) {
-    Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 1.dp) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Context", style = MaterialTheme.typography.titleMedium)
-
-            if (session == null) {
-                Text(
-                    "Open a session to see its context.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                onDisconnect?.let { DisconnectSection(it) }
-                return@Column
+    Surface(modifier = modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Context", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                onClose?.let { close ->
+                    val tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    IconButton(onClick = close, modifier = Modifier.semantics { contentDescription = "Close context" }) {
+                        Canvas(Modifier.size(18.dp)) {
+                            drawLine(tint, Offset.Zero, Offset(size.width, size.height), 2.dp.toPx(), StrokeCap.Round)
+                            drawLine(tint, Offset(size.width, 0f), Offset(0f, size.height), 2.dp.toPx(), StrokeCap.Round)
+                        }
+                    }
+                }
             }
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth()
+                    .verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Behind the conversation", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            Field("Session", session.id)
-            // Shortened and truncated from the left: the distinctive tail of a model id is
-            // what identifies it, so losing the front costs nothing.
-            session.model?.let { Field("Model", compactModelName(it), ellipsizeStart = true) }
-            session.source?.let { Field("Source", it) }
-            Field("Last active", formatLastActive(session.lastActive ?: session.startedAt, now))
-            Field("Messages", groupDigits(session.messageCount.toLong()))
-            Field("Tool calls", session.toolCallCount.toString())
+                if (session == null) {
+                    Text(
+                        "Open a session to see its context.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    onDisconnect?.let { DisconnectSection(it) }
+                    return@Column
+                }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            Text("Tokens", style = MaterialTheme.typography.labelLarge)
-            Field("In", groupDigits(session.inputTokens))
-            Field("Out", groupDigits(session.outputTokens))
-            Field("Cache read", groupDigits(session.cacheReadTokens))
-            Field("Cache write", groupDigits(session.cacheWriteTokens))
-            if (session.reasoningTokens > 0) Field("Reasoning", groupDigits(session.reasoningTokens))
-            Field("API calls", session.apiCallCount.toString())
+                // Shortened and truncated from the left: the distinctive tail of a model id is
+                // what identifies it, so losing the front costs nothing.
+                session.model?.let {
+                    Surface(color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Model", style = MaterialTheme.typography.labelMedium)
+                            Text(compactModelName(it), style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1, overflow = TextOverflow.StartEllipsis)
+                        }
+                    }
+                }
+                Field("Session", session.id)
+                session.source?.let { Field("Source", it) }
+                Field("Last active", formatLastActive(session.lastActive ?: session.startedAt, now))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Metric("Messages", groupDigits(session.messageCount.toLong()), Modifier.weight(1f))
+                    Metric("Tool calls", session.toolCallCount.toString(), Modifier.weight(1f))
+                }
 
-            // Hermes sends actual_cost_usd as null until it knows; estimated is the fallback.
-            val cost = session.actualCostUsd ?: session.estimatedCostUsd
-            if (cost != null) {
-                // "Cost (estimated)" left no room for the figure and ellipsised it to
-                // "$0.04…". A truncated cost is worse than a terse label.
-                val label = if (session.actualCostUsd != null) "Cost" else "Cost (est.)"
-                Field(label, "$" + String.format("%.4f", cost))
-            }
-
-            if (session.hasSystemPrompt || session.hasModelConfig || session.parentSessionId != null) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                if (session.hasSystemPrompt) Field("System prompt", "set")
-                if (session.hasModelConfig) Field("Model config", "set")
-                session.parentSessionId?.let { Field("Forked from", it) }
-            }
+                Text("Token usage", style = MaterialTheme.typography.titleSmall)
+                Field("In", groupDigits(session.inputTokens))
+                Field("Out", groupDigits(session.outputTokens))
+                Field("Cache read", groupDigits(session.cacheReadTokens))
+                Field("Cache write", groupDigits(session.cacheWriteTokens))
+                if (session.reasoningTokens > 0) Field("Reasoning", groupDigits(session.reasoningTokens))
+                Field("API calls", session.apiCallCount.toString())
 
-            onDisconnect?.let { DisconnectSection(it) }
+                // Hermes sends actual_cost_usd as null until it knows; estimated is the fallback.
+                val cost = session.actualCostUsd ?: session.estimatedCostUsd
+                if (cost != null) {
+                    // "Cost (estimated)" left no room for the figure and ellipsised it to
+                    // "$0.04…". A truncated cost is worse than a terse label.
+                    val label = if (session.actualCostUsd != null) "Cost" else "Cost (est.)"
+                    Field(label, "$" + String.format("%.4f", cost))
+                }
+
+                if (session.hasSystemPrompt || session.hasModelConfig || session.parentSessionId != null) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    if (session.hasSystemPrompt) Field("System prompt", "set")
+                    if (session.hasModelConfig) Field("Model config", "set")
+                    session.parentSessionId?.let { Field("Forked from", it) }
+                }
+
+                onDisconnect?.let { DisconnectSection(it) }
+            }
         }
     }
 }
@@ -130,17 +166,30 @@ private fun Field(label: String, value: String, ellipsizeStart: Boolean = false)
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
         Text(
             value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = if (ellipsizeStart) TextOverflow.StartEllipsis else TextOverflow.Ellipsis,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@Composable
+private fun Metric(label: String, value: String, modifier: Modifier) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = MaterialTheme.shapes.small) {
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

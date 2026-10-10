@@ -1,3 +1,120 @@
+## Bellpull implementation — 2026-10-09
+
+The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
+older tier deferrals below; existing behavior and installed identity remain protected.
+
+- Phase 0: baseline build/test/screenshot verification passes (cached Gradle checks).
+  Kotlin 2.3.21 / Compose BOM 2026.08.00 / AGP 9.4.0; SDK 29–37;
+  app ID `org.praxisog.hermes`. Existing working tree preserved, no commit/reset.
+- Phase 1 first release implemented and installed: Bellpull label; system/light/dark
+  appearance, collapse-thinking and reduced-motion preferences; encrypted per-chat
+  drafts/selection; **one horizontal row** for Chats/Projects/Tools/Settings/Today;
+  expanded app/chat search from the drawer magnifier; quoted follow-up;
+  exact-prefix fork-and-edit; thinking and grouped chronological tool rows.
+  Projects/Today are explicit placeholders; Tools
+  currently exposes working app/chat search and session context.
+- Phase 1 validation: 194 tests passed, 1 live smoke skipped; 65 screenshot baselines
+  verified; debug APK and lint pass (18 advisory warnings). Corrected the pre-existing
+  Glance RestrictedApi errors with its public day/night colour factory, no suppression.
+  Source snapshot backup: `/tmp/bellpull-snapshots-before-oct09/` (before this slice).
+- Phase 2 implemented: durable request journal/admission/status recovery, canonical
+  missed-reply catch-up, GrapheneOS-compatible ntfy notifications, and explicit per-run
+  server approval controls. Server patch active and app installed. Final validation,
+  device evidence and remaining operational limits are in `docs/HANDOFF.md`.
+- Phases 3–7 pending in brief order. No completion implied by navigation placeholders.
+- External input pending: Moe address/access. Continue client work against the existing
+  authenticated gateway. Supplied icon artwork is now integrated (see refinement below).
+
+October 9 conversation list follow-up:
+- Conversations is a plain heading, aligned left and vertically centered with the
+  magnifier. The magnifier is the only drawer search entry point.
+- Completed unread replies sort ahead of read chats, then by latest activity. The list
+  scrolls to index zero on a completion/new unread promotion or a changed server head,
+  including another completion in a chat already first. An ordinary metadata refresh
+  preserves the user's position; the selected older chat cannot override a promotion.
+- Unread dot moved to the bottom-right after the message/tool-count metadata, using the
+  theme accent (dark in light appearance, contrasting in dark appearance), as requested.
+- Local read receipts persist in the encrypted cache using canonical message IDs. A dot
+  clears only when the saved reply's end is visible in the foreground transcript. Merely
+  selecting a chat, browsing older content, or leaving its window in the background does
+  not clear it. Late completion/read events cannot regress newer receipts.
+- Current detection covers completed legacy streams observed by this running app, even
+  after switching chats. Old imported chats are not fabricated as unread. Catch-up for
+  work completed while the app process was dead/disconnected is now covered by Phase 2
+  for tracked runs and previously synchronized conversations.
+
+October 9 density, streaming and color refinement:
+- Removed the Bellpull drawer wordmark/subtitle/logo and Activity block. Horizontal modes
+  and the top-right chat controls remain; the cover conversation list retains its New chat.
+- Tool/search rows and collapsed thinking headers are 32dp high (expand with font scale),
+  with whole-row actions. Empty assistant envelopes/whitespace no longer add blank lines.
+- Clear only the submitted draft revision at `run.started` acknowledgement. Show an
+  accepted local user bubble until authoritative history arrives; retain newer drafts,
+  rejected submissions and other chats. No endpoint/server patch changes required.
+- Autoscroll follows prose, reasoning, tool layout growth and viewport changes while pinned.
+  Reader upward scrolling or history navigation suspends it; reaching the bottom or
+  Jump to latest resumes it.
+- Settings now persist System/White/Black plus Neutral, Maroon (#59091E), Dark brown
+  (#381B18), Original teal, Android wallpaper and a validated custom accent scheme.
+  Surfaces/bubbles follow the accent; text contrast is checked; warning/refusal colors
+  remain semantic. Android wallpaper uses native dynamic colors on API 31+, with an
+  explained disabled option on older Android. No wallpaper permission or new dependency.
+- Launcher uses the supplied maroon hand/tassel PNG unchanged. Adaptive XML fits it to
+  the icon mask. Empty states/connection branding use the same art; Hermes response
+  labels still identify the agent. Original dark brown artwork supplies the brown preset.
+- Validation and final device evidence are recorded in docs/HANDOFF.md below the current
+  refinement entry. Baselines before this refinement: /tmp/bellpull-density-snapshots-before/.
+
+Ownership: Hermes owns canonical sessions/messages/runs/tools; Bellpull owns drafts,
+UI preferences and read position. Future projects/artifacts need one explicit authority.
+No LLM calls for navigation or state management. No silent model-route changes.
+
+Verified gateway discovery: PowermacG3 Docker image `nousresearch/hermes-agent:v2026.9.7`
+with selected-reply and before-user-prompt fork patches; no Git checkout in container. `/v1/capabilities`
+reports durable idempotent run submission (24-hour retention), status, steering and
+approval requests/responses. **Older approval deferrals below apply to the legacy
+session stream, not `/v1/runs`.** Source confirms independent executor tasks;
+SSE is an in-memory consuming queue, not replay. Restart marks unfinished durable runs
+interrupted; recovery must use status plus saved history, never repeat tool execution.
+`/v1/models` currently exposes only `hermes-agent`; provider options are not proof of
+configured local routes. Memory-write/audio/realtime voice APIs report unavailable.
+Browser artifact transport has a 10 MiB / 300-second scoped lifetime and is not a
+persistent attachment store. Moe GPU/model/STT/TTS and coding runner contracts remain
+unverified. The source exists for jobs/model locks, but those need scoped probes before UI.
+
+Phase 1 evidence and remaining limits:
+- ADB device `58311FDCG0011Y` physically unfolded, no device-state override.
+  Reopened existing chats, verified A→B→A and Settings→Chats draft preservation,
+  actual light appearance, horizontal mode row, keyboard spacing, selected quote
+  into a focused editable draft without sending, and first-prompt fork/edit.
+  A forced app stop/relaunch restored both the selected chat and encrypted draft.
+  User then resumed typing; ADB automation stopped without altering their draft.
+  Server/API comparison confirms source session/history unchanged; edit branch has
+  zero messages until the user sends. No cloud inference invoked by these checks.
+- Per-chat drafts/selection are stored under the existing encrypted cache boundary,
+  removed on acceptance only if not edited since submission, and cleared on Disconnect.
+  Activity state carries only navigation, not arbitrarily large draft text bundles.
+- Follow-up uses an explicit selection dialog; native selection retains Android's
+  standard actions. Adding Follow up to the native toolbar is a remaining polish gap.
+- Legacy streaming provides sequence numbers but no tool-call IDs. New tool rows have
+  stable run/sequence identities; duplicate sequences are ignored; same-name parallel
+  completion remains unresolved until authoritative history (do not guess).
+- No Activity section above conversations. Local completion receipts, unread-first sorting,
+  bottom-right dots and top reveal are now implemented (see follow-up above). Phase 2 must
+  extend these same UI semantics to durable run recovery and missed server work.
+- Real folded/unfolded transition was not forced. Cover/unfolded layouts are verified
+  in rendered tests; physical device tests in this slice used unfolded state only.
+- Server extension lives at `~/hermes-agent/patches/bellpull-edit-fork/`: 16 isolated
+  HTTP/DB tests pass; hash-guarded apply/rollback; runtime patch plus reusable image.
+- No checkpoint commit: this branch contains substantial pre-existing uncommitted
+  work intertwined with these changes. No reset, stash or unrelated staging occurred.
+
+Next implementation slice: durable submission journal with stable request IDs;
+separate admission/status/subscription, per-session run ownership, ambiguity recovery,
+then completion/read catch-up, notifications and genuine approvals. Preserve the current legacy
+path until durable routes are contract-tested. Moe hostname/SSH user remains unanswered;
+current provider is Fireworks DeepSeek and must not be presented as local inference.
+
 # Tier 1 Roadmap — target 2026-09-28
 
 *Revised 2026-09-16 after researching the Hermes API surface and the Android 17 platform
@@ -227,22 +344,22 @@ done moves to the Tier 2 backlog. Freeze.
 
 ## Deferred deliberately, cheap when picked up
 
-**Light/dark theme support.** Assessed 2026-09-17: the app has **zero hardcoded colours** —
-every colour already comes from a `MaterialTheme.colorScheme` role — and there are only two
-`MaterialTheme {}` call sites. So it is ~30 lines plus 8–10 `-night` screenshot variants,
-maybe 45 minutes. Deferred in favour of core Tier 1 functionality.
+**Light/dark theme support — done 2026-10-03.** The app now follows the system setting
+through `HermesTheme`, with fixed teal/neutral light and dark schemes. Amber marks flagged
+commands and red marks refusals; wallpaper colours cannot change those meanings. The widget
+palette matches, and the launcher has an adaptive Hermes monogram.
 
-Two notes for whoever does it:
+The GUI pass also adds session cards, clearer message hierarchy, session titles in the chat
+header, a centred connection card, and empty-chat guidance. Nine additional screenshot
+variants cover dark mode and new empty/error states. Chat creation errors now stay visible
+on an empty session list and during search. Validation is local JVM rendering only; the
+real-device checklist remains open.
 
-- **It closes a real mismatch, not just adds a feature.** The window theme is
-  `Theme.DeviceDefault.DayNight` (set when the action bar was removed), so the window
-  background already follows the system while the Compose content is pinned light. On a
-  dark-mode phone that is a dark frame behind light content.
-- **Do not use dynamic colour (Material You).** It works on GrapheneOS — it is AOSP, not a
-  Play service — but several colours here carry *meaning*: refused vs flagged vs ordinary
-  tool results, and the primary tint marking which panes are open. Deriving those from the
-  wallpaper puts a distinction that has already collapsed once at the mercy of the home
-  screen. Fixed schemes keep the semantics stable.
+**Conversation controls — done locally 2026-10-03.** Compact tool bars open full input/output
+dialogs, retaining refusal and flagged status on the bar. New chat sits beside the overflow
+menu; session info, prompt-history jumps, and local chat search work. Share remains a labeled
+placeholder. Twelve additional screenshots cover the controls; the device checklist is still
+open. See `docs/HANDOFF.md` and `beauty-shots/conversation-controls/index.html`.
 
 ## Parking lot — not before 09/28
 

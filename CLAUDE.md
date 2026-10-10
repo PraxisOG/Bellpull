@@ -32,11 +32,11 @@ Play Services.
   No bidirectional merge. (Offline queue is Tier 3 — not now.)
 - **Importance is a typed data field**, never styling embedded in a payload. The client
   decides how to render it and enforces its own budget. Agent output cannot override this.
-- **No approval prompt. Settled by Gate 0c, don't rebuild it.** The `api_server` platform is
-  excluded from approval contexts in Hermes' own source, so this client will never receive a
-  pending approval. Flagged commands are either auto-approved by smart approval or denied
-  outright with `status: "blocked"`. Render `blocked` as its own honest state; never as a
-  generic tool failure. Details and source citations in `docs/hermes-api.md` § Gate 0c.
+- **Only render genuine server approval requests.** Gate 0c still applies to legacy
+  session streams and default unattended API requests. Bellpull Phase 2 explicitly opts
+  durable runs into the verified `run_interactive_approvals` contract described in
+  `docs/hermes-api.md`. Allow once/Deny bind to the current exact request ID; no
+  fabricated prompts, blanket approval, or global policy changes.
 - **Borrow, don't build.** Check `docs/references.md` before writing a subsystem. Pull the
   specific piece, not the feature set.
 
@@ -127,7 +127,9 @@ without saying so first**, because that's the live instance.
 
 **The default branch is `master`, not `main`.**
 
-**Server-side work lives outside this repo.** Hermes plugins go in `~/hermes-data/plugins/`
+**The live server is managed outside this repo.** Versioned Bellpull extension bundles
+are now included in `server-patches/` for reproducible builds and server handoff; see
+`server-patches/README.md` before deploying them elsewhere. Hermes plugins go in `~/hermes-data/plugins/`
 on the host (`/opt/data/plugins/` in the container) — **not** `~/.hermes/plugins/`, which does
 not exist here. Four root-owned `hermes-launcher-*` directories sit there, but they were
 verified empty on 2026-09-16; use Hermes' bundled plugins as format examples. The gateway
