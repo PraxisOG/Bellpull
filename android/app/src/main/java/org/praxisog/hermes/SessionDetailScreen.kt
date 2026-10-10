@@ -95,6 +95,9 @@ internal fun SessionDetailScreen(
     sendBlocked: Boolean = false,
     composerLeading: (@Composable () -> Unit)? = null,
     attachmentStrip: (@Composable () -> Unit)? = null,
+    artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
+    onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
     val composerDraft = draft ?: localDraft
@@ -168,21 +171,22 @@ internal fun SessionDetailScreen(
             callsWithoutResults[it.id].isNullOrEmpty() && it.finishReason != "length" && it.reasoning.isNullOrBlank() && it.reasoningContent.isNullOrBlank() }
     }
     val groups = remember(visibleMessages) { groupTranscript(visibleMessages) }
+    val entries = remember(groups, artifacts) { artifactTranscript(groups, artifacts) }
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
     val mayRead = readEnabled && navigation == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
-    LaunchedEffect(listState, latestReply?.id, mayRead) {
+    LaunchedEffect(listState, latestReply?.id, mayRead, entries) {
         if (mayRead && latestReply != null) {
-            val replyKey = groups.firstOrNull { group -> group.messages.any { it.id == latestReply.id } }?.key
+            val replyIndex = entries.indexOfFirst { entry -> entry.group?.messages?.any { it.id == latestReply.id } == true }
             snapshotFlow {
-                !listState.canScrollForward && listState.layoutInfo.visibleItemsInfo.any { it.key == replyKey }
+                replyIndex >= 0 && !listState.canScrollForward && listState.layoutInfo.visibleItemsInfo.any { it.index >= replyIndex }
             }.collect { visible -> if (visible) readCallback(latestReply.id) }
         }
     }
     if (navigation != null) {
         ConversationNavigator(mode = navigation, messages = visibleMessages, onDismiss = onDismissNavigation,
             onJump = { id ->
-                val index = groups.indexOfFirst { group -> group.messages.any { it.id == id } }
+                val index = entries.indexOfFirst { entry -> entry.group?.messages?.any { it.id == id } == true }
                 if (index >= 0) {
                     browsingHistory = true
                     followingTail = false
@@ -212,7 +216,7 @@ internal fun SessionDetailScreen(
                     }
 
                     is UiState.Ready -> {
-                        if (history.value.isEmpty() && turn is TurnState.Idle && pendingUserText == null) {
+                        if (history.value.isEmpty() && artifacts.isEmpty() && turn is TurnState.Idle && pendingUserText == null) {
                             Column(
                                 modifier = Modifier.fillMaxSize().padding(28.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -227,9 +231,9 @@ internal fun SessionDetailScreen(
                                     textAlign = TextAlign.Center)
                             }
                         } else {
-                            val itemCount = groups.size + (if (pendingUserText == null) 0 else 1) +
+                            val itemCount = entries.size + (if (pendingUserText == null) 0 else 1) +
                                 (if (turn is TurnState.Idle) 0 else 1)
-                            LaunchedEffect(groups, turn, pendingUserText) {
+                            LaunchedEffect(entries, turn, pendingUserText) {
                                 if (itemCount > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
                                     listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
                                 }
@@ -257,7 +261,12 @@ internal fun SessionDetailScreen(
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                items(groups, key = { it.key }) { group ->
+                                items(entries, key = { it.key }) { entry ->
+                                    if (entry.artifact != null) {
+                                        ArtifactRow(entry.artifact, onDownloadArtifact, onViewArtifact)
+                                        return@items
+                                    }
+                                    val group = requireNotNull(entry.group)
                                     val render: @Composable (Message) -> Unit = { message ->
                                         Box(Modifier.testTag("message-${message.id}").then(
                                             if (highlightedId == message.id) Modifier.border(2.dp,

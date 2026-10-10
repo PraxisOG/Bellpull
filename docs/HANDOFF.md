@@ -1,5 +1,48 @@
 # Bellpull / Hermes app handoff
 
+## Inline artifacts and dialog previews — 2026-10-10
+
+Android **0.3.1 (code 4)** refines Phase 3's saved-file presentation:
+
+- Uploaded and generated files appear as compact outlined rows inside the scrolling
+  transcript. Image files have a minimalist picture icon; other files use a folder.
+  Names retain their extension with middle ellipsis. Each row has Download and View.
+  Only unsent attachment drafts/progress stay above the composer.
+- Explicit artifact message IDs determine placement when present. Existing server
+  records without that link use creation timestamps; records without usable message
+  times remain at the end. No endpoint or server change was required.
+- View opens the same sized rounded dialog as tool details on both cover and wide
+  layouts. Native PDF/image rendering supports scrolling, Fit, pinch/button zoom,
+  Reset zoom, PDF page navigation, Open, Save and Share. Open in right drawer is an
+  explicit action; the existing adaptive drawer and camera-aware header remain.
+- Direct Download uses Android's create-document picker with the original name and
+  MIME type, authenticated content retrieval and the existing integrity checks.
+  Missing artifacts keep an inspectable error state and disable Download.
+- Transcript navigation, tail following and read receipts account for inline files.
+  Preview dialogs suspend conversation read marking while they cover the chat.
+
+Validation: **294 JVM tests passed, one opt-in smoke skipped; 102 screenshot baselines
+verified; APK and lint passed (zero errors, 36 advisory warnings, four hints).** New
+checks cover chronology, stable file identity, inline scrolling, read receipts after
+long artifact lists, action targeting, missing files, default dialog behavior, preview
+scrolling/zoom controls and explicit docking on cover and unfolded layouts. Five new
+fictional-data screenshots were inspected; existing baselines remain unchanged.
+
+The dedicated emulator passed native MediaStore upload/retry, two-page PDF navigation,
+PNG/generated previews, zoom/scroll/reset and dialog-to-drawer transitions. Manual
+Download saved a 10,995-byte PDF through the Android picker with SHA-256 identical to
+the server metadata. Unsupported TXT files retain Open/Save/Share. Real-phone testing
+on the naturally unfolded Pixel 10 Pro Fold verified existing live PDF and PNG
+artifacts, dialog defaults, zoom/reset and the optional drawer after an in-place APK
+upgrade. No phone data was cleared, fold state forced, or new inference requested.
+Physical cover transitions remain untested; cover layouts have screenshot coverage.
+
+Installed/released APK SHA-256:
+`b11a10d90f01a169e4d6fe0153eb985d55487c7e9eb98b545b6863e7a8b80b82`.
+Release: `android-v0.3.1-preview.1`, asset `Bellpull.apk`. Phone captures and before/after
+evidence stay in ignored `android/app/build/device-tests/inline-artifacts/`.
+Phase 4 and desktop packaging have not begun.
+
 ## Phase 3 models, attachments, sharing and GPU plugin — 2026-10-10
 
 Android version **0.3.0 (code 3)** implements current Bellpull Phase 3A–D. The user

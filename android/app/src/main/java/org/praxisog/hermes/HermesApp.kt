@@ -86,6 +86,10 @@ internal fun HermesApp(
     attachmentStrip: (@Composable () -> Unit)? = null,
     uploading: Boolean = false,
     previewPane: (@Composable (Modifier) -> Unit)? = null,
+    previewDialog: (@Composable () -> Unit)? = null,
+    artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
+    onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
 ) {
     var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
@@ -139,7 +143,7 @@ internal fun HermesApp(
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
                     val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null && previewPane == null }
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && branchError == null && previewPane == null && previewDialog == null }
                     DisposableEffect(visibleSession) {
                         onVisibleSession(visibleSession)
                         onDispose { onVisibleSession(null) }
@@ -209,7 +213,8 @@ internal fun HermesApp(
                                             pendingUserText = pendingUserText,
                                             sendBlocked = disconnected || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
-                                            readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null,
+                                            artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
+                                            readEnabled = foreground && !expandedSearch && !infoSheet && branchError == null && previewDialog == null && previewPane == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
                                             onReadMessage = onReadMessage, onBranchMessage = onBranchMessage,
@@ -254,6 +259,7 @@ internal fun HermesApp(
                         }
                     }
                     if (!sideBySide && previewPane != null) previewPane(Modifier.fillMaxSize())
+                    previewDialog?.invoke()
                 }
             }
         }

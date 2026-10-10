@@ -87,18 +87,28 @@ class Phase3DeviceTest {
             assertTrue(runtime.phase3!!.drafts.isEmpty())
             assertTrue(runtime.drafts[session].text.isEmpty())
             compose.waitUntil(10_000) { compose.onAllNodesWithText("retry-fixture.pdf").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText("retry-fixture.pdf").performScrollTo().performClick()
+            compose.onNodeWithTag("transcript").performScrollToNode(hasContentDescription("View retry-fixture.pdf"))
+            compose.onNodeWithContentDescription("View retry-fixture.pdf").performClick()
+            compose.onNodeWithTag("artifact-preview-dialog").assertExists()
             compose.waitUntil(15_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("›").performClick()
             compose.waitUntil(10_000) { compose.onAllNodesWithText("2 / 2").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("Close preview").performClick()
-            compose.onNodeWithText("fixture-photo.png").performClick()
+            compose.onNodeWithTag("transcript").performScrollToNode(hasContentDescription("View fixture-photo.png"))
+            compose.onNodeWithContentDescription("View fixture-photo.png").performClick()
             compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("fixture-photo.png").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("Close preview").performClick()
             // Open a generated PDF from the same artifact records.
-            compose.onNodeWithText("generated-report.pdf").performScrollTo().performClick()
+            compose.onNodeWithTag("transcript").performScrollToNode(hasContentDescription("View generated-report.pdf"))
+            compose.onNodeWithContentDescription("View generated-report.pdf").performClick()
             compose.waitUntil(15_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("Share", useUnmergedTree = true).assertIsEnabled()
+            compose.onNodeWithContentDescription("Zoom in").performClick()
+            compose.onNodeWithTag("artifact-scroll").performTouchInput { swipeUp() }
+            compose.onNodeWithText("Reset zoom").performClick()
+            compose.onNodeWithText("Open in right drawer").performClick()
+            compose.onNodeWithTag("artifact-preview-dialog").assertDoesNotExist()
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("1 / 2").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("Close preview").performClick()
         }
         context.contentResolver.delete(image, null, null); context.contentResolver.delete(pdf, null, null)

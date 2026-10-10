@@ -70,9 +70,12 @@ class MainActivity : ComponentActivity() {
                     }
                     val files = runtime.phase3
                     var preview by remember { mutableStateOf<Artifact?>(null) }
+                    var previewDocked by remember { mutableStateOf(false) }
+                    val downloadArtifact = files?.let { rememberArtifactDownload(it) }
                     val showPreview: (Artifact) -> Unit = { item ->
                         if (current?.openSessionId != item.sessionId) current?.openSession(item.sessionId)
                         preview = item
+                        previewDocked = false
                         focusChatRevision++
                     }
                     LaunchedEffect(files, current?.openSessionId) { files?.open(current?.openSessionId) }
@@ -140,12 +143,21 @@ class MainActivity : ComponentActivity() {
                             } }
                         } },
                         attachmentStrip = files?.takeIf { it.filesSupported || it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
-                            { AttachmentStrip(workspace, id, showPreview) }
+                            { AttachmentStrip(workspace, id) }
                         } },
                         uploading = files?.sending?.get(current?.openSessionId) == true || (files?.importing?.get(current?.openSessionId) ?: 0) > 0,
-                        previewPane = preview?.let { item -> files?.let { workspace ->
+                        previewPane = preview?.takeIf { previewDocked }?.let { item -> files?.let { workspace ->
                             { modifier -> ArtifactPreview(workspace, item, modifier) { preview = null } }
                         } },
+                        previewDialog = preview?.takeUnless { previewDocked }?.let { item -> files?.let { workspace -> {
+                            ArtifactPreviewDialog(onClose = { preview = null }) {
+                                ArtifactPreview(workspace, item, onDock = { previewDocked = true }, onClose = { preview = null })
+                            }
+                        } } },
+                        artifacts = files?.artifacts.orEmpty().filter { it.sessionId == current?.openSessionId &&
+                            files?.drafts?.none { draft -> draft.id == it.id } == true },
+                        onViewArtifact = showPreview,
+                        onDownloadArtifact = { downloadArtifact?.invoke(it) },
                         serverProfiles = {
                             ServerProfilesPanel(profiles.profiles, profiles.activeId, profiles.status, profiles.checking,
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,

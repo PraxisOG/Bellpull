@@ -50,12 +50,11 @@ internal fun AttachButton(workspace: Phase3Workspace, sessionId: String, onAttac
 }
 
 @Composable
-internal fun AttachmentStrip(workspace: Phase3Workspace, sessionId: String, onPreview: (Artifact) -> Unit) {
+internal fun AttachmentStrip(workspace: Phase3Workspace, sessionId: String) {
     val files = workspace.filesFor(sessionId)
-    val saved = workspace.artifacts.filter { it.sessionId == sessionId }
     val error = workspace.errors[sessionId]
     val importing = (workspace.importing[sessionId] ?: 0) > 0
-    if (files.isEmpty() && saved.isEmpty() && error == null && !importing) return
+    if (files.isEmpty() && error == null && !importing) return
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
         if (importing) Text("Reading selected files…", style = MaterialTheme.typography.labelSmall)
         if (files.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -70,12 +69,6 @@ internal fun AttachmentStrip(workspace: Phase3Workspace, sessionId: String, onPr
         if (workspace.sending[sessionId] == true) Row {
             Text("Preparing attachments…", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
             TextButton(onClick = { workspace.cancel(sessionId) }, contentPadding = PaddingValues(2.dp)) { Text("Cancel upload") }
-        }
-        if (saved.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            saved.forEach { item -> TextButton(onClick = { onPreview(item) }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)) {
-                Text(item.name + if (!item.available) " · Missing" else "", maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelSmall, modifier = Modifier.widthIn(max = 180.dp))
-            } }
         }
         error?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
     }

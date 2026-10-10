@@ -2,7 +2,7 @@
 
 # Bellpull — Hermes Android
 
-**[Download Bellpull 0.3.0 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.0-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.0-preview.1)
+**[Download Bellpull 0.3.1 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.1-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.1-preview.1)
 
 ## Try it on your phone
 
@@ -52,7 +52,10 @@ Phase 3 adds configured model selection in Context, supported reasoning controls
 per-profile defaults for new chats, file/image selection and camera capture, persistent
 uploads with retry/cancel, native PDF/image previews, a Tools attachment browser, and
 Android share-in/share-out. Generated files use the same authenticated records as
-uploads. The separate [GPU plugin](plugins/bellpull_gpu/README.md) reads local
+uploads. Files appear as compact conversation artifacts with filename, Download and
+View actions. View opens a rounded preview dialog with scrolling, fit/zoom, PDF page
+navigation, Open/Save/Share, and an optional right drawer for side-by-side reading.
+The separate [GPU plugin](plugins/bellpull_gpu/README.md) reads local
 AMD/NVIDIA temperatures on the Hermes host; no SSH or model call is needed.
 
 These features require the [Phase 3 server extension](server-patches/bellpull-phase3/README.md).
