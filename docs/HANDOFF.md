@@ -1,5 +1,46 @@
 # Bellpull / Hermes app handoff
 
+## Linux Mint emulator preview — 2026-10-09
+
+User requested a desktop Android-emulator build after the phone was handed back,
+and authorized pushing it to GitHub. Branch `desktop/mint-emulator-preview` builds
+on the immersive UI commit. The APK is unchanged from the tested phone build below.
+
+`desktop/mint-emulator` provides a Python standard-library launcher, per-user
+installer, `.deb`/portable packaging and a local synthetic durable-run smoke server.
+Android SDK/runtime files are downloaded separately from Google, with license prompts;
+the release contains only the launcher, installer, icon, APK, metadata and README.
+It reuses an existing SDK or verifies/downloads pinned command-line tools for setup.
+No SDK, AVD disks, accounts, server keys or test data enter the packages.
+
+Each data directory gets a distinct AVD name. All device commands explicitly target
+an emulator, and installation/stop verify both its AVD name and emulator property.
+The preview never targets the physical phone or kills the shared ADB server. Existing
+AVD configuration and local app data survive updates. Startup is locked per profile.
+Default VM: API 36 AOSP x86_64, 1280x800 at 160 dpi, 2 GB RAM, two cores and hardware
+keyboard. Window resizing scales Android; this is not the proposed native desktop port.
+
+Validation on Linux Mint 22.3, emulator 37.1.11 with working KVM and the existing SDK:
+fresh dedicated AVD boot/install, connection, three-panel UI, fresh word-by-word SSE
+reply, composer clearing, final reply visible, interrupted delivery recovery, repeat
+launch, stop/restart and retained login. Eight launcher tests pass. Package file
+allowlist, desktop-entry syntax, Python compilation and secret scanning are checked.
+The initial mock server advertised durable admission without implementing it; the
+desktop-only smoke fixture now supplies synthetic admission/status/events/history.
+No production server changes or live inference were needed.
+
+Restart testing exposed a transient occupied-port popup. Port probes now use
+SO_REUSEADDR, --stop waits for ports to close, and a regression test covers recently
+closed sockets. --no-dialog supports GUI automation without interrupting the user.
+The phone remained hands off throughout desktop work.
+
+Known limits: Android TTS needs its own engine/voice, notifications stay inside the
+emulator, and simultaneous live subscribers still need backend fan-out. Plain HTTP
+to Android's 10.0.2.2 alias is blocked by the existing app policy; use HTTPS/Tailscale
+or an explicit emulator-only adb reverse with a loopback URL for local development.
+Clean-machine SDK installation/license prompts are not end-to-end tested. Preview
+uses the debug APK and has no automatic updater.
+
 ## Immersive chrome and sliding panels — 2026-10-09
 
 Implemented and installed the resumed GUI experiment on branch `ui/immersive-chrome`.

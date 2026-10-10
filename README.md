@@ -12,6 +12,12 @@ The latest completed validation passed 250 tests with one opt-in live smoke test
 
 ## Build and test
 
+For the experimental Linux Mint launcher that runs this same APK in an isolated
+Android emulator, see [desktop/mint-emulator/README.txt](desktop/mint-emulator/README.txt).
+It builds a `.deb` and portable archive, keeps its own Android data and never targets
+a connected phone. This is a desktop preview; a native Compose Desktop port remains
+future work.
+
 Requires JDK 17, Android SDK Platform 37, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
 
 From the repository root:
@@ -38,6 +44,7 @@ Enter your reachable Hermes API URL and bearer key in the app's connection scree
 - `android/app`: Compose UI, local state, recovery, notifications and Android services.
 - `android/core-hermes` and `android/core-model`: HTTP/SSE client and shared data types.
 - `mock-hermes`: local contract-test fixtures.
+- `desktop/mint-emulator`: isolated Linux Mint emulator launcher, packaging and smoke fixture.
 - `server-patches`: versioned server extensions needed by the current client.
 - `phone-ping-plugin` and [ROADMAP-TIER2.md](ROADMAP-TIER2.md): the older phone-bridge track, separate from Bellpull Phase 2.
 
