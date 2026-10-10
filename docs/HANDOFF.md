@@ -1,5 +1,91 @@
 # Bellpull / Hermes app handoff
 
+## Phase 3 models, attachments, sharing and GPU plugin — 2026-10-10
+
+Android version **0.3.0 (code 3)** implements current Bellpull Phase 3A–D. The user
+authorized Phase 3, testing and applying the working build. This is separate from
+the obsolete three-tier roadmap. Desktop emulator packaging is parked until the
+Android phases are finished; the disposable emulator was used only for Android tests.
+
+- Context has a searchable configured-model picker with actual supported thinking
+  controls. Choices persist per conversation. Settings provides profile-local defaults
+  for new chats; other chats and Hermes global/job defaults are unchanged. The current
+  Fireworks DeepSeek V4.1 Flash route exposes low/high/max/Off. Off and Low both
+  completed live requests. Native Hermes request-builder tests verify the exact fields.
+- The accessible local `qwen38-flash-next` server accepts thinking On/Off using
+  `chat_template_kwargs.enable_thinking`: the same bounded prompt used zero versus
+  23 reasoning tokens. No graded local effort was verified. The toggle is available
+  when that exact custom route is configured in Hermes; this patch does not create
+  the route or change global inference routing.
+- Native file/image selection and camera capture copy granted content streams into
+  profile-private drafts. Uploads show progress/cancel and preserve drafts/files on
+  failure. Stable IDs and exact model/attachment payloads survive lost acknowledgements.
+  Source bytes remain intact, with 25 MiB per file/turn, eight files per turn and a
+  512 MiB server scope quota. Original images go to a confirmed vision route; documents
+  use existing bounded file extraction. No extra cloud vision provider is selected.
+- Native PDF page/zoom and image pan/zoom previews preserve the chat and adapt between
+  a right pane and cover overlay. The preview header uses the existing camera-cutout
+  avoidance. Tools lists uploaded/generated files with sort/filter/source navigation.
+  Unsupported formats can open/save/share. Share-in creates a chosen/new chat draft;
+  share-out uses Android's chooser and selected-file read grants. No HTML bridge.
+- `plugins/bellpull_gpu` is a native Hermes API plugin that runs local amd-smi or
+  nvidia-smi on demand. No Moe SSH access is required. Cached, read-only telemetry
+  identifies actual cards and sensors, fixed scales, unavailable/stale readings.
+  The app polls on the foreground Tools page. This development host has no GPU CLI,
+  so the live panel correctly reports unavailable; four-card behavior is synthetic-tested.
+- On-phone acceptance caught a pre-existing recovery presentation issue: a completed
+  run initiated outside the phone could duplicate its saved answer and add an empty
+  prompt bubble. Observed-run reconciliation now matches canonical output without
+  inventing a prompt. A regression test and a new live response on the phone passed.
+
+Deployment: `server-patches/bellpull-phase3/activate.py` recognized installed hashes
+and verified idle agents/background queues before copying/restarting. The local GPU
+plugin was installed under `~/hermes-data/plugins/bellpull_gpu` and enabled through
+Hermes after announcing the config change. A mode-0600 configuration backup is outside
+the repository. Authenticated capabilities/catalog/artifacts/plugin respond normally;
+unauthenticated requests return 401. Global provider/model defaults, keys and ports
+were not changed. Recreating the container must use the derived image
+`hermes-agent:bellpull-phase3-20261010`; copying live modules alone does not alter the
+external deployment configuration. The repo includes the build chain, source hashes,
+reviewable patch, isolated tests, activation/rollback helper and API contract.
+
+Validation: **282 JVM tests passed, one opt-in smoke skipped; 97 screenshot baselines
+verified; debug APK and lint passed with zero errors, 36 advisory warnings and four
+hints.** Six artifact-store tests, seven native HTTP/transport/catalog tests, seven
+GPU parser/cache/auth tests, eight Phase 2 tests and 16 branch/edit regressions passed
+in isolated environments. No real data or upstream inference was used in those tests.
+
+Dedicated Android runtime acceptance passed with real MediaStore image/PDF URIs:
+share-in never submitted automatically, Activity recreation retained the draft,
+forced first-upload 503 preserved text/IDs, retry completed once, and PDF page changes,
+image/generated previews and reopening worked. Manual Android SAF and camera imports
+passed. `ShareProbeActivity` in the separate test APK/UID received an actual PDF from
+the Sharesheet, read matching bytes and verified read-only/non-persistable flags.
+Credential-clearing tests ran only on the disposable emulator, never on the phone.
+
+Live Hermes read a synthetic uploaded image/PDF and generated a new one-page PDF using
+its existing coding tools, with no package installation. Authenticated downloads were
+repeatable and byte-identical. The physical unfolded Pixel 10 Pro Fold was upgraded
+in place; saved profile/theme/immersive preferences remained intact. It verified native
+image/PDF previews beside chat, reopening, Tools sorting, unavailable GPU readings and
+session-only model/reasoning changes. The user's phone restart fixed a pre-existing
+Tailscale DNS failure; no Bellpull URL/key or TLS/DNS bypass was introduced. The final
+external-run check showed one saved response and no blank prompt bubble.
+
+Limits: real four-GPU telemetry, physical cover/fold transitions and deployment on the
+external compute server remain untested. Cover/corner layouts have rendered coverage.
+Generated files must actually be written into the supplied output directory; an
+arbitrary path in prose is not a downloadable artifact. Collection follows normal
+agent return, so interrupted work can leave unpublished output. Server artifacts have
+no automatic deletion policy in this preview; removing an Android profile deletes local
+copies only. PDF generation uses whatever coding libraries/converters the server has.
+
+Installed/released APK SHA-256:
+`566d32e61081531da4aca2d5fc72d4267cad8affc35e7ccab224bd9869b6763a`.
+Release: `android-v0.3.0-preview.1`, asset `Bellpull.apk`. Local live/device evidence
+stays in ignored `android/app/build/device-tests/phase3/`. No credentials, live chats,
+phone captures, databases or emulator disks are release assets. Phase 4 has not begun.
+
 ## Public README gallery — 2026-10-09
 
 The user made the repository public. The README now displays the app icon and five

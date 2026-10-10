@@ -1,4 +1,4 @@
-## Bellpull implementation — 2026-10-09
+## Bellpull implementation — 2026-10-10
 
 The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
 older tier deferrals below; existing behavior and installed identity remain protected.
@@ -7,8 +7,8 @@ Completed Phase 2 addition: named encrypted server profiles, profile-isolated lo
 state, Settings-based sign-in/switch/sign-out/removal, and useful disconnected
 exploration. The GitHub APK quickstart shipped first; the 0.2.0 update now documents
 Settings-based setup and no-login exploration. See Phase 2E in the implementation
-prompt and the latest validation in `docs/HANDOFF.md`. Stop after publishing this
-tested update; further development requires the user's next instruction.
+prompt and the latest validation in `docs/HANDOFF.md`. The user subsequently
+authorized Phase 3 and requested testing and installation of its working build.
 
 - Phase 0: baseline build/test/screenshot verification passes (cached Gradle checks).
   Kotlin 2.3.21 / Compose BOM 2026.08.00 / AGP 9.4.0; SDK 29–37;
@@ -28,9 +28,14 @@ tested update; further development requires the user's next instruction.
   missed-reply catch-up, GrapheneOS-compatible ntfy notifications, and explicit per-run
   server approval controls. Server patch active and app installed. Final validation,
   device evidence and remaining operational limits are in `docs/HANDOFF.md`.
-- Phases 3–7 pending in brief order. No completion implied by navigation placeholders.
-- External input pending: Moe address/access. Continue client work against the existing
-  authenticated gateway. Supplied icon artwork is now integrated (see refinement below).
+- Phase 3 implementation is in the 0.3.0 Android build: configured session models and
+  reasoning, persistent file/image uploads, PDF/image previews, attachment browsing,
+  Android sharing and local GPU telemetry plugin. See the handoff for final acceptance
+  status and real hardware limitations. The user clarified no Moe/SSH access is needed:
+  the plugin calls amd-smi/nvidia-smi on its own Hermes host.
+- Phases 4–7 remain pending. Projects/Today placeholders do not imply completion.
+- Desktop emulator packaging is parked until the Android phases are done. An isolated
+  emulator may still be used for Android acceptance tests.
 
 October 9 conversation list follow-up:
 - Conversations is a plain heading, aligned left and vertically centered with the

@@ -1,0 +1,118 @@
+Bellpull Phase 3 implementation notes — 2026-10-09
+
+Scope is Phase 3A–D in Bellpull-Implementation-Prompt.txt. The user has asked to
+start Phase 3. Branch: phone/phase3-models-artifacts. Baseline: eb0bda1, tested
+Android 0.2.0. The Phase 3 server patch and local GPU plugin are deployed; global model routing is unchanged.
+
+Sequence
+1. Verify the installed backend's model, reasoning and artifact contracts.
+2. Add persistent authenticated artifacts and honest model capability/selection
+   metadata, preserving scoped sessions and durable request identity.
+3. Add Android model controls, file picker/camera, upload/retry/cancel, image/PDF
+   previews, Tools attachment browsing, share-in drafts and share-out grants.
+4. Add a Hermes plugin that reads local amd-smi/nvidia-smi temperatures and serves
+   authenticated, cached telemetry. Bellpull does not connect to another GPU host.
+5. Exercise isolated server tests, JVM/screenshot checks, disposable emulator and
+   non-destructive phone acceptance checks. Document actual coverage and limits.
+
+Verified discovery
+- Current authenticated API on loopback port 8642 exposes /api/model/options,
+  /v1/models and POST /api/sessions/{id}/model. Model inventory includes
+  unconfigured providers and optimistic reasoning flags: those alone are not proof
+  of usable routes, vision support or supported effort/disable levels.
+- /v1/models currently advertises only hermes-agent. The configured model is
+  accounts/fireworks/models/deepseek-v4p1-flash; Fireworks reports authenticated.
+- The existing model-lock endpoint persists browser_model_lock in the session
+  model_config. Durable /v1/runs must be checked separately: its current launch
+  path does not pass confirmed_runtime_lock into _create_agent.
+- Browser artifact transport is feature-gated, bounded to 10 MiB, expires in
+  300 seconds and consumes an artifact on its first download. It cannot back
+  persistent attachments. A separate capability-gated persistent store is needed.
+- Existing tools.file_tools.read_file already extracts PDFs/documents through
+  tools.read_extract. Preserve original bytes and let paginated file tools read
+  documents; no new extraction dependency or unlimited prompt text injection.
+- AIAgent.run_conversation accepts multimodal user_message and a separate
+  persist_user_message, allowing real image input without raw base64 in chat UI.
+- The user clarified GPU telemetry is local to the Hermes plugin's server, using
+  amd-smi or the NVIDIA equivalent. No Moe/SSH access is required. The previously
+  supplied web service is a Qwen chat UI and is not an app telemetry dependency.
+- Installed Hermes supports ctx.register_platform_handler("api_server", factory).
+  The factory receives the aiohttp application before its router freezes, enabling
+  authenticated plugin endpoints without adding a second listening port.
+
+Implementation constraints
+- Keep the existing API origin and bearer boundary; never expose upstream keys.
+- Profiles isolate local files, drafts, selection and all asynchronous callbacks.
+- Persist exact model options and attachment IDs in the run journal before POST;
+  retry never changes those fields or mints a new admission identity.
+- Unknown model capabilities remain unavailable/unknown. Do not silently switch
+  providers, invoke a separate vision model or equate minimum reasoning with Off.
+- Artifact IDs are opaque; downloads are authenticated and repeatable. Validate
+  byte limits, metadata, scope and traversal. Generated artifacts come from a
+  bounded session output directory, not arbitrary filesystem paths from the UI.
+- Copy granted content-provider streams into app-private storage for draft
+  durability. FileProvider grants only the selected share-out item. Preserve
+  source bytes; exclude local files, keys and phone captures from Git/releases.
+- Use existing libraries plus Android APIs (Storage Access Framework, PdfRenderer,
+  FileProvider and Sharesheet). No new dependency is planned.
+
+Primary Android references checked
+https://developer.android.com/training/data-storage/shared/documents-files
+https://developer.android.com/reference/android/graphics/pdf/PdfRenderer
+https://developer.android.com/training/secure-file-sharing/share-file
+
+Final checkpoint (2026-10-10): implementation, live server and Android acceptance complete; release packaging follows.
+- Added persistent artifact store + native authenticated routes, scoped model controls,
+  explicit durable-run model/attachment payloads and generated-output collection.
+- Fixed durable runs ignoring stored session model locks. Fireworks explicit reasoning
+  options now map to the actual top-level reasoning_effort request field.
+- Added local AMD/NVIDIA Hermes plugin and visible-only Android Tools polling.
+- Added Android model picker/defaults, content-provider import/camera, upload retry,
+  draft persistence, PDF/image previews, Tools browser, share-in drafts and share-out.
+- Six artifact store tests, seven native HTTP/transport/catalog tests, seven plugin
+  parser/auth tests, eight Phase 2 and sixteen edit/fork regressions pass. Final Android
+  checks: 282 JVM tests passed, one optional live smoke skipped, 97 screenshot baselines,
+  zero lint errors (36 warnings, four hints). Native acceptance passed on emulator-5582.
+- Physical phone is on 0.3.0 (code 3), preserving credentials and appearance. The tested
+  patch is active, GPU plugin enabled, and a restricted pre-change config backup saved.
+  The plugin changes config enablement only; no global model/provider/default changes.
+
+Local Qwen reasoning verification (user requested; no server defaults changed)
+- The existing local inference server serves qwen38-flash-next and its web chat explicitly
+  sends chat_template_kwargs.enable_thinking to /v1/chat/completions.
+- Two bounded requests, same prompt "Reply with exactly OK.": false gave OK and
+  0 reasoning tokens; true gave OK and 23 reasoning tokens. No graded effort verified.
+- The API extension supports that exact model's toggle when configured as Hermes'
+  custom provider. It does not add a local route or embed the server IP in the app.
+- The desktop gateway currently resolves Fireworks DeepSeek V4.1 Flash. Live model
+  catalog probe verified configured selection, native vision metadata, and low/high/max
+  plus Off. Fixed a discovered dataclass-vs-dict metadata issue before deployment.
+- User clarified reasoning controls are optional and should not hold up this phase.
+  Expose only verified controls; do not invent levels for local models.
+
+Fireworks primary contract checked:
+https://docs.fireworks.ai/api-reference/post-chatcompletions
+DeepSeek V4/V4.1 supports low/high/max and none; GPT-OSS has low/medium/high, no Off.
+Native Hermes transport tests verify these fields and the local Qwen toggle.
+
+Acceptance results:
+- Real Android MediaStore image/PDF imports and share-in text/files remained drafts.
+  Forced HTTP 503 retained draft/file IDs; retry, Activity recreation, native PDF
+  page navigation, image preview and generated PDF preview passed. SAF picker and
+  camera capture were also exercised. A separate test APK received a selected PDF
+  through the Android Sharesheet with read-only, non-persistable grants and matching bytes.
+- Live Hermes identified the image, read the PDF and created a new PDF, all with
+  authenticated repeatable downloads. Fireworks Off and Low runs completed. Phone
+  Context saved Off for just the acceptance session; global defaults stayed unchanged.
+- Physical unfolded phone verified conversation reopening, native image/generated PDF
+  previews alongside chat, Tools sorting and unavailable GPU telemetry. The user
+  restarted the phone to resolve a pre-existing Tailscale DNS failure; it then connected
+  without changing Bellpull profile credentials or network-security behavior.
+- Fixed duplicate completed output and a blank prompt bubble for externally observed
+  runs, verified by a new live response arriving on the phone. Preview header now
+  reuses hole-punch avoidance, with centered/corner camera regression screenshots.
+- Real four-GPU telemetry remains unobserved here because GPU CLIs/hardware are absent.
+  Four-card identity/sensor/cache/stale behavior has synthetic tests. Physical cover/fold
+  transitions and external compute-server deployment remain untested.
+- Desktop packaging is parked at the user's request; emulator use was Android testing only.
+See docs/HANDOFF.md for release checksum and operational limits.

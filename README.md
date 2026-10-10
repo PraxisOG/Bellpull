@@ -2,7 +2,7 @@
 
 # Bellpull — Hermes Android
 
-**[Download Bellpull 0.2.0 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.2.0-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.2.0-preview.1)
+**[Download Bellpull 0.3.0 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.0-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.0-preview.1)
 
 ## Try it on your phone
 
@@ -48,9 +48,29 @@ Phase 2 also includes encrypted named server profiles, switching, sign-out and r
 of saved credentials. Chats, drafts, unread state and run recovery are isolated by profile.
 New installations open a useful disconnected workspace with optional setup in Settings.
 
-Projects and Today currently have placeholder pages. Attachments, model/reasoning controls and GPU metrics are planned for Phase 3. Settings now include experimental immersive mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion or Android's animation settings disable motion. Phone testing of this experiment is complete; see the handoff for the physical-versus-rendered coverage.
+Phase 3 adds configured model selection in Context, supported reasoning controls,
+per-profile defaults for new chats, file/image selection and camera capture, persistent
+uploads with retry/cancel, native PDF/image previews, a Tools attachment browser, and
+Android share-in/share-out. Generated files use the same authenticated records as
+uploads. The separate [GPU plugin](plugins/bellpull_gpu/README.md) reads local
+AMD/NVIDIA temperatures on the Hermes host; no SSH or model call is needed.
 
-The latest completed validation passed 266 JVM tests with one opt-in live smoke test skipped, verified 89 screenshot baselines, passed five emulator instrumentation tests, built the debug APK and reported zero lint errors. Two synthetic servers exercised profile switching during a run, independent drafts, restart and credential removal. The physical phone passed upgrade migration, sign-out, disconnected exploration and reconnection. See [the handoff](docs/HANDOFF.md) for device evidence, existing lint warnings and operational limits. The images above come from the current verified test baselines; their [source list](docs/images/README.txt) is included. The older gallery in [beauty-shots](beauty-shots/README.txt) illustrates earlier UI revisions with fictional data.
+These features require the [Phase 3 server extension](server-patches/bellpull-phase3/README.md).
+Model availability and vision/reasoning depend on the configured backend. The verified
+local Qwen route supports thinking On/Off, not graded effort. GPU cards appear only
+when the plugin can read actual hardware; missing tools/sensors show unavailable.
+
+Projects and Today still have placeholder pages. Settings include experimental immersive
+mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion
+or Android's animation settings disable motion. See the handoff for physical-versus-rendered coverage.
+
+Phase 3 validation includes JVM/screenshot checks, APK/lint, isolated real-adapter
+tests, Android content-provider imports, failed-upload retry, native PDF/image previews,
+camera capture and an actual Sharesheet recipient with read-only grants. A live Hermes
+test identified an uploaded image, read a PDF and generated a new downloadable PDF.
+See [the handoff](docs/HANDOFF.md) for exact counts, phone acceptance, advisory lint
+warnings and remaining hardware/network limits. The gallery above shows the 0.2.0 UI;
+its [source list](docs/images/README.txt) is included. No private phone screenshots are published.
 
 ## Build and test
 
@@ -59,7 +79,8 @@ Android emulator, see [desktop/mint-emulator/README.txt](desktop/mint-emulator/R
 It builds a `.deb` and portable archive, keeps its own Android data and never targets
 a connected phone. This is a desktop preview; a native Compose Desktop port remains
 future work. Its existing packaged release contains the earlier 0.1.0 phone preview;
-the Android download above contains the current profile and disconnected-workspace update.
+the Android download above contains the current phone update. Desktop packaging is
+parked while Android development continues.
 
 Requires JDK 17, Android SDK Platform 37, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
 
