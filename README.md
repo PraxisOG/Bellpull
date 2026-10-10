@@ -1,5 +1,24 @@
 # Bellpull — Hermes Android
 
+**[Download Bellpull for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-preview-20261009.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-preview-20261009.1)
+
+## Try it on your phone
+
+1. Download **Bellpull.apk** on an Android 10 or newer phone.
+2. Open the download and allow your browser or file manager to install this app if Android asks.
+3. Open **Bellpull**. This preview starts on the connection screen. When you want to connect,
+   enter your own Hermes API server URL and API key, then tap **Check connection**.
+
+No agent, server account or API key is included. The next Phase 2 update will let you
+explore the app without connecting and manage multiple servers from Settings. Until
+then, the connection screen is the starting point. This is a development preview,
+signed with the project's current debug certificate; it can update the matching
+development build without uninstalling it.
+
+Use a reachable HTTPS URL, or your server's Tailscale address. Optional Bellpull
+features need the [server extensions](server-patches/README.md); the app checks
+what your server supports. Source/build details follow below.
+
 A native Android chat client for a self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built with Kotlin and Jetpack Compose. Designed for compact, adaptive conversation layouts on a Pixel Fold running GrapheneOS, without Firebase or Google Play Services.
 
 ## Current state
