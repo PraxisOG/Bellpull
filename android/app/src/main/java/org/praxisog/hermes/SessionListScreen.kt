@@ -97,8 +97,11 @@ internal fun SessionListScreen(
                 },
             )
             if (LocalImmersiveHeaders.current && onExpandedSearch != null) {
-                CutoutHeader(title = {
-                    Text("Conversations", style = MaterialTheme.typography.titleSmall,
+                // Align with chat titles: 8 dp list inset + 14 dp card padding.
+                // CutoutHeader supplies the other 4 dp of that 22 dp inset.
+                CutoutHeader(modifier = Modifier.padding(start = 18.dp), title = {
+                    Text("Conversations", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
                 }, trailing = {
@@ -112,8 +115,9 @@ internal fun SessionListScreen(
                 if (onExpandedSearch == null) Box(Modifier.weight(1f)) {
                     SectionHeader(if (searching) "Search results" else "Conversations")
                 } else {
-                    Text("Conversations", style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    Text("Conversations", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f).padding(start = 14.dp),
                         color = MaterialTheme.colorScheme.onSurface)
                     androidx.compose.material3.IconButton(onClick = onExpandedSearch,
                         modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }

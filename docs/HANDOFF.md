@@ -1,5 +1,24 @@
 # Bellpull / Hermes app handoff
 
+## Conversations heading matches chat titles — 2026-10-10
+
+Branch `ui/align-conversations-heading` starts from tested checkpoint `e41f151`.
+The drawer's Conversations heading now aligns with the chat title text inside
+the cards, using the same `titleMedium` typography (15 sp, semibold). Standard
+and immersive headers use the cards' 8 dp outer inset plus 14 dp inner padding;
+the immersive header retains its camera avoidance and existing search position.
+This reflects the user's refinement from aligning with the cards' outer edge.
+
+Validation: 316 JVM tests passed, one opt-in live smoke skipped; all 113 screenshot
+baselines verified; APK/lint passed with zero errors, 36 warnings and four hints.
+All 29 updated snapshots differ only around the heading. Cover/dark and unfolded
+before/after images were inspected. The updated debug APK was installed in place
+on the naturally unfolded Pixel 10 Pro Fold: the heading and six visible chat
+titles all start at x=61 px. Private captures/geometry remain in ignored
+`android/app/build/device-tests/heading-align/`; fictional before/after comparisons
+are in `android/app/build/heading-align/`. Physical folding was not exercised.
+The app remains version 0.3.3 (code 6); this is a local branch checkpoint.
+
 ## Tool and artifact rows share the response outline — 2026-10-10
 
 Android **0.3.3 (code 6)** refines the combined response bubble to match the user's
