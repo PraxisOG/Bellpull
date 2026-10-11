@@ -11,6 +11,10 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
+    var voice by mutableStateOf<VoiceSession?>(null)
+    var voiceStartError by mutableStateOf<String?>(null)
+    var voiceRequestedSession: String? = null
+    var voiceRequestedMode = VoiceMode.CONVERSATION
     var cache: SessionCache? = null
         private set
     var drafts = ChatDrafts()
@@ -151,6 +155,11 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun disconnect() {
+        voice?.close()
+        voice = null
+        voiceRequestedSession = null
+        voiceStartError = null
+        context.stopService(android.content.Intent(context, VoiceService::class.java))
         projects?.close()
         projects = null
         capabilities = null

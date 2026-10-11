@@ -7,6 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.*
 import org.praxisog.hermes.model.Artifact
 
@@ -26,6 +28,23 @@ class MainActivity : ComponentActivity() {
     private var shareError by mutableStateOf<String?>(null)
     private var showShare by mutableStateOf(true)
     private var pendingNotification: Pair<String, String>? = null
+    private var voiceOpen by mutableStateOf(false)
+    private data class VoicePermissionRequest(val profile: String, val session: String, val mode: VoiceMode)
+    private var microphoneRequest: VoicePermissionRequest? = null
+    private var voiceNotificationRequest: VoicePermissionRequest? = null
+    private val voiceNotificationPermission = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+        val request = voiceNotificationRequest; voiceNotificationRequest = null
+        if (request != null && request.profile == runtime.profileId && request.session == store?.openSessionId) startVoice(request.mode)
+    }
+    private val microphonePermission = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        val request = microphoneRequest
+        microphoneRequest = null
+        if (request != null && request.profile == runtime.profileId && request.session == store?.openSessionId) {
+            if (granted) continueVoice(request.mode) else runtime.voiceStartError = "Microphone permission is required to start voice."
+        }
+    }
     private var permissionProfile: String? = null
     private val notificationPermission = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
@@ -47,6 +66,7 @@ class MainActivity : ComponentActivity() {
         messageReader = reader
         profiles = ServerProfiles(this, scope, runtime, onLeaving = {
             reader.stop()
+            voiceOpen = false
             pendingNotification = null
             pendingNewChat = false
         }, onConnected = ::connected)
@@ -61,6 +81,15 @@ class MainActivity : ComponentActivity() {
                 // Discard all saved UI navigation/selection when the account changes.
                 key(profiles.activeId) {
                     val current = store
+                    if (voiceOpen && profiles.activeId != null) {
+                        val voiceSettings = remember(profiles.activeId) { VoiceSettings(applicationContext, profiles.activeId!!) }
+                        var config by remember(voiceSettings) { mutableStateOf(voiceSettings.read()) }
+                        HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
+                            VoicePanel(runtime.voice, config, runtime.voiceStartError,
+                                { voiceSettings.save(it); config = voiceSettings.read() }, ::requestVoice, { voiceOpen = false },
+                                onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false })
+                        }
+                    }
                     pendingShare?.takeIf { showShare }?.let { incoming ->
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
                             IncomingShareDialog(incoming, (current?.sessions as? UiState.Ready)?.value.orEmpty(), current != null,
@@ -133,7 +162,7 @@ class MainActivity : ComponentActivity() {
                         draft = current?.draft ?: exampleDraft,
                         onDraftChange = { if (current == null) exampleDraft = it else current.updateDraft(it) },
                         preferences = preferences.value, onPreferencesChange = preferences::update,
-                        onReadMessage = { reader.read(it.id, it.content.orEmpty()) }, readingMessageId = reader.readingMessageId,
+                        onReadMessage = { runtime.voice?.pause("Voice paused for message read-aloud."); reader.read(it.id, it.content.orEmpty()) }, readingMessageId = reader.readingMessageId,
                         onBranchMessage = { current?.branchMessage(it) },
                         branchingEnabled = current?.supportsMessageBranching ?: false,
                         editingEnabled = current?.supportsPromptEditing ?: false,
@@ -153,11 +182,17 @@ class MainActivity : ComponentActivity() {
                         modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
                             { ModelControl(workspace, id) }
                         } },
-                        composerLeading = files?.let { workspace -> current?.openSessionId?.let { id ->
-                            { if (!workspace.runAttachmentsSupported) UnavailableAttachmentsButton(workspace.filesSupported)
-                              else AttachButton(workspace, id) { target ->
-                                if (current.drafts[target].text.isBlank()) current.drafts.set(target, TextFieldValue("Attached files"))
-                            } }
+                        composerLeading = current?.openSessionId?.let { id -> {
+                            androidx.compose.foundation.layout.Row {
+                                androidx.compose.material3.IconButton(onClick = { reader.stop(); voiceOpen = true },
+                                    modifier = androidx.compose.ui.Modifier.semantics { contentDescription = "Voice conversation" }) { VoiceGlyph() }
+                                if (files != null) {
+                                    if (!files.runAttachmentsSupported) UnavailableAttachmentsButton(files.filesSupported)
+                                    else AttachButton(files, id) { target ->
+                                        if (current.drafts[target].text.isBlank()) current.drafts.set(target, TextFieldValue("Attached files"))
+                                    }
+                                }
+                            }
                         } },
                         attachmentStrip = files?.let { workspace -> current?.openSessionId?.let { id ->
                             { AttachmentStrip(workspace, id) }
@@ -180,6 +215,9 @@ class MainActivity : ComponentActivity() {
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,
                                 profiles::removeAll, profiles::rename)
                             if (files?.modelsSupported == true) ModelControl(files, null)
+                            if (profiles.activeId != null) androidx.compose.material3.TextButton(onClick = { reader.stop(); voiceOpen = true }) {
+                                androidx.compose.material3.Text("Voice settings and conversation")
+                            }
                         },
                     )
                 }
@@ -202,6 +240,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == VoiceService.OPEN) {
+            runtime.voice?.let { store?.openSession(it.sessionId) }
+            voiceOpen = true
+            return
+        }
         IncomingShare.from(intent)?.let {
             pendingShare = it; shareError = null; showShare = true
             return
@@ -273,6 +316,32 @@ class MainActivity : ComponentActivity() {
         messageReader?.close()
         scope.cancel()
         super.onDestroy()
+    }
+    private fun requestVoice(mode: VoiceMode) {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val profile = runtime.profileId; val session = store?.openSessionId
+            if (profile == null || session == null) { runtime.voiceStartError = "Open a conversation before starting voice."; return }
+            microphoneRequest = VoicePermissionRequest(profile, session, mode)
+            microphonePermission.launch(android.Manifest.permission.RECORD_AUDIO)
+        } else continueVoice(mode)
+    }
+    private fun continueVoice(mode: VoiceMode) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val profile = runtime.profileId; val session = store?.openSessionId
+            if (profile != null && session != null) {
+                voiceNotificationRequest = VoicePermissionRequest(profile, session, mode)
+                voiceNotificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else startVoice(mode)
+    }
+    private fun startVoice(mode: VoiceMode) {
+        val id = store?.openSessionId
+        if (id == null) { runtime.voiceStartError = "Open or create a conversation before starting voice."; return }
+        messageReader?.stop()
+        runtime.voiceRequestedSession = id; runtime.voiceRequestedMode = mode
+        runCatching { startForegroundService(Intent(this, VoiceService::class.java)) }.onFailure {
+            runtime.voiceStartError = "Could not start voice. Try again with Bellpull open."
+        }
     }
     private fun requestNotifications(enabled: Boolean) {
         if (enabled && android.os.Build.VERSION.SDK_INT >= 33 &&

@@ -137,6 +137,7 @@ internal class ServerProfiles(
         // Clear local account data before forgetting its index, so failures can be retried.
         val removed = runCatching {
             check(SessionCache(context, id).clearChecked())
+            check(VoiceSettings(context, id).clear())
             check(secure?.remove(id) == true)
         }.isSuccess
         reload()
@@ -150,6 +151,7 @@ internal class ServerProfiles(
         val removed = runCatching {
             (profiles.map { it.id } + SecureConnectionStore.LEGACY).distinct().forEach {
                 check(SessionCache(context, it).clearChecked())
+                check(VoiceSettings(context, it).clear())
             }
             check(secure?.clear() == true)
         }.isSuccess
