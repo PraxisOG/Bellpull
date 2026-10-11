@@ -42,7 +42,7 @@ metadata confirms 0.5.0/build 12 and `stopped=true`; the personal app was never
 launched or connected during these checks. Signed APK SHA-256 and all local
 evidence live under ignored `build/releases/0.5.0/`, including a before/after
 screenshot gallery and `verification.json`. APK SHA-256:
-`8fe6869daa474ed44b7162ad686cc8e6c4b186e305a87b0b6457940e4072eb6b`.
+`a9d05f095297794d3557b30902e475feed96b66e3e72167cf8617729265382a9`.
 
 This is a preview, not completion of Phase 5. The user must configure a private
 STT URL/key/model. Real recognition, acoustic echo/barge-in, perceived latency,

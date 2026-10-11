@@ -39,7 +39,8 @@ class PrivateTranscriptionTest {
         client.close(); assertTrue(client.transcribe(wav).isFailure)
     }
     @Test fun malformedAndOversizedResponseAreRejected() {
-        for (body in listOf("{bad json private text", "x".repeat(70000), "{}")) {
+        for (body in listOf("{bad json private text", "x".repeat(70000), "{}",
+            "{\"text\":null}", "{\"text\":123}", "{\"text\":{}}")) {
             val http = OkHttpClient.Builder().addInterceptor { chain -> Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
                 .code(200).message("OK").body(body.toResponseBody()).build() }.build()
             val result = PrivateTranscription("https://speech.invalid/v1/audio/transcriptions", "", "whisper", http).transcribe(wav)

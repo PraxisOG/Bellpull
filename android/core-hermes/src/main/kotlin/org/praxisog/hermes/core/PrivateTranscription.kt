@@ -36,9 +36,9 @@ class PrivateTranscription(private val endpoint: String, private val key: String
                 source.request(65_537)
                 val bytes = source.readByteArray(minOf(source.buffer.size, 65_537))
                 check(bytes.size <= 65_536) { "Transcription response is too large." }
-                val text = Json.parseToJsonElement(bytes.toString(Charsets.UTF_8)).jsonObject["text"]?.jsonPrimitive?.content
-                require(text != null) { "Transcription service did not return JSON text." }
-                text.trim()
+                val text = Json.parseToJsonElement(bytes.toString(Charsets.UTF_8)).jsonObject["text"]
+                require(text is JsonPrimitive && text.isString) { "Transcription service did not return JSON text." }
+                text.content.trim()
             }
         } finally { if (call === current) call = null }
     }.recoverCatching { error ->
