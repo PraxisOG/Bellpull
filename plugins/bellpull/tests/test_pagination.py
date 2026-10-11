@@ -88,6 +88,20 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(Snapshots, "TTL", -1):
             self.assertEqual(410, (await self.client.get(path, headers={"Authorization": "Bearer rotated-fixture"}, params=query)).status)
 
+    async def test_compacted_prompt_is_archived_but_final_reply_remains_in_fresh_snapshot(self):
+        self.db.create_session("chat", "api_server")
+        prompt = self.db.append_message("chat", "user", "Original admitted prompt")
+        self.db.append_message("chat", "assistant", "Intermediate tool work")
+        self.db.archive_and_compact("chat", [{"role": "assistant", "content": "Context summary"}])
+        path = "/api/bellpull/sessions/chat/messages"
+        before = await (await self.client.get(path, headers=self.headers)).json()
+        self.assertNotIn(prompt, [row["id"] for row in before["data"]])
+        final = self.db.append_message("chat", "assistant", "Authoritative final output")
+        after = await (await self.client.get(path, headers=self.headers)).json()
+        self.assertEqual(final, after["data"][-1]["id"])
+        self.assertEqual("Authoritative final output", after["data"][-1]["content"])
+        self.assertIn(prompt, [row["id"] for row in self.db.get_messages("chat", include_compacted=True)])
+
     async def test_unconfigured_auth_is_closed(self):
         self.adapter._api_key = ""
         self.assertEqual(401, (await self.client.get("/api/bellpull/capabilities")).status)

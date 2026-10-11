@@ -23,6 +23,14 @@ def decoded(result):
 
 
 class PortableTest(unittest.IsolatedAsyncioTestCase):
+    async def flush_status(self):
+        # Newer stock Hermes persists disconnect status on a background writer.
+        # Drain it before deleting its disposable home; do not suppress errors.
+        from gateway import status
+        flush = getattr(status, "flush_runtime_status", None)
+        if callable(flush):
+            self.assertTrue(await asyncio.to_thread(flush))
+
     async def test_reasoning_arrives_before_completion_through_stock_native_stream(self):
         core = Path(api_server.__file__).resolve().parents[2]
         paths = [core / "gateway/platforms/api_server.py", core / "gateway/platforms/api_server_runs.py"]
@@ -94,6 +102,7 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
                 release.set()
                 await adapter.disconnect()
                 manager.unload()
+                await self.flush_status()
         self.assertEqual(before, [hashlib.sha256(path.read_bytes()).hexdigest() for path in paths])
 
     async def test_stock_outputs_auth_restart_and_unchanged_core(self):
@@ -169,6 +178,7 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
             finally:
                 await adapter.disconnect()
                 manager.unload()
+                await self.flush_status()
         self.assertEqual(before, [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources])
 
     async def test_tool_rejects_model_supplied_session_and_unsafe_outputs(self):

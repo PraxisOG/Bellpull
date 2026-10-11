@@ -65,7 +65,8 @@ class ArtifactStore:
     def __init__(self, home: Path, scope: str):
         if not _SCOPE.fullmatch(scope):
             raise ArtifactError("Invalid artifact scope.")
-        self.root = Path(home) / "bellpull-artifacts" / scope
+        self.home = Path(home)
+        self.root = self.home / "bellpull-artifacts" / scope
         if self.root.is_symlink() or self.root.parent.is_symlink():
             raise ArtifactError("Artifact namespace is unsafe.", 410)
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -92,6 +93,9 @@ class ArtifactStore:
             db.execute("""CREATE TABLE IF NOT EXISTS artifact_links (
                 artifact_id TEXT NOT NULL, session_id TEXT NOT NULL, message_id INTEGER,
                 PRIMARY KEY(artifact_id, session_id))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS collection_cursors (
+                session_id TEXT NOT NULL, request_id TEXT NOT NULL, last_name TEXT NOT NULL,
+                PRIMARY KEY(session_id, request_id))""")
 
     @contextmanager
     def _db(self):
@@ -118,7 +122,30 @@ class ArtifactStore:
             raise ArtifactError("Attachment content is unavailable.", 410)
         return candidate
 
-    def _public(self, row):
+    def _commit_blob(self, temporary, target):
+        os.replace(temporary, target)
+        # Publication may now retire its only staging copy. Persist the directory
+        # entry before committing metadata that declares these bytes available.
+        fd = os.open(self.blobs, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def _compression_ids(self, session_id, cache):
+        if session_id not in cache:
+            cache[session_id] = [session_id]
+            if (self.home / "state.db").is_file():
+                from hermes_state import SessionDB
+                from .lineage import compression_ids
+                database = SessionDB(self.home / "state.db", read_only=True)
+                try:
+                    cache[session_id] = compression_ids(database, session_id)
+                finally:
+                    database.close()
+        return cache[session_id]
+
+    def _public(self, row, lineages=None):
         value = {key: row[key] for key in (
             "id", "session_id", "name", "mime", "size", "sha256", "created_at", "source", "request_id", "message_id")}
         try:
@@ -130,32 +157,32 @@ class ArtifactStore:
         with self._db() as db:
             links = db.execute("SELECT session_id, message_id FROM artifact_links WHERE artifact_id = ?", (row["id"],)).fetchall()
         value["message_ids"] = {link["session_id"]: link["message_id"] for link in links}
-        value["session_ids"] = [row["session_id"]] + [link["session_id"] for link in links]
+        cache = lineages if lineages is not None else {}
+        value["session_ids"] = sorted({alias for session in [row["session_id"]] + [link["session_id"] for link in links]
+                                       for alias in self._compression_ids(session, cache)})
         return value
 
     def list(self, session_id=None):
         if session_id is not None:
             checked_session(session_id)
         with self._db() as db:
-            rows = db.execute("SELECT a.* FROM artifacts a" +
-                (" WHERE a.session_id = ? OR EXISTS (SELECT 1 FROM artifact_links l WHERE l.artifact_id = a.id AND l.session_id = ?)" if session_id else "") +
-                " ORDER BY created_at DESC", (session_id, session_id) if session_id else ()).fetchall()
-        return [self._public(dict(row)) for row in rows]
+            rows = db.execute("SELECT * FROM artifacts ORDER BY created_at DESC").fetchall()
+        lineages = {}
+        records = [self._public(dict(row), lineages) for row in rows]
+        return [row for row in records if session_id is None or session_id in row["session_ids"]]
 
     def metadata(self, artifact_id):
         return self._public(self._row(artifact_id))
 
     def path(self, artifact_id, session_id=None):
         row = self._row(artifact_id)
-        if session_id is not None and row["session_id"] != session_id:
-            with self._db() as db:
-                linked = db.execute("SELECT 1 FROM artifact_links WHERE artifact_id = ? AND session_id = ?", (artifact_id, session_id)).fetchone()
-            if linked is None:
-                raise ArtifactError("Attachment belongs to another conversation.", 409)
+        metadata = self._public(row)
+        if session_id is not None and session_id not in metadata["session_ids"]:
+            raise ArtifactError("Attachment belongs to another conversation.", 409)
         path = self._path(row)
         if row.get("deleted_at") or not path.is_file() or path.stat().st_size != row["size"]:
             raise ArtifactError("Attachment content is no longer available.", 410)
-        return path, self._public(row)
+        return path, metadata
 
     def store(self, chunks, *, session_id, name, mime, artifact_id=None, source="upload"):
         session_id, name, mime = checked_session(session_id), checked_name(name), checked_type(mime)
@@ -192,12 +219,12 @@ class ArtifactStore:
                         "sha256": sha256, "size": size, "source": source}.items()):
                         raise ArtifactError("Upload identity already belongs to different content.", 409)
                     if not self._public(dict(old))["available"]:
-                        os.replace(temporary, self._path(dict(old)))
+                        self._commit_blob(temporary, self._path(dict(old)))
                     return self._public(dict(old))
                 total = db.execute("SELECT COALESCE(SUM(size), 0) FROM artifacts WHERE deleted_at IS NULL").fetchone()[0]
                 if total + size > MAX_SCOPE_BYTES:
                     raise ArtifactError("Server attachment storage is full (512 MiB per account).", 507)
-                os.replace(temporary, self.blobs / blob)
+                self._commit_blob(temporary, self.blobs / blob)
                 db.execute("INSERT INTO artifacts (id, session_id, name, mime, size, sha256, created_at, source, request_id, message_id, blob) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)",
                            (artifact_id, session_id, name, mime, size, sha256, time.time(), source, blob))
             return self.metadata(artifact_id)
@@ -235,19 +262,34 @@ class ArtifactStore:
                 folder.mkdir(exist_ok=True, mode=0o700)
         return folder
 
-    def collect_outputs(self, session_id, request_id, *, folder=None):
+    def collect_outputs(self, session_id, request_id, *, folder=None, retire=False, warning_id=None):
         """Copy bounded regular generated files into immutable authenticated records.
 
         Never follow symlinks, devices, hard links, subfolders or caller-supplied paths.
         A file recreated with identical bytes deduplicates; changed bytes get a new ID.
         """
         folder = folder or self.output_directory(session_id)
+        if retire and (folder != self.output_directory(session_id, request_id, create=False) or
+                       folder.is_symlink() or folder.parent.is_symlink()):
+            raise ArtifactError("Only plugin-owned staging copies can be retired.")
         records = []
-        for index, source in enumerate(sorted(folder.iterdir())):
-            if source.name in (".active", ".complete"):
-                continue
+        warning_id = warning_id or request_id
+        sources = [path for path in sorted(folder.iterdir()) if path.name not in (".active", ".complete")]
+        if retire:
+            with self._db() as db:
+                old = db.execute("SELECT last_name FROM collection_cursors WHERE session_id = ? AND request_id = ?",
+                                 (session_id, request_id)).fetchone()
+            if old:
+                sources = [path for path in sources if path.name > old[0]] + [path for path in sources if path.name <= old[0]]
+            if sources:
+                # Advance once per bounded batch. An interrupted batch wraps on retry;
+                # committed files have retired and uncommitted files remain recoverable.
+                with self._db() as db:
+                    db.execute("INSERT OR REPLACE INTO collection_cursors VALUES (?, ?, ?)",
+                               (session_id, request_id, sources[min(len(sources), 1000) - 1].name))
+        for index, source in enumerate(sources):
             if index >= 1000:
-                self.warning(request_id, "collection-limit", "More than 1000 outputs: remaining files need explicit collection.")
+                self.warning(warning_id, "collection-limit", "More than 1000 outputs: remaining files need another publish call.")
                 break
             try:
                 name = checked_name(source.name)
@@ -255,9 +297,12 @@ class ArtifactStore:
                 with os.fdopen(fd, "rb") as file:
                     info = os.fstat(file.fileno())
                     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= MAX_BYTES:
-                        self.warning(request_id, name, "Output is empty, oversized, or not a safe regular file.")
+                        self.warning(warning_id, name, "Output is empty, oversized, or not a safe regular file.")
                         continue
                     data = file.read(MAX_BYTES + 1)
+                    after = os.fstat(file.fileno())
+                    if (info.st_size, info.st_mtime_ns, info.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+                        raise ArtifactError("Output changed while being published. Retry when writing finishes.", 409)
                 digest = hashlib.sha256(data).hexdigest()
                 identity = hashlib.sha256((session_id + "\0" + request_id + "\0" + name + "\0" + digest).encode()).hexdigest()[:32]
                 mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
@@ -268,21 +313,34 @@ class ArtifactStore:
                 with self._db() as db:
                     db.execute("UPDATE artifacts SET request_id = COALESCE(request_id, ?) WHERE id = ?",
                                (request_id, identity))
-                records.append(row)
+                records.append(self.metadata(identity))
+                if retire:
+                    current = source.lstat()
+                    if (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns, current.st_ctime_ns) == (
+                            info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns):
+                        source.unlink() # Only this unchanged, plugin-owned staging copy.
+                    else:
+                        self.warning(warning_id, name, "Published bytes are safe; a changed staging file was retained for retry.")
             except (OSError, ArtifactError) as exc:
                 # One unavailable output must not hide the other valid artifacts.
-                self.warning(request_id, source.name[:180], str(exc) if isinstance(exc, ArtifactError) else "Output could not be read safely.")
+                self.warning(warning_id, source.name[:180], str(exc) if isinstance(exc, ArtifactError) else "Output could not be read safely.")
                 continue
         return records
+
+    def clear_warnings(self, request_id):
+        with self._db() as db:
+            db.execute("DELETE FROM collection_warnings WHERE request_id = ?", (request_id,))
 
     def warning(self, request_id, name, message):
         with self._db() as db:
             db.execute("INSERT OR REPLACE INTO collection_warnings VALUES (?, ?, ?, ?)",
                 (request_id, name, message, time.time()))
 
-    def warnings(self):
+    def warnings(self, request_id=None):
         with self._db() as db:
-            return [dict(row) for row in db.execute("SELECT * FROM collection_warnings ORDER BY created_at DESC LIMIT 100")]
+            return [dict(row) for row in db.execute("SELECT * FROM collection_warnings" +
+                (" WHERE request_id = ?" if request_id else "") + " ORDER BY created_at DESC LIMIT 100",
+                (request_id,) if request_id else ())]
 
     def usage(self):
         with self._db() as db:

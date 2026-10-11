@@ -33,9 +33,25 @@ def share_files(args, *, session_id="", **kwargs):
                 "are accepted. Do not claim delivery before publish succeeds."}
         if args.get("action") != "publish":
             raise ArtifactError("Choose prepare or publish.")
-        records = store.collect_outputs(session_id, "shared-outbox", folder=folder)
-        return {"artifacts": records, "warnings": store.warnings(),
-                "message": "Files are available in Bellpull." if records else "No files were published. Check the outbox and warnings."}
+        # Serialize stock publication across tool workers. A lost response can retry
+        # deterministic IDs; only successfully committed, unchanged staging copies retire.
+        import fcntl
+        import os
+        lock = store.root / (".publish-" + session_id)
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "a") as locked:
+            fcntl.flock(locked, fcntl.LOCK_EX)
+            warning_id = "share-" + session_id
+            store.clear_warnings(warning_id)
+            records = store.collect_outputs(session_id, "shared-outbox", folder=folder, retire=True, warning_id=warning_id)
+            remaining = sum(1 for path in folder.iterdir() if path.name not in (".active", ".complete"))
+            warnings = store.warnings(warning_id)
+        status = "partial" if remaining else "published" if records else "empty"
+        return {"artifacts": records, "warnings": warnings, "status": status,
+                "published_count": len(records), "remaining_count": remaining,
+                "message": (f"Partial publication: {len(records)} files published; {remaining} staged files remain. Check warnings and retry."
+                    if remaining else "Files are available in Bellpull." if records else
+                    "No files are staged. Previously published files are managed in Bellpull.")}
     except (ArtifactError, OSError, ValueError) as exc:
         return {"error": str(exc)}
 
