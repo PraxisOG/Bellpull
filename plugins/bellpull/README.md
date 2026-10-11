@@ -1,4 +1,4 @@
-# Bellpull plugin 0.2.1
+# Bellpull plugin 0.2.2
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,
 persistent artifacts, notification relay and optional GPU telemetry. It registers
@@ -15,9 +15,12 @@ atomic admission, concurrency, cancellation, replay and exact-request approvals.
 File publishing, authenticated downloads, storage management and GPU telemetry
 work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
-Use Bellpull Android 0.3.6 or newer with this package. Install on your server yourself:
+Use Bellpull Android 0.3.7 or newer for the complete audit repair. Install on your server yourself:
 
 ```bash
+# Obtain the repaired code in a fresh checkout (no public 0.3.7 release is implied):
+git clone --single-branch --branch repair/bellpull-plugin-migration https://github.com/PraxisOG/Bellpull.git bellpull-0.3.7
+cd bellpull-0.3.7
 # From the unpacked Bellpull plugin bundle or this repository:
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
@@ -48,6 +51,20 @@ dispatch, not model-supplied arguments. MEDIA tags and browser-scoped temporary
 upload links are not the delivery contract. Existing files can be copied into
 the outbox and published without generating them again.
 
+The 0.3.7 audit repair retires only unchanged outbox copies that were
+successfully stored. Failed files remain for recovery. `publish` reports partial
+publication and the staged count; repeat it until the outbox is drained. A lost
+response can be retried without duplicate artifacts. Previously published artifacts
+remain available after the outbox is empty, until explicitly deleted in Bellpull.
+Existing retained outboxes are drained by subsequent publish calls (1000 entries
+per call). Other user directories are never cleaned by this tool.
+
+Files follow verified compression continuations in the same native profile,
+including files published after the phone's conversation ID became stale. Ordinary
+branches inherit only files with proven copied-prefix message associations. No byte
+or artifact-ID migration is required. See `docs/AUDIT-0.3.6-REPAIR.md` for the audit
+results and manual acceptance checklist.
+
 Acceptance after restarting: plugin capabilities report
 `bellpull_persistent_artifacts: true` and `bellpull_artifact_lifecycle: true`;
 publish four PNGs with the tool; open Tools in Bellpull, refresh, and preview or
@@ -57,6 +74,9 @@ the app to refresh feature discovery. Missing sharing support is now visible.
 Native `profile_routes: []` means this listener serves no named profile prefixes.
 Use its ordinary root URL. The plugin never invents `/p/<name>` access; Hermes'
 native middleware rejects unknown/unserved profiles before plugin handlers run.
+The repaired Android URL validator accepts a served `/p/work` prefix and preserves
+it for authenticated discovery and subsequent requests. A syntactically valid URL
+does not enable a profile on the server; use that native profile's own key.
 
 File downloads are independent of model controls and chat input attachments.
 Stock installs advertise `bellpull_run_attachments: false` unless the optional

@@ -42,15 +42,19 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-The repair branch builds **0.3.6 (code 9)**: stock JSON-named SSE frames, all native
-conversation sources by default, live reasoning through Bellpull plugin 0.2.1, an animated working row
+The repair branch builds **0.3.7 (code 10)** with **Bellpull plugin 0.2.2**:
+completion recovery after compaction, retrying failed initial streams, bounded
+file staging, compression-aware file membership, native profile URLs and repaired
+Android CI setup. See the [audit repair report](docs/AUDIT-0.3.6-REPAIR.md) for
+regression evidence and stock-install acceptance steps. It also includes stock
+JSON-named SSE frames, all native conversation sources by default, live reasoning, an animated working row
 inside the response, native CommonMark rendering with code
 copy, dense/title-only navigation defaults, optional larger labeled controls,
 source-scoped history and complete paging, Info labels, artifact lifecycle controls
 and bounded run-journal retention. A single Bellpull plugin provides stock Hermes
 file sharing and live thinking. The pinned host extension is optional legacy
 compatibility for run inputs/model overrides. The public download and gallery above remain 0.3.3.
-The personal server migration and signed upgrade await the user's manual test; see
+The personal server migration remains a manual user action; see
 [handoff](docs/HANDOFF.md), [plugin setup/rollback](plugins/bellpull/README.md),
 [API contract](docs/hermes-api.md), and [release signing](docs/release.md).
 

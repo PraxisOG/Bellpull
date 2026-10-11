@@ -1,16 +1,18 @@
 # Building and upgrading Bellpull
 
-The public download remains 0.3.3 preview. This repair branch builds **0.3.6,
-version code 9**. It is not published. Do not reuse a version code after release.
+The public download remains 0.3.3 preview. This repair branch builds **0.3.7,
+version code 10**. It is not published as a release. Do not reuse a version code after release.
 
-The current manual test delivery pairs this APK with **bellpull plugin 0.2.1**.
+The current manual test delivery pairs this APK with **bellpull plugin 0.2.2**.
 Use the stock installation instructions in `plugins/bellpull/README.md`; Docker
 and `server-host/` are not required for persistent generated-file sharing. The
 user manages the personal server and has explicitly prohibited agent access.
 Phone checks use `-PbellpullDeviceFixture=true`, which produces the separate
 `org.praxisog.hermes.fixture` package and cannot load personal app profiles.
-The preview-to-release signing transition was verified on the Fold before the
-manual-install instruction; the final repaired APK awaits the user's install.
+The preview-to-release signing transition was verified on the Fold. Use the same
+signing lineage for the 0.3.7 update. The user authorized ADB installation and
+isolated fixture acceptance of 0.3.7; the personal Hermes server remains off limits.
+See [the audit repair report](AUDIT-0.3.6-REPAIR.md) for the final evidence.
 
 0.3.6 fixture acceptance passed on the unfolded Fold with stock non-Docker Hermes:
 all conversation sources, growing thinking, interim prose/tools, saved completion
@@ -33,6 +35,20 @@ the fixture profile configured for the visible chat check; authenticated POSTs
 to `/fixture/advance` release each reasoning/tool/reply step. These loopback test
 controls never ship in the plugin. Remove both fixture packages and forwarding
 afterward; leave personal Bellpull stopped throughout.
+
+For the 0.3.7 audit regression, start a fresh fixture with `--audit-repair` instead
+of `--streaming`, then select `PortableFilesDeviceTest`,
+`ConversationSourcesDeviceTest`, and `AuditRepairDeviceTest` explicitly. The last
+test drives its own authenticated fixture controls: first SSE request fails,
+thinking/answer reconnect, the prompt is compacted, completion precedes the final
+saved reply, and encrypted tracking is restored before reconciliation. It asserts
+one inference and no stale pending prompt. Restart the disposable fixture before
+rerunning it; the fixture intentionally admits only one inference per process.
+
+The 0.3.7 personal-app install is a signed `adb install -r`, preserving the installed
+app rather than clearing data. Do not launch the personal profile for these tests:
+the personal Hermes server remains off limits. Actual saved-profile/draft access
+must be checked by the user. See the audit report for device and signing evidence.
 
 ## Checks before a release
 

@@ -1,5 +1,19 @@
 # Bellpull / Hermes app handoff
 
+## 0.3.7 audit repair — 2026-10-11
+
+All six audited findings at `8597dbd` were verified and repaired locally on
+`repair/bellpull-plugin-migration`. See [the audit repair report](AUDIT-0.3.6-REPAIR.md)
+for behavior changes, regression results, compatibility limits, CI evidence and
+the stock non-Docker acceptance checklist. The existing prepared 0.3.6 release APK
+predates these repairs. The user subsequently authorized ADB installation and
+pushing 0.3.7. Android is **0.3.7/code 10**, paired with **plugin 0.2.2**. The signed
+in-place phone update preserves the Android UID; three isolated stock-fixture
+device tests cover files, source visibility and stream/compaction/restart recovery.
+The personal app remains stopped during tests. No personal-server access, merge
+or public release is authorized. Actual-provider and personal-profile acceptance
+remain for the user.
+
 ## Stock SSE framing caught on the Fold — 2026-10-10
 
 Bellpull **0.3.6 / code 9**, paired with the unchanged **bellpull 0.2.1**

@@ -146,6 +146,22 @@ links only proven copied-prefix messages, including nested branches; unassociate
 legacy records remain downloadable from the source. Deleting an artifact affects
 all references and cannot be undone by replaying its old upload ID.
 
+The 0.3.7 audit repair expands `session_ids` across verified compression
+continuations within the current native profile, in both directions. A compression
+edge requires an ended parent with `end_reason: compression`, a non-tool child,
+and no branch/delegate/reset marker pointing to that parent. Inherited markers
+pointing elsewhere do not block a continuation. Cycles, ambiguous children and
+lineages exceeding 1000 rows fail closed. This does not invent message IDs or
+change the exact-prefix rules for branch links.
+
+Stock `bellpull_share_files` publication retires unchanged plugin-owned staging
+copies after durable immutable storage. Failures remain staged. Its additive
+result fields are `status` (`published`, `partial`, `empty`), `published_count`
+and `remaining_count`; partial results include warnings and request another publish.
+Collection rotates bounded batches so old failures cannot indefinitely starve newer
+names. Retrying an interrupted commit deduplicates the original artifact identity;
+an empty retry does not imply that previously published files were deleted.
+
 The stable profile owner comes from `$HERMES_HOME/bellpull/principal-id`, independent
 of bearer rotation. Legacy key-derived namespaces require an explicit offline
 migration; they are never automatically merged. Persistent files stay until deletion,
@@ -173,6 +189,22 @@ Approval decisions still require the native owner and exact current request ID;
 replays/stale/cross-run decisions fail. Status hooks emit narrow scoped wake hints
 for terminal, interrupted and waiting-for-approval transitions. ntfy is advisory;
 canonical status and history remain authoritative.
+
+Android 0.3.7 reconciles completed runs against the native
+status `output`, fresh saved assistant rows and server `created_at`/message timestamps
+when the prompt was compacted away. A successful history GET alone is insufficient.
+Evidence and retry count are journaled across restarts. After 12 unsuccessful history
+checks, automatic reconciliation stops with explicit review/retry controls. Releasing
+tracking is distinct from verified synchronization and never restores an admitted
+prompt to the composer. Transport failures before the first SSE frame retry the same
+run subscription with exponential backoff; consumed legacy unsequenced streams retain
+the polling fallback. No stream or history recovery submits a new admitted run.
+
+Android accepts root URLs and strict native `/p/[a-z0-9][a-z0-9_-]{0,63}` prefixes,
+with an optional trailing slash. Credentials, queries, fragments, escaped paths and
+extra segments remain rejected; transport restrictions are unchanged. The selected
+prefix stays on every request. Authenticated native capability discovery must succeed;
+an unserved profile is an error, with no fallback to the root account.
 
 Android prunes terminal, history-synced journal entries older than 30 days at restore
 and after reconciliation. Outstanding, ambiguous or unsynced runs are retained.
