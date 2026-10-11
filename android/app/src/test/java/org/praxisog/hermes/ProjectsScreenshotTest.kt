@@ -68,6 +68,11 @@ class ProjectsScreenshotTest {
     }
     @Test fun editorCover() = editor()
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun editorUnfoldedDark() = editor()
+    @Test @Config(qualifiers = "w393dp-h420dp") fun editorWithLimitedHeight() {
+        editor()
+        compose.onNodeWithText("Save").assertIsDisplayed()
+        compose.onNodeWithText("Cancel").assertIsDisplayed()
+    }
     private fun about() {
         compose.setContent { HermesTheme(palette = Palette.MAROON) {
             AboutDialog(InstalledAppVersion("0.4.0", 11), listOf(
@@ -102,6 +107,18 @@ class ProjectsScreenshotTest {
         assertTrue(top("Costume wiring reference") < top("EVE arm pattern"))
         compose.onNodeWithText("EVE arm pattern").performClick()
         assertEquals("recent", opened)
+    }
+
+    @Test fun rememberedProjectOpensItsOverviewOnCoverWithNoSelectedChat() {
+        val workspace = workspace(project.id)
+        compose.setContent {
+            HermesApp(UiState.Ready(sessions), UiState.Ready(emptyList()), TurnState.Idle, null, null, UiFixtures.NOW,
+                {}, {}, {}, {}, {}, {}, {}, projects = workspace)
+        }
+        compose.waitUntil(5000) { workspace.fresh }
+        compose.onNodeWithText(project.description).assertIsDisplayed()
+        compose.onNodeWithText("Edit project").assertIsDisplayed()
+        compose.onNodeWithText("Conversations", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun searchSwitchesScopeWithoutChangingMembership() {

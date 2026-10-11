@@ -179,7 +179,7 @@ internal fun ProjectEditor(initial: ConversationProject, creating: Boolean, enab
     var color by remember(initial.id) { mutableStateOf(initial.color) }
     var icon by remember(initial.id) { mutableStateOf(initial.icon) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.9f), shape = MaterialTheme.shapes.large) {
+        Surface(Modifier.imePadding().padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.9f), shape = MaterialTheme.shapes.large) {
           Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (creating) "New project" else "Edit project", style = MaterialTheme.typography.titleLarge)
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {

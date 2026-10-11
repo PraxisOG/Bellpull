@@ -66,9 +66,11 @@ trust, not a second use of the old one.
 **Current authority (2026-10-11):** the 0.3.7 audit repair is complete. The user
 authorized Phase 4 on a new branch from 0.3.7, narrowed to conversation projects.
 `docs/PHASE-4-PROJECTS.md` supersedes the old broad Phase 4. Work through local
-implementation and validation; **do not use ADB while the user has the phone
-overnight**. The personal Hermes server remains off limits. No Phase 4 push,
-merge or publication is requested.
+implementation and validation. The user subsequently returned ADB access and
+authorized installation, device testing, necessary tweaks and pushing this branch.
+Use the isolated fixture app for server/UI tests and the existing signing lineage
+for the personal app update. The personal Hermes server remains off limits.
+No merge or release publication is requested.
 The user also requested Settings → About with the actual installed app version
 and each saved server's plugin version/compatibility status. These are included
 in Phase 4; latest-release polling is not implied.

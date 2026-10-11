@@ -97,7 +97,7 @@ internal fun HermesApp(
     pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
 ) {
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
-    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
+    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected && projects?.selectedProject == null) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
     var artifactsOpen by remember(openSessionId) { mutableStateOf(false) }
