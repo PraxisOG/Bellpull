@@ -27,6 +27,37 @@ import org.praxisog.hermes.core.HermesClient
  */
 class HermesStoreTest {
 
+    @Test fun droppedLegacyStreamLoadsLaterSavedReplyWithoutOpeningChatAgain() {
+        val saved = AtomicBoolean(false)
+        val submissions = AtomicInteger()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val path = request.url.encodedPath
+            val body = when {
+                path.endsWith("/chat/stream") -> {
+                    submissions.incrementAndGet()
+                    "event: run.started\ndata: {\"run_id\":\"run_fixture\"}\n\nevent: message.delta\ndata: {\"delta\":\"partial\"}\n\n"
+                }
+                path.endsWith("/messages") -> if (saved.get())
+                    """{"session_id":"one","data":[{"id":1,"role":"user","content":"hello"},{"id":2,"role":"assistant","content":"Saved after disconnect"}]}"""
+                    else """{"session_id":"one","data":[]}"""
+                path.startsWith("/v1/runs/") -> """{"run_id":"run_fixture","status":"${if (saved.get()) "completed" else "running"}"}"""
+                else -> """{"data":[{"id":"one","source":"api_server","title":"Fixture"}]}"""
+            }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody((if (path.endsWith("/stream")) "text/event-stream" else "application/json").toMediaType())).build()
+        }.build()
+        val store = store(httpClient = http, baseUrl = "http://fixture.invalid")
+        store.openSession("one")
+        awaitUntil("initial history") { store.history is UiState.Ready }
+        store.send("hello")
+        awaitUntil("truncated stream") { store.turn is TurnState.Truncated }
+        saved.set(true)
+        awaitUntil("automatic recovery") { (store.history as? UiState.Ready)?.value?.lastOrNull()?.content == "Saved after disconnect" }
+        assertEquals(1, submissions.get())
+        store.close()
+    }
+
     private lateinit var scope: CoroutineScope
 
     @Before fun setUp() {

@@ -1,5 +1,62 @@
 # Bellpull / Hermes app handoff
 
+## Stock-install file delivery and streaming repair — 2026-10-10
+
+The user's personal Hermes runs on another box without Docker. **Do not access
+that server.** The user will install this build/plugin manually and report back.
+The locally observed Docker gateway is a playground, not the personal server.
+All subsequent phone tests used `org.praxisog.hermes.fixture` with ADB loopback
+to a temporary, stock local Hermes installation; inference was disabled.
+
+Bellpull **0.3.4 / code 7** now resumes sequenced native run streams using
+`Last-Event-ID`, suppresses duplicate frames, and rejects replay gaps. A restored
+run can recover complete live replay. Successful terminal status waits for its
+saved final assistant row instead of treating stale HTTP-200 history as synced.
+Dropped legacy streams poll canonical history without resending, so the reply
+appears without tapping the conversation again.
+
+The consolidated **bellpull 0.2.0** plugin now provides persistent files and
+lifecycle routes through `register_platform_handler` on stock Hermes. Exact
+core hashes and host extensions no longer gate file sharing. Its native
+`bellpull_share_files` tool prepares a session-private outbox and explicitly
+publishes generated outputs. GPU telemetry stays in this same package; disable
+the separate `bellpull_gpu` plugin when enabling it. Native run admission/auth
+and model routing are unchanged. Input attachments/model overrides remain
+separate optional legacy capabilities, with a visible explanation and draft
+preservation on a stock server.
+
+`tools/install-plugin.py` previews by default, accepts the actual data home,
+backs up outside plugin discovery, and copies only plugin files. It does not edit
+Hermes core or configuration, use Docker, or hardcode a server URL. The stock
+install path is at the top of `plugins/bellpull/README.md`. `server-host/` is now
+explicitly an optional legacy compatibility fixture.
+
+Validation: **343 JVM checks passed, one opt-in live smoke skipped; 123 screenshot
+baselines verified; Android assemble/lint passed; 65 plugin tests passed**.
+Two portable tests additionally passed on both unmodified v2026.9.7 and a fresh
+non-Docker current checkout (`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`, Python
+3.14). Native discovery, four PNG outputs, authenticated HTTP 200 downloads,
+rejection of wrong keys/unserved profiles, restart persistence, 11 MiB chunked
+uploads, unsafe-output rejection and unchanged core hashes were checked. The
+current checkout's tracked files remain clean; only the plugin was added.
+
+The physical Fold fixture test passed: four 68-byte PNG downloads each matched
+SHA-256 `431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460`.
+ADB extraction independently confirmed the bytes. A pending file/text draft was
+preserved and nothing sent when chat attachments were unsupported. Manual ADB
+taps verified the file list and PNG preview on the unfolded display. Cover/wide
+unsupported-state screenshots were inspected. Espresso's Compose test rule is
+incompatible with this Android 17 InputManager surface, so the device test uses
+the AndroidX runner without Espresso; UI taps use ADB.
+
+Before the user requested manual installation, the original preview-to-release
+0.3.4 signing transition installed in place successfully and both encrypted
+server profiles remained accessible. A private pre-upgrade backup is outside
+Git. The final repaired APK is for **manual** installation; it has not been
+installed into the personal app or deployed to the personal server. Actual
+server acceptance, real provider streaming and natural physical cover use await
+the user's report. No publish, push or merge was performed.
+
 ## Repair and plugin migration — 2026-10-10
 
 Branch **`repair/bellpull-plugin-migration`**, based on heading-alignment checkpoint

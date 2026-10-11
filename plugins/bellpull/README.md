@@ -1,4 +1,4 @@
-# Bellpull plugin 0.1.0
+# Bellpull plugin 0.2.0
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,
 persistent artifacts, notification relay and optional GPU telemetry. It registers
@@ -7,20 +7,81 @@ router freezes. It does not replace adapter methods or mutate native feature fla
 The native run engine retains authentication, original request fingerprints,
 atomic admission, concurrency, cancellation, replay and exact-request approvals.
 
-## Compatibility and installation
+## Stock Hermes installation
+
+File publishing, authenticated downloads, storage management and GPU telemetry
+work through the native `register_platform_handler` plugin surface. They require
+**no Docker access, core replacements, pinned source hashes or hardcoded URL**.
+Use Bellpull Android 0.3.4 with this package. Install on your server yourself:
+
+```bash
+# From the unpacked Bellpull plugin bundle or this repository:
+python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
+python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
+HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu
+HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins enable bellpull
+```
+
+The installer previews by default and backs up an existing plugin outside the
+plugin discovery directory before copying. It does not edit core files or config.
+Enable `bellpull` through your existing Hermes plugin manager, then restart your
+gateway using its existing service manager. Keep the API server's existing bearer
+authentication. Do not install multiple plugins providing the same Bellpull routes.
+If you explicitly restrict API toolsets, include `bellpull` in that allowlist so
+the agent can call the sharing tool. No provider or model configuration changes
+are required for sharing outputs.
+
+`--home` is the **data home**, usually `~/.hermes` on a stock install, not the
+Hermes source checkout. Pass the real home used by your service/profile. The
+plugin is installed under `<home>/plugins/bellpull`. The gateway imports it from
+there after updates; no `docker cp` or patch reapplication is needed.
+
+The `bellpull_share_files` model tool has two actions. `prepare` returns this
+conversation's private outbox; write/copy the requested PNGs or documents there
+with existing Hermes tools. `publish` creates immutable persistent artifact
+records and reports any collection failures. The phone reads the records from
+the normal bearer-protected plugin API. Session identity comes from native tool
+dispatch, not model-supplied arguments. MEDIA tags and browser-scoped temporary
+upload links are not the delivery contract. Existing files can be copied into
+the outbox and published without generating them again.
+
+Acceptance after restarting: plugin capabilities report
+`bellpull_persistent_artifacts: true` and `bellpull_artifact_lifecycle: true`;
+publish four PNGs with the tool; open Tools in Bellpull, refresh, and preview or
+download them. Downloads must match the original byte count and SHA-256. Reconnect
+the app to refresh feature discovery. Missing sharing support is now visible.
+
+Native `profile_routes: []` means this listener serves no named profile prefixes.
+Use its ordinary root URL. The plugin never invents `/p/<name>` access; Hermes'
+native middleware rejects unknown/unserved profiles before plugin handlers run.
+
+File downloads are independent of model controls and chat input attachments.
+Stock installs advertise `bellpull_run_attachments: false` unless the optional
+legacy run extension is present. The app explains this and preserves attachment
+drafts instead of silently sending a text-only request. Generated files remain
+downloadable. The ordinary native chat/run engine is unchanged.
+
+Before upgrading, back up the existing plugin and the profile data home,
+including `bellpull/principal-id` and `bellpull-artifacts`. Install the replacement
+package and restart normally. Rollback restores the previous plugin directory;
+the installer prints its backup location. No core file rollback is involved for
+stock installs.
+
+## Optional legacy host extension
 
 | Host | Supported behavior |
 | --- | --- |
 | Hermes `v2026.9.7`, internal `0.21.1`, with host API v1 | Full tested plugin contract |
-| Same unmodified Hermes version | Branch/edit, snapshot paging, telemetry and independent file/model HTTP endpoints; execution-dependent flags disabled |
-| Other Hermes version | Authenticated discovery reports unsupported features; no speculative compatibility |
+| Same unmodified Hermes version | File sharing/lifecycle, telemetry, branch/edit and snapshot paging; run attachments/model overrides disabled |
+| Current stock Hermes | File sharing/lifecycle and telemetry through checked native auth/session helpers; private run/branch features remain gated |
 | Historical four-overlay image | Keep as rollback; do not install this plugin over it (duplicate routes) |
 
 The tested base image is pinned by digest in
 [`server-host/Dockerfile`](../../server-host/Dockerfile). Host API v1 is a small
 **proposed local Hermes extension**, not a feature claimed to exist upstream. It
 changes three native files, with exact before/after checksums, and adds one generic
-contract module. Bellpull business logic stays in this plugin. See
+contract module. This is retained for old model/input/approval compatibility,
+and is **not the installation path for portable file sharing**. Bellpull business logic stays in this plugin. See
 [`server-host/README.md`](../../server-host/README.md) before upgrading Hermes.
 
 From the repository root:
@@ -108,7 +169,7 @@ during housekeeping. Branch/edit copies
 only attachment associations proven to lie in the copied message prefix; legacy
 unassociated files remain accessible from the original chat and attachment browser.
 
-## Upgrade, acceptance and rollback
+## Legacy host extension upgrade, acceptance and rollback
 
 1. Record the running image ID/digest and deployment definition; keep the existing
    final overlay image. Build/test the plugin image before a maintenance window.

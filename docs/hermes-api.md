@@ -5,19 +5,23 @@
 This section defines the current single-plugin contract. The Phase 2/3 sections
 below describe the still-supported legacy overlay deployment and its recorded
 production probes. Their legacy storage/discovery statements do not override this
-section. Native Hermes endpoints retain their pinned upstream behavior.
+section. Native Hermes endpoints retain their upstream behavior.
 Installation/migration/rollback: `plugins/bellpull/README.md`. Generic host changes:
 `server-host/README.md`. Current acceptance evidence: `docs/HANDOFF.md`.
 
 Every plugin route requires a configured native bearer key, native profile scope,
 and the ordinary API origin. `/p/{profile}` mirrors use Hermes' existing middleware;
 unknown/unconfigured profiles fail closed. No new credential or cross-profile
-ownership bypass exists. The supported pair is Hermes v2026.9.7 (internal 0.21.1)
-with generic host API v1 and Bellpull plugin 0.1.0. Other versions are not assumed
-compatible.
+ownership bypass exists. Bellpull plugin 0.2.0 provides portable files and GPU
+telemetry on stock Hermes through the native handler factory, authentication and
+session lookup helpers. Tests cover original v2026.9.7 and a fresh current
+non-Docker checkout (`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`). Named
+profile access exists only when native discovery actually serves those profiles;
+`profile_routes: []` does not imply an available `/p/<name>` route.
 
-Compatibility also checks the exact reviewed native source hashes; matching only
-the internal version string is insufficient. Plugin unload closes wake publishing,
+Private branch/snapshot and optional legacy run extensions still check reviewed
+native source hashes. File delivery does not depend on those hashes or on the
+host extension. Plugin unload closes wake publishing,
 open broker subscriptions and paging snapshots. Frozen plugin routes and new
 Bellpull preparations return 503 until gateway restart; native admitted work can
 finish without losing its file-collection callbacks.
@@ -27,14 +31,31 @@ finish without losing its file-collection callbacks.
 GET `/api/bellpull/capabilities` returns:
 
 ```json
-{"version":1,"plugin_version":"0.1.0","hermes_version":"0.21.1","host_api_version":1,"features":{"session_fork_at_message":true,"session_fork_before_message":true,"bellpull_persistent_artifacts":true,"bellpull_model_controls":true,"bellpull_snapshot_paging":true,"bellpull_artifact_lifecycle":true,"bellpull_notification_events":true},"note":""}
+{"version":1,"plugin_version":"0.2.0","hermes_version":"0.21.1","host_api_version":null,"features":{"session_fork_at_message":true,"session_fork_before_message":true,"bellpull_persistent_artifacts":true,"bellpull_model_controls":false,"bellpull_run_attachments":false,"bellpull_snapshot_paging":true,"bellpull_artifact_lifecycle":true,"bellpull_notification_events":false},"note":"Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."}
 ```
 
 Android first reads native `/v1/capabilities`, preserving structured native run
 idempotency/retention fields, then merges supported plugin flags. A missing plugin
-falls back to the legacy/native contract. Host-dependent flags are false without
-host API v1; notification events are false when ntfy is disabled. No native static
+falls back to the legacy/native contract. Only input attachments, model overrides
+and run-observer notifications depend on host API v1; file delivery/lifecycle
+remain available on stock Hermes. Notification events are false when ntfy is disabled. No native static
 feature dictionary is changed by the plugin. Refresh updates action availability.
+
+The native plugin tool `bellpull_share_files` accepts `{action:"prepare"}` or
+`{action:"publish"}`. Native dispatch supplies the current session ID. Prepare
+returns a profile/session-private outbox; publish safely copies its regular
+outputs into persistent records, returning `artifacts` and `warnings`. This
+replaces core-patch output collection as the portable stock-server delivery path.
+PUT uploads use chunked streaming, bounded at 25 MiB by the plugin; Hermes' native
+JSON Content-Length limit remains unchanged.
+
+Android resumes a dropped durable stream with native `Last-Event-ID` using the
+last applied `seq`, suppresses duplicate events, and refuses to concatenate a
+gapped or `replay.truncated` tail. Complete replay can restore live text after app
+restart. Unsequenced/unsupported legacy streams fall back to status and history.
+Terminal status does not settle a successful submission until its final saved
+assistant row is visible. A truncated legacy session stream also polls saved
+history without resubmitting, so reselecting the conversation is unnecessary.
 
 ### Stable paging and source visibility
 

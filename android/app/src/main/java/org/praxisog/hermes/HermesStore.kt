@@ -8,6 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.HermesError
@@ -90,7 +92,8 @@ internal class HermesStore(
             onReply(id, reply)
         }
     }
-    fun close() { runs?.close() }
+    private val legacyRecoveryJobs = mutableMapOf<String, Job>()
+    fun close() { runs?.close(); legacyRecoveryJobs.values.forEach { it.cancel() }; legacyRecoveryJobs.clear() }
     fun retryRun() { openSessionId?.let { runs?.retry(it) } }
     fun abandonRunAfterReview() { openSessionId?.let { runs?.abandonAfterReview(it) } }
     fun respondToApproval(requestId: String, choice: String) { openSessionId?.let { runs?.respond(it, requestId, choice) } }
@@ -412,6 +415,7 @@ internal class HermesStore(
         }
 
         val revision = sessionRevision
+        legacyRecoveryJobs.remove(sessionId)?.cancel()
         turnHistoryIds = (history as? UiState.Ready)?.value.orEmpty().map { it.id }.toSet()
         sentPrompt = text
         val submitted = SubmittedDraft(drafts.revision(sessionId), text, turnHistoryIds)
@@ -499,8 +503,42 @@ internal class HermesStore(
                 result is HermesResult.Err -> TurnState.Failed(result.error)
                 else -> TurnState.Finished(text)
             }
+            val completedRun = activeRunId
             activeRunId = null
             refreshHistory()
+            if (result is HermesResult.Err && result.error is HermesError.StreamTruncated) {
+                recoverLegacyReply(sessionId, submitted, completedRun)
+            }
+        }
+    }
+
+    /** A dropped legacy stream never resubmits the prompt. Keep checking the saved
+     * transcript so a later reply appears without tapping the conversation again. */
+    private fun recoverLegacyReply(sessionId: String, submitted: SubmittedDraft, runId: String?) {
+        legacyRecoveryJobs.remove(sessionId)?.cancel()
+        legacyRecoveryJobs[sessionId] = scope.launch {
+            while (isActive) {
+                delay(2_000)
+                val status = runId?.let { io { client.runStatus(it) } }
+                val saved = io { client.completeHistory(sessionId) }
+                if (saved !is HermesResult.Ok) continue
+                val messages = saved.value.data
+                val fresh = messages.filter { it.id !in submitted.previousIds }
+                val prompt = fresh.indexOfLast { it.role == "user" && it.content?.trim() == submitted.text.trim() }
+                val reply = if (prompt < 0) null else fresh.drop(prompt + 1).lastOrNull {
+                    it.role == "assistant" && it.toolCalls.isNullOrEmpty() && !it.content.isNullOrBlank()
+                }
+                val terminal = (status as? HermesResult.Ok)?.value?.isTerminal == true
+                if (openSessionId == sessionId && sentPrompt == submitted.text && turnHistoryIds == submitted.previousIds) {
+                    Snapshot.withMutableSnapshot {
+                        history = UiState.Ready(messages)
+                        if (prompt >= 0) pendingUserText = null
+                        turn = reconcileTurn(turn, messages, submitted.previousIds, submitted.text)
+                    }
+                }
+                if (reply != null) { discoveredReply(sessionId, reply); loadSessions(); return@launch }
+                if (terminal && (status as HermesResult.Ok).value.status != "completed") return@launch
+            }
         }
     }
 

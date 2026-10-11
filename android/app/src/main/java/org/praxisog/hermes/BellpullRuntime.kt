@@ -67,7 +67,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
             capabilities.features["bellpull_model_controls"] == true,
-            capabilities.features["bellpull_artifact_lifecycle"] == true) }
+            capabilities.features["bellpull_artifact_lifecycle"] == true,
+            capabilities.features["bellpull_run_attachments"] ?: (capabilities.features["bellpull_persistent_artifacts"] == true && capabilities.features["bellpull_model_controls"] == true)) }
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
@@ -95,9 +96,10 @@ internal class BellpullRuntime private constructor(context: Context) {
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
-            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport || phase3?.lifecycleSupported != lifecycleSupport) {
+            val inputSupport = result.value.features["bellpull_run_attachments"] ?: (fileSupport && modelSupport)
+            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport || phase3?.lifecycleSupported != lifecycleSupport || phase3?.runAttachmentsSupported != inputSupport) {
                 phase3?.close()
-                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport, lifecycleSupport) }
+                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport, lifecycleSupport, inputSupport) }
             }
             store?.updateCapabilities(result.value)
             cache?.writeCapabilities(result.value.raw.toString())

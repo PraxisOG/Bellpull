@@ -187,31 +187,49 @@ internal class DurableRuns(
                 }
             }
             val runId = record.runId ?: return@launch
-            // Only a newly admitted request has a known complete stream prefix. After restore
-            // or a dropped stream, poll status/history rather than concatenate an unknown tail.
-            var streamGap = !fresh
-            if (fresh) scope.launch {
+            var streamGap = false
+            val liveJob = scope.launch {
                 val live = LiveTranscript()
                 val prose = StringBuilder()
                 val reasoning = StringBuilder()
-                try {
-                    io { client.runEvents(runId, onStart = {
+                var lastSequence: Int? = null
+                var retrying = !fresh
+                var unsafeReplay = false
+                val uiContext = currentCoroutineContext()
+                try { while (isActive && states[sessionId]?.submission?.terminal == false) {
+                    io { client.runEvents(runId, lastEventId = lastSequence, onStart = {
                         streams[runId] = it
                         if (closed) streams.remove(runId)?.cancel()
                     }) { event ->
-                        scope.launch {
-                            val current = states[sessionId] ?: return@launch
-                            if (current.submission.runId != runId || current.submission.terminal) return@launch
+                        // Apply each frame before reading the next one. The cursor must only
+                        // advance after its text has reached the UI, including before EOF.
+                        runBlocking { withContext(uiContext) {
+                            val current = states[sessionId] ?: return@withContext
+                            if (current.submission.runId != runId || current.submission.terminal) return@withContext
+                            if (event is StreamEvent.Unknown && event.event == "replay.truncated") unsafeReplay = true
+                            val seq = event.seq
+                            if (seq != null && lastSequence != null && seq <= lastSequence!!) return@withContext
+                            if (lastSequence != null && (seq == null || seq != lastSequence!! + 1) ||
+                                retrying && lastSequence == null && seq != 0) unsafeReplay = true
+                            if (unsafeReplay) { streamGap = true; return@withContext }
                             live.accept(event)
                             if (event is StreamEvent.AssistantDelta) prose.append(event.delta)
                             if (event is StreamEvent.ToolProgress && event.toolName == "_thinking") reasoning.append(event.delta.orEmpty())
+                            lastSequence = seq
+                            streamGap = false
                             update(sessionId) { it.copy(turn = TurnState.Streaming(prose.toString(),
                                 canStop = true, stopRequested = it.submission.stopRequested,
                                 reasoning = reasoning.toString(), parts = live.parts,
                                 statusLabel = if (it.approval != null) "Waiting for approval…" else "Working…")) }
-                        }
+                        } }
                     } }
-                } finally { streams.remove(runId); streamGap = true }
+                    streams.remove(runId)
+                    if (unsafeReplay || lastSequence == null) break
+                    if (states[sessionId]?.submission?.terminal != false) break
+                    streamGap = true
+                    retrying = true
+                    delay(retryMs)
+                } } finally { streams.remove(runId); streamGap = true }
             }
             while (isActive) {
                 when (val result = io { client.runStatus(runId) }) {
@@ -234,6 +252,7 @@ internal class DurableRuns(
                                 onAttention(sessionId, "approval:${approval.requestId}")
                         }
                         if (status.isTerminal) {
+                            liveJob.cancel()
                             streams.remove(runId)?.cancel()
                             if (status.status in setOf("failed", "interrupted")) onAttention(sessionId, "run:$runId")
                             while (isActive && !syncHistory(sessionId)) delay(retryMs)
@@ -246,6 +265,8 @@ internal class DurableRuns(
                             "Hermes no longer has this run's status. Review its saved history; this request will not be resubmitted."
                             else "Connection lost. Hermes may still be working. Reconnecting…") }
                         if (missing) {
+                            liveJob.cancel()
+                            streams.remove(runId)?.cancel()
                             val review = states[sessionId]!!.submission.copy(status = "review")
                             save(review)
                             update(sessionId) { it.copy(submission = review) }
@@ -273,9 +294,18 @@ internal class DurableRuns(
         val prompt = fresh.indexOfLast { it.role == "user" && it.content?.trim() == record.text.trim() }
         val reply = if (record.requestId.startsWith("observed:")) messages.lastOrNull {
             it.id > (record.previousIds.maxOrNull() ?: 0) && it.role == "assistant" && !it.content.isNullOrBlank()
-        } else if (prompt < 0) null else fresh.drop(prompt + 1).lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
+        } else if (prompt < 0) null else fresh.drop(prompt + 1).lastOrNull {
+            it.role == "assistant" && it.toolCalls.isNullOrEmpty() && !it.content.isNullOrBlank()
+        }
         if (prompt >= 0) drafts.accepted(sessionId, record.draftRevision)
         onHistory(sessionId, messages)
+        // Completion status can become visible before the transcript transaction.
+        // A successful GET with old rows is not proof the new reply was saved.
+        if (settle && record.status == "completed" && !record.requestId.startsWith("observed:") &&
+            (prompt < 0 || fresh.drop(prompt + 1).none { it.role == "assistant" && it.toolCalls.isNullOrEmpty() })) {
+            update(sessionId) { it.copy(notice = "Hermes finished. Waiting for its saved reply…") }
+            return false
+        }
         if (settle && !record.historySynced) {
             onCompleted(sessionId, reply)
             val synced = record.copy(historySynced = true)

@@ -1,10 +1,12 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def register(ctx):
     from .http import wire
+    from .sharing import register as register_sharing
+    register_sharing(ctx)
     instances = []
     def factory(app, adapter):
         instances.append(wire(app, adapter))

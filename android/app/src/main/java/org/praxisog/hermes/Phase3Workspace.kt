@@ -13,7 +13,8 @@ import java.util.UUID
 /** Owned by one connected profile. Every asynchronous operation captures its conversation. */
 internal class Phase3Workspace(private val context: Context, val profileId: String,
     private val scope: CoroutineScope, private val client: HermesClient, private val cache: SessionCache,
-    val filesSupported: Boolean, val modelsSupported: Boolean, val lifecycleSupported: Boolean = false) {
+    val filesSupported: Boolean, val modelsSupported: Boolean, val lifecycleSupported: Boolean = false,
+    val runAttachmentsSupported: Boolean = filesSupported && modelsSupported) {
     val root = File(context.filesDir, "bellpull-files/$profileId").apply { mkdirs() }
     var catalog by mutableStateOf<ModelCatalog?>(null); private set
     val selections = mutableStateMapOf<String, ModelSelection>()
@@ -34,6 +35,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     init {
         cleanPrivateFiles(root, File(context.cacheDir, "bellpull-shared/$profileId"), drafts.map { it.id }.toSet())
         if (modelsSupported) scope.launch { refreshCatalog() }
+        if (filesSupported) refreshArtifacts()
     }
     private fun fail(id: String, result: HermesError) { if (!closed) errors[id] = result.toUserMessage() }
     private fun persist(values: List<DraftFile>): Boolean {
@@ -79,7 +81,11 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     fun applyDefaultToNewSession(id: String) { defaultSelection?.let { choose(id, it) {} } }
 
     fun addUris(sessionId: String, uris: List<Uri>) {
-        if (!filesSupported || closed) return
+        if (closed) return
+        if (!runAttachmentsSupported) {
+            errors[sessionId] = "This server cannot receive chat attachments. Your draft is saved."
+            return
+        }
         importing[sessionId] = (importing[sessionId] ?: 0) + 1
         scope.launch {
             imports.lock()
@@ -140,6 +146,10 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         val id = store.openSessionId ?: return
         if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true) return
         val files = filesFor(id)
+        if (files.isNotEmpty() && !runAttachmentsSupported) {
+            errors[id] = "This server cannot receive chat attachments. Your draft and files are saved; nothing was sent."
+            return
+        }
         if (!modelsSupported) { store.send(text); return }
         val revision = store.drafts.revision(id)
         val generation = (sendGenerations[id] ?: 0) + 1

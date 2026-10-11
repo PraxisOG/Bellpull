@@ -134,6 +134,8 @@ class MainActivity : ComponentActivity() {
                         onDismissBranchError = { current?.dismissBranchError() },
                         disconnected = current == null, settingsRevision = profiles.settingsRevision,
                         extraTools = runtime.client?.let { client -> {
+                            FileSharingStatus(files?.filesSupported == true, files?.runAttachmentsSupported == true,
+                                runtime::refreshCapabilities)
                             if (files?.filesSupported == true) AttachmentBrowser(files.artifacts,
                                 (current?.sessions as? UiState.Ready)?.value.orEmpty(), files.errors["artifacts"],
                                 files::refreshArtifacts, showPreview, { preview = null; current?.openSession(it); focusChatRevision++ },
@@ -143,12 +145,13 @@ class MainActivity : ComponentActivity() {
                         modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
                             { ModelControl(workspace, id) }
                         } },
-                        composerLeading = files?.takeIf { it.filesSupported }?.let { workspace -> current?.openSessionId?.let { id ->
-                            { AttachButton(workspace, id) { target ->
+                        composerLeading = files?.let { workspace -> current?.openSessionId?.let { id ->
+                            { if (!workspace.runAttachmentsSupported) UnavailableAttachmentsButton(workspace.filesSupported)
+                              else AttachButton(workspace, id) { target ->
                                 if (current.drafts[target].text.isBlank()) current.drafts.set(target, TextFieldValue("Attached files"))
                             } }
                         } },
-                        attachmentStrip = files?.takeIf { it.filesSupported || it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
+                        attachmentStrip = files?.let { workspace -> current?.openSessionId?.let { id ->
                             { AttachmentStrip(workspace, id) }
                         } },
                         uploading = files?.sending?.get(current?.openSessionId) == true || (files?.importing?.get(current?.openSessionId) ?: 0) > 0,
@@ -217,7 +220,7 @@ class MainActivity : ComponentActivity() {
         val current = store ?: return
         val client = runtime.client ?: return
         val files = runtime.phase3
-        if (incoming.uris.isNotEmpty() && files?.filesSupported != true) {
+        if (incoming.uris.isNotEmpty() && files?.runAttachmentsSupported != true) {
             shareError = "This server needs the Bellpull attachment extension to accept shared files."
             return
         }

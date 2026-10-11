@@ -14,7 +14,7 @@ from hermes_cli.plugins import PluginManager, get_plugin_manager
 
 
 class InstallationTest(unittest.IsolatedAsyncioTestCase):
-    async def test_unreviewed_host_source_disables_features(self):
+    async def test_unreviewed_host_source_keeps_portable_files_and_disables_private_run_features(self):
         from plugins.bellpull.http import wire
         with patch("plugins.bellpull.http.source_mode", return_value=None):
             adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "unsupported-fixture-key"}))
@@ -23,7 +23,12 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
             async with TestClient(TestServer(app)) as client:
                 response = await client.get("/api/bellpull/capabilities", headers={"Authorization": "Bearer unsupported-fixture-key"})
                 self.assertEqual(200, response.status)
-                self.assertFalse(any((await response.json())["features"].values()))
+                features = (await response.json())["features"]
+                self.assertTrue(features["bellpull_persistent_artifacts"])
+                self.assertTrue(features["bellpull_artifact_lifecycle"])
+                self.assertFalse(features["bellpull_model_controls"])
+                self.assertFalse(features["bellpull_run_attachments"])
+                self.assertFalse(features["session_fork_at_message"])
                 self.assertEqual(404, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)
             adapter._run_idempotency_store.close()
 

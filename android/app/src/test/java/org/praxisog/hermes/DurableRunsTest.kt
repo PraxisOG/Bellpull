@@ -36,6 +36,8 @@ class DurableRunsTest {
     @Volatile private var approval = ""
     @Volatile private var rejectStop = false
     @Volatile private var historyOffline = false
+    @Volatile private var historyLag = false
+    private val eventBodies = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val drafts = ChatDrafts()
     private val journal = object : RunJournal {
         override fun readRuns() = saved.values.toList()
@@ -58,12 +60,13 @@ class DurableRunsTest {
                 if (loseAck) { loseAck = false; throw IOException("Acknowledgement lost after admission") }
                 """{"run_id":"run_same","status":"running","replayed":true}"""
             }
-            path.endsWith("/events") -> "event: message.delta\ndata: {\"run_id\":\"run_same\",\"delta\":\"partial\"}\n\n"
+            path.endsWith("/events") -> eventBodies.poll() ?: "event: message.delta\ndata: {\"run_id\":\"run_same\",\"delta\":\"partial\"}\n\n"
             path.endsWith("/stop") -> if (rejectStop) {
                 code = 409
                 """{"error":{"code":"run_not_active","message":"Not ready"}}"""
             } else { runStatus = "cancelled"; """{"run_id":"run_same","status":"stopping"}""" }
             path.endsWith("/approval") -> { approval = ""; """{"resolved":1}""" }
+            path.endsWith("/messages") && historyLag -> """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"Working","tool_calls":[{"id":"tool","function":{"name":"terminal"}}]}]}"""
             path.endsWith("/messages") -> if (runStatus == "completed")
                 """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"saved answer"}]}"""
                 else """{"data":[]}"""
@@ -81,6 +84,51 @@ class DurableRunsTest {
         assertTrue("condition timed out", condition())
     }
     @After fun cleanup() { managers.forEach { it.close() }; scope.cancel() }
+
+    @Test fun droppedStreamResumesWithoutRepeatingTextOrSubmittingAgain() {
+        eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\n")
+        eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\nevent: message.delta\ndata: {\"seq\":1,\"delta\":\"world\"}\n\n")
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { (manager.states["one"]?.turn as? TurnState.Streaming)?.text == "Hello world" }
+        val connections = calls.filter { it.url.encodedPath.endsWith("/events") }
+        assertNull(connections[0].header("Last-Event-ID"))
+        assertEquals("0", connections[1].header("Last-Event-ID"))
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun truncatedReplayKeepsReadableTextInsteadOfJoiningAnUnknownTail() {
+        eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Readable prefix\"}\n\n")
+        eventBodies.add("event: replay.truncated\ndata: {\"oldest_retained_seq\":5}\n\nevent: message.delta\ndata: {\"seq\":5,\"delta\":\"wrong tail\"}\n\n")
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.notice?.contains("Live text is unavailable") == true }
+        assertEquals("Readable prefix", (manager.states["one"]!!.turn as TurnState.Streaming).text)
+    }
+
+    @Test fun restoredRunCanReplayACompleteSequencedStream() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
+        eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Restored text\"}\n\n")
+        val manager = manager()
+        manager.restore()
+        await { (manager.states["one"]?.turn as? TurnState.Streaming)?.text == "Restored text" }
+        assertTrue(calls.none { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun completionWaitsForSavedFinalReplyAfterOldHistoryReturns200() {
+        runStatus = "completed"
+        historyLag = true
+        val manager = manager()
+        var reply: Message? = null
+        manager.onCompleted = { _, value -> reply = value }
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.notice?.contains("Waiting for its saved reply") == true }
+        assertFalse(manager.states["one"]!!.submission.historySynced)
+        assertNull(reply)
+        historyLag = false
+        await { manager.states["one"]?.submission?.historySynced == true }
+        assertEquals("saved answer", reply?.content)
+    }
 
     @Test fun lostAdmissionRetriesSameIdentityAndPreservesNewTyping() {
         drafts.set("one", TextFieldValue("hello"))
@@ -127,7 +175,7 @@ class DurableRunsTest {
         await { manager.states["one"]?.submission?.historySynced == true }
         assertEquals(11, received?.id)
         assertEquals("new question", drafts["one"].text)
-        assertTrue(calls.none { it.url.encodedPath == "/v1/runs" || it.url.encodedPath.endsWith("/events") })
+        assertTrue(calls.none { it.url.encodedPath == "/v1/runs" })
     }
     @Test fun ambiguousColdRecoveryUsesSavedIdentityAndPayload() {
         saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet())

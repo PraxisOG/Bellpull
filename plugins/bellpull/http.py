@@ -22,6 +22,10 @@ def wire(app, adapter):
                 "_get_existing_session_or_404", "_session_response", "_read_json_body")
     mode = source_mode()
     compatible = mode is not None and __version__ == "0.21.1" and all(callable(getattr(adapter, key, None)) for key in required)
+    # File storage has no dependency on private run admission or a particular
+    # core source revision. Keep the narrower contract separate from branches.
+    files_ready = all(callable(getattr(adapter, key, None)) for key in
+        ("_expected_api_key", "_check_auth", "_get_existing_session_or_404"))
     try:
         from gateway.platforms import api_server_extensions as host
         host_ready = compatible and mode == "after" and host.API_VERSION == 1
@@ -71,11 +75,12 @@ def wire(app, adapter):
         return web.json_response({"version": 1, "plugin_version": VERSION, "hermes_version": __version__,
             "host_api_version": host.API_VERSION if host_ready else None,
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
-                "bellpull_persistent_artifacts": host_ready, "bellpull_model_controls": host_ready,
+                "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
+                "bellpull_run_attachments": host_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
-                "bellpull_artifact_lifecycle": compatible},
-            "note": "" if host_ready else "Native run preparation requires the tested Hermes host extension contract."},
+                "bellpull_artifact_lifecycle": files_ready},
+            "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
             headers={"Cache-Control": "no-store"})
 
     async def gpu(request):
@@ -140,19 +145,20 @@ def wire(app, adapter):
              "confirmed_runtime_lock": True}, start, finish)
 
     routes = [("GET", "/api/bellpull/capabilities", capabilities)]
+    if files_ready:
+        routes.extend([
+            ("GET", "/api/bellpull/plugins/gpu", gpu),
+            ("GET", "/api/bellpull/artifacts/storage", storage),
+            ("DELETE", "/api/bellpull/artifacts/{artifact_id}", storage),
+        ])
+        routes.extend(models_files.routes(adapter, include_models=host_ready))
     if compatible:
         routes.extend([
             ("POST", "/api/sessions/{session_id}/fork-at-message", partial(branches._handle_fork_at_message, adapter)),
             ("POST", "/api/sessions/{session_id}/fork-before-message", partial(branches._handle_fork_before_message, adapter)),
-            ("GET", "/api/bellpull/plugins/gpu", gpu),
             ("GET", "/api/bellpull/sessions", partial(snapshots.page, kind="sessions")),
             ("GET", "/api/bellpull/sessions/{session_id}/messages", partial(snapshots.page, kind="messages")),
-            ("GET", "/api/bellpull/artifacts/storage", storage),
-            ("DELETE", "/api/bellpull/artifacts/{artifact_id}", storage),
         ])
-        # Model/file HTTP handlers are independent of admission. Capability flags keep
-        # execution-dependent controls unavailable until the host contract is present.
-        routes.extend(models_files.routes(adapter))
     if host_ready:
         routes.append(("GET", "/api/bellpull/events", events))
     existing = {(route.method, route.resource.canonical) for route in app.router.routes()}

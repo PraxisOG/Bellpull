@@ -114,7 +114,9 @@ class HermesClient(
         require(draft.id.matches(Regex("[a-f0-9]{32}")))
         val body = object : okhttp3.RequestBody() {
             override fun contentType() = draft.mime.toMediaType()
-            override fun contentLength() = file.length()
+            // The plugin bounds streaming bytes itself. Chunking preserves stock
+            // Hermes' smaller JSON Content-Length ceiling on native routes.
+            override fun contentLength() = -1L
             override fun writeTo(sink: okio.BufferedSink) {
                 file.inputStream().use { input ->
                     val buffer = ByteArray(65536)
@@ -195,7 +197,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
@@ -459,8 +461,9 @@ class HermesClient(
     }
 
     /** Status/history remain authoritative: this queue cannot replay consumed events. */
-    fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
-        events("/v1/runs/$runId/events", onStart, onEvent)
+    fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, lastEventId: Int? = null,
+        onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
+        events("/v1/runs/$runId/events", onStart, lastEventId, onEvent)
 
     /** Authenticated gateway proxy to the existing loopback ntfy broker. Wake hints only. */
     fun notificationEvents(onStart: (Streaming) -> Unit, onWake: (String, String) -> Unit): HermesResult<Unit> =
@@ -472,9 +475,12 @@ class HermesClient(
             }
         }
 
-    private fun events(path: String, onStart: (Streaming) -> Unit, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
+    private fun events(path: String, onStart: (Streaming) -> Unit, lastEventId: Int? = null,
+        onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
         val call = trackedCall(streamingHttpClient, authed(path)
-            .header("Accept", "text/event-stream").get().build())
+            .header("Accept", "text/event-stream").apply {
+                lastEventId?.let { header("Last-Event-ID", it.toString()) }
+            }.get().build())
         onStart(Streaming(call))
         return try {
             call.execute().use { response ->

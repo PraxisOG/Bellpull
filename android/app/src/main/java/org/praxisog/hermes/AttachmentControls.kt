@@ -18,6 +18,33 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.*
 
 @Composable
+internal fun FileSharingStatus(filesSupported: Boolean, inputsSupported: Boolean, onRefresh: () -> Unit) {
+    if (filesSupported && inputsSupported) return
+    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+        Text(if (filesSupported) "File sharing available" else "Server cannot share files", style = MaterialTheme.typography.titleSmall)
+        Text(if (filesSupported)
+            "Generated files are available here. This server does not support attaching files to chat messages."
+        else "The Bellpull plugin is missing or unavailable on this server. Generated files cannot appear here until file sharing is enabled.",
+            style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = onRefresh) { Text("Check server again") }
+    }
+}
+
+@Composable
+internal fun UnavailableAttachmentsButton(filesSupported: Boolean) {
+    var explain by remember { mutableStateOf(false) }
+    TextButton(onClick = { explain = true }, modifier = Modifier.semantics {
+        contentDescription = "Chat attachments unavailable"
+    }) { Text("＋") }
+    if (explain) AlertDialog(onDismissRequest = { explain = false },
+        title = { Text("Chat attachments unavailable") },
+        text = { Text(if (filesSupported)
+            "You can download generated files from Tools. This server does not support attaching files to a chat message."
+        else "This server cannot share files. Install or enable the Bellpull plugin on the server, then check the connection again.") },
+        confirmButton = { TextButton(onClick = { explain = false }) { Text("OK") } })
+}
+
+@Composable
 internal fun AttachButton(workspace: Phase3Workspace, sessionId: String, onAttached: (String) -> Unit) {
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }

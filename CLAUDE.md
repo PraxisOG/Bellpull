@@ -134,9 +134,17 @@ without saying so first**, because that's the live instance.
 
 **The default branch is `master`, not `main`.**
 
-**The live server is managed outside this repo.** The current migration target is
-one plugin in `plugins/bellpull/` plus the generic pinned host contract in
-`server-host/`. Read `plugins/bellpull/README.md` for installation, migration and
+**The live server is managed outside this repo.** The user's personal Hermes is
+a stock non-Docker install on another box. **Do not access that server**: the user
+will install the APK and plugin manually and report results. ADB checks use the
+separate `org.praxisog.hermes.fixture` application with loopback fixtures; leave
+the personal app stopped during testing. The earlier local Docker gateway is a
+playground and must not be mistaken for the personal server.
+
+The current migration target is one plugin in `plugins/bellpull/`. Portable file
+sharing and GPU telemetry require no core patch. `server-host/` is retained as an
+optional legacy compatibility fixture for run input/model/approval behavior.
+Read `plugins/bellpull/README.md` for installation, migration and
 rollback. `server-patches/` is the preserved legacy chain, still the production
 rollback until parity/device acceptance. Hermes plugins go in `~/hermes-data/plugins/`
 on the host (`/opt/data/plugins/` in the container) — **not** `~/.hermes/plugins/`, which does

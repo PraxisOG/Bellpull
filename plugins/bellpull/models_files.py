@@ -151,7 +151,7 @@ def session_selection(adapter, session, available):
     return available["default"]
 
 
-def routes(adapter):
+def routes(adapter, *, include_models=True):
     uploads = asyncio.Semaphore(2)
     cached = {}  # Per native connection; profile/principal separated, bounded.
 
@@ -257,13 +257,17 @@ def routes(adapter):
             await response.write_eof()
         return response
 
-    return [(method, path, authenticated(handler)) for method, path, handler in (
-        ("GET", "/api/bellpull/models", get_models),
-        ("GET", "/api/bellpull/sessions/{session_id}/model", model_choice),
-        ("PUT", "/api/bellpull/sessions/{session_id}/model", model_choice),
+    rows = [
         ("GET", "/api/bellpull/artifacts", list_artifacts),
         ("PUT", "/api/bellpull/artifacts/{artifact_id}", upload),
-        ("GET", "/api/bellpull/artifacts/{artifact_id}/content", download))]
+        ("GET", "/api/bellpull/artifacts/{artifact_id}/content", download)]
+    if include_models:
+        rows.extend([
+            ("GET", "/api/bellpull/models", get_models),
+            ("GET", "/api/bellpull/sessions/{session_id}/model", model_choice),
+            ("PUT", "/api/bellpull/sessions/{session_id}/model", model_choice),
+        ])
+    return [(method, path, authenticated(handler)) for method, path, handler in rows]
 
 
 def prepare_run(adapter, request, body, session_id, text):

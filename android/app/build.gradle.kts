@@ -27,11 +27,14 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "org.praxisog.hermes"
+        // Device fixtures use a separate sandbox; personal profiles are never loaded.
+        applicationId = if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true")
+            "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
         targetSdk = 37
         versionCode = 7
         versionName = "0.3.4"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {

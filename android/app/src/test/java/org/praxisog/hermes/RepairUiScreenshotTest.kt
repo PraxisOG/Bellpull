@@ -114,6 +114,19 @@ class RepairUiScreenshotTest {
     @Test fun artifactLifecycleCover() = lifecycle()
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun artifactLifecycleUnfoldedDark() = lifecycle()
 
+    private fun unavailableFiles(sharing: Boolean) {
+        compose.setContent { HermesTheme { Surface { Column(Modifier.padding(16.dp)) {
+            FileSharingStatus(sharing, false, {})
+            UnavailableAttachmentsButton(sharing)
+        } } } }
+        compose.onNodeWithText(if (sharing) "File sharing available" else "Server cannot share files").assertExists()
+        compose.onNodeWithContentDescription("Chat attachments unavailable").performClick()
+        compose.onNodeWithText("Chat attachments unavailable").assertExists()
+        compose.onRoot().captureRoboImage()
+    }
+    @Test fun unsupportedFilesCover() = unavailableFiles(false)
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun stockSharingUnfoldedDark() = unavailableFiles(true)
+
     @Test fun defaultsAreDenseAndExistingPreferencesSurvive() {
         val context = RuntimeEnvironment.getApplication()
         val prefs = context.getSharedPreferences("bellpull_presentation", Context.MODE_PRIVATE)

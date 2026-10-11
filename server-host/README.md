@@ -1,4 +1,10 @@
-# Proposed Hermes API extension host v1
+# Optional legacy Hermes API extension host v1
+
+Stock file sharing uses `plugins/bellpull` 0.2.0 directly. Do not apply this core
+patch or build this host image to enable artifacts on a stock install. This
+directory remains for regression checks and existing model/input/approval
+compatibility. Portable installation instructions are in
+[`plugins/bellpull/README.md`](../plugins/bellpull/README.md).
 
 This is a narrow local compatibility patch for Hermes Agent `v2026.9.7`
 (`2237be355906fbe6065ce1815711eee52b2d646e`, internal `0.21.1`). It is not
