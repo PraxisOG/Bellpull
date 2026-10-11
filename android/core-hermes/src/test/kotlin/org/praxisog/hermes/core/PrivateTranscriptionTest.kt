@@ -33,6 +33,12 @@ class PrivateTranscriptionTest {
         }.build()
         val result = PrivateTranscription("https://speech.invalid/v1/audio/transcriptions", "", "whisper", http).transcribe(wav)
         assertTrue(result.isFailure); assertEquals(1, calls.get()); assertFalse(result.exceptionOrNull()!!.message!!.contains("secret"))
+        // OkHttp's invalid-header exception can include the header value. Never expose a key.
+        for (key in listOf("private-secret\nbad", "private-secret\u0100")) {
+            val invalid = PrivateTranscription("https://speech.invalid/v1/audio/transcriptions", key, "whisper", http).transcribe(wav)
+            assertTrue(invalid.isFailure); assertEquals(1, calls.get())
+            assertFalse(invalid.exceptionOrNull()!!.message.orEmpty().contains("private-secret"))
+        }
     }
     @Test fun closedClientNeverUploads() {
         val client = PrivateTranscription("https://speech.invalid/v1/audio/transcriptions", "", "whisper")

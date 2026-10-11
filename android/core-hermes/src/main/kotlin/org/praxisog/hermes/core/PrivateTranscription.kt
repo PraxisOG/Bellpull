@@ -20,6 +20,7 @@ class PrivateTranscription(private val endpoint: String, private val key: String
     fun transcribe(wav: ByteArray): Result<String> = runCatching {
         check(!closed) { "Transcription was canceled." }
         require(wav.size in 45..1_920_044) { "Recording exceeds the 60-second limit." }
+        check(key.all { it.code in 32..126 }) { "The speech service key contains invalid characters. Re-enter it in Voice settings." }
         val body = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("model", model).addFormDataPart("response_format", "json")
             .addFormDataPart("file", "voice.wav", wav.toRequestBody("audio/wav".toMediaType())).build()
