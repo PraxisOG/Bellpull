@@ -87,6 +87,11 @@ class MainActivity : ComponentActivity() {
                         onDispose { reader.stop() }
                     }
                     HermesApp(
+                        sessionSource = current?.sessionSource,
+                        onSessionSourceChange = current?.let { currentStore -> { source ->
+                            runtime.cache?.rememberSessionSource(source)
+                            currentStore.chooseSessionSource(source)
+                        } },
                         sessions = current?.sessions ?: UiState.Ready(listOf(BellpullExample.session)),
                         history = current?.history ?: UiState.Ready(if (exampleId == null) emptyList() else BellpullExample.messages),
                         turn = current?.turn ?: TurnState.Idle,
@@ -131,7 +136,8 @@ class MainActivity : ComponentActivity() {
                         extraTools = runtime.client?.let { client -> {
                             if (files?.filesSupported == true) AttachmentBrowser(files.artifacts,
                                 (current?.sessions as? UiState.Ready)?.value.orEmpty(), files.errors["artifacts"],
-                                files::refreshArtifacts, showPreview, { preview = null; current?.openSession(it); focusChatRevision++ })
+                                files::refreshArtifacts, showPreview, { preview = null; current?.openSession(it); focusChatRevision++ },
+                                files.storage, files.warnings, if (files.lifecycleSupported) files::deleteArtifact else null)
                             LiveGpuPanel(client, foreground)
                         } },
                         modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
@@ -154,8 +160,8 @@ class MainActivity : ComponentActivity() {
                                 ArtifactPreview(workspace, item, onDock = { previewDocked = true }, onClose = { preview = null })
                             }
                         } } },
-                        artifacts = files?.artifacts.orEmpty().filter { it.sessionId == current?.openSessionId &&
-                            files?.drafts?.none { draft -> draft.id == it.id } == true },
+                        artifacts = files?.artifacts.orEmpty().mapNotNull { item -> current?.openSessionId?.let(item::forSession) }
+                            .filter { files?.drafts?.none { draft -> draft.id == it.id } == true },
                         onViewArtifact = showPreview,
                         onDownloadArtifact = { downloadArtifact?.invoke(it) },
                         serverProfiles = {

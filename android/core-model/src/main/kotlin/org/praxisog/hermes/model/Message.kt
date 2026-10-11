@@ -58,4 +58,6 @@ data class Pagination(
     val offset: Int = 0,
     val order: String? = null,
     val returned: Int = 0,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+    val total: Int? = null,
 )

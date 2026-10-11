@@ -22,6 +22,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.praxisog.hermes.model.Artifact
+import org.praxisog.hermes.model.ArtifactStorage
+import org.praxisog.hermes.model.ArtifactWarning
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -87,6 +90,29 @@ class RepairUiScreenshotTest {
     @Test fun titleOnlyCompactCover() = navigation(false)
     @Test fun titleOnlyLabeledCover() = navigation(true)
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun titleOnlyLabeledUnfoldedDark() = navigation(true)
+
+    private fun lifecycle() {
+        var deleted by mutableStateOf(false)
+        compose.setContent { HermesTheme { Surface {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+                AttachmentBrowser(listOf(Artifact("a".repeat(32), "chat", "report.pdf", "application/pdf", 4096,
+                    "digest", 1000.0, "agent", available = !deleted, deleted = deleted)), emptyList(), null,
+                    {}, {}, {}, ArtifactStorage(25L * 1024 * 1024, 512L * 1024 * 1024),
+                    listOf(ArtifactWarning("large.zip", "Storage quota reached. Delete files to make room.", "run", 1000.0)),
+                    { deleted = true })
+            }
+        } } }
+        compose.onNodeWithText("25 of 512 MiB used · Files kept until deleted").assertIsDisplayed()
+        compose.onRoot().captureRoboImage()
+        compose.onNodeWithText("Delete file").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+        assertFalse(deleted)
+        compose.onNodeWithText("Delete file").performClick()
+        compose.onNodeWithText("Delete", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("pdf · 4 KB · Generated · Deleted").assertIsDisplayed()
+    }
+    @Test fun artifactLifecycleCover() = lifecycle()
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun artifactLifecycleUnfoldedDark() = lifecycle()
 
     @Test fun defaultsAreDenseAndExistingPreferencesSurvive() {
         val context = RuntimeEnvironment.getApplication()

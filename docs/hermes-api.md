@@ -1,3 +1,115 @@
+# Bellpull / Hermes API contract
+
+## Repair branch contract — 2026-10-10
+
+This section defines the current single-plugin contract. The Phase 2/3 sections
+below describe the still-supported legacy overlay deployment and its recorded
+production probes. Their legacy storage/discovery statements do not override this
+section. Native Hermes endpoints retain their pinned upstream behavior.
+Installation/migration/rollback: `plugins/bellpull/README.md`. Generic host changes:
+`server-host/README.md`. Current acceptance evidence: `docs/HANDOFF.md`.
+
+Every plugin route requires a configured native bearer key, native profile scope,
+and the ordinary API origin. `/p/{profile}` mirrors use Hermes' existing middleware;
+unknown/unconfigured profiles fail closed. No new credential or cross-profile
+ownership bypass exists. The supported pair is Hermes v2026.9.7 (internal 0.21.1)
+with generic host API v1 and Bellpull plugin 0.1.0. Other versions are not assumed
+compatible.
+
+### Versioned discovery
+
+GET `/api/bellpull/capabilities` returns:
+
+```json
+{"version":1,"plugin_version":"0.1.0","hermes_version":"0.21.1","host_api_version":1,"features":{"session_fork_at_message":true,"session_fork_before_message":true,"bellpull_persistent_artifacts":true,"bellpull_model_controls":true,"bellpull_snapshot_paging":true,"bellpull_artifact_lifecycle":true,"bellpull_notification_events":true},"note":""}
+```
+
+Android first reads native `/v1/capabilities`, preserving structured native run
+idempotency/retention fields, then merges supported plugin flags. A missing plugin
+falls back to the legacy/native contract. Host-dependent flags are false without
+host API v1; notification events are false when ntfy is disabled. No native static
+feature dictionary is changed by the plugin. Refresh updates action availability.
+
+### Stable paging and source visibility
+
+| Method/path | Response and query |
+| --- | --- |
+| GET `/api/bellpull/sessions` | `source` optional, `limit` 1–200 (default 200), opaque `cursor` optional. Native session rows in `{object:"list",data,limit,offset,has_more,next_cursor}` |
+| GET `/api/bellpull/sessions/{id}/messages` | `limit` 1–500 (default 500), opaque `cursor` optional. Resolved-lineage rows in `{object:"list",session_id,data,pagination:{limit,offset,returned,order:"oldest",next_cursor,total}}` |
+
+The first request freezes a bounded snapshot. New activity/compression cannot shift
+subsequent page boundaries. Cursors are bound to authenticated key/profile, resource,
+source and original session; cross-scope use returns 404. Snapshots expire after
+600 seconds (410), including gateway restart or cache eviction. Eight snapshots,
+32 MiB combined and 100,000 rows per snapshot are the explicit bounds. Oversized
+histories fail visibly with 413; they are not labeled complete. Android deduplicates
+IDs, detects repeated/missing cursors and checks message totals.
+
+Without snapshot support, Android requests native offset pages (200 sessions,
+500 oldest messages), checks the conversation head for moving recency ordering,
+and retries when compression changes the resolved session ID. Continuously moving
+legacy history fails visibly rather than claiming a complete result. A newer refresh
+wins over older in-flight requests. Loading complete messages retains canonical IDs
+and the transcript's existing scroll/follow behavior.
+
+The drawer defaults to API chats and deliberately offers CLI, TUI or all permitted
+sources, persisted per Android server profile. This does not import any history.
+On the production default data home, a read-only 2026-10-10 check counted 47 API,
+7 CLI and 1 TUI conversations with 545 messages. The former API-only filter excluded
+the CLI/TUI rows; no evidence of missing database data was found. Source choice and
+paging are separate controls. Global search explicitly searches loaded titles and
+previews; chat search and View prompts use the completely loaded saved transcript,
+not a semantic search tool or the model's full effective context.
+
+### Persistent file lifecycle
+
+Existing Phase 3 model/upload/download paths and run-body format below remain valid.
+GET `/api/bellpull/artifacts` additionally returns `warnings` and `storage`.
+Warnings contain `request_id`, `name`, `message`, and Unix `created_at`; storage
+contains `used_bytes`, `quota_bytes`, and retention/housekeeping policy fields.
+
+| Method/path | Contract |
+| --- | --- |
+| GET `/api/bellpull/artifacts/storage` | Usage and explicit retention policy, authenticated/no-store |
+| DELETE `/api/bellpull/artifacts/{id}` | Idempotent tombstone plus byte removal; `{deleted:true}`. Unknown ID 404. Does not erase saved transcript references |
+
+Artifact rows add `deleted`, `session_ids` and `message_ids` (map of branch session
+ID to its copied message ID). Canonical IDs/content are immutable. Branch/edit
+links only proven copied-prefix messages, including nested branches; unassociated
+legacy records remain downloadable from the source. Deleting an artifact affects
+all references and cannot be undone by replaying its old upload ID.
+
+The stable profile owner comes from `$HERMES_HOME/bellpull/principal-id`, independent
+of bearer rotation. Legacy key-derived namespaces require an explicit offline
+migration; they are never automatically merged. Persistent files stay until deletion,
+with a 512 MiB quota. Generated scratch is per run, collection is bounded to 1000
+entries with visible partial/quota/unsafe-file warnings, and separate runs retain
+separate message associations even for identical output. Orphans/interrupted uploads
+older than one day and completed scratch older than seven days are cleaned during
+artifact access, at most hourly per active profile. Unfinished scratch is retained.
+Android keeps drafts, removes old unreferenced private files, and removes old
+download/share copies without deleting server content.
+
+### Native runs and approvals
+
+Host API v1 preparation preserves the original native body fingerprint, authenticates
+before plugin use, and resolves a replay before checking current catalog, files or
+concurrency. Preparation is read-only/idempotent; start/finish effects run only for
+the native atomic-admission winner. Plain user text is persisted separately from
+multimodal execution input. Model locks and provider reasoning options apply per
+session/request, without global model substitution.
+
+`interactive_approvals` is an explicit Boolean per native run, false by default.
+Only that worker context opts into the already-verified native approval machinery;
+parallel/default clients remain unattended. Context resets on completion/failure.
+Approval decisions still require the native owner and exact current request ID;
+replays/stale/cross-run decisions fail. Status hooks emit narrow scoped wake hints
+for terminal, interrupted and waiting-for-approval transitions. ntfy is advisory;
+canonical status and history remain authoritative.
+
+Android prunes terminal, history-synced journal entries older than 30 days at restore
+and after reconciliation. Outstanding, ambiguous or unsynced runs are retained.
+
 ## Bellpull Phase 3 contract — 2026-10-10
 
 Implemented by `server-patches/bellpull-phase3`, extending the tested Phase 2
@@ -161,7 +273,7 @@ recreation must use the derived image. Live device edit created a 0-message bran
 from the first prompt; authenticated reads confirmed the source session/messages
 unchanged. No inference was used for this test.
 
-# Hermes API contract
+# Historical upstream API investigation
 
 > **Naming:** this file documents **Hermes Agent**, NousResearch's self-hosted agent
 > software (`github.com/NousResearch/hermes-agent`,

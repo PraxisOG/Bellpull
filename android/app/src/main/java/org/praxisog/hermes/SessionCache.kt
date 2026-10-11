@@ -82,6 +82,8 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     }
 
     fun lastSession(): String? = preferences.getString("last_session", null)
+    fun sessionSource(): String? = preferences.getString("session_source", "api_server").takeUnless { it == "*" }
+    fun rememberSessionSource(source: String?) { if (!closed) preferences.edit().putString("session_source", source ?: "*").apply() }
     fun rememberSession(id: String?) { if (!closed) preferences.edit().putString("last_session", id).apply() }
 
     fun readReceipts(): Map<String, ConversationReceipt> = runCatching {
@@ -123,6 +125,15 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
 
     @Synchronized override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = !closed && preferences.edit()
         .putString("run:${value.requestId}", json.encodeToString(value)).commit()
+
+    @Synchronized override fun pruneRuns(beforeEpochSeconds: Double) {
+        if (closed) return
+        val expired = readRuns().filter { canPruneRun(it, beforeEpochSeconds) }
+        if (expired.isEmpty()) return
+        val edit = preferences.edit()
+        expired.forEach { edit.remove("run:${it.requestId}") }
+        edit.commit()
+    }
 
     override fun readCursor(id: String): ReplyCursor? = preferences.getString("reply_cursor:$id", null)?.let { raw ->
         runCatching { org.json.JSONObject(raw).let { ReplyCursor(it.getDouble("activity"), it.getInt("count"), it.getInt("replyId")) } }.getOrNull()

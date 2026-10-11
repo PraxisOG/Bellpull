@@ -13,13 +13,15 @@ import java.util.UUID
 /** Owned by one connected profile. Every asynchronous operation captures its conversation. */
 internal class Phase3Workspace(private val context: Context, val profileId: String,
     private val scope: CoroutineScope, private val client: HermesClient, private val cache: SessionCache,
-    val filesSupported: Boolean, val modelsSupported: Boolean) {
+    val filesSupported: Boolean, val modelsSupported: Boolean, val lifecycleSupported: Boolean = false) {
     val root = File(context.filesDir, "bellpull-files/$profileId").apply { mkdirs() }
     var catalog by mutableStateOf<ModelCatalog?>(null); private set
     val selections = mutableStateMapOf<String, ModelSelection>()
     var defaultSelection by mutableStateOf(cache.defaultModel()); private set
     var drafts by mutableStateOf(cache.draftFiles()); private set
     var artifacts by mutableStateOf<List<Artifact>>(emptyList()); private set
+    var storage by mutableStateOf<ArtifactStorage?>(null); private set
+    var warnings by mutableStateOf<List<ArtifactWarning>>(emptyList()); private set
     val errors = mutableStateMapOf<String, String>()
     val progress = mutableStateMapOf<String, Float>()
     val sending = mutableStateMapOf<String, Boolean>()
@@ -29,7 +31,10 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     private val imports = kotlinx.coroutines.sync.Mutex()
     @Volatile private var closed = false
 
-    init { if (modelsSupported) scope.launch { refreshCatalog() } }
+    init {
+        cleanPrivateFiles(root, File(context.cacheDir, "bellpull-shared/$profileId"), drafts.map { it.id }.toSet())
+        if (modelsSupported) scope.launch { refreshCatalog() }
+    }
     private fun fail(id: String, result: HermesError) { if (!closed) errors[id] = result.toUserMessage() }
     private fun persist(values: List<DraftFile>): Boolean {
         if (closed || !cache.writeDraftFiles(values)) return false
@@ -177,7 +182,19 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         if (!filesSupported || closed) return
         scope.launch {
             when (val result = withContext(Dispatchers.IO) { client.artifacts() }) {
-                is HermesResult.Ok -> if (!closed) { artifacts = result.value.data; errors.remove("artifacts") }
+                is HermesResult.Ok -> if (!closed) {
+                    artifacts = result.value.data; storage = result.value.storage
+                    warnings = result.value.warnings; errors.remove("artifacts")
+                }
+                is HermesResult.Err -> fail("artifacts", result.error)
+            }
+        }
+    }
+    fun deleteArtifact(item: Artifact) {
+        if (!lifecycleSupported || closed) return
+        scope.launch {
+            when (val result = withContext(Dispatchers.IO) { client.deleteArtifact(item.id) }) {
+                is HermesResult.Ok -> if (!closed) { File(root, "download-${item.id}").delete(); refreshArtifacts() }
                 is HermesResult.Err -> fail("artifacts", result.error)
             }
         }

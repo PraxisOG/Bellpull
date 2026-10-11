@@ -51,9 +51,11 @@ internal class BellpullRuntime private constructor(context: Context) {
     fun connect(client: HermesClient, capabilities: HermesClient.Capabilities): HermesStore {
         store?.let { return it }
         this.client = client
+        client.configureCapabilities(capabilities)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
         val next = HermesStore(scope, client, cache = cache, drafts = drafts, readState = receipts,
+            sessionSource = cache?.sessionSource(),
             supportsMessageBranching = capabilities.sessionForkAtMessage,
             supportsPromptEditing = capabilities.sessionForkBeforeMessage,
             durableRetention = capabilities.durableRunRetention, journal = cache)
@@ -64,7 +66,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         store = next
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
-            capabilities.features["bellpull_model_controls"] == true) }
+            capabilities.features["bellpull_model_controls"] == true,
+            capabilities.features["bellpull_artifact_lifecycle"] == true) }
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
@@ -91,11 +94,12 @@ internal class BellpullRuntime private constructor(context: Context) {
             notificationEventsAvailable = result.value.notificationEvents
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
-            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport) {
+            val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
+            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport || phase3?.lifecycleSupported != lifecycleSupport) {
                 phase3?.close()
-                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport) }
+                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport, lifecycleSupport) }
             }
-            store?.runs?.interactiveApprovals = result.value.interactiveApprovals
+            store?.updateCapabilities(result.value)
             cache?.writeCapabilities(result.value.raw.toString())
         }
     }

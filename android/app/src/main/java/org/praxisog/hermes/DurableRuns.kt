@@ -13,7 +13,14 @@ internal interface RunJournal {
     fun readRuns(): List<RunSubmission>
     /** Must reach durable storage before returning true. */
     fun writeRun(value: RunSubmission): Boolean
+    fun pruneRuns(beforeEpochSeconds: Double) {}
 }
+
+/** Ambiguous delivery and unsynced history have no automatic expiry. */
+internal fun canPruneRun(record: RunSubmission, beforeEpochSeconds: Double): Boolean =
+    record.terminal && record.historySynced && record.createdAt < beforeEpochSeconds
+
+internal const val RUN_JOURNAL_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
 internal data class RunPresentation(
     val submission: RunSubmission,
@@ -59,6 +66,7 @@ internal class DurableRuns(
     @Volatile private var closed = false
 
     fun restore() {
+        journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
         journal.readRuns().sortedBy { it.createdAt }.forEach { record ->
             states[record.sessionId] = RunPresentation(record, terminalTurn(record))
         }
@@ -255,7 +263,7 @@ internal class DurableRuns(
     private suspend fun syncHistory(sessionId: String, settle: Boolean = true): Boolean {
         val state = states[sessionId] ?: return true
         val record = state.submission
-        val result = io { client.messages(sessionId) }
+        val result = io { client.completeHistory(sessionId) }
         if (result !is HermesResult.Ok) {
             update(sessionId) { it.copy(notice = "Work has settled; reconnecting to load the saved reply.") }
             return false
@@ -272,6 +280,7 @@ internal class DurableRuns(
             onCompleted(sessionId, reply)
             val synced = record.copy(historySynced = true)
             save(synced)
+            journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
             update(sessionId) { it.copy(submission = synced, notice = null,
                 turn = reconcileDurableTurn(it.turn, messages, record)) }
         }

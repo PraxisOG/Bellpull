@@ -170,9 +170,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._json(200, CAPABILITIES)
             return
         if self.path.split("?")[0] == "/api/sessions":
-            self._json(200, SESSION_LIST)
+            # Preserve the recorded raw response for direct contract probes. App paging
+            # explicitly supplies a limit; the fixture database has one conversation.
+            body = json.loads(SESSION_LIST) if isinstance(SESSION_LIST, str) else dict(SESSION_LIST)
+            if "limit=" in self.path:
+                body.update(limit=200, offset=0, has_more=False)
+            self._json(200, body)
             return
-        match = MESSAGES_PATH.match(self.path)
+        match = MESSAGES_PATH.match(self.path.split("?")[0])
         if match:
             if match.group(1) == FIXTURE_SESSION_ID:
                 self._json(200, SESSION_MESSAGES)

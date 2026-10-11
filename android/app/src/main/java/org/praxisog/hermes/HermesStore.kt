@@ -27,17 +27,34 @@ internal class HermesStore(
     private val scope: CoroutineScope,
     private val client: HermesClient,
     /** Which `source` to filter the session list by; null lists every source. */
-    private val sessionSource: String? = "api_server",
+    sessionSource: String? = "api_server",
     /** Null disables caching, which is what the contract tests want. */
     private val cache: SessionSnapshots? = null,
     private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
-    val supportsMessageBranching: Boolean = false,
+    supportsMessageBranching: Boolean = false,
     val drafts: ChatDrafts = ChatDrafts(),
-    val supportsPromptEditing: Boolean = false,
+    supportsPromptEditing: Boolean = false,
     val readState: ConversationReadState = ConversationReadState(),
     durableRetention: Long? = null,
     journal: RunJournal? = null,
 ) {
+    var supportsMessageBranching by mutableStateOf(supportsMessageBranching)
+        private set
+    var supportsPromptEditing by mutableStateOf(supportsPromptEditing)
+        private set
+    fun updateCapabilities(value: HermesClient.Capabilities) {
+        supportsMessageBranching = value.sessionForkAtMessage
+        supportsPromptEditing = value.sessionForkBeforeMessage
+        runs?.interactiveApprovals = value.interactiveApprovals
+    }
+    var sessionSource by mutableStateOf(sessionSource)
+        private set
+    fun chooseSessionSource(source: String?) {
+        if (source == sessionSource) return
+        sessionSource = source
+        sessions = UiState.Loading
+        loadSessions()
+    }
     val runs = if (durableRetention != null && journal != null)
         DurableRuns(scope, client, journal, drafts, durableRetention, clock) else null
     var onReply: (String, Message) -> Unit = { _, _ -> }
@@ -169,7 +186,8 @@ internal class HermesStore(
         val request = ++sessionsRequest
         scope.launch {
             if (sessions !is UiState.Ready) sessions = UiState.Loading
-            val result = io { client.listSessions(source = sessionSource) }
+            val source = sessionSource
+            val result = io { client.allSessions(source = source) }
             if (request != sessionsRequest) return@launch
             when (result) {
                 is HermesResult.Ok -> {
@@ -180,9 +198,10 @@ internal class HermesStore(
                 }
                 is HermesResult.Err -> {
                     val cached = io { cache?.read() }
-                    if (cached != null && cached.sessions.isNotEmpty()) {
+                    val permitted = cached?.sessions?.filter { source == null || it.source == source }.orEmpty()
+                    if (cached != null && permitted.isNotEmpty()) {
                         offline = OfflineState(cached.cachedAtEpochSeconds, result.error)
-                        sessions = UiState.Ready(cached.sessions)
+                        sessions = UiState.Ready(permitted)
                     } else {
                         offline = null
                         sessions = UiState.Failed(result.error)
@@ -338,7 +357,7 @@ internal class HermesStore(
         val revision = sessionRevision
         val request = ++historyRequest
         scope.launch {
-            val result = io { client.messages(sessionId) }
+            val result = io { client.completeHistory(sessionId) }
             if (revision != sessionRevision || request != historyRequest) return@launch
             when (result) {
                 is HermesResult.Ok -> Snapshot.withMutableSnapshot {
@@ -454,7 +473,7 @@ internal class HermesStore(
                 // Completion belongs to the submitted conversation, even after navigation.
                 // Only a fresh saved assistant reply earns an unread dot; tool activity,
                 // failed requests and timestamps alone do not.
-                val saved = io { client.messages(sessionId) }
+                val saved = io { client.completeHistory(sessionId) }
                 if (saved is HermesResult.Ok) {
                     val fresh = saved.value.data.filter { it.id !in submitted.previousIds }
                     val promptIndex = fresh.indexOfLast { it.role == "user" && it.content?.trim() == submitted.text.trim() }

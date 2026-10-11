@@ -33,8 +33,23 @@ data class ModelSelection(val model: String, val provider: String,
     @SerialName("request_id") val requestId: String? = null,
     @SerialName("message_id") val messageId: Int? = null,
     val available: Boolean = true,
-)
-@Serializable data class ArtifactList(val data: List<Artifact>)
+    val deleted: Boolean = false,
+    @SerialName("session_ids") val sessionIds: List<String> = emptyList(),
+    @SerialName("message_ids") val messageIds: Map<String, Int> = emptyMap(),
+) {
+    fun forSession(id: String): Artifact? = when {
+        id == sessionId -> this
+        id in sessionIds -> copy(sessionId = id, messageId = messageIds[id])
+        else -> null
+    }
+}
+@Serializable data class ArtifactWarning(val name: String, val message: String,
+    @SerialName("request_id") val requestId: String,
+    @SerialName("created_at") val createdAt: Double)
+@Serializable data class ArtifactStorage(@SerialName("used_bytes") val usedBytes: Long,
+    @SerialName("quota_bytes") val quotaBytes: Long)
+@Serializable data class ArtifactList(val data: List<Artifact>, val warnings: List<ArtifactWarning> = emptyList(),
+    val storage: ArtifactStorage? = null)
 
 /** Metadata is encrypted with the profile; content lives in profile-private files. */
 @Serializable data class DraftFile(val id: String, val sessionId: String, val name: String, val mime: String,
