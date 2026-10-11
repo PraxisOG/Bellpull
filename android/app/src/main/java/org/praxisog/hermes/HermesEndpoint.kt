@@ -10,10 +10,11 @@ internal object HermesEndpoint {
         require(scheme == "http" || scheme == "https") { "Use an HTTP or HTTPS server URL." }
         require(!host.isNullOrBlank()) { "Enter a server host." }
         require(uri.userInfo == null && uri.query == null && uri.fragment == null) {
-            "Enter only the server address and port."
+            "Do not include credentials, a query, or a fragment in the server URL."
         }
-        require(uri.path.isNullOrEmpty() || uri.path == "/") {
-            "Enter only the server address and port."
+        val path = uri.rawPath.orEmpty().removeSuffix("/")
+        require(path.isEmpty() || Regex("/p/[a-z0-9][a-z0-9_-]{0,63}").matches(path)) {
+            "Use a root server URL or a native Hermes /p/profile URL."
         }
         require(uri.port in -1..65535 && uri.port != 0) { "Enter a valid port." }
         if (scheme == "http") {
@@ -21,7 +22,7 @@ internal object HermesEndpoint {
                 "Plain HTTP is allowed only over Tailscale or loopback."
             }
         }
-        URI(scheme, null, host, uri.port, null, null, null).toString()
+        URI(scheme, null, host, uri.port, path.ifEmpty { null }, null, null).toString()
     }
 
     private fun isTailnetHost(host: String): Boolean {
