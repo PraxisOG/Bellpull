@@ -83,12 +83,14 @@ sealed interface StreamEvent {
             this[key]?.let { runCatching { it.jsonPrimitive.booleanOrNull }.getOrNull() } ?: false
 
         /**
-         * Build an event from an SSE `event:` name and its `data:` payload. Returns null only
-         * when [data] is not a JSON object at all.
+         * Native stock run streams put the event name inside JSON and omit the optional
+         * SSE `event:` line. Legacy streams name it explicitly; that name takes precedence.
+         * Returns null only when [data] is not a JSON object at all.
          */
-        fun parse(event: String, data: String): StreamEvent? {
+        fun parse(event: String?, data: String): StreamEvent? {
             val obj = runCatching { json.parseToJsonElement(data).jsonObject }.getOrNull() ?: return null
-            return when (event) {
+            val name = event?.takeIf { it.isNotEmpty() } ?: obj.str("event") ?: "message"
+            return when (name) {
                 "run.started" -> RunStarted(obj, obj.str("run_id"))
                 "message.started" -> MessageStarted(
                     obj,
@@ -108,7 +110,7 @@ sealed interface StreamEvent {
                 )
                 "run.completed" -> RunCompleted(obj, obj.bool("completed"))
                 "done" -> Done(obj)
-                else -> Unknown(obj, event)
+                else -> Unknown(obj, name)
             }
         }
     }

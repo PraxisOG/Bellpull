@@ -57,6 +57,22 @@ Terminal status does not settle a successful submission until its final saved
 assistant row is visible. A truncated legacy session stream also polls saved
 history without resubmitting, so reselecting the conversation is unnecessary.
 
+**Stock SSE framing, verified on the Fold 2026-10-10:** the current unmodified
+native run endpoint sends `id:` and `data:` lines without an `event:` line:
+
+```text
+id: 0
+data: {"event":"reasoning.delta","run_id":"run_fixture","timestamp":1791709177.29,"text":"First live update.","seq":0}
+
+```
+
+Android 0.3.6 reads the event name from the JSON envelope when the optional SSE
+name is absent. Explicit `event:` names on legacy streams take precedence. This
+applies to every native run event, including prose, tools, approvals, terminal
+events and replay-gap notices. JSON `seq` remains the replay cursor; `id:` alone
+does not authorize joining an unsequenced suffix. Older clients that required
+`event:` silently discarded these otherwise valid native frames.
+
 Plugin 0.2.1 bridges the native agent's `reasoning_callback` into the existing
 `/v1/runs/{id}/events` transport as `reasoning.delta` with `{event,run_id,timestamp,text}`.
 Hermes assigns the ordinary native sequence number and retains/replays these frames.

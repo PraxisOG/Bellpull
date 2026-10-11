@@ -86,10 +86,11 @@ class DurableRunsTest {
     @After fun cleanup() { managers.forEach { it.close() }; scope.cancel() }
 
     @Test fun reasoningAndInterimProseUpdateWhileTheRunIsStillWorking() {
-        eventBodies.add("event: reasoning.delta\ndata: {\"seq\":0,\"text\":\"Checking \"}\n\n" +
-            "event: reasoning.delta\ndata: {\"seq\":1,\"text\":\"the files.\"}\n\n" +
-            "event: message.interim\ndata: {\"seq\":2,\"text\":\"Reading your notes.\",\"already_streamed\":false}\n\n" +
-            "event: message.interim\ndata: {\"seq\":3,\"text\":\"Reading your notes.\",\"already_streamed\":true}\n\n")
+        // Actual stock /v1/runs frames have no separate event: line.
+        eventBodies.add("id: 0\ndata: {\"event\":\"reasoning.delta\",\"seq\":0,\"text\":\"Checking \"}\n\n" +
+            "id: 1\ndata: {\"event\":\"reasoning.delta\",\"seq\":1,\"text\":\"the files.\"}\n\n" +
+            "id: 2\ndata: {\"event\":\"message.interim\",\"seq\":2,\"text\":\"Reading your notes.\",\"already_streamed\":false}\n\n" +
+            "id: 3\ndata: {\"event\":\"message.interim\",\"seq\":3,\"text\":\"Reading your notes.\",\"already_streamed\":true}\n\n")
         val manager = manager()
         manager.send("one", "hello", emptySet())
         await { (manager.states["one"]?.turn as? TurnState.Streaming)?.reasoning == "Checking the files." }
@@ -102,7 +103,7 @@ class DurableRunsTest {
 
     @Test fun droppedStreamResumesWithoutRepeatingTextOrSubmittingAgain() {
         eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\n")
-        eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\nevent: message.delta\ndata: {\"seq\":1,\"delta\":\"world\"}\n\n")
+        eventBodies.add("id: 0\ndata: {\"event\":\"message.delta\",\"seq\":0,\"delta\":\"Hello \"}\n\nid: 1\ndata: {\"event\":\"message.delta\",\"seq\":1,\"delta\":\"world\"}\n\n")
         val manager = manager()
         manager.send("one", "hello", emptySet())
         await { (manager.states["one"]?.turn as? TurnState.Streaming)?.text == "Hello world" }

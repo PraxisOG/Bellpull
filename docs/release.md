@@ -1,7 +1,7 @@
 # Building and upgrading Bellpull
 
-The public download remains 0.3.3 preview. This repair branch builds **0.3.5,
-version code 8**. It is not published. Do not reuse a version code after release.
+The public download remains 0.3.3 preview. This repair branch builds **0.3.6,
+version code 9**. It is not published. Do not reuse a version code after release.
 
 The current manual test delivery pairs this APK with **bellpull plugin 0.2.1**.
 Use the stock installation instructions in `plugins/bellpull/README.md`; Docker
@@ -11,6 +11,28 @@ Phone checks use `-PbellpullDeviceFixture=true`, which produces the separate
 `org.praxisog.hermes.fixture` package and cannot load personal app profiles.
 The preview-to-release signing transition was verified on the Fold before the
 manual-install instruction; the final repaired APK awaits the user's install.
+
+0.3.6 fixture acceptance passed on the unfolded Fold with stock non-Docker Hermes:
+all conversation sources, growing thinking, interim prose/tools, saved completion
+and byte-identical PNG downloads. The cover-state attempt reached the lock screen;
+its override was reset. Both widths pass JVM screenshot checks. See `HANDOFF.md`
+for the exact evidence and remaining actual-provider/upgrade acceptance.
+
+To reproduce the isolated streaming fixture, run the helper with a disposable
+stock source checkout and its Python environment:
+
+```bash
+python tools/stock-device-fixture.py --hermes-source /PATH/TO/STOCK/HERMES --streaming
+./android/gradlew -p android -PbellpullDeviceFixture=true :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Install only the fixture APK/test APK, forward USB port 18646, and select
+`PortableFilesDeviceTest` and `ConversationSourcesDeviceTest` explicitly. Do not
+run the whole instrumentation suite on a personal phone. The source test leaves
+the fixture profile configured for the visible chat check; authenticated POSTs
+to `/fixture/advance` release each reasoning/tool/reply step. These loopback test
+controls never ship in the plugin. Remove both fixture packages and forwarding
+afterward; leave personal Bellpull stopped throughout.
 
 ## Checks before a release
 

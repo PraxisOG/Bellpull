@@ -15,7 +15,7 @@ atomic admission, concurrency, cancellation, replay and exact-request approvals.
 File publishing, authenticated downloads, storage management and GPU telemetry
 work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
-Use Bellpull Android 0.3.5 with this package. Install on your server yourself:
+Use Bellpull Android 0.3.6 or newer with this package. Install on your server yourself:
 
 ```bash
 # From the unpacked Bellpull plugin bundle or this repository:
@@ -72,7 +72,7 @@ stock installs.
 
 ## Live thinking and conversation visibility
 
-Android 0.3.5 defaults to **All conversations**, including CLI, TUI and other
+Android 0.3.5 and newer default to **All conversations**, including CLI, TUI and other
 platform chats from the same native Hermes profile. Existing API-only defaults
 are reset once; optional source filters remain available. No plugin is needed
 for listing these native saved conversations.
@@ -85,6 +85,8 @@ the later truncated preview when those deltas already arrived. Existing explicit
 reasoning callbacks are preserved. Unload restores the adapter callbacks. The
 model/provider still has to produce reasoning and support streaming; no synthetic
 thinking is generated. See `docs/hermes-api.md` for the checked callback contract.
+Android 0.3.6 also accepts stock SSE frames whose event name is inside the JSON
+payload; 0.3.5 discarded those frames when the separate `event:` line was absent.
 
 ## Optional legacy host extension
 

@@ -1,5 +1,60 @@
 # Bellpull / Hermes app handoff
 
+## Stock SSE framing caught on the Fold — 2026-10-10
+
+Bellpull **0.3.6 / code 9**, paired with the unchanged **bellpull 0.2.1**
+plugin, supersedes the prepared 0.3.5 APK. ADB acceptance on the separate
+`org.praxisog.hermes.fixture` app exposed an additional client bug: current stock
+`/v1/runs/{id}/events` sends `id:` and `data:` lines, with the event name in JSON,
+and no separate SSE `event:` line. The previous reader silently dropped every
+such frame. The parser now accepts the JSON name when an explicit SSE name is
+absent; legacy explicit names take precedence. JSON sequence validation and
+native `Last-Event-ID` replay remain unchanged. Multi-line data joins with newlines.
+
+Physical Pixel 10 Pro Fold / GrapheneOS Android 17 acceptance used a temporary,
+non-Docker stock checkout at `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`,
+one Bellpull plugin, and a deterministic test agent. No real inference, personal
+credentials or personal-server access. `tools/stock-device-fixture.py --streaming`
+adds authenticated loopback-only `/fixture/state` and `/fixture/advance` test
+controls so the native run can pause between callbacks. They are not plugin or
+production routes. Native gateway auth, durable run admission, SSE and history
+remain in use. The gateway core files are unchanged.
+
+On the actual unfolded display:
+
+- Real encrypted preferences migrated the old API-only default to All conversations;
+  an explicit CLI selection persisted. API, CLI, TUI and Telegram titles were visible.
+- One native run grew the already-expanded thinking block from **130 to 560
+  characters**, without a conversation selection or duplicate completed preview.
+  The saved native reasoning matched the displayed text byte for byte.
+- Interim prose, a running/completed Read file row and the live answer appeared
+  in the same open chat. The saved reply then appeared and Working/Stop cleared
+  without reselecting the conversation.
+- Six screenshots captured different dot intensities. The only changing pixels
+  inside the paused working row occupied the 17×17-pixel indicator region;
+  response width, separators and corners stayed fixed.
+- Four plugin-served PNGs downloaded on the phone with matching sizes and SHA-256.
+
+The cover-state device check reached the system lock screen. The emulated state
+override was reset; density/size settings were not changed. The user unlocked the
+phone for the final saved-reply check. Cover layout remains verified by JVM
+screenshots, not by this physical run. Fixture app/test packages, their temporary
+USB forwarding and the local fixture process were removed afterward. Personal
+Bellpull was only stopped; its installation, profiles and data were untouched.
+
+Validation: **352 JVM checks passed, one opt-in live smoke skipped; two guarded
+device tests passed; all 125 screenshot baselines verified; Android assemble/lint
+and release signing verification passed**. Existing 72 plugin regressions and
+portable checks from 0.3.5 still apply; plugin implementation did not change.
+New parser tests use actual stock framing, including a pipe held open before
+completion and replay through the durable-run client.
+
+Device evidence: `build/device-review-036/{start,reasoning-first,reasoning-second,
+tool-running,answer-streaming,completed-unfolded}.png`, paired accessibility XML,
+`working-animation.json` and `acceptance.json`. Manual artifacts:
+`build/releases/0.3.6/`. The actual provider and personal signed upgrade still
+await the user's manual installation/report. No publication, push or merge.
+
 ## Conversation visibility, live thinking and working row — 2026-10-10
 
 Bellpull **0.3.5 / code 8** and the consolidated **bellpull 0.2.1** plugin are
