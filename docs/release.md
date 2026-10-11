@@ -1,6 +1,21 @@
 # Building and upgrading Bellpull
 
-The public download remains 0.3.3 preview. This Phase 4 branch builds **0.4.0,
+The current voice development branch builds **0.5.0, version code 12**, from the
+validated Phase 4 branch. See [Phase 5 setup and acceptance](PHASE-5-VOICE.md).
+No plugin update is required for voice; provide a separate private transcription
+service and use the phone's installed offline voice. Preserve the existing signing
+lineage and personal app data. Do not test against the personal Hermes server.
+
+Isolated voice checks use `tools/voice-device-fixture.py` on loopback 18647 and
+`mock-hermes/server.py` on loopback 18646 with `MOCK_HERMES_KEY=voice-device-hermes-key`.
+These are fake inference/transcription, never deployment services. Build the fixture
+APK/test APK with `-PbellpullDeviceFixture=true`, install only those for testing,
+forward both ports with ADB, and explicitly select `VoiceDeviceTest` and
+`ProjectsUiDeviceTest`. The latter checks drawer filters, About and keyboard Save. The current unfolded
+run passed; the cover attempt timed out behind keyguard. Both screenshot widths
+passed. Never run the full device suite on the personal app.
+
+The public download remains 0.3.3 preview. The Phase 4 branch builds **0.4.0,
 version code 11**, paired with **Bellpull plugin 0.3.0**. It starts at the pushed
 0.3.7 repair commit `743dbe4`. Phase 4 remains a development branch, not a public release.
 Do not reuse a version code after release.

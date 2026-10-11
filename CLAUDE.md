@@ -63,7 +63,17 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
-**Current authority (2026-10-11):** the 0.3.7 audit repair is complete. The user
+**Current authority (2026-10-11, Phase 5):** the user authorized conversational
+voice implementation and the compact drawer/filter changes, with ADB testing while
+they are unavailable. Use `feature/phase5-voice` and `docs/PHASE-5-VOICE.md`.
+Do not access the personal Hermes server or deploy a speech provider. Native
+installed offline TTS and an explicitly configured private transcription service
+require no added dependency. Keep Phase 5's unverified acoustic/car/screen-lock
+acceptance and per-tool announcement ordering limits explicit. Preserve existing
+signing/app data and use only the separate fixture app for server/device tests.
+Earlier install/test/push authorization persists; no merge or release publication.
+
+**Previous authority (2026-10-11, Phase 4):** the 0.3.7 audit repair is complete. The user
 authorized Phase 4 on a new branch from 0.3.7, narrowed to conversation projects.
 `docs/PHASE-4-PROJECTS.md` supersedes the old broad Phase 4. Work through local
 implementation and validation. The user subsequently returned ADB access and

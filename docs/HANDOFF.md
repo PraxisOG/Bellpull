@@ -1,5 +1,59 @@
 # Bellpull / Hermes app handoff
 
+## 0.5.0 conversational voice preview — 2026-10-11
+
+Branch **`feature/phase5-voice`**, based on Phase 4 commit `a8d49cc`. Android
+**0.5.0/code 12** adds private transcription, installed offline TTS, a
+service-owned conversational loop, reviewed dictation and push-to-talk. It reuses
+the existing conversation, durable admission/recovery, tools and approvals.
+There is no plugin change; projects still require Bellpull plugin 0.3.0.
+See [setup, behavior, limits and manual acceptance](PHASE-5-VOICE.md).
+
+The drawer puts projects and API/CLI/TUI source choices in one filter menu
+immediately left of Search. Compact titles occupy two lines in the existing row
+height, source badges are removed and chat actions sit nearer the right edge.
+Selection, unread/running state, projects, drafts and ongoing runs are retained.
+
+Actual local Android checks: **444 JVM tests passed, one opt-in live smoke
+skipped; 150 screenshot baselines verified; debug/release builds and lint passed**.
+Lint reports 50 warnings and 4 hints, no errors. New tests exercise initial
+playback ordering, streaming sentences, corrections, interruption, queued turns,
+transcription failure/retry, admission persistence/restart, one-run submission,
+push-to-talk release, profile isolation and drawer interaction. The API 29 service
+type guard is source/compile checked; no API 29 device was tested.
+
+Seven isolated device tests passed on the unfolded Pixel 10 Pro Fold / GrapheneOS
+17: installed offline TTS callbacks, actual microphone capture/release/restart,
+foreground-service background survival and notification pause/stop, exact WAV
+transcription wire shape, encrypted settings/progress isolation, keyboard Save,
+installed About version/plugin statuses and drawer touches. Native probes report
+offline `en_US`, available/enabled AEC and no on-device speech recognizer.
+The loopback transcription fixture returns fixed text; it is **not** recognition
+or provider acceptance. No personal server or real inference provider was used.
+
+The cover-display attempt reached keyguard and all three UI tests timed out;
+those are failed/unexecuted UI assertions, **not** a cover-device pass. Cover and
+unfolded screenshot checks passed. The display override was reset; fixture apps,
+ADB reverse ports and local fixture processes were removed afterward.
+
+The signed APK was installed in place over 0.4.0 with the existing signing lineage,
+retaining UID **10260**, without uninstalling/clearing the personal app. Package
+metadata confirms 0.5.0/build 12 and `stopped=true`; the personal app was never
+launched or connected during these checks. Signed APK SHA-256 and all local
+evidence live under ignored `build/releases/0.5.0/`, including a before/after
+screenshot gallery and `verification.json`. APK SHA-256:
+`8fe6869daa474ed44b7162ad686cc8e6c4b186e305a87b0b6457940e4072eb6b`.
+
+This is a preview, not completion of Phase 5. The user must configure a private
+STT URL/key/model. Real recognition, acoustic echo/barge-in, perceived latency,
+physical lock/fold, Bluetooth/car/navigation/calls and real-network behavior need
+manual acceptance. Specific per-tool speech finishing before execution lacks a
+verified host handshake; the implemented guarantee is actual general preamble
+playback before run submission. No fake approval or core patch was added.
+Push the development branch only; no merge or public release. Remote CI evidence
+must be inspected separately; preceding Phase 4 plugin results are baseline
+evidence, not a newly executed plugin test run.
+
 ## 0.4.0 Fold acceptance and branch push — 2026-10-11
 
 The user returned ADB and authorized install/test/tweak/push. Android **0.4.0/code

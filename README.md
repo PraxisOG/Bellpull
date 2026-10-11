@@ -42,7 +42,16 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This Phase 4 development branch builds **0.4.0 (code 11)** with **Bellpull plugin
+This Phase 5 development branch builds **0.5.0 (code 12)**. It adds a service-owned
+conversational voice preview with private WAV transcription, installed offline
+speech, review/hands-free/push-to-talk modes, streaming sentences and recovery.
+**Configure your own private transcription service first**; no speech server or
+cloud fallback is bundled. See [voice setup, limits and acceptance](docs/PHASE-5-VOICE.md).
+The drawer now groups project/source choices in the filter icon left of Search,
+uses two-line compact titles and removes API/CLI/TUI badges from chat rows.
+This is a development preview, not a new public release.
+
+The Phase 4 foundation builds **0.4.0 (code 11)** with **Bellpull plugin
 0.3.0**. Projects provide shared folder metadata, single membership, pins,
 archive/restore, a description and scoped search. Settings → About shows the
 actual installed app version and each saved server's last reported plugin version.

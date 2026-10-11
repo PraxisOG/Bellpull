@@ -1,5 +1,15 @@
 # Bellpull / Hermes API contract
 
+## Phase 5 voice boundary — 2026-10-11
+
+Android 0.5.0 uses the existing run/history/stop/approval contracts for voice text.
+No Hermes audio endpoint is assumed, and no plugin feature/version is added.
+Microphone WAVs go to a separately configured private transcription endpoint with
+separate credentials and no redirects; JSON `text` becomes the existing user input.
+A visible voice preset/playback note can accompany that input. Native installed
+TTS handles answer playback on the phone. Per-tool playback acknowledgment/gating
+is **not** a verified host capability. See [setup and limitations](PHASE-5-VOICE.md).
+
 ## Repair branch contract — 2026-10-10
 
 This section defines the current single-plugin contract. The Phase 2/3 sections
