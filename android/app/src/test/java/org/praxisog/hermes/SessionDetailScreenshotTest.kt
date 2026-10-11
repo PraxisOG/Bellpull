@@ -26,7 +26,7 @@ class SessionDetailScreenshotTest {
         turn: TurnState = TurnState.Idle,
     ) = captureRoboImage {
         HermesTheme {
-            SessionDetailScreen(history = history, turn = turn, onSend = {}, onStop = {}, onRetry = {})
+            SessionDetailScreen(history = history, turn = turn, onSend = {}, onStop = {}, onRetry = {}, reduceMotion = true)
         }
     }
 

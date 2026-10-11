@@ -8,7 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.intOrNull
 
 /**
- * One SSE frame from `POST /api/sessions/{id}/chat/stream`.
+ * One SSE frame from a native session stream or durable `/v1/runs/{id}/events`.
  *
  * Event names and payload keys are from the recorded fixture plus the Gate 0c probes, which
  * added `tool.started` / `tool.completed` — see `docs/hermes-api.md` § Streaming. An
@@ -26,6 +26,9 @@ sealed interface StreamEvent {
 
     /** A token of assistant text. Append [delta]; do not treat it as a whole message. */
     data class AssistantDelta(override val raw: JsonObject, val messageId: String?, val delta: String) : StreamEvent
+
+    /** Completed interim prose that some native routes emit without text deltas. */
+    data class AssistantCommentary(override val raw: JsonObject, val text: String, val alreadyStreamed: Boolean) : StreamEvent
 
     /**
      * Tool or reasoning progress. `tool_name` is `_thinking` for reasoning, which is why this
@@ -92,7 +95,8 @@ sealed interface StreamEvent {
                     runCatching { obj["message"]?.jsonObject?.str("id") }.getOrNull(),
                 )
                 "assistant.delta", "message.delta" -> AssistantDelta(obj, obj.str("message_id"), obj.str("delta") ?: "")
-                "reasoning.available" -> ToolProgress(obj, "_thinking", obj.str("text"))
+                "message.interim", "assistant.commentary" -> AssistantCommentary(obj, obj.str("text") ?: "", obj.bool("already_streamed"))
+                "reasoning.available", "reasoning.delta" -> ToolProgress(obj, "_thinking", obj.str("text"))
                 "tool.progress" -> ToolProgress(obj, obj.str("tool_name"), obj.str("delta"))
                 "tool.started" -> ToolStarted(obj, obj.str("tool_name") ?: obj.str("tool"), obj.str("preview"))
                 "tool.completed" -> ToolCompleted(obj, obj.str("tool_name") ?: obj.str("tool"))

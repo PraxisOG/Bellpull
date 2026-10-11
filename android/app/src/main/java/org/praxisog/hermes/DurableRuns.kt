@@ -192,6 +192,7 @@ internal class DurableRuns(
                 val live = LiveTranscript()
                 val prose = StringBuilder()
                 val reasoning = StringBuilder()
+                var commentaryBoundary = false
                 var lastSequence: Int? = null
                 var retrying = !fresh
                 var unsafeReplay = false
@@ -213,7 +214,16 @@ internal class DurableRuns(
                                 retrying && lastSequence == null && seq != 0) unsafeReplay = true
                             if (unsafeReplay) { streamGap = true; return@withContext }
                             live.accept(event)
-                            if (event is StreamEvent.AssistantDelta) prose.append(event.delta)
+                            if (event is StreamEvent.AssistantDelta && event.delta.isNotEmpty()) {
+                                if (commentaryBoundary && prose.isNotEmpty()) prose.append("\n\n")
+                                commentaryBoundary = false
+                                prose.append(event.delta)
+                            }
+                            if (event is StreamEvent.AssistantCommentary && !event.alreadyStreamed && event.text.isNotBlank()) {
+                                if (prose.isNotEmpty()) prose.append("\n\n")
+                                prose.append(event.text)
+                                commentaryBoundary = true
+                            }
                             if (event is StreamEvent.ToolProgress && event.toolName == "_thinking") reasoning.append(event.delta.orEmpty())
                             lastSequence = seq
                             streamGap = false

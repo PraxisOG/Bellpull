@@ -14,6 +14,22 @@ from hermes_cli.plugins import PluginManager, get_plugin_manager
 
 
 class InstallationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_route_installation_restores_native_callback_factories(self):
+        from plugins.bellpull.http import wire
+        adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "collision-fixture"}))
+        create, progress = adapter._create_agent, adapter._make_run_event_callback
+        app = web.Application()
+        async def existing(request):
+            return web.json_response({})
+        app.router.add_get("/api/bellpull/capabilities", existing)
+        try:
+            with self.assertRaises(RuntimeError):
+                wire(app, adapter)
+            self.assertEqual(create, adapter._create_agent)
+            self.assertEqual(progress, adapter._make_run_event_callback)
+        finally:
+            adapter._run_idempotency_store.close()
+
     async def test_unreviewed_host_source_keeps_portable_files_and_disables_private_run_features(self):
         from plugins.bellpull.http import wire
         with patch("plugins.bellpull.http.source_mode", return_value=None):

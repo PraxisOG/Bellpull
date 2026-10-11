@@ -7,6 +7,16 @@ import org.junit.Test
 import org.praxisog.hermes.model.Message
 
 class BellpullStateTest {
+    @Test fun interimCommentaryEndsItsParagraphAndAlreadyStreamedCopiesAreIgnored() {
+        val live = LiveTranscript()
+        listOf(
+            "message.interim" to """{"text":"Reading your notes.","already_streamed":false,"seq":0}""",
+            "message.interim" to """{"text":"Reading your notes.","already_streamed":true,"seq":1}""",
+            "message.delta" to """{"delta":"The answer is ","seq":2}""",
+            "message.delta" to """{"delta":"here.","seq":3}""",
+        ).forEach { (name, json) -> live.accept(org.praxisog.hermes.model.StreamEvent.parse(name, json)!!) }
+        assertEquals(listOf("Reading your notes.", "The answer is here."), live.parts.filterIsInstance<LivePart.Prose>().map { it.text })
+    }
     @Test fun liveToolsAppendOnceAndCommentaryKeepsItsChronologicalPosition() {
         val live = LiveTranscript()
         fun event(name: String, seq: Int, fields: String = "") =

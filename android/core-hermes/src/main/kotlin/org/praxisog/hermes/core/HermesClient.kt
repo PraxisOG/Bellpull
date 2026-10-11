@@ -197,7 +197,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
@@ -210,8 +210,8 @@ class HermesClient(
     /**
      * `GET /api/sessions`.
      *
-     * [includeChildren] defaults to false and [source] is worth setting, because without them
-     * the list fills with cron, tool, API and subagent sessions rather than human chats.
+     * [includeChildren] defaults to false to omit nested agent sessions. Omitting [source]
+     * includes conversations from every platform in the authenticated Hermes profile.
      */
     fun listSessions(
         limit: Int? = null,
@@ -460,7 +460,7 @@ class HermesClient(
             .post(body.toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }
     }
 
-    /** Status/history remain authoritative: this queue cannot replay consumed events. */
+    /** Current Hermes replays sequenced events; older queues require status/history recovery. */
     fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, lastEventId: Int? = null,
         onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
         events("/v1/runs/$runId/events", onStart, lastEventId, onEvent)

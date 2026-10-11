@@ -82,8 +82,16 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     }
 
     fun lastSession(): String? = preferences.getString("last_session", null)
-    fun sessionSource(): String? = preferences.getString("session_source", "api_server").takeUnless { it == "*" }
-    fun rememberSessionSource(source: String?) { if (!closed) preferences.edit().putString("session_source", source ?: "*").apply() }
+    fun sessionSource(): String? {
+        // Retire the old API-only default once, including profiles created before 0.3.5.
+        // Explicit filters chosen in this version still survive restarts per profile.
+        if (!preferences.contains("session_source_v2")) {
+            val old = preferences.getString("session_source", null)
+            preferences.edit().putString("session_source_v2", old?.takeUnless { it == "api_server" } ?: "*").commit()
+        }
+        return preferences.getString("session_source_v2", "*").takeUnless { it == "*" }
+    }
+    fun rememberSessionSource(source: String?) { if (!closed) preferences.edit().putString("session_source_v2", source ?: "*").apply() }
     fun rememberSession(id: String?) { if (!closed) preferences.edit().putString("last_session", id).apply() }
 
     fun readReceipts(): Map<String, ConversationReceipt> = runCatching {

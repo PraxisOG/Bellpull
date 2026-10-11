@@ -7,6 +7,15 @@ import org.junit.Test
 
 class StreamEventTest {
 
+    @Test fun liveReasoningKeepsWhitespaceAndInterimProseKeepsItsDeliveryFlag() {
+        val thinking = StreamEvent.parse("reasoning.delta", """{"text":" still thinking\n","seq":3}""") as StreamEvent.ToolProgress
+        assertEquals("_thinking", thinking.toolName)
+        assertEquals(" still thinking\n", thinking.delta)
+        val commentary = StreamEvent.parse("message.interim", """{"text":"Reading notes.","already_streamed":true}""") as StreamEvent.AssistantCommentary
+        assertEquals("Reading notes.", commentary.text)
+        assertTrue(commentary.alreadyStreamed)
+    }
+
     @Test fun parsesEachObservedEventType() {
         assertTrue(StreamEvent.parse("run.started", """{"run_id":"run_1","seq":1}""") is StreamEvent.RunStarted)
         assertTrue(StreamEvent.parse("message.started", """{"message":{"id":"msg_1"},"seq":2}""") is StreamEvent.MessageStarted)

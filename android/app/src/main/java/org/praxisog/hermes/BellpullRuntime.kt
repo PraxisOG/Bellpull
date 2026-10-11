@@ -55,7 +55,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
         val next = HermesStore(scope, client, cache = cache, drafts = drafts, readState = receipts,
-            sessionSource = cache.let { if (it == null) "api_server" else it.sessionSource() },
+            sessionSource = cache?.sessionSource(),
             supportsMessageBranching = capabilities.sessionForkAtMessage,
             supportsPromptEditing = capabilities.sessionForkBeforeMessage,
             durableRetention = capabilities.durableRunRetention, journal = cache)

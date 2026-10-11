@@ -1,5 +1,5 @@
 name: bellpull
-version: 0.2.0
+version: 0.2.1
 description: Bellpull authenticated Android API, atomic branches, files, models, wake hints and optional GPU telemetry.
 author: Bellpull
 kind: standalone

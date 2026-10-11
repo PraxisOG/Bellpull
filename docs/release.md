@@ -1,9 +1,9 @@
 # Building and upgrading Bellpull
 
-The public download remains 0.3.3 preview. This repair branch builds **0.3.4,
-version code 7**. It is not published. Do not reuse a version code after release.
+The public download remains 0.3.3 preview. This repair branch builds **0.3.5,
+version code 8**. It is not published. Do not reuse a version code after release.
 
-The current manual test delivery pairs this APK with **bellpull plugin 0.2.0**.
+The current manual test delivery pairs this APK with **bellpull plugin 0.2.1**.
 Use the stock installation instructions in `plugins/bellpull/README.md`; Docker
 and `server-host/` are not required for persistent generated-file sharing. The
 user manages the personal server and has explicitly prohibited agent access.

@@ -75,7 +75,7 @@ class PaginationContractTest {
             val path = request.url.encodedPath.also { calls += it }
             when (path) {
                 "/v1/capabilities" -> """{"features":{"run_submission":true,"runs_idempotency":{"supported":true,"retention_seconds":86400}}}"""
-                "/api/bellpull/capabilities" -> """{"version":1,"features":{"bellpull_snapshot_paging":true,"session_fork_at_message":true}}"""
+                "/api/bellpull/capabilities" -> """{"version":1,"features":{"bellpull_snapshot_paging":true,"session_fork_at_message":true,"bellpull_reasoning_streaming":true}}"""
                 "/api/bellpull/sessions" -> if (request.url.queryParameter("cursor") == null)
                     Json.encodeToString(SessionList(data = listOf(Session("s1")), hasMore = true, nextCursor = "cursor:1"))
                     else Json.encodeToString(SessionList(data = listOf(Session("s2"))))
@@ -89,6 +89,7 @@ class PaginationContractTest {
         }
         val caps = ok(client.capabilities())
         assertTrue(caps.sessionForkAtMessage)
+        assertTrue(caps.features["bellpull_reasoning_streaming"] == true)
         assertTrue(caps.features["run_submission"] == true)
         assertEquals(listOf("s1", "s2"), ok(client.allSessions()).data.map { it.id })
         assertEquals(listOf(1, 2), ok(client.completeHistory("s1")).data.map { it.id })

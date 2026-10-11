@@ -26,6 +26,26 @@ import org.praxisog.hermes.core.HermesClient
  * which is the subtle one.
  */
 class HermesStoreTest {
+    @Test fun conversationListDefaultsToEveryServerSourceAndStillSupportsAnExplicitFilter() {
+        val sources = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val source = request.url.queryParameter("source")
+            sources += source ?: "all"
+            val rows = listOf("api_server", "cli", "tui", "telegram").filter { source == null || source == it }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(("{\"data\":[" + rows.joinToString(",") { "{\"id\":\"$it\",\"source\":\"$it\"}" } + "]}")
+                    .toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val store = HermesStore(scope, HermesClient("http://fixture.invalid", { "fixture" }, httpClient = http))
+        store.loadSessions()
+        awaitUntil("all server conversations") { store.sessions is UiState.Ready }
+        assertEquals(setOf("api_server", "cli", "tui", "telegram"), (store.sessions as UiState.Ready).value.map { it.source }.toSet())
+        assertTrue(sources.all { it == "all" })
+        store.chooseSessionSource("cli")
+        awaitUntil("explicit CLI filter") { store.sessions is UiState.Ready }
+        assertEquals(listOf("cli"), (store.sessions as UiState.Ready).value.map { it.source })
+    }
 
     @Test fun droppedLegacyStreamLoadsLaterSavedReplyWithoutOpeningChatAgain() {
         val saved = AtomicBoolean(false)

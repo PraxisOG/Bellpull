@@ -12,7 +12,7 @@ Installation/migration/rollback: `plugins/bellpull/README.md`. Generic host chan
 Every plugin route requires a configured native bearer key, native profile scope,
 and the ordinary API origin. `/p/{profile}` mirrors use Hermes' existing middleware;
 unknown/unconfigured profiles fail closed. No new credential or cross-profile
-ownership bypass exists. Bellpull plugin 0.2.0 provides portable files and GPU
+ownership bypass exists. Bellpull plugin 0.2.1 provides portable files and GPU
 telemetry on stock Hermes through the native handler factory, authentication and
 session lookup helpers. Tests cover original v2026.9.7 and a fresh current
 non-Docker checkout (`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`). Named
@@ -31,7 +31,7 @@ finish without losing its file-collection callbacks.
 GET `/api/bellpull/capabilities` returns:
 
 ```json
-{"version":1,"plugin_version":"0.2.0","hermes_version":"0.21.1","host_api_version":null,"features":{"session_fork_at_message":true,"session_fork_before_message":true,"bellpull_persistent_artifacts":true,"bellpull_model_controls":false,"bellpull_run_attachments":false,"bellpull_snapshot_paging":true,"bellpull_artifact_lifecycle":true,"bellpull_notification_events":false},"note":"Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."}
+{"version":1,"plugin_version":"0.2.1","hermes_version":"0.21.1","host_api_version":null,"features":{"session_fork_at_message":true,"session_fork_before_message":true,"bellpull_persistent_artifacts":true,"bellpull_model_controls":false,"bellpull_run_attachments":false,"bellpull_reasoning_streaming":true,"bellpull_snapshot_paging":true,"bellpull_artifact_lifecycle":true,"bellpull_notification_events":false},"note":"Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."}
 ```
 
 Android first reads native `/v1/capabilities`, preserving structured native run
@@ -57,6 +57,26 @@ Terminal status does not settle a successful submission until its final saved
 assistant row is visible. A truncated legacy session stream also polls saved
 history without resubmitting, so reselecting the conversation is unnecessary.
 
+Plugin 0.2.1 bridges the native agent's `reasoning_callback` into the existing
+`/v1/runs/{id}/events` transport as `reasoning.delta` with `{event,run_id,timestamp,text}`.
+Hermes assigns the ordinary native sequence number and retains/replays these frames.
+`bellpull_reasoning_streaming` is true only when this adapter exposes the checked
+callback parameters and run-stream map (older factories can use their native
+agent's existing `reasoning_callback` attribute). Two adapter-instance callback wrappers,
+installed by the platform-handler factory, connect the missing reasoning callback;
+they do not edit core files or replace run admission/execution/SSE endpoints.
+Existing explicit reasoning callbacks remain intact. The native 500-character
+`reasoning.available` preview is suppressed only when real reasoning deltas arrived
+for that response. Unsupported adapters retain their native preview behavior.
+Unload/cleanup removes the wrappers and fences late reasoning callbacks.
+
+Android renders `reasoning.delta` as thinking, and `message.interim` /
+`assistant.commentary` as prose only when `already_streamed` is false. Unknown events
+still advance the replay cursor. Local real-adapter tests on the current stock
+checkout verify reasoning longer than 500 characters arrives before completion,
+without duplicate previews, inference or core file changes. Providers must actually
+supply reasoning; this bridge cannot manufacture tokens from a non-streaming provider.
+
 ### Stable paging and source visibility
 
 | Method/path | Response and query |
@@ -79,8 +99,12 @@ legacy history fails visibly rather than claiming a complete result. A newer ref
 wins over older in-flight requests. Loading complete messages retains canonical IDs
 and the transcript's existing scroll/follow behavior.
 
-The drawer defaults to API chats and deliberately offers CLI, TUI or all permitted
-sources, persisted per Android server profile. This does not import any history.
+The drawer defaults to **All conversations**: no `source` query is sent, so API,
+CLI, TUI and other platform conversations from the authenticated profile appear.
+The former API-only default is migrated once on upgrade to Android 0.3.5. Explicit
+new source choices persist per Android server profile. This does not import history
+or cross native profile boundaries. Nested agent sessions remain omitted by native
+`include_children=false` behavior.
 On the production default data home, a read-only 2026-10-10 check counted 47 API,
 7 CLI and 1 TUI conversations with 545 messages. The former API-only filter excluded
 the CLI/TUI rows; no evidence of missing database data was found. Source choice and

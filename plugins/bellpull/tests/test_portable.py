@@ -1,11 +1,14 @@
 """Stock adapter discovery, persistent outputs and unchanged core sources."""
 import base64
+import asyncio
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
 import secrets
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 from aiohttp import ClientSession
@@ -20,6 +23,79 @@ def decoded(result):
 
 
 class PortableTest(unittest.IsolatedAsyncioTestCase):
+    async def test_reasoning_arrives_before_completion_through_stock_native_stream(self):
+        core = Path(api_server.__file__).resolve().parents[2]
+        paths = [core / "gateway/platforms/api_server.py", core / "gateway/platforms/api_server_runs.py"]
+        before = [hashlib.sha256(path.read_bytes()).hexdigest() for path in paths]
+        release = threading.Event()
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}):
+            Path(home, "config.yaml").write_text("plugins:\n  enabled:\n    - bellpull\n")
+            manager = get_plugin_manager()
+            manager.discover_and_load()
+            key = secrets.token_hex(32)
+            headers = {"Authorization": "Bearer " + key}
+            adapter = api_server.APIServerAdapter(PlatformConfig(enabled=True,
+                extra={"key": key, "host": "127.0.0.1", "port": 18643}))
+            text = "A reasoning token. " * 50
+            def create_agent(reasoning_callback=None, tool_progress_callback=None, **kwargs):
+                class Agent:
+                    session_id = kwargs.get("session_id")
+                    def __init__(self):
+                        self.reasoning_callback = reasoning_callback
+                    def run_conversation(self, **_kwargs):
+                        self.reasoning_callback(text)
+                        # A completed reasoning preview must not duplicate those tokens.
+                        tool_progress_callback("reasoning.available", "_thinking", text[:500], None)
+                        if not release.wait(10):
+                            raise RuntimeError("Fixture reader did not release the run")
+                        self.reasoning_callback("Second step.")
+                        return {"final_response": "Saved answer", "completed": True}
+                return Agent()
+            accepts_reasoning = "reasoning_callback" in inspect.signature(adapter._create_agent).parameters
+            def older_create_agent(tool_progress_callback=None, **kwargs):
+                return create_agent(tool_progress_callback=tool_progress_callback, **kwargs)
+            adapter._create_agent = create_agent if accepts_reasoning else older_create_agent
+            try:
+                self.assertTrue(await adapter.connect())
+                async with ClientSession() as client:
+                    origin = "http://127.0.0.1:18643"
+                    response = await client.get(origin + "/api/bellpull/capabilities", headers=headers)
+                    self.assertTrue((await response.json())["features"]["bellpull_reasoning_streaming"])
+                    accepted = await client.post(origin + "/v1/runs", headers={**headers, "Idempotency-Key": "reasoning-fixture"}, json={"input": "Think"})
+                    self.assertEqual(202, accepted.status, await accepted.text())
+                    run_id = (await accepted.json())["run_id"]
+                    response = await client.get(origin + f"/v1/runs/{run_id}/events", headers=headers)
+                    self.assertEqual(200, response.status)
+                    frames = []
+                    async def read_reasoning():
+                        while True:
+                            line = await response.content.readline()
+                            if line.startswith(b"data:"):
+                                event = json.loads(line[5:])
+                                frames.append(event)
+                                if event.get("event") == "reasoning.delta":
+                                    return event
+                    first = await asyncio.wait_for(read_reasoning(), 5)
+                    self.assertEqual(text, first["text"])
+                    status = await client.get(origin + f"/v1/runs/{run_id}", headers=headers)
+                    self.assertEqual("running", (await status.json())["status"])
+                    release.set()
+                    async def drain():
+                        async for line in response.content:
+                            if line.startswith(b"data:"):
+                                frames.append(json.loads(line[5:]))
+                    await asyncio.wait_for(drain(), 5)
+                    self.assertEqual(text + "Second step.", "".join(event.get("text", "") for event in frames
+                        if event.get("event") in ("reasoning.delta", "reasoning.available")))
+                    repeated = await client.post(origin + "/v1/runs", headers={**headers, "Idempotency-Key": "reasoning-fixture"}, json={"input": "Think"})
+                    self.assertEqual(run_id, (await repeated.json())["run_id"])
+                    self.assertTrue(any(event.get("event") == "run.completed" for event in frames), frames)
+            finally:
+                release.set()
+                await adapter.disconnect()
+                manager.unload()
+        self.assertEqual(before, [hashlib.sha256(path.read_bytes()).hexdigest() for path in paths])
+
     async def test_stock_outputs_auth_restart_and_unchanged_core(self):
         core = Path(api_server.__file__).resolve().parents[2]
         sources = [core / "gateway/platforms/api_server.py", core / "gateway/platforms/api_server_runs.py", core / "tools/approval_context.py"]
@@ -44,6 +120,12 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(features["bellpull_artifact_lifecycle"])
                     session = await client.post(origin + "/api/sessions", headers=headers, json={})
                     session_id = (await session.json())["session"]["id"]
+                    database = await adapter._ensure_session_db_async()
+                    for source in ("cli", "tui", "telegram"):
+                        database.create_session(session_id="external_" + source, source=source, model="fixture")
+                    all_sessions = await client.get(origin + "/api/sessions", headers=headers)
+                    self.assertTrue({"api_server", "cli", "tui", "telegram"}.issubset(
+                        {row["source"] for row in (await all_sessions.json())["data"]}))
                     result = decoded(registry.dispatch("bellpull_share_files", {"action": "prepare"},
                         scope=manager.scope_key, session_id=session_id))
                     self.assertIn("outbox", result, result)

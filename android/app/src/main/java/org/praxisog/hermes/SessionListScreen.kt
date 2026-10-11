@@ -78,7 +78,7 @@ internal fun SessionListScreen(
     completionRevision: Long = 0,
     runLabels: Map<String, String> = emptyMap(),
     titleOnly: Boolean = false,
-    source: String? = "api_server",
+    source: String? = null,
     onSourceChange: ((String?) -> Unit)? = null,
 ) {
     val searching = query.isNotBlank()
@@ -219,7 +219,7 @@ internal fun SessionListScreen(
                             BellpullMark(size = 48.dp)
                             Text("Room for a new idea", style = MaterialTheme.typography.titleMedium)
                             Text(if (onSourceChange != null && source != null)
-                                "No conversations in this source. Try All permitted sources."
+                                "No conversations in this source. Try All conversations."
                                 else "No visible conversations on this server.", style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -382,8 +382,7 @@ private fun SectionHeader(text: String) {
     )
 }
 
-private val sourceChoices = listOf("API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui",
-    "All permitted sources" to null)
+private val sourceChoices = listOf("All conversations" to null, "API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui")
 
 @Composable
 private fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,

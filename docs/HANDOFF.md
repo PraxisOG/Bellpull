@@ -1,5 +1,53 @@
 # Bellpull / Hermes app handoff
 
+## Conversation visibility, live thinking and working row — 2026-10-10
+
+Bellpull **0.3.5 / code 8** and the consolidated **bellpull 0.2.1** plugin are
+prepared on `repair/bellpull-plugin-migration` for the user's manual installation.
+The personal server remains off limits. The user took the phone back during this
+slice; **no ADB commands or device installs were performed for 0.3.5**.
+
+The drawer now defaults to **All conversations**, omitting the native `source`
+filter. A one-time encrypted preference migration retires the previous API-only
+default for existing server profiles; new explicit filters persist per profile.
+Native profile boundaries and nested-session visibility remain unchanged. Local
+stock-adapter and client/store tests include API, CLI, TUI and Telegram sessions.
+This reads Hermes' existing history; it does not import or merge provider history.
+
+The stock durable-run route did not connect the agent's live reasoning callback.
+Its `reasoning.available` event is a completed, 500-character preview. The plugin
+now uses two small, feature-detected adapter-instance callback wrappers to forward
+full reasoning through the native run stream as `reasoning.delta`. Older stock
+factories use the native agent's existing callback attribute. Hermes still owns
+auth, execution, event sequencing/replay, cancellation and persistence; no core
+files or endpoints are replaced. Existing explicit callbacks remain intact,
+duplicate completed previews are suppressed, and unload restores the factories
+and fences late reasoning. Failed route registration restores them too.
+`bellpull_reasoning_streaming` reports availability. Native interim/commentary
+events render once as separate prose segments, respecting `already_streamed`.
+
+The working status is a full-width row inside the response boundary, with the
+same separators and inherited outer corners as thinking/tools/files. Its small
+dot pulses without changing layout and stays still with reduced motion or system
+animations disabled. Tests verify growing thinking in the already-open chat,
+row geometry and changing indicator pixels. Static screenshot capture uses
+reduced motion; the animated case has its own controlled-clock test.
+
+Validation: **350 JVM checks passed, one opt-in live smoke skipped; 125 screenshot
+baselines verified; Android assemble/lint passed; 72 plugin tests passed**.
+Three portable tests also passed on each unmodified stock revision. Real stock HTTP
+tests on unmodified v2026.9.7 and current non-Docker checkout
+`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31` receive more than 500 reasoning
+characters while the run is still running, then the next reasoning step without
+duplicates; request replay stays idempotent and core hashes stay unchanged.
+Inference is replaced by a deterministic fixture, so actual provider streaming
+and the signed upgrade still await the user's manual report.
+
+Review images: `build/ui-review-035/streamingCover-diff.png`,
+`streamingUnfolded-diff.png`, and `conversations-diff.png` (before/after/brightened
+pixel difference). Manual artifacts live in `build/releases/`; signing uses the
+existing release key and preview lineage. No publish, push or merge was performed.
+
 ## Stock-install file delivery and streaming repair — 2026-10-10
 
 The user's personal Hermes runs on another box without Docker. **Do not access

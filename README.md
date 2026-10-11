@@ -42,12 +42,14 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-The repair branch builds **0.3.4 (code 7)**: native CommonMark rendering with code
+The repair branch builds **0.3.5 (code 8)**: all native conversation sources by
+default, live reasoning through Bellpull plugin 0.2.1, an animated working row
+inside the response, native CommonMark rendering with code
 copy, dense/title-only navigation defaults, optional larger labeled controls,
 source-scoped history and complete paging, Info labels, artifact lifecycle controls
-and bounded run-journal retention. A single Bellpull plugin plus a small generic
-pinned Hermes host contract replaces the historical source-overlay chain as the
-tested migration target. The public download and gallery above remain 0.3.3.
+and bounded run-journal retention. A single Bellpull plugin provides stock Hermes
+file sharing and live thinking. The pinned host extension is optional legacy
+compatibility for run inputs/model overrides. The public download and gallery above remain 0.3.3.
 Live migration and physical device acceptance are pending; see
 [handoff](docs/HANDOFF.md), [plugin setup/rollback](plugins/bellpull/README.md),
 [API contract](docs/hermes-api.md), and [release signing](docs/release.md).

@@ -85,6 +85,21 @@ class DurableRunsTest {
     }
     @After fun cleanup() { managers.forEach { it.close() }; scope.cancel() }
 
+    @Test fun reasoningAndInterimProseUpdateWhileTheRunIsStillWorking() {
+        eventBodies.add("event: reasoning.delta\ndata: {\"seq\":0,\"text\":\"Checking \"}\n\n" +
+            "event: reasoning.delta\ndata: {\"seq\":1,\"text\":\"the files.\"}\n\n" +
+            "event: message.interim\ndata: {\"seq\":2,\"text\":\"Reading your notes.\",\"already_streamed\":false}\n\n" +
+            "event: message.interim\ndata: {\"seq\":3,\"text\":\"Reading your notes.\",\"already_streamed\":true}\n\n")
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { (manager.states["one"]?.turn as? TurnState.Streaming)?.reasoning == "Checking the files." }
+        await { (manager.states["one"]?.turn as? TurnState.Streaming)?.text == "Reading your notes." }
+        val state = manager.states.getValue("one")
+        assertFalse(state.submission.terminal)
+        assertEquals(listOf(true, false), (state.turn as TurnState.Streaming).parts.filterIsInstance<LivePart.Prose>().map { it.thinking })
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
     @Test fun droppedStreamResumesWithoutRepeatingTextOrSubmittingAgain() {
         eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\n")
         eventBodies.add("event: message.delta\ndata: {\"seq\":0,\"delta\":\"Hello \"}\n\nevent: message.delta\ndata: {\"seq\":1,\"delta\":\"world\"}\n\n")

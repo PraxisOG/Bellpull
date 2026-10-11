@@ -458,13 +458,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                                 ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
                             }
                         }
-                        Text(
-                            if (turn.stopRequested) "Stopping…" else turn.statusLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = scheme.primary,
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (dense) 8.dp else 12.dp)
-                                .testTag("stream-tail").semantics(mergeDescendants = true) {},
-                        )
+                        WorkingRow(if (turn.stopRequested) "Stopping…" else turn.statusLabel, reduceMotion)
                     }
 
                     // Gate 0d: the server reports a stopped turn as completed, so this label comes

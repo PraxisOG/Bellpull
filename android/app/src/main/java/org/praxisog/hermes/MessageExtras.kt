@@ -2,6 +2,7 @@ package org.praxisog.hermes
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,6 +11,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.*
 import org.praxisog.hermes.model.Message
 
 /** A new response segment owns its spacing; leading empty lines must not add blank rows. */
@@ -25,6 +31,27 @@ internal fun ThinkingBlock(text: String, collapseByDefault: Boolean) {
             if (expanded) SelectionContainer {
                 Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
             }
+        }
+    }
+}
+
+/** Shares the response's boundary and separators, including when it is its only row. */
+@Composable
+internal fun WorkingRow(label: String, reduceMotion: Boolean) {
+    val animate = !reduceMotion && android.animation.ValueAnimator.areAnimatorsEnabled()
+    val opacity = if (animate) {
+        val transition = rememberInfiniteTransition(label = "Working")
+        val value by transition.animateFloat(.35f, 1f,
+            infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "Activity pulse")
+        value
+    } else 1f
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().responseRowEdges().testTag("stream-tail").semantics(mergeDescendants = true) {}) {
+        Row(Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(6.dp).alpha(opacity).background(MaterialTheme.colorScheme.primary,
+                androidx.compose.foundation.shape.CircleShape).testTag("working-indicator"))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

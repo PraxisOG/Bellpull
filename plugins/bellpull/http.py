@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files
+from . import VERSION, branches, models_files, streaming
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -35,14 +35,17 @@ def wire(app, adapter):
     relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"))
     sampler = Sampler()
     snapshots = Snapshots(adapter)
+    reasoning_ready, stop_streaming = streaming.wire(adapter)
     housekeeping = {}
     active = True
     def stop():
         nonlocal active
         active = False
+        stop_streaming()
         snapshots.close()
         relay.stop()
     async def close():
+        stop_streaming()
         snapshots.close()
         await relay.close()
 
@@ -77,6 +80,7 @@ def wire(app, adapter):
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
                 "bellpull_run_attachments": host_ready,
+                "bellpull_reasoning_streaming": reasoning_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_artifact_lifecycle": files_ready},
@@ -165,6 +169,7 @@ def wire(app, adapter):
     collisions = [prefix + path for method, path, _ in routes for prefix in ("", "/p/{profile}")
                   if (method, prefix + path) in existing]
     if collisions:
+        stop()
         raise RuntimeError("Bellpull routes already installed. Use the clean host image and disable the legacy bellpull_gpu plugin.")
     if host_ready:
         host.register(adapter, app, host.Hooks("bellpull", prepare, relay.status,

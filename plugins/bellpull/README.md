@@ -1,9 +1,12 @@
-# Bellpull plugin 0.2.0
+# Bellpull plugin 0.2.1
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,
 persistent artifacts, notification relay and optional GPU telemetry. It registers
 through `ctx.register_platform_handler("api_server", factory)` before the native
-router freezes. It does not replace adapter methods or mutate native feature flags.
+router freezes. It does not edit Hermes core files or mutate native feature flags.
+For live thinking, two feature-detected adapter-instance callback wrappers connect
+the native reasoning callback to the native run stream. No run engine or endpoint
+is replaced; unsupported adapters retain their native previews.
 The native run engine retains authentication, original request fingerprints,
 atomic admission, concurrency, cancellation, replay and exact-request approvals.
 
@@ -12,7 +15,7 @@ atomic admission, concurrency, cancellation, replay and exact-request approvals.
 File publishing, authenticated downloads, storage management and GPU telemetry
 work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
-Use Bellpull Android 0.3.4 with this package. Install on your server yourself:
+Use Bellpull Android 0.3.5 with this package. Install on your server yourself:
 
 ```bash
 # From the unpacked Bellpull plugin bundle or this repository:
@@ -66,6 +69,22 @@ including `bellpull/principal-id` and `bellpull-artifacts`. Install the replacem
 package and restart normally. Rollback restores the previous plugin directory;
 the installer prints its backup location. No core file rollback is involved for
 stock installs.
+
+## Live thinking and conversation visibility
+
+Android 0.3.5 defaults to **All conversations**, including CLI, TUI and other
+platform chats from the same native Hermes profile. Existing API-only defaults
+are reset once; optional source filters remain available. No plugin is needed
+for listing these native saved conversations.
+
+For token-by-token thinking, update this plugin too and restart the gateway.
+`bellpull_reasoning_streaming: true` means the installed adapter accepts the
+native reasoning callback (or exposes it on the native agent). The plugin forwards full `reasoning.delta` events
+through Hermes' existing authenticated run stream and replay buffer; it suppresses
+the later truncated preview when those deltas already arrived. Existing explicit
+reasoning callbacks are preserved. Unload restores the adapter callbacks. The
+model/provider still has to produce reasoning and support streaming; no synthetic
+thinking is generated. See `docs/hermes-api.md` for the checked callback contract.
 
 ## Optional legacy host extension
 

@@ -29,7 +29,7 @@ internal class HermesStore(
     private val scope: CoroutineScope,
     private val client: HermesClient,
     /** Which `source` to filter the session list by; null lists every source. */
-    sessionSource: String? = "api_server",
+    sessionSource: String? = null,
     /** Null disables caching, which is what the contract tests want. */
     private val cache: SessionSnapshots? = null,
     private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
@@ -429,6 +429,7 @@ internal class HermesStore(
             val accumulated = StringBuilder()
             val reasoning = StringBuilder()
             val live = LiveTranscript()
+            var commentaryBoundary = false
             val result = io {
                 client.streamTurn(sessionId, text) { event ->
                     // run.started acknowledges this request before prose OR tool output.
@@ -449,9 +450,17 @@ internal class HermesStore(
                     when (event) {
                         is StreamEvent.RunStarted -> activeRunId = event.runId
                         is StreamEvent.AssistantDelta -> {
+                            if (commentaryBoundary && event.delta.isNotEmpty() && accumulated.isNotEmpty()) accumulated.append("\n\n")
+                            if (event.delta.isNotEmpty()) commentaryBoundary = false
                             accumulated.append(event.delta)
                             // canStop only once a delta has landed: stopping before the agent
                             // is registered returns 409 run_not_active (Gate 0d).
+                            postStreaming(accumulated.toString(), tool = null, canStop = true, parts = live.parts)
+                        }
+                        is StreamEvent.AssistantCommentary -> if (!event.alreadyStreamed && event.text.isNotBlank()) {
+                            if (accumulated.isNotEmpty()) accumulated.append("\n\n")
+                            accumulated.append(event.text)
+                            commentaryBoundary = true
                             postStreaming(accumulated.toString(), tool = null, canStop = true, parts = live.parts)
                         }
                         is StreamEvent.ToolProgress -> if (event.toolName == "_thinking" && event.delta != null) {

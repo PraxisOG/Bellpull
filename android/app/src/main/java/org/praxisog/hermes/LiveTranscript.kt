@@ -14,6 +14,7 @@ internal class LiveTranscript {
     private var runId = "pending"
     private var fallbackId = 0
     private val seenSequences = mutableSetOf<Int>()
+    private var proseBoundary = false
     var parts: List<LivePart> = emptyList()
         private set
 
@@ -23,6 +24,10 @@ internal class LiveTranscript {
         val id = "$runId:${event.seq ?: ++fallbackId}"
         when (event) {
             is StreamEvent.AssistantDelta -> prose(id, event.delta, false)
+            is StreamEvent.AssistantCommentary -> if (!event.alreadyStreamed && event.text.isNotBlank()) {
+                parts = parts + LivePart.Prose(id, event.text)
+                proseBoundary = true
+            }
             is StreamEvent.ToolProgress -> if (event.toolName == "_thinking") prose(id, event.delta.orEmpty(), true)
             is StreamEvent.ToolStarted -> {
                 val row = LiveTool(id, event.toolName, event.preview)
@@ -46,8 +51,9 @@ internal class LiveTranscript {
     private fun prose(id: String, delta: String, thinking: Boolean) {
         if (delta.isEmpty()) return
         val last = parts.lastOrNull()
-        parts = if (last is LivePart.Prose && last.thinking == thinking)
+        parts = if (last is LivePart.Prose && last.thinking == thinking && !proseBoundary)
             parts.dropLast(1) + last.copy(text = last.text + delta)
         else parts + LivePart.Prose(id, delta, thinking)
+        proseBoundary = false
     }
 }
