@@ -10,18 +10,27 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
+import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.praxisog.hermes.model.*
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35])
 class GpuPanelScreenshotTest {
     @get:Rule val compose = createComposeRule()
+    private lateinit var previousTimeZone: TimeZone
+    @Before fun fixedSampleTimeZone() {
+        previousTimeZone = TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+    }
+    @After fun restoreTimeZone() { TimeZone.setDefault(previousTimeZone) }
     private fun capture(missing: Boolean = false) {
         val readings = GpuTelemetry(1, UiFixtures.NOW, cards = if (missing) emptyList() else (0..3).map { index ->
             GpuCard("fixture-$index", "AMD", "$index", "AMD GPU $index", "0000:0$index:00.0", UiFixtures.NOW - 5,

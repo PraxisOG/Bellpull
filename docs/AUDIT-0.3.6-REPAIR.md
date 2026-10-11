@@ -116,6 +116,17 @@ the workflow now overrides that default. The user subsequently authorized pushin
 0.3.7; the resulting hosted run must be inspected separately from local verification.
 No hosted pass is inferred from the local SDK install or Gradle results.
 
+The first [0.3.7 hosted run](https://github.com/PraxisOG/Bellpull/actions/runs/38131824950)
+passed SDK setup, supported package installation and plugin CI. Android validation
+executed and exposed two existing GPU screenshot fixtures rendering sample times
+in the runner's UTC timezone instead of the baseline's America/Los_Angeles timezone.
+All 323 app tests executed; only those two screenshots failed. The identical failure
+was reproduced locally with `TZ=UTC`. `GpuPanelScreenshotTest.kt` now pins/restores
+its sample timezone, keeping the existing images and strict comparison rules.
+The full required Android command is verified again under UTC; the follow-up hosted
+run must be assessed separately. Application code and the installed APK are unchanged
+by this test-only correction.
+
 ## Compatibility and limits
 
 - No added dependencies, new endpoints, core-module replacements or wire-version
