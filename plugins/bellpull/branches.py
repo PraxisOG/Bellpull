@@ -124,4 +124,13 @@ async def _fork_at_message(adapter, db, source_id: str, fork_id: str, body: dict
                 await asyncio.to_thread(artifact_store.inherit_prefix, resolved_id, fork_id, mapping)
         except (OSError, ValueError):
             artifact_store.warning(fork_id, "branch-files", "Branch created; attachment links need reconciliation. Original files remain available.")
+    from .projects import store_for as projects_for
+    try:
+        projects = await projects_for(adapter)
+        await asyncio.to_thread(projects.inherit, source_id, fork_id)
+    except (OSError, ValueError):
+        # The native branch already committed. A later project snapshot can repair
+        # inheritance from its explicit native marker without repeating the fork.
+        if artifact_store is not None:
+            artifact_store.warning(fork_id, "branch-project", "Branch created; project membership will reconcile on refresh.")
     return web.json_response({"object": "hermes.session", "session": adapter._session_response(fork)}, status=201)

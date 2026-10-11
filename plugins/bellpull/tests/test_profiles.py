@@ -43,6 +43,18 @@ class ProfileTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(401, (await client.get(a + "/api/bellpull/capabilities", headers=headers["beta"])).status)
                     response = await client.post(a + "/api/sessions", headers=headers["alpha"], json={})
                     session = (await response.json())["session"]["id"]
+                    project = "b" * 32
+                    import uuid
+                    response = await client.post(a + "/api/bellpull/projects", headers=headers["alpha"], json={
+                        "operation": "create", "operation_id": uuid.uuid4().hex, "expected_revision": 0,
+                        "project_id": project, "name": "Private work"})
+                    self.assertEqual(200, response.status, await response.text())
+                    self.assertEqual([], (await (await client.get(b + "/api/bellpull/projects", headers=headers["beta"])).json())["projects"])
+                    self.assertEqual(401, (await client.get(a + "/api/bellpull/projects", headers=headers["beta"])).status)
+                    response = await client.post(a + "/api/bellpull/projects", headers=headers["alpha"], json={
+                        "operation": "move", "operation_id": uuid.uuid4().hex, "expected_revision": 1,
+                        "session_id": session, "project_id": project})
+                    self.assertEqual(200, response.status, await response.text())
                     with _profile_runtime_scope(homes["alpha"]):
                         database = adapter._ensure_session_db()
                         database.append_message(session, "user", "First")

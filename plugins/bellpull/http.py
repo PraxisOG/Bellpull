@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, streaming
+from . import VERSION, branches, models_files, streaming, projects
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -26,6 +26,8 @@ def wire(app, adapter):
     # core source revision. Keep the narrower contract separate from branches.
     files_ready = all(callable(getattr(adapter, key, None)) for key in
         ("_expected_api_key", "_check_auth", "_get_existing_session_or_404"))
+    projects_ready = files_ready and all(callable(getattr(adapter, key, None)) for key in
+        ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
     try:
         from gateway.platforms import api_server_extensions as host
         host_ready = compatible and mode == "after" and host.API_VERSION == 1
@@ -83,6 +85,7 @@ def wire(app, adapter):
                 "bellpull_reasoning_streaming": reasoning_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
+                "bellpull_projects": projects_ready,
                 "bellpull_artifact_lifecycle": files_ready},
             "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
             headers={"Cache-Control": "no-store"})
@@ -149,6 +152,8 @@ def wire(app, adapter):
              "confirmed_runtime_lock": True}, start, finish)
 
     routes = [("GET", "/api/bellpull/capabilities", capabilities)]
+    if projects_ready:
+        routes.extend(projects.routes(adapter))
     if files_ready:
         routes.extend([
             ("GET", "/api/bellpull/plugins/gpu", gpu),

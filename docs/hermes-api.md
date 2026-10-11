@@ -128,6 +128,46 @@ paging are separate controls. Global search explicitly searches loaded titles an
 previews; chat search and View prompts use the completely loaded saved transcript,
 not a semantic search tool or the model's full effective context.
 
+### Phase 4 conversation projects (plugin-owned, 0.4.0 development)
+
+The user authorized a new Bellpull plugin contract for conversation folders.
+These are **not native Hermes endpoints** or repository/workspace projects.
+Authenticated discovery advertises `bellpull_projects: true` only when the native
+auth, SessionDB and session-creation helpers required by this implementation exist.
+Existing `/p/{profile}` middleware scopes all requests to that profile's actual home.
+
+| Method/path | Contract |
+| --- | --- |
+| GET `/api/bellpull/projects` | Complete no-store snapshot: `version:1`, integer `revision`, `projects`, `memberships`. Project rows: `id`, `name`, `description`, nullable `color`/`icon`, boolean `archived`, Unix `created_at`/`updated_at`. Membership rows: canonical `session_id`, compression `session_ids`, `project_id`, boolean `pinned`. Explicit Unfiled records have null `project_id`. |
+| POST `/api/bellpull/projects` | Mutation: `operation_id` (32 lowercase hex), `expected_revision`, `operation` (`create`, `update`, `delete`, `move`, `pin`), and the operation's fields below. Returns the current complete snapshot. HTTP 409 requires refresh; no client merge. Repeating the same retained operation/fingerprint is safe; changing its body conflicts. |
+| POST `/api/bellpull/projects/{project_id}/sessions` | Create a native empty chat in this folder. Body: caller-chosen `id`, `expected_revision`, optional native `title`, `model`, `provider`, `model_options`, `require_model_lock`. Membership intent is persisted before invoking the native create helper. Retry the identical ID/body after an uncertain response; an existing owned result returns the same session. Never starts inference. Returns the ordinary `{session:...}` envelope. |
+
+`create` supplies client-chosen project `project_id`, `name`, optional `description`,
+`color` and `icon`. `update` replaces those display fields and `archived` for an
+existing ID. `delete` removes only the folder, returning members to Unfiled.
+`move` supplies `session_id` and nullable `project_id`; moving resets its pin.
+`pin` supplies `session_id` and boolean `pinned`, requiring an existing project.
+Names are 1–120 characters, descriptions at most 1000 characters, colors optional
+`#RRGGBB`, and icons optional `folder`, `code`, `home`, `craft`, `book`, or `star`.
+Archived projects cannot receive new/moved chats until restored. No operation
+deletes native sessions/messages or alters model context.
+
+Each logical conversation has at most one membership. Verified compression aliases
+share it; Bellpull branches and native forks with an explicit `_branched_from`
+marker receive a one-time inherited membership and remain independently movable.
+Older external native forks without a marker need an explicit move. Parent/child
+ancestry alone does not confer membership. Explicit Unfiled decisions cannot be
+undone by inheritance.
+Mutation receipts retain the latest 1024 operations; older stale retries fail the
+revision check instead of duplicating creation. Metadata resides in
+`<profile-home>/bellpull-projects/<principal>/metadata.sqlite`; back it up with the
+stable principal identity. Native `state.db` is never extended with Bellpull tables.
+
+Phone caches are encrypted and profile-scoped. Server snapshots replace cached
+organization. Cached reading is allowed offline; writes require a fresh successful
+sync and no mutation queue is maintained. Archived chats remain in All conversations
+and global search. Search still covers loaded titles/previews, not semantic search.
+
 ### Persistent file lifecycle
 
 Existing Phase 3 model/upload/download paths and run-body format below remain valid.

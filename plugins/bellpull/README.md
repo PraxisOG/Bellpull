@@ -1,7 +1,7 @@
-# Bellpull plugin 0.2.2
+# Bellpull plugin 0.3.0
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,
-persistent artifacts, notification relay and optional GPU telemetry. It registers
+persistent artifacts, conversation projects, notification relay and optional GPU telemetry. It registers
 through `ctx.register_platform_handler("api_server", factory)` before the native
 router freezes. It does not edit Hermes core files or mutate native feature flags.
 For live thinking, two feature-detected adapter-instance callback wrappers connect
@@ -15,13 +15,14 @@ atomic admission, concurrency, cancellation, replay and exact-request approvals.
 File publishing, authenticated downloads, storage management and GPU telemetry
 work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
-Use Bellpull Android 0.3.7 or newer for the complete audit repair. Install on your server yourself:
+Use Bellpull Android 0.3.7 or newer for the complete audit repair. Phase 4 pairs
+Android **0.4.0** with this **0.3.0** plugin; its project metadata is additive.
+The Phase 4 branch is currently local and has not been pushed or released. Use
+the matching local checkout or unpacked candidate plugin bundle for Phase 4.
+Install on your server yourself:
 
 ```bash
-# Obtain the repaired code in a fresh checkout (no public 0.3.7 release is implied):
-git clone --single-branch --branch repair/bellpull-plugin-migration https://github.com/PraxisOG/Bellpull.git bellpull-0.3.7
-cd bellpull-0.3.7
-# From the unpacked Bellpull plugin bundle or this repository:
+# From the matching unpacked Bellpull plugin bundle or repository checkout:
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
 HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu
@@ -85,10 +86,54 @@ drafts instead of silently sending a text-only request. Generated files remain
 downloadable. The ordinary native chat/run engine is unchanged.
 
 Before upgrading, back up the existing plugin and the profile data home,
-including `bellpull/principal-id` and `bellpull-artifacts`. Install the replacement
+including `bellpull/principal-id`, `bellpull-artifacts`, and `bellpull-projects`. Install the replacement
 package and restart normally. Rollback restores the previous plugin directory;
 the installer prints its backup location. No core file rollback is involved for
 stock installs.
+
+## Conversation projects (Android 0.4.0)
+
+Authenticated discovery reports `plugin_version: "0.3.0"` and
+`bellpull_projects: true` when the native auth/session helpers are supported.
+Projects use the plugin's `/api/bellpull/projects` routes under the selected
+native profile prefix. No core patch, model tool, inference or native schema
+change is involved. Settings → About shows the installed app version and the
+last reported plugin version of each saved server; compatibility is compared
+with the app's minimum, not with the latest GitHub release.
+
+Each logical conversation belongs to at most one folder. Move/Unfiled changes
+organization without changing history. Pins stay within a folder. Archive hides
+the folder from normal project navigation but retains its chats in All
+conversations and global search. Delete project returns its chats to Unfiled.
+A short manually edited description is display-only and is never added to model
+context. Search reuses the existing loaded titles/previews with an explicit scope.
+
+Authoritative SQLite metadata lives in
+`<profile-home>/bellpull-projects/<principal-scope>/metadata.sqlite` (0600).
+Back up this directory together with `bellpull/principal-id` and the native
+session database while writers are stopped. Different native profiles and server
+identities remain isolated. A future desktop Bellpull client must implement this
+contract to share the organization; native Hermes clients do not automatically
+read Bellpull's project metadata.
+
+The phone caches complete snapshots in its existing encrypted per-profile store.
+Cached folders remain readable offline; edits require a successful refresh.
+Concurrent edits return a revision conflict and refresh authoritative state.
+Project-chat creation journals one caller-selected session ID before calling the
+native create route; uncertain delivery can be retried after an app restart with
+the same identity. It never launches inference to recover creation.
+
+Compression continuations retain membership/pins through verified lineage.
+Bellpull's selected-message branches inherit membership once, without inheriting
+the pin or broadening the exact-prefix artifact rules. Current native forks with
+an explicit `_branched_from` marker also reconcile. Older external native forks
+without that marker require an explicit move; an arbitrary parent/child relation
+does not confer membership. Private selected-message branching remains gated on
+the already supported Hermes revisions.
+
+Rolling back to plugin 0.2.2 leaves the new metadata on disk, while older apps and
+plugins do not display it. No existing session/artifact migration is required.
+Keep the metadata backup if restoring a previous plugin directory.
 
 ## Live thinking and conversation visibility
 

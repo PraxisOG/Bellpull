@@ -1,6 +1,7 @@
 """Run only against disposable databases inside the isolated test container."""
 import asyncio
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -17,6 +18,8 @@ from hermes_cli.plugins import PluginContext, PluginManifest, PluginManager
 class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="hermes-fork-test-")
+        self.home_patch = patch.dict(os.environ, {"HERMES_HOME": self.temp.name})
+        self.home_patch.start()
         self.db = SessionDB(Path(self.temp.name) / "state.db")
         self.db.create_session("source", "api_server", model="test-model",
             system_prompt="Keep this system prompt.",
@@ -44,6 +47,29 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
         await self.client.close()
         self.db.close()
         self.temp.cleanup()
+        self.home_patch.stop()
+
+    async def test_branch_inherits_project_and_can_be_unfiled_independently(self):
+        import uuid
+        headers = {"Authorization": "Bearer disposable-test-key"}
+        async def change(operation, **fields):
+            snapshot = await (await self.client.get("/api/bellpull/projects", headers=headers)).json()
+            response = await self.client.post("/api/bellpull/projects", headers=headers, json={"operation": operation,
+                "operation_id": uuid.uuid4().hex, "expected_revision": snapshot["revision"], **fields})
+            self.assertEqual(200, response.status, await response.text())
+            return await response.json()
+        project = "a" * 32
+        await change("create", project_id=project, name="Reference")
+        await change("move", session_id="source", project_id=project)
+        response = await self.fork(self.answer)
+        self.assertEqual(201, response.status, await response.text())
+        snapshot = await (await self.client.get("/api/bellpull/projects", headers=headers)).json()
+        self.assertEqual({project}, {row["project_id"] for row in snapshot["memberships"]})
+        self.assertEqual({"source", "branch"}, {row["session_id"] for row in snapshot["memberships"]})
+        snapshot = await change("move", session_id="branch", project_id=None)
+        members = {row["session_id"]: row["project_id"] for row in snapshot["memberships"]}
+        self.assertEqual(project, members["source"])
+        self.assertIsNone(members["branch"])
 
     async def fork(self, cutoff=None, *, body=None, session="source", legacy=False):
         suffix = "fork" if legacy else "fork-at-message"

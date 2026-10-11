@@ -1,5 +1,9 @@
 ## Bellpull implementation — 2026-10-10
 
+**2026-10-11 scope update:** Phase 4 is now conversation projects only, as specified
+in [docs/PHASE-4-PROJECTS.md](docs/PHASE-4-PROJECTS.md). Saved answers, expanded
+retrieval, memory editing and history imports are outside this implementation.
+
 The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
 older tier deferrals below; existing behavior and installed identity remain protected.
 
