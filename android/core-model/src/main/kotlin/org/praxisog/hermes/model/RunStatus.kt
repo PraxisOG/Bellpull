@@ -72,6 +72,13 @@ data class RunSubmission(
     val error: String? = null,
     val interactiveApprovals: Boolean = false,
     val bellpull: BellpullRunOptions? = null,
+    /** Server evidence survives restart while the final transcript transaction catches up. */
+    val completionOutput: String? = null,
+    val serverCreatedAt: Double? = null,
+    val historyChecks: Int = 0,
+    val historyNeedsReview: Boolean = false,
+    /** Explicit user release of tracking, distinct from a verified transcript match. */
+    val trackingDismissed: Boolean = false,
 ) {
     val terminal: Boolean get() = status in setOf("completed", "failed", "cancelled", "stopped", "interrupted", "rejected", "abandoned")
 }

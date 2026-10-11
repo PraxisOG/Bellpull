@@ -18,7 +18,7 @@ internal interface RunJournal {
 
 /** Ambiguous delivery and unsynced history have no automatic expiry. */
 internal fun canPruneRun(record: RunSubmission, beforeEpochSeconds: Double): Boolean =
-    record.terminal && record.historySynced && record.createdAt < beforeEpochSeconds
+    record.terminal && (record.historySynced || record.trackingDismissed) && record.createdAt < beforeEpochSeconds
 
 internal const val RUN_JOURNAL_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
@@ -29,10 +29,11 @@ internal data class RunPresentation(
     val notice: String? = null,
     val checking: Boolean = false,
 ) {
-    val busy: Boolean get() = !submission.terminal || (submission.runId != null && !submission.historySynced)
+    val busy: Boolean get() = !submission.terminal ||
+        (submission.runId != null && !submission.historySynced && !submission.trackingDismissed)
     val label: String? get() = when {
         approval != null -> "Needs approval"
-        submission.status == "review" -> "Needs review"
+        submission.status == "review" || submission.historyNeedsReview -> "Needs review"
         submission.status == "submitting" -> "Sending"
         submission.status == "reconnecting" -> "Reconnecting"
         submission.status == "failed" || submission.status == "interrupted" -> "Failed"
@@ -51,6 +52,7 @@ internal class DurableRuns(
     private val clock: () -> Double = { System.currentTimeMillis() / 1000.0 },
     private val pollMs: Long = 2_000,
     private val retryMs: Long = 5_000,
+    private val maxHistoryChecks: Int = 12,
 ) {
     var interactiveApprovals = false
     val states = mutableStateMapOf<String, RunPresentation>()
@@ -68,10 +70,13 @@ internal class DurableRuns(
     fun restore() {
         journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
         journal.readRuns().sortedBy { it.createdAt }.forEach { record ->
-            states[record.sessionId] = RunPresentation(record, terminalTurn(record))
+            states[record.sessionId] = RunPresentation(record, terminalTurn(record),
+                notice = if (record.historyNeedsReview) historyReviewNotice else null)
         }
         states.values.toList().forEach { state ->
-            if (!state.submission.terminal || !state.submission.historySynced) track(state.submission.sessionId, fresh = false)
+            if ((!state.submission.terminal || !state.submission.historySynced) &&
+                !state.submission.historyNeedsReview && !state.submission.trackingDismissed)
+                track(state.submission.sessionId, fresh = false)
         }
     }
 
@@ -86,7 +91,7 @@ internal class DurableRuns(
 
     fun retry(sessionId: String) {
         if (closed || jobs[sessionId]?.isActive == true) return
-        track(sessionId, fresh = false)
+        track(sessionId, fresh = false, resetHistoryChecks = true)
     }
 
     fun observe(runId: String, sessionId: String, readThrough: Int) {
@@ -99,7 +104,8 @@ internal class DurableRuns(
             val created = status.value.createdAt ?: return@launch
             if (active != null && (active.busy || active.submission.createdAt >= created)) return@launch
             val record = RunSubmission("observed:$runId", sessionId, "", created, -1, setOf(readThrough),
-                runId = runId, status = status.value.status, error = status.value.error)
+                runId = runId, status = status.value.status, error = status.value.error,
+                completionOutput = status.value.output, serverCreatedAt = created)
             save(record)
             states[sessionId] = RunPresentation(record, terminalTurn(record, status.value.output.orEmpty()))
             onChanged(sessionId)
@@ -117,8 +123,13 @@ internal class DurableRuns(
 
     fun abandonAfterReview(sessionId: String) {
         val state = states[sessionId] ?: return
-        if (state.submission.status != "review" || jobs[sessionId]?.isActive == true) return
+        if ((state.submission.status != "review" && !state.submission.historyNeedsReview) || jobs[sessionId]?.isActive == true) return
         scope.launch {
+            if (state.submission.historyNeedsReview) {
+                val record = state.submission.copy(trackingDismissed = true, historyNeedsReview = false)
+                if (save(record)) update(sessionId) { it.copy(submission = record, turn = TurnState.Idle, notice = null, approval = null) }
+                return@launch // An admitted prompt is never restored for accidental resubmission.
+            }
             val record = state.submission.copy(status = "abandoned", historySynced = true)
             if (!save(record)) return@launch
             if (drafts[sessionId].text.isBlank()) drafts.set(sessionId,
@@ -127,10 +138,15 @@ internal class DurableRuns(
         }
     }
 
-    private fun track(sessionId: String, fresh: Boolean) {
+    private fun track(sessionId: String, fresh: Boolean, resetHistoryChecks: Boolean = false) {
         if (jobs[sessionId]?.isActive == true || closed) return
         jobs[sessionId] = scope.launch {
             var record = states[sessionId]?.submission ?: return@launch
+            if (resetHistoryChecks && record.terminal) {
+                record = record.copy(historyChecks = 0, historyNeedsReview = false)
+                if (!save(record)) return@launch
+                update(sessionId) { it.copy(submission = record, notice = null) }
+            }
             if (fresh && !save(record)) {
                 update(sessionId) { it.copy(submission = record.copy(status = "rejected"),
                     turn = TurnState.Failed(HermesError.BadRequest("Could not save this request. Nothing was sent.", null)),
@@ -138,7 +154,7 @@ internal class DurableRuns(
                 return@launch
             }
             if (record.terminal) {
-                while (isActive && !syncHistory(sessionId)) delay(retryMs)
+                reconcileHistory(sessionId)
                 return@launch
             }
             var attempt = 0
@@ -188,7 +204,7 @@ internal class DurableRuns(
             }
             val runId = record.runId ?: return@launch
             var streamGap = false
-            val liveJob = scope.launch {
+            val liveJob = launch {
                 val live = LiveTranscript()
                 val prose = StringBuilder()
                 val reasoning = StringBuilder()
@@ -196,11 +212,14 @@ internal class DurableRuns(
                 var lastSequence: Int? = null
                 var retrying = !fresh
                 var unsafeReplay = false
+                var reconnectAttempt = 0
+                var consumedUnsequenced = false
                 val uiContext = currentCoroutineContext()
                 try { while (isActive && states[sessionId]?.submission?.terminal == false) {
-                    io { client.runEvents(runId, lastEventId = lastSequence, onStart = {
+                    val streamResult = io { client.runEvents(runId, lastEventId = lastSequence, onStart = {
                         streams[runId] = it
-                        if (closed) streams.remove(runId)?.cancel()
+                        if (closed || !uiContext.isActive || states[sessionId]?.submission?.terminal != false)
+                            streams.remove(runId)?.cancel()
                     }) { event ->
                         // Apply each frame before reading the next one. The cursor must only
                         // advance after its text has reached the UI, including before EOF.
@@ -213,6 +232,8 @@ internal class DurableRuns(
                             if (lastSequence != null && (seq == null || seq != lastSequence!! + 1) ||
                                 retrying && lastSequence == null && seq != 0) unsafeReplay = true
                             if (unsafeReplay) { streamGap = true; return@withContext }
+                            if (seq == null) consumedUnsequenced = true
+                            reconnectAttempt = 0
                             live.accept(event)
                             if (event is StreamEvent.AssistantDelta && event.delta.isNotEmpty()) {
                                 if (commentaryBoundary && prose.isNotEmpty()) prose.append("\n\n")
@@ -234,11 +255,15 @@ internal class DurableRuns(
                         } }
                     } }
                     streams.remove(runId)
-                    if (unsafeReplay || lastSequence == null) break
+                    if (unsafeReplay || consumedUnsequenced) break
                     if (states[sessionId]?.submission?.terminal != false) break
+                    if (streamResult is HermesResult.Err && !recoverableStreamError(streamResult.error)) break
                     streamGap = true
-                    retrying = true
-                    delay(retryMs)
+                    // No event has been consumed after an initial connection failure.
+                    // Retry that subscription without inventing a run or an SSE cursor.
+                    retrying = !fresh || lastSequence != null
+                    delay((retryMs * (1L shl reconnectAttempt.coerceAtMost(3))).coerceAtMost(60_000))
+                    reconnectAttempt++
                 } } finally { streams.remove(runId); streamGap = true }
             }
             while (isActive) {
@@ -246,8 +271,10 @@ internal class DurableRuns(
                     is HermesResult.Ok -> {
                         val status = result.value
                         val current = states[sessionId]?.submission ?: return@launch
-                        record = current.copy(status = status.status, error = status.error)
-                        if (current.status != record.status || current.error != record.error) save(record)
+                        record = current.copy(status = status.status, error = status.error,
+                            completionOutput = status.output ?: current.completionOutput,
+                            serverCreatedAt = status.createdAt ?: current.serverCreatedAt)
+                        if (current != record) save(record)
                         val oldApproval = states[sessionId]?.approval?.requestId
                         update(sessionId) { it.copy(submission = record,
                             approval = status.approval?.takeIf { approval -> approval.requestId.isNotBlank() },
@@ -265,7 +292,7 @@ internal class DurableRuns(
                             liveJob.cancel()
                             streams.remove(runId)?.cancel()
                             if (status.status in setOf("failed", "interrupted")) onAttention(sessionId, "run:$runId")
-                            while (isActive && !syncHistory(sessionId)) delay(retryMs)
+                            reconcileHistory(sessionId)
                             return@launch
                         }
                     }
@@ -291,6 +318,41 @@ internal class DurableRuns(
         }
     }
 
+    private val historyReviewNotice = "Hermes finished, but its saved reply could not be matched. Check status to retry, or review this chat and stop tracking. This run will not be submitted again."
+
+    private fun recoverableStreamError(error: HermesError): Boolean = when (error) {
+        is HermesError.Unreachable -> error.kind !in setOf(HermesError.Unreachable.Kind.TLS, HermesError.Unreachable.Kind.INTERRUPTED)
+        is HermesError.RateLimited, is HermesError.StreamTruncated -> true
+        is HermesError.ServerError -> error.status >= 500
+        is HermesError.UnparseableError -> error.status >= 500
+        else -> false
+    }
+
+    private suspend fun reconcileHistory(sessionId: String) {
+        var record = states[sessionId]?.submission ?: return
+        // Older journals may contain only terminal status. Recover the server's output,
+        // never POST the admitted request again, even if that status has since expired.
+        if (record.status == "completed" && record.completionOutput == null && record.runId != null) {
+            val status = io { client.runStatus(record.runId!!) }
+            if (status is HermesResult.Ok && status.value.isTerminal) {
+                record = record.copy(completionOutput = status.value.output,
+                    serverCreatedAt = status.value.createdAt ?: record.serverCreatedAt)
+                save(record)
+                update(sessionId) { it.copy(submission = record, turn = terminalTurn(record)) }
+            }
+        }
+        while (currentCoroutineContext().isActive && !syncHistory(sessionId)) {
+            val current = states[sessionId]?.submission ?: return
+            val next = current.copy(historyChecks = current.historyChecks + 1,
+                historyNeedsReview = current.historyChecks + 1 >= maxHistoryChecks)
+            save(next)
+            update(sessionId) { it.copy(submission = next,
+                notice = if (next.historyNeedsReview) historyReviewNotice else it.notice) }
+            if (next.historyNeedsReview) return
+            delay(retryMs)
+        }
+    }
+
     private suspend fun syncHistory(sessionId: String, settle: Boolean = true): Boolean {
         val state = states[sessionId] ?: return true
         val record = state.submission
@@ -300,29 +362,24 @@ internal class DurableRuns(
             return false
         }
         val messages = result.value.data
-        val fresh = messages.filter { it.id !in record.previousIds }
-        val prompt = fresh.indexOfLast { it.role == "user" && it.content?.trim() == record.text.trim() }
-        val reply = if (record.requestId.startsWith("observed:")) messages.lastOrNull {
-            it.id > (record.previousIds.maxOrNull() ?: 0) && it.role == "assistant" && !it.content.isNullOrBlank()
-        } else if (prompt < 0) null else fresh.drop(prompt + 1).lastOrNull {
-            it.role == "assistant" && it.toolCalls.isNullOrEmpty() && !it.content.isNullOrBlank()
-        }
-        if (prompt >= 0) drafts.accepted(sessionId, record.draftRevision)
+        val reply = matchedCompletion(record, messages)
+        if (reply != null) drafts.accepted(sessionId, record.draftRevision)
         onHistory(sessionId, messages)
         // Completion status can become visible before the transcript transaction.
         // A successful GET with old rows is not proof the new reply was saved.
-        if (settle && record.status == "completed" && !record.requestId.startsWith("observed:") &&
-            (prompt < 0 || fresh.drop(prompt + 1).none { it.role == "assistant" && it.toolCalls.isNullOrEmpty() })) {
+        if (settle && record.status == "completed" && reply == null) {
             update(sessionId) { it.copy(notice = "Hermes finished. Waiting for its saved reply…") }
             return false
         }
         if (settle && !record.historySynced) {
+            val synced = record.copy(historySynced = true, historyNeedsReview = false)
+            if (!save(synced)) return false
             onCompleted(sessionId, reply)
-            val synced = record.copy(historySynced = true)
-            save(synced)
             journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
             update(sessionId) { it.copy(submission = synced, notice = null,
-                turn = reconcileDurableTurn(it.turn, messages, record)) }
+                turn = if (record.status == "completed" && reply != null)
+                    if (record.stopRequested) TurnState.StoppedByUser("") else TurnState.Idle
+                    else reconcileDurableTurn(it.turn, messages, record)) }
         }
         return true
     }
@@ -382,7 +439,8 @@ internal class DurableRuns(
         states[id]?.let { states[id] = transform(it); onChanged(id) }
     }
     private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) { block() }
-    private fun terminalTurn(record: RunSubmission, output: String = ""): TurnState = when {
+    private fun terminalTurn(record: RunSubmission, output: String = record.completionOutput.orEmpty()): TurnState = when {
+        record.trackingDismissed -> TurnState.Idle
         record.stopRequested || record.status in setOf("cancelled", "stopped") -> TurnState.StoppedByUser(output)
         record.status in setOf("failed", "interrupted", "rejected") -> TurnState.Failed(HermesError.BadRequest(record.error ?: "Run ${record.status}.", null))
         record.terminal -> if (record.historySynced) TurnState.Idle else TurnState.Finished(output)

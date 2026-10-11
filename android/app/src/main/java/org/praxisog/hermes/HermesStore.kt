@@ -101,7 +101,8 @@ internal class HermesStore(
         val run = runs?.states?.get(id) ?: return
         turn = run.turn
         val saved = (history as? UiState.Ready)?.value.orEmpty()
-        pendingUserText = run.submission.text.takeIf { it.isNotBlank() && run.submission.runId != null && saved.none { message ->
+        pendingUserText = run.submission.text.takeIf { it.isNotBlank() && run.submission.runId != null &&
+            !run.submission.historySynced && !run.submission.trackingDismissed && saved.none { message ->
             message.id !in run.submission.previousIds && message.role == "user" && message.content?.trim() == it.trim()
         } }
     }

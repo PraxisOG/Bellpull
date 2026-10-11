@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.praxisog.hermes.core.HermesClient
@@ -26,6 +27,31 @@ import org.praxisog.hermes.core.HermesClient
  * which is the subtle one.
  */
 class HermesStoreTest {
+    @Test fun reconciledOrReleasedCompactedPromptIsNotProjectedAfterTheSavedReply() {
+        for (synced in listOf(true, false)) {
+            val record = org.praxisog.hermes.model.RunSubmission("request", "one", "Archived prompt", 1.0, 1, emptySet(),
+                runId = "run", status = "completed", historySynced = synced, trackingDismissed = !synced)
+            val journal = object : RunJournal {
+                override fun readRuns() = listOf(record)
+                override fun writeRun(value: org.praxisog.hermes.model.RunSubmission) = true
+            }
+            val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                    .body("""{"session_id":"one","data":[{"id":20,"role":"assistant","content":"Compacted summary"},{"id":21,"role":"assistant","content":"Final reply"}]}"""
+                        .toResponseBody("application/json".toMediaType())).build()
+            }.build()
+            val client = HermesClient("http://fixture.invalid", { "fixture" }, httpClient = http)
+            val store = HermesStore(scope, client, durableRetention = 86400, journal = journal)
+            try {
+                store.startRecovery()
+                store.openSession("one")
+                awaitUntil("saved compacted history") { store.history is UiState.Ready }
+                assertNull(store.pendingUserText)
+                assertTrue(store.turn is TurnState.Idle)
+                assertEquals(listOf("Compacted summary", "Final reply"), (store.history as UiState.Ready).value.map { it.content })
+            } finally { store.close(); client.close() }
+        }
+    }
     @Test fun conversationListDefaultsToEveryServerSourceAndStillSupportsAnExplicitFilter() {
         val sources = java.util.concurrent.CopyOnWriteArrayList<String>()
         val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->

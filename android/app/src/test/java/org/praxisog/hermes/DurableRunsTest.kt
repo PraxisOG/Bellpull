@@ -37,6 +37,8 @@ class DurableRunsTest {
     @Volatile private var rejectStop = false
     @Volatile private var historyOffline = false
     @Volatile private var historyLag = false
+    @Volatile private var historyBody: String? = null
+    @Volatile private var streamFailures = 0
     private val eventBodies = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val drafts = ChatDrafts()
     private val journal = object : RunJournal {
@@ -53,8 +55,13 @@ class DurableRunsTest {
         calls += request
         val path = request.url.encodedPath
         if (path.endsWith("/messages") && historyOffline) throw IOException("History temporarily offline")
+        if (path.endsWith("/events") && streamFailures > 0) {
+            streamFailures--
+            throw IOException("SSE connection failed before headers")
+        }
         var code = 200
         val body = when {
+            path.endsWith("/messages") && historyBody != null -> historyBody!!
             path == "/v1/runs" -> {
                 assertTrue("journal must precede submission", saved.values.any { it.requestId == request.header("Idempotency-Key") })
                 if (loseAck) { loseAck = false; throw IOException("Acknowledgement lost after admission") }
@@ -75,15 +82,92 @@ class DurableRunsTest {
         Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture")
             .body(body.toResponseBody((if (path.endsWith("/events")) "text/event-stream" else "application/json").toMediaType())).build()
     }.build()
-    private fun manager(now: Double = 100.0): DurableRuns = DurableRuns(scope,
+    private fun manager(now: Double = 100.0, maxHistoryChecks: Int = 100): DurableRuns = DurableRuns(scope,
         HermesClient("http://fixture.invalid", { "test-only" }, httpClient = http), journal, drafts, 86400,
-        clock = { now }, pollMs = 25, retryMs = 10).also(managers::add)
+        clock = { now }, pollMs = 25, retryMs = 10, maxHistoryChecks = maxHistoryChecks).also(managers::add)
     private fun await(condition: () -> Boolean) {
         val end = System.nanoTime() + 5_000_000_000L
         while (!condition() && System.nanoTime() < end) Thread.sleep(5)
         assertTrue("condition timed out", condition())
     }
     @After fun cleanup() { managers.forEach { it.close() }; scope.cancel() }
+
+    @Test fun compactedPromptReconcilesOnlyWhenTheMatchingFinalReplyIsSaved() {
+        runStatus = "completed"
+        historyBody = """{"session_id":"tip","data":[{"id":20,"role":"user","content":"Compaction summary","timestamp":101}]}"""
+        val manager = manager()
+        manager.send("one", "hello", setOf(1, 2))
+        await { manager.states["one"]?.submission?.historyChecks ?: 0 > 0 }
+        assertTrue(manager.states["one"]!!.busy)
+        historyBody = """{"session_id":"tip","data":[{"id":20,"role":"user","content":"Compaction summary","timestamp":101},{"id":21,"role":"assistant","content":"saved answer","timestamp":102}]}"""
+        await { manager.states["one"]?.submission?.historySynced == true }
+        assertFalse(manager.states["one"]!!.busy)
+        assertTrue(manager.states["one"]!!.turn is TurnState.Idle)
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+        manager.send("one", "A different follow-up", setOf(20, 21))
+        await { calls.count { it.url.encodedPath == "/v1/runs" } == 2 }
+        val followUp = calls.last { it.url.encodedPath == "/v1/runs" }
+        val body = okio.Buffer().also { followUp.body!!.writeTo(it) }.readUtf8()
+        assertTrue(body.contains("A different follow-up"))
+    }
+
+    @Test fun repeatedOldPromptAndIdenticalAnswerCannotSettleTheNewRun() {
+        runStatus = "completed"
+        historyBody = """{"data":[{"id":1,"role":"user","content":"hello"},{"id":2,"role":"assistant","content":"saved answer"},{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"Interim text"}]}"""
+        val manager = manager()
+        manager.send("one", "hello", setOf(1, 2))
+        await { manager.states["one"]?.submission?.historyChecks ?: 0 > 0 }
+        assertTrue(manager.states["one"]!!.busy)
+        historyBody = """{"data":[{"id":1,"role":"user","content":"hello"},{"id":2,"role":"assistant","content":"saved answer"},{"id":10,"role":"user","content":"hello"},{"id":12,"role":"assistant","content":"saved answer"}]}"""
+        await { manager.states["one"]?.submission?.historySynced == true }
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun restartWhileWaitingPreservesCompletionEvidenceAndNeverResubmits() {
+        runStatus = "completed"
+        historyBody = """{"data":[{"id":20,"role":"user","content":"Summary","timestamp":101}]}"""
+        val first = manager()
+        first.send("one", "hello", setOf(1, 2))
+        await { saved.values.singleOrNull()?.historyChecks ?: 0 > 0 }
+        first.close()
+        val persisted = saved.values.single()
+        assertEquals("saved answer", persisted.completionOutput)
+        assertEquals(100.0, persisted.serverCreatedAt!!, 0.0)
+        val restored = manager()
+        restored.restore()
+        historyBody = """{"data":[{"id":21,"role":"assistant","content":"saved answer","timestamp":102}]}"""
+        await { restored.states["one"]?.submission?.historySynced == true }
+        assertFalse(restored.states["one"]!!.busy)
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun unmatchedCompletionStopsPollingAndCanBeRetriedOrReleasedAfterReview() {
+        runStatus = "completed"
+        historyBody = """{"data":[{"id":20,"role":"assistant","content":"Unrelated summary","timestamp":101}]}"""
+        val first = manager(maxHistoryChecks = 2)
+        first.send("one", "hello", emptySet())
+        await { first.states["one"]?.submission?.historyNeedsReview == true }
+        assertFalse(first.states["one"]!!.submission.historySynced)
+        first.close()
+        val restored = manager(maxHistoryChecks = 2)
+        restored.restore()
+        val before = calls.size
+        Thread.sleep(75)
+        assertEquals(before, calls.size)
+        restored.retry("one")
+        await { calls.size > before && restored.states["one"]?.submission?.historyNeedsReview == true }
+        Thread.sleep(25)
+        drafts.set("one", TextFieldValue("My newer draft"))
+        restored.abandonAfterReview("one")
+        await { restored.states["one"]?.submission?.trackingDismissed == true }
+        assertFalse(restored.states["one"]!!.busy)
+        assertFalse(restored.states["one"]!!.submission.historySynced)
+        assertEquals("My newer draft", drafts["one"].text)
+        val again = manager()
+        again.restore()
+        assertFalse(again.states["one"]!!.busy)
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
 
     @Test fun reasoningAndInterimProseUpdateWhileTheRunIsStillWorking() {
         // Actual stock /v1/runs frames have no separate event: line.
@@ -98,6 +182,46 @@ class DurableRunsTest {
         val state = manager.states.getValue("one")
         assertFalse(state.submission.terminal)
         assertEquals(listOf(true, false), (state.turn as TurnState.Streaming).parts.filterIsInstance<LivePart.Prose>().map { it.thinking })
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun failureBeforeFirstFrameRetriesSubscriptionAndShowsThinkingAndAnswer() {
+        streamFailures = 1
+        eventBodies.add("id: 0\ndata: {\"event\":\"reasoning.delta\",\"seq\":0,\"text\":\"Live thinking\"}\n\n" +
+            "id: 1\ndata: {\"event\":\"message.delta\",\"seq\":1,\"delta\":\"Live answer\"}\n\n")
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { (manager.states["one"]?.turn as? TurnState.Streaming)?.text == "Live answer" }
+        assertEquals("Live thinking", (manager.states["one"]!!.turn as TurnState.Streaming).reasoning)
+        val connections = calls.filter { it.url.encodedPath.endsWith("/events") }
+        assertTrue(connections.size >= 2)
+        assertNull(connections[1].header("Last-Event-ID"))
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+        manager.close()
+        val count = calls.count { it.url.encodedPath.endsWith("/events") }
+        Thread.sleep(75)
+        assertEquals(count, calls.count { it.url.encodedPath.endsWith("/events") })
+    }
+
+    @Test fun consumedLegacyStreamFallsBackWithoutReplayingUnsequencedText() {
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.notice?.contains("Live text is unavailable") == true }
+        assertEquals("partial", (manager.states["one"]!!.turn as TurnState.Streaming).text)
+        assertEquals(1, calls.count { it.url.encodedPath.endsWith("/events") })
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun terminalStatusCancelsPreFrameSubscriptionRetries() {
+        streamFailures = 100
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { calls.count { it.url.encodedPath.endsWith("/events") } >= 2 }
+        runStatus = "completed"
+        await { manager.states["one"]?.submission?.historySynced == true }
+        val count = calls.count { it.url.encodedPath.endsWith("/events") }
+        Thread.sleep(100)
+        assertEquals(count, calls.count { it.url.encodedPath.endsWith("/events") })
         assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
     }
 
