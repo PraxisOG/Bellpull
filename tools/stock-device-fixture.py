@@ -26,6 +26,9 @@ class StreamSteps:
         self.phase = "idle"
         self.runs = 0
         self.closed = False
+        self.event_requests = 0
+        self.event_failures = 0
+        self.pending_reply = None
 
     def wait(self, step):
         with self.condition:
@@ -40,7 +43,7 @@ class StreamSteps:
             self.closed = True
             self.condition.notify_all()
 
-    def install(self, adapter, home):
+    def install(self, adapter, home, audit_repair=False):
         from aiohttp import web
         from hermes_state import SessionDB
 
@@ -52,11 +55,40 @@ class StreamSteps:
                 if request.method == "POST":
                     self.released += 1
                     self.condition.notify_all()
-                return web.json_response({"phase": self.phase, "released": self.released, "runs": self.runs})
+                pending = self.pending_reply if self.released >= 5 else None
+                if pending:
+                    self.pending_reply = None
+            if pending:
+                def persist():
+                    database = SessionDB(home / "state.db")
+                    try:
+                        database.append_message(pending[0], "assistant", pending[1])
+                    finally:
+                        database.close()
+                await asyncio.to_thread(persist)
+                self.phase = "completed"
+            return web.json_response({"phase": self.phase, "released": self.released, "runs": self.runs,
+                "event_requests": self.event_requests, "event_failures": self.event_failures})
 
         routes = adapter._http_route_table
-        adapter._http_route_table = lambda: routes() + [
-            ("GET", "/fixture/state", control), ("POST", "/fixture/advance", control)]
+        def route_table():
+            result = []
+            for method, path, handler in routes():
+                if audit_repair and method == "GET" and path == "/v1/runs/{run_id}/events":
+                    native_events = handler
+                    async def events(request):
+                        self.event_requests += 1
+                        error = adapter._check_auth(request)
+                        if error is not None:
+                            return error
+                        if not self.event_failures:
+                            self.event_failures += 1
+                            return web.json_response({"error": {"message": "Fixture pre-frame failure"}}, status=503)
+                        return await native_events(request)
+                    handler = events
+                result.append((method, path, handler))
+            return result + [("GET", "/fixture/state", control), ("POST", "/fixture/advance", control)]
+        adapter._http_route_table = route_table
 
         def create_agent(reasoning_callback=None, tool_progress_callback=None,
                          stream_delta_callback=None, interim_assistant_callback=None, **kwargs):
@@ -102,6 +134,13 @@ class StreamSteps:
                                                 reasoning=first + second, tool_calls=[call])
                         database.append_message(self.session_id, "tool", "Fixture contents verified.",
                                                 tool_name="read_file", tool_call_id="fixture-read")
+                        if audit_repair:
+                            database.archive_and_compact(self.session_id, [{"role": "assistant",
+                                "content": "Fixture compacted context; original prompt archived."}])
+                            with steps.condition:
+                                steps.pending_reply = (self.session_id, answer)
+                                steps.phase = "awaiting-persistence"
+                            return {"final_response": answer, "completed": True}
                         database.append_message(self.session_id, "assistant", answer)
                         with steps.condition:
                             steps.phase = "completed"
@@ -114,7 +153,7 @@ class StreamSteps:
         adapter._create_agent = create_agent
 
 
-async def serve(source, port, home, streaming=False):
+async def serve(source, port, home, streaming=False, audit_repair=False):
     sys.path.insert(0, str(source))
     os.environ["HERMES_HOME"] = str(home)
     os.environ["BELLPULL_NTFY_URL"] = ""
@@ -134,7 +173,7 @@ async def serve(source, port, home, streaming=False):
     adapter._create_agent = no_inference
     steps = StreamSteps()
     if streaming:
-        steps.install(adapter, home)
+        steps.install(adapter, home, audit_repair)
     try:
         if not await adapter.connect():
             raise RuntimeError("Fixture adapter did not start")
@@ -168,6 +207,10 @@ async def serve(source, port, home, streaming=False):
         steps.close()
         await adapter.disconnect()
         manager.unload()
+        from gateway import status
+        flush = getattr(status, "flush_runtime_status", None)
+        if callable(flush) and not await asyncio.to_thread(flush):
+            raise RuntimeError("Fixture status writer did not finish")
 
 
 if __name__ == "__main__":
@@ -175,6 +218,8 @@ if __name__ == "__main__":
     parser.add_argument("--hermes-source", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18646)
     parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--audit-repair", action="store_true",
+                        help="Fail first SSE request, compact the prompt, and delay saved completion until step five")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="bellpull-stock-device-") as directory:
-        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming))
+        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming or args.audit_repair, args.audit_repair))
