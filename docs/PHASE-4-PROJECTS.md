@@ -57,8 +57,10 @@ change without moving the source. Explicit Unfiled decisions survive reconciliat
    selected scope, deletion, scoped search and safe unavailable/offline behavior.
 3. Reuse conversation rows; add create/edit/move/archive controls and screenshots at
    cover/unfolded widths in light/dark modes. Run the repository's Android/plugin checks.
-4. Prepare a separate deterministic stock fixture and device acceptance tests. Stop
-   before ADB: the user has the phone overnight. Do not access the personal server.
+4. Prepare a separate deterministic stock fixture and device acceptance tests.
+   Overnight implementation stopped before ADB. The user subsequently returned
+   access and authorized installation, testing, fixes and pushing the branch.
+   Do not access the personal server.
 
 Primary acceptance: create a project, move several chats into it, pin one, start and
 branch a chat there, restart the plugin and client, then verify all organization,
@@ -105,16 +107,18 @@ The user installs the plugin on their own server. No agent access is needed.
     cover and unfolded widths, including large text and keyboard interaction.
     A signed personal-app update must preserve existing profiles and drafts.
 
-No phone installation, personal-server access, push, merge or publication is part
-of the overnight implementation. Physical acceptance is the next required step.
+The overnight implementation stopped before phone installation. The later ADB
+and branch-push authorization does not authorize personal-server access, merging
+or publishing a release.
 
 ## Local verification — 2026-10-11
 
-- Android: `test verifyRoborazziDebug assembleDebug lintDebug` passed; 394 JVM
-  tests passed, one opt-in live smoke skipped, all 139 screenshots verified.
+- Android: `test verifyRoborazziDebug assembleDebug lintDebug` passed; 396 JVM
+  tests passed, one opt-in live smoke skipped, all 140 screenshots verified.
   Lint completed with 45 warnings and 4 hints, no errors. Twelve new baselines
   cover project index/overview, cached reading, editor, organize dialog and About
-  at cover light/unfolded dark widths. Four settings baselines intentionally
+  at cover light/unfolded dark widths. A further limited-height editor baseline
+  protects reachable Save/Cancel controls. Four settings baselines intentionally
   changed for the About footer; their rendered differences were inspected.
 - Plugin: all 98 tests passed on the extended pinned-host fixture with the current
   plugin mounted. On unmodified pinned stock Hermes, all 13 project tests and all
@@ -126,10 +130,38 @@ of the overnight implementation. Physical acceptance is the next required step.
   preview/apply/backup passed in a disposable data home; compatibility/license
   copies match. The CI workflow now explicitly runs stock project tests too.
 - The separate fixture APK and instrumentation APK compile. The signed personal
-  candidate builds and verifies with the existing signing lineage. Neither is
-  installed. No Phase 4 GitHub CI run exists because this branch remains local.
+  APK builds and verifies with the existing signing lineage. It was installed
+  in place over 0.3.7, retaining Android UID 10260; no app data was cleared.
 
-Still unverified: physical phone/keyboard/fold behavior, encrypted storage on the
-actual device, signed upgrade preserving personal data, and the user's actual
-provider/server. The prepared `ProjectsDeviceTest` and checklist above are the
-next steps when ADB becomes available. No personal server was accessed.
+## Fold acceptance and fixes — 2026-10-11
+
+Eight guarded device test executions passed (six distinct checks):
+
+- `PortableFilesDeviceTest`: four immutable PNG downloads match size and SHA-256.
+- `ProjectsDeviceTest`: project moves/pin/new chat/native branch/real compaction,
+  encrypted cache restoration, remembered scope, draft and profile isolation.
+- `ProjectsUiDeviceTest` at cover and unfolded widths: installed version 0.4.0/11,
+  current/old plugin statuses, and a real Save touch while the keyboard is open.
+- `ConversationSourcesDeviceTest` and `AuditRepairDeviceTest`: all native sources,
+  initial SSE failure/reconnect, reasoning/answer deltas, delayed final persistence,
+  restart during reconciliation, and one admitted inference after compaction.
+
+On-device review found two bugs and fixed both: the keyboard obscured project
+editor controls, and cover startup showed the drawer instead of the remembered
+project overview. The editor now consumes IME insets; a new shell regression
+asserts the overview opens without selecting a chat. The API 37 Espresso harness
+failed before test execution; the guarded UI tests now use public platform
+accessibility/touch APIs and passed on both actual displays. Cover/unfolded widths
+were selected with temporary device-state overrides, then restored to the base
+state. Existing density settings were unchanged.
+
+The actual app About screen also reported plugin 0.3.0 from authenticated stock
+fixture discovery. Screenshots/logs and upgrade metadata are in ignored
+`build/releases/0.4.0/adb/`. Only disposable non-Docker Hermes and deterministic
+inference were used. Temporary fixture apps, forwarding and server processes were
+removed. The personal app remains stopped; its saved profiles were not opened.
+
+Still unverified: physical hinge movement, every large-text/keyboard combination,
+personal encrypted-profile decoding after the upgrade, and the user's actual
+provider/server. The user installs plugin 0.3.0 on that server and performs the
+manual checklist. No personal server was accessed and no release was published.

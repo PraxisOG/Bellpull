@@ -2,12 +2,15 @@
 
 The public download remains 0.3.3 preview. This Phase 4 branch builds **0.4.0,
 version code 11**, paired with **Bellpull plugin 0.3.0**. It starts at the pushed
-0.3.7 repair commit `743dbe4`. Phase 4 has not been pushed or published.
+0.3.7 repair commit `743dbe4`. Phase 4 remains a development branch, not a public release.
 Do not reuse a version code after release.
 
-The phone is unavailable overnight. Prepare and sign the candidate locally, but
-**do not use ADB** until the user returns access. The personal Hermes server
-remains off limits. See [Phase 4](PHASE-4-PROJECTS.md) for the current acceptance
+The user returned ADB access and authorized installation, testing, fixes and a
+branch push. The signed 0.4.0/code 11 update was installed over 0.3.7 with the
+existing lineage and the same Android UID, without clearing data or uninstalling
+the personal app. That app was kept stopped; personal-profile decoding and the
+actual server/provider remain user acceptance. The personal Hermes server remains
+off limits. See [Phase 4](PHASE-4-PROJECTS.md) for verification and its acceptance
 checklist. Older delivery evidence below describes the completed 0.3.7 work.
 
 For the next isolated device acceptance, start a fresh disposable stock fixture:
@@ -17,17 +20,25 @@ python tools/stock-device-fixture.py --hermes-source /PATH/TO/STOCK/HERMES --pro
 ./android/gradlew -p android -PbellpullDeviceFixture=true :app:assembleDebug :app:assembleDebugAndroidTest
 ```
 
-Once ADB is available, install only the separate fixture application/test APKs,
+For isolated testing, install only the separate fixture application/test APKs,
 forward port 18646, and select `org.praxisog.hermes.ProjectsDeviceTest` explicitly.
 The test is guarded against the personal app package. It checks encrypted cache
 restoration, drafts, separate profile cache, project creation/moves/pin/new chat,
 native branching and real compaction. No provider call is needed. The authenticated
 `/fixture/projects/...` controls exist only in the disposable helper, never in
-the shipped plugin. Restart the fixture before repeating the test. Follow with
-manual cover/unfolded UI and About checks before any personal-app upgrade.
+the shipped plugin. Restart the fixture before repeating the test. Select
+`ProjectsUiDeviceTest` separately for real keyboard/Save touches and About
+version/status checks at each Fold display state. It uses public Android APIs;
+the current Espresso InputManager hook fails on Android 17 before executing a
+Compose device test. JVM Compose screenshot/interaction tests remain in use.
 
-Build the personal-app candidate using `python3 tools/release.py build`, preserving
-the same signing lineage. Compilation/signature verification is not device acceptance.
+0.4.0 device acceptance passed eight test executions (six distinct checks):
+files and project persistence, two UI checks at each width, conversation sources,
+and the 0.3.7 initial-stream/compaction/restart regression. Temporary display
+overrides, port forwarding, fixture apps and local servers were removed afterward.
+
+Build personal-app updates using `python3 tools/release.py build`, preserving
+the same signing lineage. Compilation/signature verification alone is not device acceptance.
 
 The completed 0.3.7 manual test delivery paired that APK with **bellpull plugin 0.2.2**.
 Use the stock installation instructions in `plugins/bellpull/README.md`; Docker

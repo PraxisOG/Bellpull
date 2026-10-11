@@ -17,11 +17,14 @@ work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
 Use Bellpull Android 0.3.7 or newer for the complete audit repair. Phase 4 pairs
 Android **0.4.0** with this **0.3.0** plugin; its project metadata is additive.
-The Phase 4 branch is currently local and has not been pushed or released. Use
-the matching local checkout or unpacked candidate plugin bundle for Phase 4.
+Phase 4 is on `feature/phase4-projects`; it is not a public release. Use
+the matching checkout or unpacked plugin bundle for Phase 4.
 Install on your server yourself:
 
 ```bash
+# Obtain this development version in a fresh checkout:
+git clone --single-branch --branch feature/phase4-projects https://github.com/PraxisOG/Bellpull.git bellpull-0.4.0
+cd bellpull-0.4.0
 # From the matching unpacked Bellpull plugin bundle or repository checkout:
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply

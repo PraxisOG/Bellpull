@@ -1,5 +1,45 @@
 # Bellpull / Hermes app handoff
 
+## 0.4.0 Fold acceptance and branch push — 2026-10-11
+
+The user returned ADB and authorized install/test/tweak/push. Android **0.4.0/code
+11** is installed over 0.3.7 through the existing signing lineage, with Android
+UID **10260** retained and no clear/uninstall of the personal app. The personal
+app stayed stopped; personal profiles were not opened and the personal Hermes
+server was not accessed. The server update to **Bellpull plugin 0.3.0** remains a
+manual user action. No merge or public release is part of this work.
+
+Eight guarded test executions passed on the Pixel 10 Pro Fold / GrapheneOS 17:
+files, projects/cache/branch/compaction, two UI checks at each display width,
+conversation sources, and initial-SSE/compaction/restart recovery. The latter
+asserts one admitted inference. A disposable current stock non-Docker Hermes
+checkout and deterministic agent supplied the server; no personal credentials or
+provider calls were used. The actual About screen displayed 0.4.0/build 11 and
+plugin 0.3.0 from fixture discovery, and synthetic old/current plugin statuses
+passed on both displays.
+
+Device review fixed keyboard-obscured editor Save/Cancel and cover startup hiding
+the remembered project overview. New tests cover constrained editor height and
+cover shell startup. Public Android touch/accessibility APIs replaced the new
+UI test's Espresso harness after its Android 17 InputManager reflection failed
+before execution. The real keyboard/Save checks then passed at both widths.
+Final local Android checks: **396 JVM tests passed, one opt-in smoke skipped;
+140 screenshots verified; assemble and lint passed** (45 warnings, 4 hints).
+Plugin implementation is unchanged from the preceding 98/13/3/17 passing runs.
+
+Temporary state overrides selected the actual cover/unfolded displays and were
+reset to the original base state. Density settings were unchanged. Fixture apps,
+forwarding and local server processes were removed. Evidence and signed/plugin
+artifacts are under ignored `build/releases/0.4.0/`; APK SHA-256:
+`b347081c0ca87874b23826c0cb853059bc5e99f947659cbb6cccbe049e90cf53`.
+
+Push target is **`feature/phase4-projects`**, leaving `master` and the 0.3.7 repair
+branch unchanged. The normal Android/plugin workflow validates the pushed branch;
+inspect its result for remote CI evidence. See [Phase 4](PHASE-4-PROJECTS.md) for
+the full verification and stock-install checklist. Actual-provider behavior,
+personal encrypted-profile decoding and physical hinge movement remain user
+acceptance; no compatibility expansion or new dependency was introduced.
+
 ## Phase 4 projects — 2026-10-11, ready for device acceptance
 
 Local branch **`feature/phase4-projects`**, based on pushed 0.3.7 commit

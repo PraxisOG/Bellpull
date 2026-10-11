@@ -46,8 +46,9 @@ This Phase 4 development branch builds **0.4.0 (code 11)** with **Bellpull plugi
 0.3.0**. Projects provide shared folder metadata, single membership, pins,
 archive/restore, a description and scoped search. Settings → About shows the
 actual installed app version and each saved server's last reported plugin version.
-The branch is local, with phone acceptance still pending; no new release is
-implied. See [the Phase 4 scope and acceptance checklist](docs/PHASE-4-PROJECTS.md).
+The signed update passed isolated Fold acceptance and was installed over 0.3.7.
+This is a development branch, not a new public release. See
+[the Phase 4 scope and acceptance checklist](docs/PHASE-4-PROJECTS.md).
 
 The repair branch builds **0.3.7 (code 10)** with **Bellpull plugin 0.2.2**:
 completion recovery after compaction, retrying failed initial streams, bounded
