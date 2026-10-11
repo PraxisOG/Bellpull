@@ -21,26 +21,17 @@ import org.praxisog.hermes.model.*
 import java.util.UUID
 
 @Composable
-internal fun ProjectScopePicker(workspace: ProjectWorkspace, unread: Set<String>, running: Set<String>,
+internal fun ProjectFilterItems(workspace: ProjectWorkspace, unread: Set<String>, running: Set<String>,
     onSelect: (String) -> Unit, onManage: () -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().testTag("project-scope")) {
-            Text(workspace.scopeTitle + " ▾", maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-            listOf(ALL_PROJECT_CHATS to "All conversations", UNFILED_PROJECT_CHATS to "Unfiled").forEach { (id, name) ->
-                DropdownMenuItem(text = { Text(name) }, onClick = { expanded = false; onSelect(id) })
-            }
-            workspace.snapshot.projects.filterNot { it.archived }.forEach { project ->
-                val counts = workspace.projectIndicators(project.id, unread, running)
-                DropdownMenuItem(text = { Text(project.name + indicatorText(counts)) },
-                    onClick = { expanded = false; onSelect(project.id) })
-            }
-            HorizontalDivider()
-            DropdownMenuItem(text = { Text("Manage projects") }, onClick = { expanded = false; onManage() })
-        }
+    Text("Projects", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp))
+    listOf(ALL_PROJECT_CHATS to "All conversations", UNFILED_PROJECT_CHATS to "Unfiled").forEach { (id, name) ->
+        DropdownMenuItem(text = { Text((if (workspace.selectedScope == id) "✓ " else "") + name) }, onClick = { onSelect(id) })
     }
+    workspace.snapshot.projects.filterNot { it.archived }.forEach { project ->
+        DropdownMenuItem(text = { Text((if (workspace.selectedScope == project.id) "✓ " else "") + project.name +
+            indicatorText(workspace.projectIndicators(project.id, unread, running))) }, onClick = { onSelect(project.id) })
+    }
+    DropdownMenuItem(text = { Text("Manage projects") }, onClick = onManage)
 }
 
 private fun indicatorText(counts: Pair<Int, Int>) = buildString {
@@ -139,7 +130,7 @@ internal fun ProjectsPanel(workspace: ProjectWorkspace?, sessions: List<Session>
             }
             items(ordered, key = { it.id }) { session ->
                 SessionRow(session, now, selected = false, unread = session.id in unreadHere, runLabel = labels[session.id],
-                    titleOnly = titleOnly, showSource = true, pinned = workspace.snapshot.membership(session.id)?.pinned == true,
+                    titleOnly = titleOnly, pinned = workspace.snapshot.membership(session.id)?.pinned == true,
                     onOrganize = { onOrganize(session) }, onClick = { onOpen(session.id) })
             }
         }

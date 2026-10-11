@@ -203,11 +203,12 @@ internal fun HermesApp(
                                 runLabels = projectLabels,
                                 pinnedIds = if (projects?.selectedProject != null) projects.pinnedIds(projectSessions) else emptySet(),
                                 recentOrder = projects?.selectedProject != null,
-                                projectHeader = projects?.let { workspace -> { ProjectScopePicker(workspace, unreadIds, runningIds,
-                                    selectProjectScope, { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
+                                projectFilters = projects?.let { workspace -> { closeFilters -> ProjectFilterItems(workspace, unreadIds, runningIds,
+                                    { id -> closeFilters(); selectProjectScope(id) }, { closeFilters(); mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
                                 onOrganize = projects?.let { { session -> organizing = session } },
                                 titleOnly = preferences.titleOnlyConversations,
                                 source = sessionSource, onSourceChange = onSessionSourceChange,
+                                filterSummary = listOfNotNull(projects?.scopeTitle?.takeIf { projects.selectedScope != ALL_PROJECT_CHATS }, sessionSource).takeIf { it.isNotEmpty() }?.joinToString(" · "),
                                 onExpandedSearch = { expandedSearch = true })
                             WorkspaceModes(mode) { mode = it; drawerOnCover = false }
                         }

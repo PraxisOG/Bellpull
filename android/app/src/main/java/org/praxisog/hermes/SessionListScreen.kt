@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -80,12 +81,31 @@ internal fun SessionListScreen(
     titleOnly: Boolean = false,
     source: String? = null,
     onSourceChange: ((String?) -> Unit)? = null,
-    projectHeader: (@Composable () -> Unit)? = null,
+    projectFilters: (@Composable (() -> Unit) -> Unit)? = null,
     onOrganize: ((Session) -> Unit)? = null,
     pinnedIds: Set<String> = emptySet(),
     recentOrder: Boolean = false,
+    filterSummary: String? = null,
 ) {
     val searching = query.isNotBlank()
+    var filtersOpen by remember { mutableStateOf(false) }
+    val filters: @Composable () -> Unit = {
+        Box {
+            NavigationAction("Filters", { filtersOpen = true }, modifier = Modifier.testTag("conversation-filters").semantics { stateDescription = filterSummary ?: "All projects and sources" },
+                description = "Filter conversations") { FilterGlyph(active = source != null || filterSummary != null) }
+            DropdownMenu(filtersOpen, onDismissRequest = { filtersOpen = false }) {
+                projectFilters?.invoke { filtersOpen = false }
+                if (projectFilters != null && onSourceChange != null) androidx.compose.material3.HorizontalDivider()
+                if (onSourceChange != null) {
+                    Text("Conversation source", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp))
+                    sourceChoices.forEach { (label, value) ->
+                        DropdownMenuItem(text = { Text((if (source == value) "✓ " else "") + label) },
+                            onClick = { filtersOpen = false; onSourceChange(value) })
+                    }
+                }
+            }
+        }
+    }
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -117,6 +137,7 @@ internal fun SessionListScreen(
                         color = MaterialTheme.colorScheme.onSurface)
                 }, trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        filters()
                         NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                         if (showNewChatButton) NewChatButton(onNewSession, creating)
                     }
@@ -128,25 +149,12 @@ internal fun SessionListScreen(
                     Text("Conversations", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f).padding(start = 14.dp),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
+                    filters()
                     NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                 }
                 if (showNewChatButton) NewChatButton(onNewSession, creating)
-            }
-            projectHeader?.invoke()
-            if (onSourceChange != null) {
-                var sourceMenu by remember { mutableStateOf(false) }
-                Box(Modifier.padding(start = 14.dp)) {
-                    TextButton(onClick = { sourceMenu = true }, modifier = Modifier.testTag("conversation-source")) {
-                        Text(sourceChoices.firstOrNull { it.second == source }?.first ?: source.orEmpty())
-                        Text(" ▾")
-                    }
-                    DropdownMenu(expanded = sourceMenu, onDismissRequest = { sourceMenu = false }) {
-                        sourceChoices.forEach { (label, value) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = { sourceMenu = false; onSourceChange(value) })
-                        }
-                    }
-                }
             }
             offline?.let { state ->
                 // Names the staleness AND which layer failed, because "offline" alone does not
@@ -272,7 +280,6 @@ internal fun SessionListScreen(
                                     unread = session.id in unreadIds,
                                     runLabel = runLabels[session.id],
                                     titleOnly = titleOnly,
-                                    showSource = source == null,
                                     pinned = session.id in pinnedIds,
                                     onOrganize = onOrganize?.let { organize -> { organize(session) } },
                                     onClick = { onOpen(session.id) },
@@ -390,11 +397,11 @@ private fun SectionHeader(text: String) {
     )
 }
 
-private val sourceChoices = listOf("All conversations" to null, "API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui")
+private val sourceChoices = listOf("All sources" to null, "API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui")
 
 @Composable
 internal fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,
-    titleOnly: Boolean = false, showSource: Boolean = false, pinned: Boolean = false,
+    titleOnly: Boolean = false, pinned: Boolean = false,
     onOrganize: (() -> Unit)? = null, onClick: () -> Unit) {
     val background =
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
@@ -405,28 +412,28 @@ internal fun SessionRow(session: Session, now: Double, selected: Boolean, unread
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = if (titleOnly) 10.dp else 14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 14.dp, end = 4.dp, top = if (titleOnly) 6.dp else 14.dp, bottom = if (titleOnly) 6.dp else 14.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 session.title?.takeIf { it.isNotBlank() } ?: "Untitled session",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.let { if (titleOnly) it.copy(lineHeight = 20.sp) else it },
                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
-                maxLines = if (titleOnly) 1 else 2,
+                minLines = if (titleOnly) 2 else 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (showSource) Text(when (session.source) { "api_server" -> "API"; "cli" -> "CLI"; "tui" -> "TUI"
-                else -> session.source ?: "Other" }, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (titleOnly && pinned) Text("◆", style = MaterialTheme.typography.labelSmall, modifier = Modifier.semantics { contentDescription = "Pinned conversation" })
+            if (titleOnly && runLabel != null) Text("•", color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { contentDescription = runLabel })
             if (titleOnly && unread) UnreadDot(session.id)
             if (onOrganize != null) TextButton(onClick = onOrganize, modifier = Modifier.size(32.dp).testTag("chat-actions-${session.id}")
                 .semantics { contentDescription = "Organize ${session.title ?: "conversation"}" },
                 contentPadding = PaddingValues(0.dp)) { Text("⋮") }
             }
-            if (pinned) Text("Pinned", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            if (pinned && !titleOnly) Text("Pinned", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             if (!titleOnly) session.preview?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     it,
@@ -483,4 +490,15 @@ internal fun SearchGlyph() {
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+}
+
+@Composable
+internal fun FilterGlyph(active: Boolean = false) {
+    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(Modifier.size(18.dp)) {
+        listOf(.2f to .3f, .5f to .7f, .8f to .4f).forEach { (y, x) ->
+            drawLine(color, Offset(0f, size.height * y), Offset(size.width, size.height * y), 1.6.dp.toPx(), StrokeCap.Round)
+            drawCircle(color, 2.4.dp.toPx(), Offset(size.width * x, size.height * y))
+        }
+    }
 }
