@@ -10,6 +10,8 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -86,18 +88,69 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.4.0", app.name)
-        assertEquals(11L, app.code)
+        assertEquals("0.5.0", app.name)
+        assertEquals(12L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {
                 AboutDialog(app, listOf(ServerPluginVersion("Current fixture", "https://current.invalid", "0.3.0", 0.0),
                     ServerPluginVersion("Old fixture", "https://old.invalid", "0.2.2", 0.0)), {})
             } } }
-            for (label in listOf("Installed app: 0.4.0 (build 11)", "Bellpull plugin: 0.3.0",
+            for (label in listOf("Installed app: 0.5.0 (build 12)", "Bellpull plugin: 0.3.0",
                 "Meets this app's minimum plugin version (0.3.0).", "Update needed. This app requires plugin 0.3.0 or newer.")) {
                 await { text(label) != null }
                 text(label)!!.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             }
         }
     }
+    @Test fun drawerFiltersAreReachableAndCompactRowsDoNotShowSourceBadges() = withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+        val client = org.praxisog.hermes.core.HermesClient("https://fixture.invalid", { "fixture" })
+        val project = ConversationProject("a".repeat(32), "Costumes")
+        val workspace = ProjectWorkspace(scope, client, object : ProjectCache {
+            override fun readProjects() = org.praxisog.hermes.model.ProjectSnapshot(projects = listOf(project))
+        }, false)
+        val source = AtomicReference<String>()
+        fun capture(name: String) {
+            SystemClock.sleep(500)
+            val bitmap = automation.takeScreenshot()!!
+            java.io.File(context.getExternalFilesDir(null), name).outputStream().use {
+                assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it))
+            }
+            bitmap.recycle()
+        }
+        try {
+            ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+                scene.onActivity { activity -> activity.setContent { HermesTheme {
+                    androidx.compose.foundation.layout.BoxWithConstraints(androidx.compose.ui.Modifier.safeDrawingPadding()) {
+                        val narrow = maxWidth < androidx.compose.ui.unit.Dp(720f)
+                        androidx.compose.foundation.layout.Box(if (narrow) androidx.compose.ui.Modifier else
+                            androidx.compose.ui.Modifier.width(androidx.compose.ui.unit.Dp(240f))) {
+                            SessionListScreen(UiState.Ready(listOf(org.praxisog.hermes.model.Session("chat",
+                                title = "WALL·E shoulder wiring and battery layout", source = "api_server"))), 0.0, null,
+                                {}, {}, {}, titleOnly = true, showNewChatButton = narrow, onExpandedSearch = {},
+                                onSourceChange = source::set,
+                                projectFilters = { close -> ProjectFilterItems(workspace, emptySet(), emptySet(), { workspace.choose(it); close() }, close) },
+                                onOrganize = {})
+                        }
+                    }
+                } } }
+                await { find { it.contentDescription?.toString() == "Filter conversations" } != null }
+                assertNull(text("API")); assertNull(text("CLI")); assertNull(text("TUI"))
+                capture("drawer-native.png")
+                val filter = find { it.contentDescription?.toString() == "Filter conversations" }!!
+                val search = find { it.contentDescription?.toString() == "Search conversations" }!!
+                val filterBounds = Rect().also(filter::getBoundsInScreen)
+                val searchBounds = Rect().also(search::getBoundsInScreen)
+                assertTrue(filterBounds.centerX() < searchBounds.centerX())
+                tap(filter)
+                await { text("CLI chats") != null }
+                for (label in listOf("Projects", "Costumes", "Unfiled", "API chats", "CLI chats", "TUI chats")) assertNotNull(label, text(label))
+                capture("filters-native.png")
+                tap(text("CLI chats")!!); await { source.get() == "cli" }
+                await { text("Projects") == null }
+            }
+        } finally { workspace.close(); scope.coroutineContext[kotlinx.coroutines.Job]?.cancel(); client.close() }
+    }
+
 }
