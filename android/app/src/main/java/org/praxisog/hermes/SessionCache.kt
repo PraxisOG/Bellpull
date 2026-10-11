@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
@@ -113,7 +113,21 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
         .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
-    fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw).apply() }
+    fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw)
+        .putLong("capabilities_checked_at", System.currentTimeMillis()).apply() }
+    fun capabilitiesCheckedAt(): Double? = preferences.getLong("capabilities_checked_at", 0).takeIf { it > 0 }?.div(1000.0)
+    override fun readProjects(): org.praxisog.hermes.model.ProjectSnapshot? = preferences.getString("projects", null)?.let {
+        runCatching { json.decodeFromString<org.praxisog.hermes.model.ProjectSnapshot>(it) }.getOrNull()?.takeIf { it.version == 1 }
+    }
+    override fun writeProjects(value: org.praxisog.hermes.model.ProjectSnapshot): Boolean = !closed && preferences.edit()
+        .putString("projects", json.encodeToString(value)).commit()
+    override fun projectScope(): String = preferences.getString("project_scope", ALL_PROJECT_CHATS) ?: ALL_PROJECT_CHATS
+    override fun rememberProjectScope(value: String) { if (!closed) preferences.edit().putString("project_scope", value).apply() }
+    override fun pendingProjectChat(): org.praxisog.hermes.model.PendingProjectChat? = preferences.getString("project_chat", null)?.let {
+        runCatching { json.decodeFromString<org.praxisog.hermes.model.PendingProjectChat>(it) }.getOrNull()
+    }
+    override fun writePendingProjectChat(value: org.praxisog.hermes.model.PendingProjectChat?): Boolean = !closed && preferences.edit()
+        .putString("project_chat", value?.let { json.encodeToString(it) }).commit()
 
     fun defaultModel(): org.praxisog.hermes.model.ModelSelection? = preferences.getString("default_model", null)?.let {
         runCatching { json.decodeFromString<org.praxisog.hermes.model.ModelSelection>(it) }.getOrNull()

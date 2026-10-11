@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.*
 import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.HermesResult
 
@@ -44,6 +45,18 @@ internal class ServerProfiles(
     }
 
     fun showSettings() { settingsRevision++ }
+    /** Cache-only: inspecting About never contacts other saved servers or changes accounts. */
+    fun pluginVersions(): List<ServerPluginVersion> = profiles.map { profile ->
+        runCatching {
+            val cached = SessionCache(context, profile.id)
+            try {
+                val raw = cached.readCapabilities()?.let { Json.parseToJsonElement(it).jsonObject }
+                val version = (raw?.get("bellpull_plugin") as? JsonObject)?.get("plugin_version")?.jsonPrimitive?.contentOrNull
+                ServerPluginVersion(profile.name, profile.url, version,
+                    cached.capabilitiesCheckedAt() ?: raw?.let { 0.0 })
+            } finally { cached.close() }
+        }.getOrDefault(ServerPluginVersion(profile.name, profile.url, null, null))
+    }
     private fun reload() { profiles = secure?.profiles().orEmpty(); activeId = secure?.activeId() }
 
     fun add(name: String, rawUrl: String, rawKey: String): Boolean {

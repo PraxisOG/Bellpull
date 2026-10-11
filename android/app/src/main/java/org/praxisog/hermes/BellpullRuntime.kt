@@ -24,6 +24,10 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var phase3 by mutableStateOf<Phase3Workspace?>(null)
         private set
+    var projects by mutableStateOf<ProjectWorkspace?>(null)
+        private set
+    var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
+        private set
     var notificationEventsAvailable by mutableStateOf(false)
         private set
     private var notifications: ReplyNotifications? = null
@@ -48,9 +52,10 @@ internal class BellpullRuntime private constructor(context: Context) {
         loadDrafts()
     }
 
-    fun connect(client: HermesClient, capabilities: HermesClient.Capabilities): HermesStore {
+    fun connect(client: HermesClient, capabilities: HermesClient.Capabilities, verifiedDiscovery: Boolean = true): HermesStore {
         store?.let { return it }
         this.client = client
+        this.capabilities = capabilities
         client.configureCapabilities(capabilities)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
@@ -64,6 +69,8 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         store = next
+        projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true) }
+        projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
             capabilities.features["bellpull_model_controls"] == true,
@@ -77,9 +84,12 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.onAttention = { id, identity -> notifications?.attention(id, identity) }
         cache?.let {
             val catchUp = ReplyCatchUp(scope, client, it, receipts, next::discoveredReply)
-            next.onSessions = { sessions -> catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true }) }
+            next.onSessions = { sessions ->
+                catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true })
+                projects?.refresh()
+            }
         }
-        cache?.writeCapabilities(capabilities.raw.toString())
+        if (verifiedDiscovery) cache?.writeCapabilities(capabilities.raw.toString())
         next.startRecovery()
         next.loadSessions()
         cache?.lastSession()?.let(next::openSession)
@@ -93,6 +103,8 @@ internal class BellpullRuntime private constructor(context: Context) {
             val result = withContext(Dispatchers.IO) { current.capabilities() }
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
+            capabilities = result.value
+            projects?.configure(result.value.features["bellpull_projects"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
@@ -134,10 +146,14 @@ internal class BellpullRuntime private constructor(context: Context) {
         val raw = cache?.readCapabilities() ?: return
         val obj = runCatching { Json.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return
         val flags = obj["features"]?.jsonObject?.mapValues { runCatching { it.value.jsonPrimitive.booleanOrNull == true }.getOrDefault(false) }.orEmpty()
-        connect(HermesClient(connection.profile.url, { connection.key }, memoryScopeKey = "hermes-android"), HermesClient.Capabilities(obj, flags))
+        connect(HermesClient(connection.profile.url, { connection.key }, memoryScopeKey = "hermes-android"),
+            HermesClient.Capabilities(obj, flags), verifiedDiscovery = false)
     }
 
     fun disconnect() {
+        projects?.close()
+        projects = null
+        capabilities = null
         phase3?.close()
         phase3 = null
         store?.close()

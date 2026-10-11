@@ -80,6 +80,10 @@ internal fun SessionListScreen(
     titleOnly: Boolean = false,
     source: String? = null,
     onSourceChange: ((String?) -> Unit)? = null,
+    projectHeader: (@Composable () -> Unit)? = null,
+    onOrganize: ((Session) -> Unit)? = null,
+    pinnedIds: Set<String> = emptySet(),
+    recentOrder: Boolean = false,
 ) {
     val searching = query.isNotBlank()
     Surface(
@@ -129,6 +133,7 @@ internal fun SessionListScreen(
                 }
                 if (showNewChatButton) NewChatButton(onNewSession, creating)
             }
+            projectHeader?.invoke()
             if (onSourceChange != null) {
                 var sourceMenu by remember { mutableStateOf(false) }
                 Box(Modifier.padding(start = 14.dp)) {
@@ -226,8 +231,9 @@ internal fun SessionListScreen(
                     }
                 } else {
                     val listState = rememberLazyListState()
-                    val ordered = remember(state.value, unreadIds) {
-                        state.value.sortedWith(compareByDescending<Session> { it.id in unreadIds }
+                    val ordered = remember(state.value, unreadIds, pinnedIds, recentOrder) {
+                        state.value.sortedWith(compareByDescending<Session> { it.id in pinnedIds }
+                            .thenByDescending { !recentOrder && it.id in unreadIds }
                             .thenByDescending { it.lastActive ?: it.startedAt ?: 0.0 })
                     }
                     val serverHead = state.value.firstOrNull()?.id
@@ -267,6 +273,8 @@ internal fun SessionListScreen(
                                     runLabel = runLabels[session.id],
                                     titleOnly = titleOnly,
                                     showSource = source == null,
+                                    pinned = session.id in pinnedIds,
+                                    onOrganize = onOrganize?.let { organize -> { organize(session) } },
                                     onClick = { onOpen(session.id) },
                                 )
                             }
@@ -385,8 +393,9 @@ private fun SectionHeader(text: String) {
 private val sourceChoices = listOf("All conversations" to null, "API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui")
 
 @Composable
-private fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,
-    titleOnly: Boolean = false, showSource: Boolean = false, onClick: () -> Unit) {
+internal fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,
+    titleOnly: Boolean = false, showSource: Boolean = false, pinned: Boolean = false,
+    onOrganize: (() -> Unit)? = null, onClick: () -> Unit) {
     val background =
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     Surface(
@@ -413,7 +422,11 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, unread:
                 else -> session.source ?: "Other" }, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (titleOnly && unread) UnreadDot(session.id)
+            if (onOrganize != null) TextButton(onClick = onOrganize, modifier = Modifier.size(32.dp).testTag("chat-actions-${session.id}")
+                .semantics { contentDescription = "Organize ${session.title ?: "conversation"}" },
+                contentPadding = PaddingValues(0.dp)) { Text("⋮") }
             }
+            if (pinned) Text("Pinned", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             if (!titleOnly) session.preview?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     it,

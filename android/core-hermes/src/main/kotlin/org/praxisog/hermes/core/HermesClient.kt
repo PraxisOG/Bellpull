@@ -96,6 +96,38 @@ class HermesClient(
         get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
 
     fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
+    private fun projectSnapshot(body: String): ProjectSnapshot {
+        val raw = json.parseToJsonElement(body).jsonObject
+        require(raw["version"]?.jsonPrimitive?.intOrNull == 1 &&
+            (raw["revision"]?.jsonPrimitive?.longOrNull ?: -1) >= 0 &&
+            raw["projects"] is kotlinx.serialization.json.JsonArray && raw["memberships"] is kotlinx.serialization.json.JsonArray)
+        val value = json.decodeFromString<ProjectSnapshot>(body)
+        val ids = value.projects.map { it.id }
+        require(ids.size == ids.toSet().size)
+        val aliases = mutableSetOf<String>()
+        value.memberships.forEach { member ->
+            require(member.projectId == null || member.projectId in ids)
+            (member.sessionIds + member.sessionId).toSet().forEach { require(aliases.add(it)) }
+        }
+        return value
+    }
+    fun projects(): HermesResult<ProjectSnapshot> = get("/api/bellpull/projects", decode = ::projectSnapshot)
+    fun mutateProject(value: ProjectMutation): HermesResult<ProjectSnapshot> =
+        post("/api/bellpull/projects", json.encodeToString(value), decode = ::projectSnapshot)
+    fun createProjectChat(value: PendingProjectChat): HermesResult<Session> {
+        require(value.projectId.matches(Regex("[a-f0-9]{32}")))
+        val payload = buildJsonObject {
+            put("id", value.id); put("expected_revision", value.expectedRevision)
+            value.title?.let { put("title", it) }
+            value.selection?.let {
+                put("model", it.model); put("provider", it.provider)
+                put("model_options", json.encodeToJsonElement(it.options)); put("require_model_lock", true)
+            }
+        }.toString()
+        return post("/api/bellpull/projects/${value.projectId}/sessions", payload) {
+            json.decodeFromString<SessionCreated>(it).session
+        }
+    }
     fun sessionModel(sessionId: String): HermesResult<SessionModel> =
         get("/api/bellpull/sessions/$sessionId/model", sessionId) { json.decodeFromString(it) }
     fun selectModel(sessionId: String, selection: ModelSelection): HermesResult<SessionModel> =
@@ -197,7 +229,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

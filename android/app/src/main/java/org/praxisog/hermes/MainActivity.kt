@@ -87,6 +87,14 @@ class MainActivity : ComponentActivity() {
                         onDispose { reader.stop() }
                     }
                     HermesApp(
+                        projects = runtime.projects,
+                        onRetryProjectCreation = { runtime.projects?.let { workspace -> scope.launch {
+                            when (val result = workspace.retryPending()) {
+                                is org.praxisog.hermes.model.HermesResult.Ok -> { current?.loadSessions(); current?.openSession(result.value.id) }
+                                is org.praxisog.hermes.model.HermesResult.Err -> Unit
+                            }
+                        } } },
+                        pluginVersions = profiles::pluginVersions,
                         sessionSource = current?.sessionSource,
                         onSessionSourceChange = current?.let { currentStore -> { source ->
                             runtime.cache?.rememberSessionSource(source)
@@ -113,7 +121,7 @@ class MainActivity : ComponentActivity() {
                         prefill = current?.pendingPrompt.orEmpty(), pendingUserText = current?.pendingUserText,
                         unreadIds = current?.readState?.unreadIds.orEmpty(),
                         completionRevision = current?.completionRevision ?: 0,
-                        onReadThrough = { id, message -> current?.readState?.readThrough(id, message) },
+                        onReadThrough = { id, message -> current?.readState?.readThroughAliases(runtime.projects?.aliases(id) ?: setOf(id), message) },
                         foreground = foreground, runPresentation = current?.runPresentation,
                         runLabels = current?.runLabels.orEmpty(), onRetryRun = { current?.retryRun() },
                         onAbandonRun = { current?.abandonRunAfterReview() },

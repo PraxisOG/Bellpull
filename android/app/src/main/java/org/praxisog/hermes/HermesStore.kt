@@ -63,6 +63,8 @@ internal class HermesStore(
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onSessions: (List<Session>) -> Unit = {}
     var defaultModel: () -> org.praxisog.hermes.model.ModelSelection? = { null }
+    var newSessionRequest: (String?, org.praxisog.hermes.model.ModelSelection?) -> (suspend () -> HermesResult<Session>) =
+        { title, selection -> { io { client.createSession(title, selection) } } }
     val runPresentation: RunPresentation? get() = openSessionId?.let { runs?.states?.get(it) }
     val runLabels: Map<String, String> get() = runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
 
@@ -226,9 +228,9 @@ internal class HermesStore(
         if (creatingSession) return
         creatingSession = true
         createError = null
+        val request = newSessionRequest(null, defaultModel())
         scope.launch {
-            val selection = defaultModel()
-            when (val result = io { client.createSession(selection = selection) }) {
+            when (val result = request()) {
                 is HermesResult.Ok -> {
                     creatingSession = false
                     loadSessions()
@@ -311,8 +313,9 @@ internal class HermesStore(
         if (prompt.isBlank() || creatingSession) return
         creatingSession = true
         createError = null
+        val request = newSessionRequest(prompt.take(60), defaultModel())
         scope.launch {
-            when (val result = io { client.createSession(title = prompt.take(60)) }) {
+            when (val result = request()) {
                 is HermesResult.Ok -> {
                     creatingSession = false
                     drafts.set(result.value.id, androidx.compose.ui.text.input.TextFieldValue(

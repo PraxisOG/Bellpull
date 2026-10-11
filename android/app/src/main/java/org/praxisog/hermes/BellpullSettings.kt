@@ -74,7 +74,8 @@ internal class BellpullSettings(context: Context) {
 @Composable
 internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (BellpullPreferences) -> Unit,
     notificationsAvailable: Boolean = false, onNotificationsChange: (Boolean) -> Unit = {},
-    serverProfiles: (@Composable () -> Unit)? = null) {
+    serverProfiles: (@Composable () -> Unit)? = null,
+    pluginVersions: () -> List<ServerPluginVersion> = { emptyList() }) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         serverProfiles?.invoke()
@@ -152,6 +153,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
         PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
             preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
+        HorizontalDivider()
+        AboutSettings(pluginVersions)
     }
 }
 

@@ -92,13 +92,29 @@ internal fun HermesApp(
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    projects: ProjectWorkspace? = null,
+    onRetryProjectCreation: () -> Unit = {},
+    pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
 ) {
-    var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
+    var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
     var artifactsOpen by remember(openSessionId) { mutableStateOf(false) }
     var navigation by remember(openSessionId) { mutableStateOf<ChatNavigation?>(null) }
+    var organizing by remember { mutableStateOf<Session?>(null) }
+    val allSessions = (sessions as? UiState.Ready)?.value.orEmpty()
+    val projectSessions = projects?.sessions(allSessions) ?: allSessions
+    val scopedSessions = if (sessions is UiState.Ready) UiState.Ready(projectSessions) else sessions
+    val projectUnread = projects?.unreadIds(allSessions, unreadIds) ?: unreadIds
+    val projectLabels = projects?.runLabels(allSessions, runLabels) ?: runLabels
+    val runningIds = runLabels.filterValues { it in setOf("Running", "Sending", "Reconnecting", "Stopping", "Needs approval") }.keys
+    val selectProjectScope: (String) -> Unit = { id ->
+        projects?.choose(id)
+        expandedSearch = false
+        if (id in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS)) { mode = WorkspaceMode.CHATS; drawerOnCover = true }
+        else { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }
+    }
     val screenState = rememberSaveableStateHolder()
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
@@ -132,13 +148,18 @@ internal fun HermesApp(
             }
             if (artifactsOpen) ConversationArtifactsDialog(artifacts, onDownloadArtifact,
                 onView = { artifactsOpen = false; onViewArtifact(it) }, onClose = { artifactsOpen = false })
+            organizing?.let { session -> projects?.let { workspace ->
+                ProjectChatDialog(workspace, session) { organizing = null }
+            } }
             if (expandedSearch) WorkspaceSearch(
-                (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
+                projectSessions, apps, now, openSessionId,
                 query, onQueryChange, open, onLaunchApp,
                 onAsk = { if (disconnected) openSettings() else {
                     onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS
                 } },
-                onDismiss = { expandedSearch = false })
+                onDismiss = { expandedSearch = false },
+                scopeTitle = projects?.scopeTitle?.takeUnless { projects.selectedScope == ALL_PROJECT_CHATS },
+                allConversations = allSessions)
             Surface(Modifier.fillMaxSize()) {
                 val insets = if (preferences.immersiveMode)
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
@@ -149,7 +170,7 @@ internal fun HermesApp(
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
                     val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewPane == null && previewDialog == null }
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewPane == null && previewDialog == null }
                     DisposableEffect(visibleSession) {
                         onVisibleSession(visibleSession)
                         onDispose { onVisibleSession(null) }
@@ -174,12 +195,17 @@ internal fun HermesApp(
                     val animate = paneMotionEnabled(preferences.reduceMotion)
                     val listPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
-                            SessionListScreen(state = sessions, now = now, selectedId = openSessionId,
+                            SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
                                 creating = creatingSession, createError = createError, offline = offline,
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
-                                unreadIds = unreadIds, completionRevision = completionRevision,
-                                runLabels = runLabels,
+                                unreadIds = projectUnread, completionRevision = completionRevision,
+                                runLabels = projectLabels,
+                                pinnedIds = if (projects?.selectedProject != null) projects.pinnedIds(projectSessions) else emptySet(),
+                                recentOrder = projects?.selectedProject != null,
+                                projectHeader = projects?.let { workspace -> { ProjectScopePicker(workspace, unreadIds, runningIds,
+                                    selectProjectScope, { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
+                                onOrganize = projects?.let { { session -> organizing = session } },
                                 titleOnly = preferences.titleOnlyConversations,
                                 source = sessionSource, onSourceChange = onSessionSourceChange,
                                 onExpandedSearch = { expandedSearch = true })
@@ -209,13 +235,15 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
-                                WorkspaceMode.PROJECTS, WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
+                                WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
+                                    selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,
+                                    preferences.titleOnlyConversations)
+                                WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
                                     Text("Coming soon", style = MaterialTheme.typography.titleLarge)
-                                    Text(if (mode == WorkspaceMode.PROJECTS) "Collect chats, notes and attachments in projects."
-                                        else "Reminders and follow-ups will appear here.")
+                                    Text("Reminders and follow-ups will appear here.")
                                 }
                                 WorkspaceMode.CHATS -> if (openSessionId == null) {
                                     if (disconnected) DisconnectedWelcome({ open(BellpullExample.ID) }, openSettings)
@@ -233,7 +261,7 @@ internal fun HermesApp(
                                             sendBlocked = disconnected || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
-                                            readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewDialog == null && previewPane == null,
+                                            readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewDialog == null && previewPane == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
                                             onReadMessage = onReadMessage, onBranchMessage = onBranchMessage,

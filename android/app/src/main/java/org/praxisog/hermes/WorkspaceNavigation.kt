@@ -61,18 +61,28 @@ internal fun WorkspaceSearch(
     sessions: List<Session>, apps: List<LaunchableApp>, now: Double, selectedId: String?,
     query: String, onQueryChange: (String) -> Unit, onOpen: (String) -> Unit,
     onLaunchApp: (LaunchableApp) -> Unit, onAsk: (String) -> Unit, onDismiss: () -> Unit,
+    scopeTitle: String? = null, allConversations: List<Session> = sessions,
 ) {
+    var global by remember(scopeTitle) { mutableStateOf(scopeTitle == null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(.82f),
             shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Conversations", style = MaterialTheme.typography.titleLarge)
+                if (scopeTitle != null) {
+                    Text("Search scope: ${if (global) "All conversations" else scopeTitle}", style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = !global, onClick = { global = false }, label = { Text(scopeTitle) })
+                        FilterChip(selected = global, onClick = { global = true }, label = { Text("All conversations") })
+                    }
+                }
                 OutlinedTextField(value = query, onValueChange = onQueryChange, singleLine = true,
                     label = { Text("Search apps & chats") }, modifier = Modifier.fillMaxWidth())
                 Text("Searches titles and previews in the loaded conversation list.", style = MaterialTheme.typography.bodySmall)
+                if (scopeTitle != null) Text("New chats from this search start in $scopeTitle.", style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider()
                 Box(Modifier.weight(1f)) {
-                    SearchResults(query, sessions, apps, now, selectedId, onOpen, onLaunchApp, onAsk)
+                    SearchResults(query, if (global) allConversations else sessions, apps, now, selectedId, onOpen, onLaunchApp, onAsk)
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
             }
