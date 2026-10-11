@@ -1,5 +1,57 @@
 # Bellpull / Hermes app handoff
 
+## Phase 4 projects — 2026-10-11, ready for device acceptance
+
+Local branch **`feature/phase4-projects`**, based on pushed 0.3.7 commit
+`743dbe4fe758d36d08c02f8c633bd788aa1535e6`. Android **0.4.0/code 11**;
+Bellpull plugin **0.3.0**. The user narrowed Phase 4 to conversation projects,
+then added Settings → About. See [scope, verification and manual acceptance](PHASE-4-PROJECTS.md).
+
+Implemented plugin-authoritative folders with encrypted per-device snapshots,
+single membership, create/rename/description/color/icon, moves/Unfiled, project
+new chats, pinning, archive/restore and safe folder deletion. Projects open to
+their overview; pinned chats precede recent activity. Search explicitly switches
+between the selected scope and All conversations. Archived chats stay globally
+visible. Switching scopes preserves drafts/runs. Compression keeps membership,
+pins and read receipts; ordinary branches remain independently movable.
+Revision conflicts refresh instead of merging stale edits. Uncertain chat
+creation retains its identity across restart for explicit recovery without
+duplicate inference. About reads Android's actual installed version and cached
+plugin versions per saved profile, comparing with app minimum 0.3.0; it performs
+no latest-GitHub-release polling or background connections to other profiles.
+
+Actual local checks: **394 JVM tests passed, one opt-in live smoke skipped;
+139 screenshot baselines verified; Android assemble/lint passed** (45 warnings,
+4 hints, no errors). **98 plugin tests passed** on the extended pinned fixture;
+**13 project + 3 portable tests passed** on unmodified pinned stock Hermes;
+**17 portable/project/native-profile tests passed** on current non-Docker Hermes
+`d4d2ab7`. The primary HTTP workflow survives an adapter restart and real
+compaction/continuation. An additional local stock HTTP acceptance and installer
+preview/apply/backup check passed. Compatibility/license copies match.
+
+The guarded `ProjectsDeviceTest` and fixture APK/test APK compile; device tests
+have **not run**. The personal APK is signed/verified with the existing lineage.
+The user has the phone overnight: **no ADB commands or installations were made**.
+No personal-server access, Phase 4 push, merge or release. No Phase 4 remote CI
+evidence; 0.3.7 CI is previous-baseline evidence only. Local candidate APK, plugin
+bundle, checksums and logs are under ignored `build/releases/0.4.0/`.
+
+Next: return ADB access, run a fresh disposable current-stock helper with
+`--projects`, install only `org.praxisog.hermes.fixture` and its test APK, select
+`ProjectsDeviceTest` explicitly, then inspect both Fold widths, keyboard and About.
+Keep the personal app stopped during fixture tests. Upgrade the personal app only
+with explicit resumed authorization, preserving its UID/data/signing lineage;
+the user installs the plugin on their own server. Physical upgrade, actual provider
+behavior and personal-profile access remain unverified.
+
+Compatibility: metadata is additive in `bellpull-projects/<principal>/` and must
+be backed up with the stable principal/native DB. Old apps/plugins ignore it.
+Current native forks with explicit branch markers inherit; older external forks
+without markers need a move. Selected-message branching retains its existing
+source compatibility gate; no broad native compatibility claim was added. Native
+Hermes clients do not automatically share Bellpull folder metadata. No project
+files, model instructions, task boards or offline write queue were added.
+
 ## 0.3.7 audit repair — 2026-10-11
 
 All six audited findings at `8597dbd` were verified and repaired locally on

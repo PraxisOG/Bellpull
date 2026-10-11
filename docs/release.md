@@ -1,9 +1,35 @@
 # Building and upgrading Bellpull
 
-The public download remains 0.3.3 preview. This repair branch builds **0.3.7,
-version code 10**. It is not published as a release. Do not reuse a version code after release.
+The public download remains 0.3.3 preview. This Phase 4 branch builds **0.4.0,
+version code 11**, paired with **Bellpull plugin 0.3.0**. It starts at the pushed
+0.3.7 repair commit `743dbe4`. Phase 4 has not been pushed or published.
+Do not reuse a version code after release.
 
-The current manual test delivery pairs this APK with **bellpull plugin 0.2.2**.
+The phone is unavailable overnight. Prepare and sign the candidate locally, but
+**do not use ADB** until the user returns access. The personal Hermes server
+remains off limits. See [Phase 4](PHASE-4-PROJECTS.md) for the current acceptance
+checklist. Older delivery evidence below describes the completed 0.3.7 work.
+
+For the next isolated device acceptance, start a fresh disposable stock fixture:
+
+```bash
+python tools/stock-device-fixture.py --hermes-source /PATH/TO/STOCK/HERMES --projects
+./android/gradlew -p android -PbellpullDeviceFixture=true :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Once ADB is available, install only the separate fixture application/test APKs,
+forward port 18646, and select `org.praxisog.hermes.ProjectsDeviceTest` explicitly.
+The test is guarded against the personal app package. It checks encrypted cache
+restoration, drafts, separate profile cache, project creation/moves/pin/new chat,
+native branching and real compaction. No provider call is needed. The authenticated
+`/fixture/projects/...` controls exist only in the disposable helper, never in
+the shipped plugin. Restart the fixture before repeating the test. Follow with
+manual cover/unfolded UI and About checks before any personal-app upgrade.
+
+Build the personal-app candidate using `python3 tools/release.py build`, preserving
+the same signing lineage. Compilation/signature verification is not device acceptance.
+
+The completed 0.3.7 manual test delivery paired that APK with **bellpull plugin 0.2.2**.
 Use the stock installation instructions in `plugins/bellpull/README.md`; Docker
 and `server-host/` are not required for persistent generated-file sharing. The
 user manages the personal server and has explicitly prohibited agent access.

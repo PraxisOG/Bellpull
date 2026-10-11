@@ -153,7 +153,7 @@ class StreamSteps:
         adapter._create_agent = create_agent
 
 
-async def serve(source, port, home, streaming=False, audit_repair=False):
+async def serve(source, port, home, streaming=False, audit_repair=False, projects=False):
     sys.path.insert(0, str(source))
     os.environ["HERMES_HOME"] = str(home)
     os.environ["BELLPULL_NTFY_URL"] = ""
@@ -174,13 +174,36 @@ async def serve(source, port, home, streaming=False, audit_repair=False):
     steps = StreamSteps()
     if streaming:
         steps.install(adapter, home, audit_repair)
+    if projects:
+        from aiohttp import web
+        routes = adapter._http_route_table
+        async def compact_project_chat(request):
+            error = adapter._check_auth(request)
+            if error is not None:
+                return error
+            database = await adapter._ensure_session_db_async()
+            session = request.match_info["session_id"]
+            if not database.get_session(session):
+                return web.json_response({"error": {"message": "Fixture session missing"}}, status=404)
+            continuation = session + "_continued"
+            if not database.get_session(continuation):
+                database.archive_and_compact(session, [{"role": "assistant", "content": "Project fixture summary"}])
+                database.end_session(session, "compression")
+                database.create_session(continuation, "api_server", parent_session_id=session)
+                database.append_message(continuation, "assistant", "Project chat survived compression.")
+            return web.json_response({"session_id": continuation})
+        def project_routes():
+            return routes() + [
+                ("POST", "/fixture/projects/{session_id}/compact", compact_project_chat),
+                ("POST", "/fixture/projects/{session_id}/fork", adapter._handle_fork_session)]
+        adapter._http_route_table = project_routes
     try:
         if not await adapter.connect():
             raise RuntimeError("Fixture adapter did not start")
         database = await adapter._ensure_session_db_async()
         database.create_session(session_id="phone_fixture", source="api_server", model="fixture")
         database.set_session_title("phone_fixture", "Stock file sharing fixture")
-        if streaming:
+        if streaming or projects:
             for source, title in (("cli", "CLI conversation"), ("tui", "TUI conversation"),
                                   ("telegram", "Telegram conversation"), ("api_server", "Live streaming check")):
                 session_id = "phone_stream" if source == "api_server" else "phone_" + source
@@ -220,6 +243,7 @@ if __name__ == "__main__":
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--audit-repair", action="store_true",
                         help="Fail first SSE request, compact the prompt, and delay saved completion until step five")
+    parser.add_argument("--projects", action="store_true", help="Seed conversation sources and add authenticated disposable project compaction/fork controls")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="bellpull-stock-device-") as directory:
-        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming or args.audit_repair, args.audit_repair))
+        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming or args.audit_repair, args.audit_repair, args.projects))

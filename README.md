@@ -42,6 +42,13 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
+This Phase 4 development branch builds **0.4.0 (code 11)** with **Bellpull plugin
+0.3.0**. Projects provide shared folder metadata, single membership, pins,
+archive/restore, a description and scoped search. Settings → About shows the
+actual installed app version and each saved server's last reported plugin version.
+The branch is local, with phone acceptance still pending; no new release is
+implied. See [the Phase 4 scope and acceptance checklist](docs/PHASE-4-PROJECTS.md).
+
 The repair branch builds **0.3.7 (code 10)** with **Bellpull plugin 0.2.2**:
 completion recovery after compaction, retrying failed initial streams, bounded
 file staging, compression-aware file membership, native profile URLs and repaired
@@ -88,7 +95,7 @@ text cover the response's prose, while tool rows retain their own details and da
 The chat's three-dot menu includes **View artifacts**. Android Back returns from
 Settings to your chat and closes an open conversations panel before leaving the app.
 
-Projects and Today still have placeholder pages. Settings include experimental immersive
+Today remains a placeholder page. Settings include experimental immersive
 mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion
 or Android's animation settings disable motion. See the handoff for physical-versus-rendered coverage.
 
