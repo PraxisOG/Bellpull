@@ -65,12 +65,12 @@ internal fun ContextPanel(
             }
             if (LocalImmersiveHeaders.current) {
                 CutoutHeader(title = {
-                    Text("Context", style = MaterialTheme.typography.titleLarge,
+                    Text("Info", style = MaterialTheme.typography.titleLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }, trailing = closeButton)
             } else Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text("Context", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text("Info", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 closeButton()
             }
             Column(

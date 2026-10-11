@@ -385,7 +385,7 @@ private fun MessageView(
                 if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
                 if (!message.content.isNullOrBlank()) {
                     if (message.role == "assistant") {
-                        Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge,
+                        MarkdownAnswer(message.content.orEmpty(),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp))
                     } else {
                         Text(message.role, style = MaterialTheme.typography.labelMedium,
@@ -438,7 +438,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val prose: @Composable (String) -> Unit = { value ->
-            Text(transcriptText(value), style = MaterialTheme.typography.bodyLarge,
+            MarkdownAnswer(value,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp)
                     .semantics(mergeDescendants = true) {})
         }

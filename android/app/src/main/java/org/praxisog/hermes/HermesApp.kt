@@ -40,6 +40,8 @@ internal fun HermesApp(
     onRetrySessions: () -> Unit,
     onRetryHistory: () -> Unit,
     onNewSession: () -> Unit,
+    sessionSource: String? = "api_server",
+    onSessionSourceChange: ((String?) -> Unit)? = null,
     creatingSession: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
     offline: OfflineState? = null,
@@ -121,7 +123,8 @@ internal fun HermesApp(
         }
     }
     HermesTheme(appearance = preferences.appearance, palette = preferences.palette, customAccent = preferences.customAccent) {
-        CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode) {
+        CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode,
+            LocalLabeledControls provides preferences.labeledControls) {
             branchError?.let { error ->
                 AlertDialog(onDismissRequest = onDismissBranchError,
                     title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
@@ -177,6 +180,8 @@ internal fun HermesApp(
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
                                 unreadIds = unreadIds, completionRevision = completionRevision,
                                 runLabels = runLabels,
+                                titleOnly = preferences.titleOnlyConversations,
+                                source = sessionSource, onSourceChange = onSessionSourceChange,
                                 onExpandedSearch = { expandedSearch = true })
                             WorkspaceModes(mode) { mode = it; drawerOnCover = false }
                         }

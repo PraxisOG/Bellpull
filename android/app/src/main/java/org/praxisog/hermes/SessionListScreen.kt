@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +77,9 @@ internal fun SessionListScreen(
     unreadIds: Set<String> = emptySet(),
     completionRevision: Long = 0,
     runLabels: Map<String, String> = emptyMap(),
+    titleOnly: Boolean = false,
+    source: String? = "api_server",
+    onSourceChange: ((String?) -> Unit)? = null,
 ) {
     val searching = query.isNotBlank()
     Surface(
@@ -106,8 +113,7 @@ internal fun SessionListScreen(
                         color = MaterialTheme.colorScheme.onSurface)
                 }, trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.IconButton(onClick = onExpandedSearch,
-                            modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }
+                        NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                         if (showNewChatButton) NewChatButton(onNewSession, creating)
                     }
                 })
@@ -119,10 +125,23 @@ internal fun SessionListScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f).padding(start = 14.dp),
                         color = MaterialTheme.colorScheme.onSurface)
-                    androidx.compose.material3.IconButton(onClick = onExpandedSearch,
-                        modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }
+                    NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                 }
                 if (showNewChatButton) NewChatButton(onNewSession, creating)
+            }
+            if (onSourceChange != null) {
+                var sourceMenu by remember { mutableStateOf(false) }
+                Box(Modifier.padding(start = 14.dp)) {
+                    TextButton(onClick = { sourceMenu = true }, modifier = Modifier.testTag("conversation-source")) {
+                        Text(sourceChoices.firstOrNull { it.second == source }?.first ?: source.orEmpty())
+                        Text(" ▾")
+                    }
+                    DropdownMenu(expanded = sourceMenu, onDismissRequest = { sourceMenu = false }) {
+                        sourceChoices.forEach { (label, value) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = { sourceMenu = false; onSourceChange(value) })
+                        }
+                    }
+                }
             }
             offline?.let { state ->
                 // Names the staleness AND which layer failed, because "offline" alone does not
@@ -199,7 +218,9 @@ internal fun SessionListScreen(
                         ) {
                             BellpullMark(size = 48.dp)
                             Text("Room for a new idea", style = MaterialTheme.typography.titleMedium)
-                            Text("No sessions on Hermes yet.", style = MaterialTheme.typography.bodyMedium,
+                            Text(if (onSourceChange != null && source != null)
+                                "No conversations in this source. Try All permitted sources."
+                                else "No visible conversations on this server.", style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -244,6 +265,8 @@ internal fun SessionListScreen(
                                     selected = session.id == selectedId,
                                     unread = session.id in unreadIds,
                                     runLabel = runLabels[session.id],
+                                    titleOnly = titleOnly,
+                                    showSource = source == null,
                                     onClick = { onOpen(session.id) },
                                 )
                             }
@@ -359,29 +382,40 @@ private fun SectionHeader(text: String) {
     )
 }
 
+private val sourceChoices = listOf("API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui",
+    "All permitted sources" to null)
+
 @Composable
-private fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null, onClick: () -> Unit) {
+private fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,
+    titleOnly: Boolean = false, showSource: Boolean = false, onClick: () -> Unit) {
     val background =
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     Surface(
         color = background, onClick = onClick, modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        border = if (titleOnly) null else BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = if (titleOnly) 10.dp else 14.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 session.title?.takeIf { it.isNotBlank() } ?: "Untitled session",
                 style = MaterialTheme.typography.titleMedium,
                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
+                modifier = Modifier.weight(1f),
+                maxLines = if (titleOnly) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            session.preview?.takeIf { it.isNotBlank() }?.let {
+            if (showSource) Text(when (session.source) { "api_server" -> "API"; "cli" -> "CLI"; "tui" -> "TUI"
+                else -> session.source ?: "Other" }, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (titleOnly && unread) UnreadDot(session.id)
+            }
+            if (!titleOnly) session.preview?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.bodyMedium,
@@ -391,7 +425,7 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, unread:
                 )
             }
             // Reserve the dot first; the metadata fits one line even in the narrow drawer.
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            if (!titleOnly) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText(
                     buildList {
@@ -407,14 +441,19 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, unread:
                     modifier = Modifier.weight(1f),
                 )
                 if (unread) {
-                    val accent = MaterialTheme.colorScheme.primary
-                    Canvas(Modifier.size(8.dp).testTag("unread-${session.id}")
-                        .semantics { contentDescription = "Unread reply" }) { drawCircle(accent) }
+                    UnreadDot(session.id)
                 }
             }
-            runLabel?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            if (!titleOnly) runLabel?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
         }
     }
+}
+
+@Composable
+private fun UnreadDot(id: String) {
+    val accent = MaterialTheme.colorScheme.primary
+    Canvas(Modifier.size(8.dp).testTag("unread-$id")
+        .semantics { contentDescription = "Unread reply" }) { drawCircle(accent) }
 }
 
 @Composable

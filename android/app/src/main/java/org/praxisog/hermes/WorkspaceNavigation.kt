@@ -49,7 +49,7 @@ internal fun ToolsWorkspace(onSearch: () -> Unit, onContext: (() -> Unit)?,
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Open an app or turn a search into a new chat draft.", style = MaterialTheme.typography.bodyMedium)
         OutlinedButton(onClick = onSearch) { Text("Search apps & chats") }
-        if (onContext != null) OutlinedButton(onClick = onContext) { Text("Conversation context") }
+        if (onContext != null) OutlinedButton(onClick = onContext) { Text("Session info") }
         if (extraTools != null) extraTools() else Text("Connect a server in Settings to use server tools.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -69,6 +69,7 @@ internal fun WorkspaceSearch(
                 Text("Conversations", style = MaterialTheme.typography.titleLarge)
                 OutlinedTextField(value = query, onValueChange = onQueryChange, singleLine = true,
                     label = { Text("Search apps & chats") }, modifier = Modifier.fillMaxWidth())
+                Text("Searches titles and previews in the loaded conversation list.", style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider()
                 Box(Modifier.weight(1f)) {
                     SearchResults(query, sessions, apps, now, selectedId, onOpen, onLaunchApp, onAsk)

@@ -57,6 +57,7 @@ class BellpullInteractionTest {
 
     @Test fun followUpQuotesIntoAnEditableDraftWithoutSending() {
         app(listOf(Message(91, role = "assistant", content = "Use the green wire.")))
+        compose.onNodeWithText("Use the green wire.").performTouchInput { longClick() }
         compose.onNodeWithContentDescription("Follow up").performClick()
         compose.onNodeWithText("Quote selection").performClick()
         compose.onNodeWithContentDescription("Message Hermes").assertTextContains("message #91", substring = true)

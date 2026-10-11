@@ -30,7 +30,9 @@ internal data class BellpullPreferences(
     val customAccent: String = "59091E",
     val notifications: Boolean = false,
     val immersiveMode: Boolean = false,
-    val denseChatWindow: Boolean = false,
+    val denseChatWindow: Boolean = true,
+    val titleOnlyConversations: Boolean = true,
+    val labeledControls: Boolean = false,
 )
 
 internal fun normalizedAccent(text: String): String? = text.trim().removePrefix("#")
@@ -48,7 +50,9 @@ internal class BellpullSettings(context: Context) {
         customAccent = normalizedAccent(prefs.getString("custom_accent", "59091E").orEmpty()) ?: "59091E",
         notifications = prefs.getBoolean("notifications", false),
         immersiveMode = prefs.getBoolean("immersive_mode", false),
-        denseChatWindow = prefs.getBoolean("dense_chat_window", false),
+        denseChatWindow = prefs.getBoolean("dense_chat_window", true),
+        titleOnlyConversations = prefs.getBoolean("title_only_conversations", true),
+        labeledControls = prefs.getBoolean("labeled_controls", false),
     ))
         private set
     fun update(next: BellpullPreferences) {
@@ -59,6 +63,8 @@ internal class BellpullSettings(context: Context) {
             .putBoolean("reduce_motion", validated.reduceMotion)
             .putBoolean("immersive_mode", validated.immersiveMode)
             .putBoolean("dense_chat_window", validated.denseChatWindow)
+            .putBoolean("title_only_conversations", validated.titleOnlyConversations)
+            .putBoolean("labeled_controls", validated.labeledControls)
             .putString("palette", validated.palette.name)
             .putString("custom_accent", validated.customAccent).apply()
         prefs.edit().putBoolean("notifications", validated.notifications).apply()
@@ -136,6 +142,10 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
         HorizontalDivider()
         PreferenceSwitch("Dense chat window", "Hide speaker names and action bars. Long-press a message for its actions.",
             preferences.denseChatWindow) { onChange(preferences.copy(denseChatWindow = it)) }
+        PreferenceSwitch("Title-only conversations", "A compact list of chat titles. Turn off to include previews and statistics.",
+            preferences.titleOnlyConversations) { onChange(preferences.copy(titleOnlyConversations = it)) }
+        PreferenceSwitch("Larger labeled controls", "Show labels and larger icons on navigation controls.",
+            preferences.labeledControls) { onChange(preferences.copy(labeledControls = it)) }
         PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
             preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
         PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",

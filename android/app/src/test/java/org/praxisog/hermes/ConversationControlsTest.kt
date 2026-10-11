@@ -122,7 +122,7 @@ class ConversationControlsTest {
         app(openId = { id.value })
         compose.onNodeWithContentDescription("Message Hermes").performTextInput("Keep this draft")
         menu("Session info")
-        compose.onNodeWithText("Context").assertIsDisplayed()
+        compose.onNodeWithText("Info").assertIsDisplayed()
         compose.onNodeWithContentDescription("Close context").performClick()
         compose.onNodeWithText("Keep this draft").assertIsDisplayed()
         compose.runOnIdle { id.value = "api_2_beta" }
