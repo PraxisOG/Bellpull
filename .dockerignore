@@ -1,0 +1,8 @@
+**
+!server-host
+!server-host/**
+!plugins
+!plugins/bellpull
+!plugins/bellpull/**
+**/__pycache__
+**/*.pyc
