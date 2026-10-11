@@ -1,5 +1,86 @@
 # Bellpull / Hermes app handoff
 
+## Repair and plugin migration — 2026-10-10
+
+Branch **`repair/bellpull-plugin-migration`**, based on heading-alignment checkpoint
+`032486e` / upstream `e41f151`. The user authorized execution of
+`Bellpull-Repair-and-Plugin-Migration-Changelist.txt`, approved CommonMark Java
+0.30.1 plus tables, and selected **MIT** for Bellpull's own code. The original txt
+is retained as the investigation/proposal snapshot; this entry records execution.
+Phase 4 expansion and importing/merging provider history remain deferred.
+
+Android **0.3.4 (code 7)** now has native Markdown answers (headings, emphasis,
+lists, links, tables, code-block copying), title-only conversation navigation and
+dense defaults, optional larger labeled navigation controls, consistent Info /
+Session info wording, deliberate API/CLI/TUI/all-source selection, and complete
+saved-transcript paging. Existing stored density preferences remain respected.
+Global search says it searches loaded titles/previews; chat search and View prompts
+receive the completely loaded saved transcript. Raw whole-message copy and native
+selection remain available. Stream scroll/follow regressions pass.
+
+Artifact UI adds quota/collection warnings, confirmed deletion, unavailable/deleted
+history references and branch attachment aliases. Local draft files are protected
+from housekeeping. Terminal/history-synced run records expire after 30 days;
+ambiguous, outstanding and unsynced runs are retained.
+
+`plugins/bellpull/` is one installable package for branch/edit, files, models,
+notifications and optional telemetry. `server-host/` supplies the small proposed
+local native contract against exactly pinned Hermes v2026.9.7 / internal 0.21.1.
+It preserves the native run engine; no adapter method replacement or native static
+flag mutation. Exact source checks disable unsupported combinations. Android merges
+versioned plugin discovery with native structured run capabilities. Stable artifact
+identity survives bearer rotation; explicit offline migration preserves legacy
+IDs/content/metadata and old namespaces. New per-run output folders avoid old-file
+starvation. Plugin unload/shutdown closes notification and paging resources.
+
+Read-only production investigation found `/opt/data` backed by `~/hermes-data`,
+with **47 API, 7 CLI, 1 TUI conversations and 545 messages** at inspection. The
+former API-only source filter hid CLI/TUI chats. This is evidence about the inspected
+default home, not proof of device acceptance or of every possible profile's history.
+No live config/data/container changes or new inference were made for this repair.
+
+Validation: **336 JVM tests passed, one opt-in live smoke skipped; 121 screenshot
+baselines verified; debug APK and lint passed (zero errors, 39 warnings, four hints).
+63 isolated plugin/native tests pass** using real aiohttp, SQLite, plugin discovery,
+native adapter startup/shutdown, and fake inference, with no production mounts or
+network access. They cover >50-chat/>500-message activity-stable paging, compression,
+auth/profile isolation, exact branches and transaction rollback, migration/rotation,
+quotas, interrupted uploads, repeated outputs, admission races and full slots,
+restart recovery, opt-in/default/parallel/timeout approvals, and unload cleanup.
+Rendered cover/unfolded, dark/light and 1.5x text layouts were inspected; the dense
+conversation before/after diff is under ignored
+`android/app/build/repair-review/conversation-diff.png`.
+
+CI has Android test/screenshot/APK/lint and isolated plugin jobs with pinned actions,
+read-only permissions, no signing secrets, inference or deployment. Equivalent job
+commands passed locally; the GitHub-hosted workflow has not run because this branch
+has not been pushed. Release instructions are in `docs/release.md`.
+
+A dedicated RSA-4096 release key and the preview-to-release signing lineage were
+prepared outside Git in `~/.config/bellpull/signing` (0700, private files 0600).
+The original public preview certificate was checked against the downloaded 0.3.3
+APK. The release APK verifies for the supported Android range; this does not prove
+an actual on-device upgrade. No second-device/offline key backup has been made.
+Private signing material must be backed up before publishing.
+
+**Remaining acceptance work:**
+
+- ADB currently reports **no attached device**. Connect and unlock the Fold to
+  verify the in-place signing upgrade, existing profiles/drafts/settings, Markdown,
+  source selection, compact/labeled controls and natural fold/unfold behavior.
+- The thin plugin image is built locally as `bellpull:plugin-repair`; production
+  still uses the legacy overlay image. Prepare a maintenance-window data backup,
+  review migration dry-run, then obtain deployment approval before stopping writers,
+  migrating artifacts or changing the live image/config. Perform harmless authorized
+  production model/file/approval/notification parity checks after migration.
+- Keep `server-patches/` and the old final image as rollback until parity is accepted.
+  Neither remote branch publication nor an APK release has been performed.
+
+Current authorities: `plugins/bellpull/README.md` for install/migrate/rollback,
+`docs/hermes-api.md` for wire contracts, `docs/release.md` for signing/upgrades.
+The older chronological entries below describe earlier releases and decisions;
+this entry supersedes their default density, labeling and backend setup statements.
+
 ## Conversations heading matches chat titles — 2026-10-10
 
 Branch `ui/align-conversations-heading` starts from tested checkpoint `e41f151`.

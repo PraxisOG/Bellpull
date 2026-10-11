@@ -21,7 +21,7 @@ build without uninstalling it. Existing connections migrate into an **Existing s
 profile with their local chats and drafts preserved.
 
 Use a reachable HTTPS URL, or your server's Tailscale address. Optional Bellpull
-features need the [server extensions](server-patches/README.md); the app checks
+features use the [Bellpull plugin](plugins/bellpull/README.md); the app checks
 what your server supports. Source/build details follow below.
 
 A native Android chat client for a self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built with Kotlin and Jetpack Compose. Designed for compact, adaptive conversation layouts on a Pixel Fold running GrapheneOS, without Firebase or Google Play Services.
@@ -42,23 +42,34 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
+The repair branch builds **0.3.4 (code 7)**: native CommonMark rendering with code
+copy, dense/title-only navigation defaults, optional larger labeled controls,
+source-scoped history and complete paging, Info labels, artifact lifecycle controls
+and bounded run-journal retention. A single Bellpull plugin plus a small generic
+pinned Hermes host contract replaces the historical source-overlay chain as the
+tested migration target. The public download and gallery above remain 0.3.3.
+Live migration and physical device acceptance are pending; see
+[handoff](docs/HANDOFF.md), [plugin setup/rollback](plugins/bellpull/README.md),
+[API contract](docs/hermes-api.md), and [release signing](docs/release.md).
+
 Bellpull Phase 2 is implemented: streaming conversations, compact tool/thinking rows, searchable history, context panels, message copying and read-aloud, selected-message branching, prompt editing, themes and Android wallpaper colors. Durable runs recover from disconnects and app restarts; unread conversations rise to the top. Optional ntfy-backed notifications and exact-request tool approvals use the accompanying server extensions.
 
 Phase 2 also includes encrypted named server profiles, switching, sign-out and removal
 of saved credentials. Chats, drafts, unread state and run recovery are isolated by profile.
 New installations open a useful disconnected workspace with optional setup in Settings.
 
-Phase 3 adds configured model selection in Context, supported reasoning controls,
+Phase 3 adds configured model selection in Info, supported reasoning controls,
 per-profile defaults for new chats, file/image selection and camera capture, persistent
 uploads with retry/cancel, native PDF/image previews, a Tools attachment browser, and
 Android share-in/share-out. Generated files use the same authenticated records as
 uploads. Files appear as compact conversation artifacts with filename, Download and
 View actions. View opens a rounded preview dialog with scrolling, fit/zoom, PDF page
 navigation, Open/Save/Share, and an optional right drawer for side-by-side reading.
-The separate [GPU plugin](plugins/bellpull_gpu/README.md) reads local
+The Bellpull plugin includes GPU telemetry that reads local
 AMD/NVIDIA temperatures on the Hermes host; no SSH or model call is needed.
 
-These features require the [Phase 3 server extension](server-patches/bellpull-phase3/README.md).
+The old [Phase 3 extension](server-patches/bellpull-phase3/README.md) remains the
+production rollback until the new plugin is accepted.
 Model availability and vision/reasoning depend on the configured backend. The verified
 local Qwen route supports thinking On/Off, not graded effort. GPU cards appear only
 when the plugin can read actual hardware; missing tools/sensors show unavailable.

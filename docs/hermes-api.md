@@ -16,6 +16,12 @@ ownership bypass exists. The supported pair is Hermes v2026.9.7 (internal 0.21.1
 with generic host API v1 and Bellpull plugin 0.1.0. Other versions are not assumed
 compatible.
 
+Compatibility also checks the exact reviewed native source hashes; matching only
+the internal version string is insufficient. Plugin unload closes wake publishing,
+open broker subscriptions and paging snapshots. Frozen plugin routes and new
+Bellpull preparations return 503 until gateway restart; native admitted work can
+finish without losing its file-collection callbacks.
+
 ### Versioned discovery
 
 GET `/api/bellpull/capabilities` returns:

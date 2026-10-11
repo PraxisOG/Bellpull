@@ -1,5 +1,11 @@
 # Server extensions for Bellpull
 
+**Legacy rollback archive.** New installations should use the single
+[Bellpull plugin and pinned host contract](../plugins/bellpull/README.md).
+The four-layer chain below is preserved until production/device parity is accepted.
+Do not combine it with the new plugin: their routes overlap. The commands and
+activation helpers below describe historical deployment, not an automatic upgrade.
+
 These bundles were imported from the working host on 2026-10-09 so the Android repository can be handed to another server without losing its required API changes. They contain source, reviewable diffs, isolated tests and historical activation helpers. They do not contain live configuration, databases or API credentials.
 
 Build the image chain in this order from the repository root:

@@ -63,10 +63,12 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
-**Current authority (2026-10-09):** `Bellpull-Implementation-Prompt.txt` and later
-user refinements define Bellpull Phases 0–7. The Tier 1/2/3 paragraphs below are
-historical, not the active phase plan. Bellpull Phase 2 is reliable runs, unread
-state, notifications, approvals, and the added server-profile/disconnected slice.
+**Current authority (2026-10-10):** the user authorized execution of
+`Bellpull-Repair-and-Plugin-Migration-Changelist.txt` on
+`repair/bellpull-plugin-migration`. Finish that repair list before expanding Phase 4.
+`Bellpull-Implementation-Prompt.txt` remains the background Phases 0–7 plan.
+Significant offline work, saved-answer/project expansion, and importing/merging
+provider history into Hermes are deferred. The old Tier roadmaps below are historical.
 
 **Tier 1 is code-complete** (see `ROADMAP.md`). **Tier 2 is planned and startable** — see
 `ROADMAP-TIER2.md`, which has its own gate, slices, and a set of decisions marked *do not
@@ -132,14 +134,17 @@ without saying so first**, because that's the live instance.
 
 **The default branch is `master`, not `main`.**
 
-**The live server is managed outside this repo.** Versioned Bellpull extension bundles
-are now included in `server-patches/` for reproducible builds and server handoff; see
-`server-patches/README.md` before deploying them elsewhere. Hermes plugins go in `~/hermes-data/plugins/`
+**The live server is managed outside this repo.** The current migration target is
+one plugin in `plugins/bellpull/` plus the generic pinned host contract in
+`server-host/`. Read `plugins/bellpull/README.md` for installation, migration and
+rollback. `server-patches/` is the preserved legacy chain, still the production
+rollback until parity/device acceptance. Hermes plugins go in `~/hermes-data/plugins/`
 on the host (`/opt/data/plugins/` in the container) — **not** `~/.hermes/plugins/`, which does
 not exist here. Four root-owned `hermes-launcher-*` directories sit there, but they were
 verified empty on 2026-09-16; use Hermes' bundled plugins as format examples. The gateway
-runs as uid 1000. `ntfy` (`127.0.0.1:2586`) and `searxng` also run as host processes, not from
-any Compose file in this repo.
+runs as uid 1000. `ntfy` (`127.0.0.1:2586`) and `searxng` are externally managed
+services; Docker containers for them were observed on 2026-10-10. There is no
+Compose definition for them in this repo.
 
 ## Commands
 
@@ -172,19 +177,26 @@ cd mock-hermes && ./run.sh   # http://127.0.0.1:8643, override with MOCK_HERMES_
 cd android && ./gradlew installDebug
 ```
 
+After upgrading to the dedicated release certificate, use `tools/release.py` and
+`docs/release.md` for installs. An ordinary debug APK cannot be assumed to update
+that installation; preserve the signing lineage and app data.
+
 ## Working agreement
 
-- **Plan before code.** Anything larger than a single file: produce a plan and wait.
+- **Plan significant work.** The current repair changelist is already authorized
+  for execution; do not ask again before its routine implementation/tests.
 - **One slice per branch**, small commits. Most of this is vibe-coded; cheap rollback is the
   safety net. Never bundle unrelated changes into one commit.
 - **Every UI change ends with a screenshot test run.** Show the diff images.
 - **Don't add a dependency without asking.** Especially not a Google/Play one. Approved so
   far, and the whole list: `kotlinx-serialization-json` and `okhttp` (core-hermes/core-model),
-  Compose + `androidx.security:security-crypto` (app), Robolectric + Roborazzi (tests).
+  Compose + `androidx.security:security-crypto` (app), Robolectric + Roborazzi (tests),
+  and user-approved CommonMark Java 0.30.1 with its table extension (2026-10-10).
   OkHttp was chosen over `HttpURLConnection` for the SSE path specifically because a
   long-lived stream needs clean cancellation and a bounded connect timeout with no read
   timeout; `HttpURLConnection.disconnect()` mid-read is not well defined.
-- **Don't touch `infra/prod/`.** Promotion is a manual env-file swap.
+- **Deploy only a reviewed result.** Prepare checks, backups and rollback first;
+  live deployment and publication are separate from local implementation.
 
 ## Tone
 
