@@ -50,6 +50,12 @@ configuration, credentials and data homes. A valid profile key authorizes that
 profile's artifacts; this is not a new per-chat or multi-user permission system.
 Unknown profiles and missing keys fail closed.
 
+Unloading closes wake-publishing tasks, active broker subscriptions and paging
+snapshots. Existing frozen HTTP routes return 503 and new Bellpull run preparations
+fail visibly. Restart the gateway to install or re-enable handlers; live router
+replacement is not supported. Already admitted native runs retain their callbacks
+and can finish collecting files while the gateway remains up.
+
 Optional environment variable `BELLPULL_NTFY_URL` defaults to
 `http://127.0.0.1:2586` **inside the gateway's network namespace**. Empty disables
 notifications. Only loopback HTTP is accepted. Keep the existing ntfy service;

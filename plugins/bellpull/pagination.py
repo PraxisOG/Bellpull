@@ -17,8 +17,10 @@ class Snapshots:
         self.adapter = adapter
         self.values = OrderedDict()
         self.bytes = 0
+        self.closed = False
 
     def close(self):
+        self.closed = True
         self.values.clear()
         self.bytes = 0
 
@@ -30,6 +32,8 @@ class Snapshots:
                 del self.values[key]
 
     async def page(self, request, kind):
+        if self.closed:
+            raise ArtifactError("Bellpull was unloaded; restart the gateway.", 503)
         self._expire()
         scope = self.adapter._run_idempotency_scope(request)
         source = request.query.get("source") or None
@@ -86,6 +90,8 @@ class Snapshots:
                 _, old = self.values.popitem(last=False)
                 self.bytes -= old[3]
             token, offset = uuid.uuid4().hex, 0
+            if self.closed:
+                raise ArtifactError("Bellpull was unloaded; restart the gateway.", 503)
             self.values[token] = (time.monotonic(), identity, payload, size, resolved)
             self.bytes += size
         data = payload[offset:offset + limit]

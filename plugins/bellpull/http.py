@@ -32,12 +32,20 @@ def wire(app, adapter):
     sampler = Sampler()
     snapshots = Snapshots(adapter)
     housekeeping = {}
+    active = True
+    def stop():
+        nonlocal active
+        active = False
+        snapshots.close()
+        relay.stop()
     async def close():
         snapshots.close()
         await relay.close()
 
     def authenticated(handler):
         async def guarded(request):
+            if not active:
+                return web.json_response({"error": {"message": "Bellpull was unloaded; restart the gateway"}}, status=503)
             if not callable(getattr(adapter, "_expected_api_key", None)) or not callable(getattr(adapter, "_check_auth", None)):
                 return web.json_response({"error": {"message": "Unsupported Hermes authentication contract"}}, status=503)
             if not adapter._expected_api_key():
@@ -86,6 +94,8 @@ def wire(app, adapter):
     def prepare(request, body, session_id, text):
         if "bellpull" not in body:
             return None
+        if not active:
+            raise host.ExtensionError("Bellpull was unloaded; restart the gateway", 503)
         try:
             prepared = models_files.prepare_run(adapter, request, body, session_id, text)
         except ArtifactError as exc:
@@ -162,3 +172,4 @@ def wire(app, adapter):
     for method, path, handler in routes:
         for prefix in ("", "/p/{profile}"):
             app.router.add_route(method, prefix + path, authenticated(handler))
+    return stop

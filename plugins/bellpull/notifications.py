@@ -24,6 +24,7 @@ class Relay:
             raise ValueError("Bellpull ntfy must use an unauthenticated loopback HTTP URL")
         self.loop = asyncio.get_running_loop()
         self.tasks = set()
+        self.subscriptions = set()
         self.seen = OrderedDict()
         self.closed = False
 
@@ -65,6 +66,16 @@ class Relay:
     async def events(self, scope, request):
         if not self.url:
             return web.json_response({"error": {"message": "Notification relay is not configured"}}, status=503)
+        if self.closed:
+            return web.json_response({"error": {"message": "Bellpull was unloaded; restart the gateway"}}, status=503)
+        task = asyncio.current_task()
+        self.subscriptions.add(task)
+        try:
+            return await self._events(scope, request)
+        finally:
+            self.subscriptions.discard(task)
+
+    async def _events(self, scope, request):
         async with ClientSession(timeout=ClientTimeout(total=None, connect=10, sock_read=90)) as client:
             async with client.get(f"{self.url}/{topic(scope)}/json?since=10m&poll=0", allow_redirects=False) as upstream:
                 if upstream.status != 200:
@@ -81,8 +92,11 @@ class Relay:
                     await response.write(("event: bellpull.wake\ndata: " + json.dumps(safe) + "\n\n").encode())
                 return response
 
-    async def close(self):
+    def stop(self):
         self.closed = True
-        for task in tuple(self.tasks):
-            task.cancel()
-        await asyncio.gather(*self.tasks, return_exceptions=True)
+        for task in tuple(self.tasks | self.subscriptions):
+            self.loop.call_soon_threadsafe(task.cancel)
+
+    async def close(self):
+        self.stop()
+        await asyncio.gather(*(self.tasks | self.subscriptions), return_exceptions=True)

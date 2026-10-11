@@ -65,5 +65,8 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(features["bellpull_persistent_artifacts"])
                 self.assertEqual(404, (await client.get("/p/unserved/api/bellpull/capabilities",
                     headers={"Authorization": "Bearer clean-install-fixture"})).status)
+                manager.unload()
+                self.assertEqual(503, (await client.get("/api/bellpull/capabilities",
+                    headers={"Authorization": "Bearer clean-install-fixture"})).status)
             adapter._run_idempotency_store.close()
             manager.unload()
