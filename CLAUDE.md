@@ -63,6 +63,17 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Current authority (2026-10-12, Phase 6 implementation):** the user approved
+building out the proposed Hermes/OpenCode activity view while away, with phone
+acceptance on return. Work on `feature/phase6-opencode-activity`: portable plugin
+observer/journal, authenticated discovery and read-only activity/workspace APIs,
+Android timeline/recovery and read-only diffs. Define Bellpull-owned contracts in
+`docs/hermes-api.md`; never guess upstream contracts. Validate using disposable
+local fixtures/hosts and local Android tests, no personal server or phone access.
+No new runner, arbitrary terminal, blanket permission, push, merge or publication.
+The user reports backend caching is fixed: Phase 7 is now Hermes prompt
+optimization/latency verification, with no Quick Chat app feature planned.
+
 **October 12 installation update:** the user requested installation of 0.5.5.
 Signed Phase 5 commit `c5dceec` was installed in place (code 17), preserving signer,
 UID 10260 and both data-directory inodes. Personal app left stopped; no server
