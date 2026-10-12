@@ -68,9 +68,11 @@ trust, not a second use of the old one.
 Moonshine Tiny, Small and Medium Streaming, Settings organization, downloads/switching
 and direct-input CPU benchmarks before additional models or acceleration ports.
 Display is a separate category; experiments belong under Voice → Experimental.
-ADB is authorized. Use the separate fixture app and preserve personal signing/data;
-do not access the personal Hermes server. Dependency approval was requested and
-is pending for the Moonshine SDK/native runtimes. A separate pending request covers
+The user approved Moonshine CPU SDK 0.1.5, then explicitly requested a pause after
+adding it and took back the phone. **Pause here; do not use ADB or continue runtime
+integration/benchmarks until resumed.** Use the separate fixture app and preserve
+personal signing/data when phone testing resumes; do not access the personal Hermes
+server. A separate pending request covers
 an optional exception for standalone Google LiteRT/Tensor libraries. Do not treat
 Parakeet TDT's Pixel TPU route as proof of Realtime EOU compatibility. Report actual
 backend, source-checked inputs, timing annotation limits and measured/untested/blocked
@@ -235,6 +237,9 @@ that installation; preserve the signing lineage and app data.
   far, and the whole list: `kotlinx-serialization-json` and `okhttp` (core-hermes/core-model),
   Compose + `androidx.security:security-crypto` (app), Robolectric + Roborazzi (tests),
   and user-approved CommonMark Java 0.30.1 with its table extension (2026-10-10).
+  Moonshine Voice Android CPU SDK 0.1.5 is also user-approved (2026-10-11), with
+  unused Google Material and WorkManager transitives excluded. This does not
+  authorize Google LiteRT/Tensor libraries or additional speech runtimes.
   OkHttp was chosen over `HttpURLConnection` for the SSE path specifically because a
   long-lived stream needs clean cancellation and a bounded connect timeout with no read
   timeout; `HttpURLConnection.disconnect()` mid-read is not well defined.

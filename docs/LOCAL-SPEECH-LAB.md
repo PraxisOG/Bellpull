@@ -10,18 +10,19 @@ integration and baseline measurements before additional models or accelerator po
 Settings has collapsible categories, with Display separate from Appearance and
 private speech configuration under Voice. The experimental model UI, verified
 download manager, exclusive model owner and benchmark runner are implemented.
-**The experimental screen is not yet connected in MainActivity. No Moonshine
-runtime dependency has been added, and local recognition is not operational yet.**
-The native adapter and its VoiceService connection wait on the dependency question
-required by CLAUDE.md: “Don't add a dependency without asking.” The separate question
-about standalone Google LiteRT libraries concerns a later optional TPU experiment;
-it must not block the Moonshine CPU baseline.
+**Moonshine Voice CPU SDK 0.1.5 is approved and packaged, but the experimental
+screen is not yet connected in MainActivity and local recognition is not operational.**
+The user requested a pause immediately after adding the SDK and reclaimed the phone.
+Do not use ADB or continue native integration or benchmarks until resumed. No plugin
+update is required for local recognition; Bellpull plugin 0.3.0 can continue serving
+the existing remote chat interfaces. The separate question about standalone Google
+LiteRT libraries concerns a later optional TPU experiment.
 
 | Checkpoint | Quantization | Download bytes | Runtime | Actual backend / phone results |
 | --- | --- | ---: | --- | --- |
-| Moonshine Tiny Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 45,233,659 | Moonshine Voice 0.1.5 proposed | Blocked: runtime dependency approval pending; no phone recognition measurements |
-| Moonshine Small Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 142,300,974 | Moonshine Voice 0.1.5 proposed | Blocked: same |
-| Moonshine Medium Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 269,141,623 | Moonshine Voice 0.1.5 proposed | Blocked: same |
+| Moonshine Tiny Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 45,233,659 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused before native integration; no phone recognition measurements |
+| Moonshine Small Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 142,300,974 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused: same |
+| Moonshine Medium Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 269,141,623 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused: same |
 
 The pinned eight-file sets and upstream CRC32C values are in
 `android/app/src/main/assets/speech-models.json`, sourced from upstream commit
@@ -32,13 +33,14 @@ download; an interrupted individual file restarts. The installed marker is publi
 only after every file passes size/checksum validation. Loading re-verifies bytes.
 Deleting removes only the selected model's owned installed/partial directories.
 
-Runtime artifact inspected, **not added to the project**:
+Pinned runtime artifact added to the project:
 `ai.moonshine:moonshine-voice:0.1.5`, AAR SHA-256
 `ee2d95c21150683c743db8f3aef66281fd5408bcefc94be3ca1d2545ada1f571`.
-Its manifest includes an optional microphone permission Activity; Bellpull should
-remove that Activity and retain its existing capture/permission lifecycle. Inspect
-and exclude unused Google Material and WorkManager dependencies before integration.
-Retain required AndroidX types and the upstream/runtime license notices.
+Bellpull removes its optional microphone permission Activity and retains the existing
+capture/permission lifecycle. Unused Google Material and SDK WorkManager transitives
+are excluded; required AndroidX types remain. Upstream and native third-party license
+notices are retained in `third-party/` and packaged under `assets/licenses/`.
+The local build and lint pass with the pinned SDK; native loading is not device-tested.
 
 Sources: [Moonshine Android SDK](https://github.com/moonshine-ai/moonshine/tree/234f60faa0eb388b01cdf7e60aca232af37aefda/android),
 [model documentation](https://moonshine-voice.readthedocs.io/en/latest/models/available-models/),
@@ -119,14 +121,16 @@ ADB monitoring is supplementary: use the app API for thermal headroom.
   unload-before-switch, failed-switch/cancel cleanup, settings organization and
   cover/unfolded screenshots. `test verifyRoborazziDebug assembleDebug lintDebug`
   passed: 461 tests passed and one opt-in live-server test skipped; 154 screenshot
-  baselines. Two thermal-parser Python tests passed. The corpus generator completed
+  baselines, including a repeat after adding the SDK. The APK contains its arm64
+  native libraries and matching license assets; its merged manifest excludes the
+  SDK permission Activity. Two thermal-parser Python tests passed. The corpus generator completed
   for all four files and verified references against the primary dataset.
   Rerun checks after final native integration.
 - **Implemented but untested on hardware:** the benchmark runner's timing, PSS/RSS,
   app thermal-headroom sampling and sustained-run controls. Native recognition,
   app model downloads, switching and end-to-end offline dictation are unverified.
-- **Blocked:** all Moonshine phone recognition metrics until runtime approval and
-  integration. No cold-load, partial/final latency, WER, throughput or sustained
+- **Paused:** all Moonshine phone recognition metrics until native integration and
+  device testing resume. No cold-load, partial/final latency, WER, throughput or sustained
   thermal numbers are represented as measured.
 
 ## Later experiments
@@ -150,7 +154,7 @@ not a neural EOU sensitivity setting.
 
 ## Before delivery
 
-- Add the approved pinned runtime and license notices; implement the native adapter.
+- After the user resumes work, implement the native adapter for the added SDK.
 - Wire Settings → Voice → Experimental and explicit local/private recognizer choice.
   Missing selected local weights must never cause silent off-device transcription.
 - Preserve profile-scoped private credentials and drafts; offline STT does not make

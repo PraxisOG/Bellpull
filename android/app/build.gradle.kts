@@ -119,6 +119,11 @@ dependencies {
     // Approved Markdown parser; Compose owns rendering and link handling.
     implementation("org.commonmark:commonmark:0.30.1")
     implementation("org.commonmark:commonmark-ext-gfm-tables:0.30.1")
+    // User-approved local CPU speech SDK (2026-10-11). Bellpull owns capture/downloads.
+    implementation("ai.moonshine:moonshine-voice:0.1.5") {
+        exclude(group = "com.google.android.material")
+        exclude(group = "androidx.work")
+    }
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
