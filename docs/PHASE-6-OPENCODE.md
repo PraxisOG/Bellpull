@@ -46,6 +46,14 @@ ownership continue through the existing chat runtime.
   routes are deliberately disabled on this unreviewed core revision, and the optional
   extended run module is absent. These are not passing checks. The pinned Docker
   CI host is unavailable locally; no fresh CI result or provider/device result is claimed.
+- A second **local compatibility fixture** combines the same newer tree/plugin loader
+  with archived hash-verified legacy adapter/approval modules, the optional host v1
+  overlay and a synthetic 0.21.1 install stamp. It ran **116 tests: 113 passed, three
+  legacy approval failures**. The same three failures reproduce with unchanged 0.5.5
+  plugin `b25d09c` (10 approval tests, three failures). This narrows the limitation to
+  the mixed fixture's upstream approval compatibility; it is not evidence that the
+  exact pinned Docker CI host passed. Logs: `plugin-legacy-fixture-final.log` and
+  `legacy-approval-baseline.log`. No deployment uses these mixed modules.
 - Logs: `build/phase6/android-final.log`, `python-final.log`,
   `plugin-full-stock.log`. No personal server, phone, push, merge or release publication.
 

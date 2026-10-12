@@ -6,6 +6,9 @@ APK preview version `0.6.0-preview`/18; plugin `0.4.0-phase6`. Not installed or 
 [Implementation, actual checks, limitations and acceptance](PHASE-6-OPENCODE.md).
 The separate combined planning branch is at `/home/praxisog/Bellpull-phase8-9`.
 No personal server access or additional ADB use after the launch repair.
+Full Android checks passed. All 18 focused coding Python tests passed on stock.
+The local legacy compatibility fixture had 113/116 passing, with three approval
+failures also reproduced on the unchanged 0.5.5 plugin; exact Docker CI is unrun.
 
 # Bellpull / Hermes app handoff
 
