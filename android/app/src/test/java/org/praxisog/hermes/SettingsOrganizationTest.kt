@@ -1,8 +1,12 @@
 package org.praxisog.hermes
 
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -57,5 +61,53 @@ class SettingsOrganizationTest {
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithText("Experimental").assertExists()
         compose.onNodeWithText("Private transcription settings").assertExists()
+    }
+    @Test fun localModeDoesNotAskForRemoteCredentialsAndPrivateModeIsExplicit() {
+        var saved: VoiceConfiguration? = null
+        compose.setContent { HermesTheme {
+            androidx.compose.foundation.layout.Column {
+                VoiceSettingsEditor(VoiceConfiguration(), true, { saved = it })
+            }
+        } }
+        compose.onNodeWithText("Full transcription URL").assertDoesNotExist()
+        compose.onNodeWithText("Speech service key (if required)").assertDoesNotExist()
+        compose.onNodeWithText("Save voice settings").performClick()
+        compose.runOnIdle { assertEquals(VoiceRecognition.LOCAL, saved!!.recognition); assertEquals("", saved!!.endpoint) }
+        compose.onNodeWithText("Private server").performClick()
+        compose.onNodeWithText("Full transcription URL").assertExists()
+        compose.onNodeWithText("Speech service key (if required)").assertExists()
+        compose.onNodeWithText("On device").performClick()
+        compose.onNodeWithText("Full transcription URL").assertDoesNotExist()
+    }
+    private fun localSettings() {
+        compose.setContent { HermesTheme {
+            val context = LocalContext.current
+            val lab = remember { SpeechLab(context) { _, _ -> error("No native runtime in UI tests") } }
+            androidx.compose.material3.Surface {
+                androidx.compose.foundation.layout.Column(
+                    androidx.compose.ui.Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                    VoiceSettingsEditor(VoiceConfiguration(), true, {}, lab)
+                }
+            }
+        } }
+        compose.onNodeWithText("Full transcription URL").assertDoesNotExist()
+        compose.onNodeWithText("Moonshine Tiny Streaming").assertExists()
+        compose.onRoot().captureRoboImage()
+    }
+    @Test fun localSettingsCover() = localSettings()
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun localSettingsUnfoldedDark() = localSettings()
+    @Test fun modelPickerExposesAllThreeSizesAndSeparateCpuBackend() {
+        compose.setContent { HermesTheme { Settings() } }
+        compose.onNodeWithText("Voice").performScrollTo().performClick()
+        compose.onNodeWithText("Experimental").performScrollTo().performClick()
+        compose.onNodeWithText("Moonshine Tiny Streaming").performScrollTo().performClick()
+        compose.onNodeWithText("Moonshine Small Streaming · 142.30 MB").assertExists()
+        compose.onNodeWithText("Moonshine Medium Streaming · 269.14 MB").assertExists()
+        compose.onNodeWithText("Moonshine Small Streaming · 142.30 MB").performClick()
+        compose.waitUntil { compose.onAllNodesWithText("Moonshine Small Streaming").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("CPU").assertExists()
+        compose.onNodeWithText("142.30 MB · Not installed").assertExists()
+        compose.onNodeWithText("Download model").assertExists()
     }
 }

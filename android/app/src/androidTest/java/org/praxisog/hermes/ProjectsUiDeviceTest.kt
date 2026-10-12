@@ -10,8 +10,12 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -37,6 +41,8 @@ class ProjectsUiDeviceTest {
         }
     }
     private fun find(check: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+        // Dynamic Compose forms reuse virtual nodes; cached text/bounds can target a different control.
+        if (android.os.Build.VERSION.SDK_INT >= 34) automation.clearCache()
         fun visit(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
             if (check(node)) return node
             for (index in 0 until node.childCount) node.getChild(index)?.let { visit(it)?.let { found -> return found } }
@@ -47,6 +53,9 @@ class ProjectsUiDeviceTest {
     }
     private fun text(value: String) = find { it.text?.toString() == value }
     private fun tap(node: AccessibilityNodeInfo) {
+        node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+        automation.waitForIdle(150, 3000)
+        assertTrue("Touch target must still exist after scrolling", node.refresh())
         val bounds = Rect().also(node::getBoundsInScreen)
         val now = SystemClock.uptimeMillis()
         for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
@@ -88,18 +97,90 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.5.0", app.name)
-        assertEquals(12L, app.code)
+        assertEquals("0.5.1", app.name)
+        assertEquals(13L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {
                 AboutDialog(app, listOf(ServerPluginVersion("Current fixture", "https://current.invalid", "0.3.0", 0.0),
                     ServerPluginVersion("Old fixture", "https://old.invalid", "0.2.2", 0.0)), {})
             } } }
-            for (label in listOf("Installed app: 0.5.0 (build 12)", "Bellpull plugin: 0.3.0",
+            for (label in listOf("Installed app: ${app.name} (build ${app.code})", "Bellpull plugin: 0.3.0",
                 "Meets this app's minimum plugin version (0.3.0).", "Update needed. This app requires plugin 0.3.0 or newer.")) {
                 await { text(label) != null }
                 text(label)!!.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             }
+        }
+    }
+    @Test fun localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels() = withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val lab = SpeechLab(context)
+        val saved = AtomicReference<VoiceConfiguration>()
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            try {
+                scene.onActivity { activity -> activity.setContent { HermesTheme { Surface {
+                    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        VoiceSettingsEditor(VoiceConfiguration(), true, saved::set, lab)
+                    }
+                } } } }
+                await { text("On device") != null && text(lab.selected.label) != null }
+                assertNull(text("Full transcription URL"))
+                tap(text(lab.selected.label)!!)
+                val small = lab.models.single { it.id == "moonshine-small" }
+                val item = "${small.label} · ${formatSpeech(small.downloadBytes / 1_000_000.0)} MB"
+                await { text(item) != null }; tap(text(item)!!)
+                // Allow checksums/native loading without blocking the app thread.
+                val deadline = SystemClock.elapsedRealtime() + 60_000
+                while (true) {
+                    var done = false
+                    scene.onActivity { done = !lab.busy && lab.selectedId == small.id }
+                    if (done) break
+                    check(SystemClock.elapsedRealtime() < deadline) { "Model selection did not complete" }
+                    Thread.sleep(50)
+                }
+                await { text("Actual backend: CPU (ONNX Runtime)") != null }
+                tap(text("Private server")!!)
+                await { text("Full transcription URL") != null }
+                tap(text("On device")!!)
+                await { text("Local speech models") != null }
+                assertNull(text("Full transcription URL"))
+                // Compose omits fully offscreen children from Android accessibility.
+                var scrolls = 0
+                while (text("Save voice settings") == null && scrolls++ < 10) {
+                    val scroll = find { node -> node.isScrollable && node.actionList.any {
+                        it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                    } }
+                    assertNotNull("Voice settings must be scrollable", scroll)
+                    assertTrue(scroll!!.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD))
+                    Thread.sleep(150)
+                }
+                await { text("Save voice settings") != null }
+                text("Save voice settings")!!.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+                await {
+                    val bounds = Rect().also { text("Save voice settings")?.getBoundsInScreen(it) }
+                    !bounds.isEmpty && bounds.top >= 0 && bounds.bottom <= context.resources.displayMetrics.heightPixels
+                }
+                tap(text("Save voice settings")!!)
+                await { saved.get() != null }
+                assertEquals(VoiceRecognition.LOCAL, saved.get().recognition)
+                assertTrue(saved.get().endpoint.isBlank())
+            } catch (failure: Throwable) {
+                automation.takeScreenshot()?.let { bitmap ->
+                    java.io.File(context.filesDir, "local-settings-failure.png").outputStream().use {
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                    }
+                    bitmap.recycle()
+                }
+                val nodes = StringBuilder()
+                fun dump(node: AccessibilityNodeInfo) {
+                    val bounds = Rect().also(node::getBoundsInScreen)
+                    nodes.append("${node.text} / ${node.contentDescription}: $bounds; selected=${node.isSelected}; enabled=${node.isEnabled}; visible=${node.isVisibleToUser}\n")
+                    for (i in 0 until node.childCount) node.getChild(i)?.let(::dump)
+                }
+                automation.windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }.forEach { it.root?.let(::dump) }
+                java.io.File(context.filesDir, "local-settings-failure.txt").writeText(nodes.toString())
+                throw failure
+            } finally { lab.runtime.close() }
         }
     }
     @Test fun drawerFiltersAreReachableAndCompactRowsDoNotShowSourceBadges() = withWindows {

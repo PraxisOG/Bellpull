@@ -18,16 +18,19 @@ internal class SpeechModelRuntime(private val verify: (SpeechModel) -> Unit,
     private val create: (SpeechModel) -> LocalSpeechEngine) : AutoCloseable {
     private val lock = ReentrantLock()
     private var current: Pair<String, LocalSpeechEngine>? = null
-    val loadedModel: String? get() = lock.withLock { current?.first }
+    @Volatile var loadedModel: String? = null
+        private set
     fun <T> withModel(model: SpeechModel, block: (LocalSpeechEngine, Double) -> T): T = lock.withLock {
         var loadMs = 0.0
         if (current?.first != model.id) {
             val old = current
             current = null
+            loadedModel = null
             old?.second?.close()
             val start = System.nanoTime()
             verify(model)
             current = model.id to create(model)
+            loadedModel = model.id
             loadMs = (System.nanoTime() - start) / 1e6
         }
         try { block(current!!.second, loadMs) }
@@ -35,12 +38,14 @@ internal class SpeechModelRuntime(private val verify: (SpeechModel) -> Unit,
             // A cancelled or failed stream must never leak into the next utterance.
             try { current?.second?.close() } catch (cleanup: Throwable) { failure.addSuppressed(cleanup) }
             current = null
+            loadedModel = null
             throw failure
         }
     }
     override fun close() = lock.withLock {
         val old = current
         current = null
+        loadedModel = null
         old?.second?.close()
         Unit
     }
@@ -87,7 +92,15 @@ internal class SpeechBenchmarker(private val runtime: SpeechModelRuntime, privat
             peakRss.accumulateAndGet(rss, ::maxOf)
         }
         memory()
-        val memoryMonitor = launch(Dispatchers.IO) { while (isActive) { memory(); delay(250) } }
+        val benchmarkJob = currentCoroutineContext()[Job]!!
+        val memoryMonitor = launch(Dispatchers.IO) { while (isActive) {
+            memory()
+            if (thermals.severe) {
+                benchmarkJob.cancel(CancellationException("Phone reached severe thermal status."))
+                break
+            }
+            delay(250)
+        } }
         try {
             withContext(Dispatchers.IO) {
                 // Blocking native calls and the lock stay on the worker thread, never Compose/main.
@@ -100,6 +113,8 @@ internal class SpeechBenchmarker(private val runtime: SpeechModelRuntime, privat
                     var forcedLast = false
                     var deliveredMs = 0.0
                     val task = coroutineContext[Job]!!
+                    task.ensureActive()
+                    check(!thermals.severe) { "Phone reached severe thermal status. Benchmark stopped after model loading." }
                     val text = if (feed == SpeechFeed.THROUGHPUT) engine.transcribe(fixture.audio) else {
                         engine.start { update ->
                             if (update.text.isNotBlank()) {
@@ -139,7 +154,8 @@ internal class SpeechBenchmarker(private val runtime: SpeechModelRuntime, privat
                         engine.actualBackend, fixture.id, feed.name, repetition, loadMs, fixture.audio.seconds, elapsed,
                         firstPartial, fixture.lastWordEndMs?.let { end -> lastCompleted?.minus(end) },
                         forcedLast, premature, errors.edits, errors.referenceWords, peakPss.get(), peakRss.get(),
-                        thermalStart, thermals.snapshot(), text, fixture.audio.sourceSha256)
+                        thermalStart, thermals.snapshot(), text, fixture.audio.sourceSha256,
+                        engine.nativeInitializationMs.takeIf { loadMs > 0 })
                 }
             }
         } finally { memoryMonitor.cancelAndJoin() }

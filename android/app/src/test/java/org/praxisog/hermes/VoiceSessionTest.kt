@@ -38,9 +38,12 @@ class VoiceSessionTest {
     }
     @Volatile private var recognized = "Tell me about the costume."
     @Volatile private var failure = false
+    @Volatile private var unavailableRecognizer = false
     @Volatile private var transcriptions = 0
     private val voice = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(concise = false), output, capture,
-        transcriber = { object : VoiceTranscriber {
+        transcriber = {
+            check(!unavailableRecognizer) { "Selected local weights are missing." }
+            object : VoiceTranscriber {
             override fun transcribe(wav: ByteArray): Result<String> { transcriptions++; return if (failure) Result.failure(IllegalStateException("Speech offline")) else Result.success(recognized) }
             override fun close() {}
         } })
@@ -74,6 +77,19 @@ class VoiceSessionTest {
         assertEquals(VoiceState.REVIEW, voice.state); assertTrue(target.sent.isEmpty()); assertFalse(capture.active)
         voice.correct("Corrected words."); voice.sendTranscript(); output.complete()
         assertEquals(listOf("Corrected words."), target.sent)
+    }
+    @Test fun unavailableLocalRecognizerPausesWithRecoverableAudioAndNoAdmission() {
+        unavailableRecognizer = true
+        voice.start(VoiceMode.DICTATION); utterance()
+        assertEquals(VoiceState.PAUSED, voice.state)
+        assertTrue(voice.canRetryTranscription)
+        assertTrue(voice.notice!!.contains("local weights"))
+        assertTrue(target.sent.isEmpty()); assertEquals(0, transcriptions)
+        unavailableRecognizer = false
+        voice.retryTranscription()
+        await { voice.state == VoiceState.REVIEW }
+        assertEquals(recognized, voice.transcript)
+        assertTrue(target.sent.isEmpty()); assertEquals(1, transcriptions)
     }
     @Test fun interruptionDiscardsLatePlaybackWithoutCancelingAgentOrResubmitting() {
         voice.start(); utterance(); output.complete()

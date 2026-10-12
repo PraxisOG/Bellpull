@@ -136,7 +136,9 @@ private fun openSpeechModel(file: SpeechModelFile): InputStream {
 internal class SpeechExperimentSettings(context: Context) {
     private val prefs = context.getSharedPreferences("speech-experiments", Context.MODE_PRIVATE)
     val selectedModel get() = prefs.getString("model", "moonshine-tiny")!!
-    val localVoice get() = prefs.getBoolean("local-voice", false)
     fun select(id: String) { check(prefs.edit().putString("model", id).commit()) }
-    fun useLocal(value: Boolean) { check(prefs.edit().putBoolean("local-voice", value).commit()) }
+    fun tuning(id: String) = SpeechTuning(prefs.getInt("$id-update-ms", 500), prefs.getFloat("$id-vad-threshold", .5f))
+    fun tune(id: String, value: SpeechTuning) {
+        check(prefs.edit().putInt("$id-update-ms", value.updateMs).putFloat("$id-vad-threshold", value.vadThreshold).commit())
+    }
 }

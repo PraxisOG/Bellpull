@@ -50,7 +50,17 @@ class VoiceService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         val config = VoiceSettings(this, profile).read()
-        if (config.endpoint.isBlank()) { runtime.voiceStartError = "Configure your private transcription service first."; stopSelf(); return START_NOT_STICKY }
+        if (config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) {
+            runtime.voiceStartError = "Configure your selected private transcription service first."; stopSelf(); return START_NOT_STICKY
+        }
+        if (config.recognition == VoiceRecognition.LOCAL) {
+            val lab = runtime.speechLab
+            if (lab.busy || lab.selectedId !in lab.installed) {
+                runtime.voiceStartError = if (lab.busy) "Finish the speech experiment before starting voice." else
+                    "Download ${lab.selected.label} in Settings → Voice → Experimental first."
+                stopSelf(); return START_NOT_STICKY
+            }
+        }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "Voice session", NotificationManager.IMPORTANCE_LOW))
         fun action(name: String, request: Int) = PendingIntent.getService(this, request, Intent(this, VoiceService::class.java).setAction(name),
@@ -79,13 +89,17 @@ class VoiceService : Service() {
             selectRoute()
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
-                AndroidVoiceOutput(this, config.rate), AndroidVoiceCapture(scope), onClosed = { stopSelf() }, beforeResume = {
+                AndroidVoiceOutput(this, config.rate), AndroidVoiceCapture(scope), transcriber = {
+                    if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
+                    else HttpVoiceTranscriber(config)
+                }, onClosed = { stopSelf() }, beforeResume = {
                     val granted = focus?.let { audio.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED } == true
                     if (granted) selectRoute()
                     granted
                 }, onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
-                onTranscript = { savedVoice.saveTranscript(id, it) }, initialTranscript = savedVoice.pending(id),
+                onTranscript = { savedVoice.saveTranscript(id, it); if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
+                initialTranscript = savedVoice.pending(id),
                 onSubmission = savedVoice::saveRequest, priorRequestId = savedVoice.pendingRequest(id))
             runtime.voice = voice; runtime.voiceStartError = null
             started = true

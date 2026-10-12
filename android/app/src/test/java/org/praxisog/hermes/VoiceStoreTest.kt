@@ -18,6 +18,24 @@ class VoiceStoreTest {
     @Test fun voiceUsesOneDurableAdmissionAndNeverSpeaksReasoning() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
         val calls = AtomicInteger(); val finished = AtomicBoolean()
+        val recognitions = AtomicInteger()
+        val speechModel = SpeechModel("moonshine-tiny", "Tiny", 2, "fixture", "INT8", emptyList())
+        val local = SpeechModelRuntime({}, {
+            object : LocalSpeechEngine {
+                override val actualBackend = "CPU fixture"
+                override val runtimeVersion = "fake native inference"
+                override fun start(onUpdate: (SpeechUpdate) -> Unit) {}
+                override fun accept(samples: FloatArray) {}
+                override fun finish() = ""
+                override fun transcribe(audio: SpeechAudio): String {
+                    recognitions.incrementAndGet()
+                    assertEquals(16000, audio.sampleRate)
+                    assertTrue(audio.samples.any { it > 0f })
+                    return "Voice question"
+                }
+                override fun close() {}
+            }
+        })
         val saved = ConcurrentHashMap<String, RunSubmission>()
         val spoken = CopyOnWriteArrayList<String>()
         var playback: (() -> Unit)? = null
@@ -50,10 +68,7 @@ class VoiceStoreTest {
             }, object : VoiceCapture {
                 override fun start(frame: (ShortArray, Int) -> Unit, error: (String) -> Unit) = true
                 override fun close() {}
-            }, transcriber = { object : VoiceTranscriber {
-                override fun transcribe(wav: ByteArray) = Result.success("Voice question")
-                override fun close() {}
-            } })
+            }, transcriber = { LocalVoiceTranscriber(local, speechModel) })
         fun await(check: () -> Boolean) { repeat(400) { Snapshot.sendApplyNotifications(); if (check()) return; Thread.sleep(15) }; fail("Voice integration timed out: ${voice.state}") }
         try {
             store.openSession("one"); await { store.history is UiState.Ready }
@@ -68,6 +83,7 @@ class VoiceStoreTest {
             await { !store.runPresentation!!.busy && voice.state == VoiceState.READY }
             assertEquals(listOf("I'll ask Hermes.", "The answer starts here.", "More detail."), spoken)
             assertEquals(1, calls.get()); assertEquals(1, saved.size)
-        } finally { voice.close(); store.close(); scope.cancel(); client.close() }
+            assertEquals(1, recognitions.get())
+        } finally { voice.close(); store.close(); scope.cancel(); client.close(); local.close() }
     }
 }

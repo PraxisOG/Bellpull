@@ -32,8 +32,8 @@ android {
             "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
         targetSdk = 37
-        versionCode = 12
-        versionName = "0.5.0"
+        versionCode = 13
+        versionName = "0.5.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

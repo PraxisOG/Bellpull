@@ -70,7 +70,10 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
 internal class VoiceSession(val sessionId: String, val profileId: String, private val scope: CoroutineScope,
     private val conversation: VoiceConversation, private val config: VoiceConfiguration,
     private val output: VoiceOutput, private val capture: VoiceCapture,
-    private val transcriber: () -> VoiceTranscriber = { HttpVoiceTranscriber(config) },
+    private val transcriber: () -> VoiceTranscriber = {
+        check(config.recognition == VoiceRecognition.PRIVATE_SERVER) { "The local speech runtime is not connected." }
+        HttpVoiceTranscriber(config)
+    },
     private val onClosed: () -> Unit = {},
     private val beforeResume: () -> Boolean = { true },
     private val onPlayback: (String, Boolean) -> Unit = { _, _ -> },
@@ -223,10 +226,16 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         closeMic(); state = VoiceState.TRANSCRIBING
         endedAt = System.nanoTime(); transcriptionMs = null; firstTextMs = null; firstPlaybackMs = null
         val token = generation
-        val provider = transcriber(); currentTranscriber = provider
+        val provider = try { transcriber() } catch (error: Exception) {
+            canRetryTranscription = true; pause(error.message ?: "Could not start the selected recognizer."); return
+        }
+        currentTranscriber = provider
         transcriptionJob = scope.launch {
-            val result = withContext(Dispatchers.IO) { provider.transcribe(bytes) }
-            provider.close(); if (currentTranscriber === provider) currentTranscriber = null
+            val result = try {
+                withContext(Dispatchers.IO) { provider.transcribe(bytes) }
+            } finally {
+                provider.close(); if (currentTranscriber === provider) currentTranscriber = null
+            }
             if (closed || token != generation) return@launch
             transcriptionMs = (System.nanoTime() - endedAt) / 1_000_000
             result.fold({ text ->

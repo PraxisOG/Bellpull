@@ -79,6 +79,7 @@ internal data class SpeechUpdate(val text: String, val completedLine: Boolean = 
 internal interface LocalSpeechEngine : AutoCloseable {
     val actualBackend: String
     val runtimeVersion: String
+    val nativeInitializationMs: Double? get() = null
     fun start(onUpdate: (SpeechUpdate) -> Unit)
     fun accept(samples: FloatArray)
     fun finish(): String
@@ -93,4 +94,5 @@ internal data class SpeechRunMeasurement(
     val prematureEndings: Int, val wordEdits: Int, val referenceWords: Int,
     val peakPssKb: Int, val peakRssKb: Int, val thermalStart: String, val thermalEnd: String,
     val transcript: String, val audioSha256: String? = null,
+    val nativeInitializationMs: Double? = null,
 )

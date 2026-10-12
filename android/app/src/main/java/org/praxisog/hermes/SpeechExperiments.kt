@@ -16,15 +16,17 @@ import java.io.InputStream
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 
-internal class SpeechLab(context: Context, create: (SpeechModel, File) -> LocalSpeechEngine) {
+internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> LocalSpeechEngine)? = null) {
     private val app = context.applicationContext
     val models = speechCatalog(app.assets.open("speech-models.json").bufferedReader().use { it.readText() })
     val files = SpeechModelFiles(app)
     private val settings = SpeechExperimentSettings(app)
-    val runtime = SpeechModelRuntime(files::verify) { model -> create(model, files.directory(model)) }
+    val runtime = SpeechModelRuntime(files::verify) { model ->
+        create?.invoke(model, files.directory(model)) ?: MoonshineSpeechEngine(model, files.directory(model), settings.tuning(model.id))
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     var selectedId by mutableStateOf(settings.selectedModel); private set
-    var localVoice by mutableStateOf(settings.localVoice); private set
+    var tuning by mutableStateOf(settings.tuning(selectedId)); private set
     var installed by mutableStateOf(models.filter(files::installed).map { it.id }.toSet()); private set
     var partial by mutableStateOf(models.filter(files::hasPartial).map { it.id }.toSet()); private set
     var busy by mutableStateOf(false); private set
@@ -37,17 +39,25 @@ internal class SpeechLab(context: Context, create: (SpeechModel, File) -> LocalS
     private var task: Job? = null
     val selected get() = models.first { it.id == selectedId }
     fun choose(model: SpeechModel) = perform("Loading ${model.label}") {
-        selectedId = model.id; settings.select(model.id); actualBackend = null
+        selectedId = model.id; settings.select(model.id); tuning = settings.tuning(model.id); actualBackend = null
         withContext(Dispatchers.IO) {
             runtime.close()
-            runtime.withModel(model) { engine, _ -> engine.actualBackend }
+            if (files.installed(model)) runtime.withModel(model) { engine, _ -> engine.actualBackend } else null
         }.let { actualBackend = it }
     }
-    fun useLocal(value: Boolean) {
-        if (busy) return
-        if (value && selected.id !in installed) { notice = "Download the selected local model first."; return }
-        settings.useLocal(value); localVoice = value
-        if (!value) perform("Unloading local model") { withContext(Dispatchers.IO) { runtime.close() }; actualBackend = null }
+    fun unload() = perform("Unloading local model") {
+        withContext(Dispatchers.IO) { runtime.close() }; actualBackend = null
+    }
+    fun tune(value: SpeechTuning) = perform("Saving ${selected.label} settings") {
+        withContext(Dispatchers.IO) { runtime.close() }
+        settings.tune(selectedId, value); tuning = value; actualBackend = null
+        notice = "Saved. The next load uses these settings."
+    }
+    fun voiceTranscriber(): VoiceTranscriber {
+        check(!busy) { "Finish the speech experiment before starting voice." }
+        check(selectedId in installed) { "Download ${selected.label} in Settings → Voice → Experimental first." }
+        val thermals = SpeechThermals(app)
+        return LocalVoiceTranscriber(runtime, selected) { thermals.severe }
     }
     fun download(model: SpeechModel) = perform("Downloading ${model.label}") {
         files.download(model) { downloaded, total -> scope.launch { progress = downloaded.toFloat() / total } }
@@ -61,7 +71,7 @@ internal class SpeechLab(context: Context, create: (SpeechModel, File) -> LocalS
         }
         if (runtime.loadedModel == null) actualBackend = null
         refreshInstalled()
-        notice = if (localVoice && selectedId == model.id) "Local voice needs this model downloaded again before it can start." else "Model deleted."
+        notice = if (selectedId == model.id) "Local voice needs this model downloaded again before it can start." else "Model deleted."
     }
     fun importAudio(bytes: ByteArray) = perform("Reading benchmark WAV") {
         imported = withContext(Dispatchers.IO) { SpeechAudio.readWav(bytes) }
@@ -104,12 +114,24 @@ internal class SpeechLab(context: Context, create: (SpeechModel, File) -> LocalS
         installed = models.filter(files::installed).map { it.id }.toSet()
         partial = models.filter(files::hasPartial).map { it.id }.toSet()
     }
+    fun recognitionFinished() {
+        if (runtime.loadedModel == null) actualBackend = null
+        else actualBackend = "CPU (ONNX Runtime)"
+    }
     private fun perform(label: String, block: suspend () -> Unit) {
         if (busy) return
         busy = true; operation = label; notice = null; progress = null
         task = scope.launch {
             try { block() }
-            catch (canceled: CancellationException) { notice = "Experiment stopped. Completed model files and results are kept."; throw canceled }
+            catch (canceled: CancellationException) {
+                // A native load may finish after cancellation; retire it on the same worker lock.
+                withContext(NonCancellable + Dispatchers.IO) { runtime.close() }
+                actualBackend = null
+                notice = if (canceled.message?.contains("severe thermal") == true)
+                    "Phone reached severe thermal status. Let it cool before continuing. Completed results are kept."
+                else "Experiment stopped. Completed model files and results are kept."
+                throw canceled
+            }
             catch (error: Exception) { notice = error.message ?: "Speech experiment failed." }
             finally {
                 refreshInstalled()
@@ -119,23 +141,9 @@ internal class SpeechLab(context: Context, create: (SpeechModel, File) -> LocalS
         }
     }
     private suspend fun saveResults(saved: File) = withContext(Dispatchers.IO) {
-        val rows = measurements.map { result -> buildJsonObject {
-            put("model", result.modelId); put("checkpoint", result.checkpoint); put("quantization", result.quantization)
-            put("runtime", result.runtime); put("actual_backend", result.backend); put("fixture", result.fixture)
-            put("feed", result.mode); put("repetition", result.repetition); put("load_ms", result.loadMs)
-            put("audio_seconds", result.audioSeconds); put("elapsed_ms", result.elapsedMs)
-            result.firstPartialMs?.let { put("first_partial_ms", it) }
-            result.lastWordToFinalMs?.let { put("last_word_to_final_ms", it) }
-            put("forced_finalization", result.forcedFinalization); put("premature_endings", result.prematureEndings)
-            put("word_edits", result.wordEdits); put("reference_words", result.referenceWords)
-            put("peak_pss_kb", result.peakPssKb); put("peak_rss_kb", result.peakRssKb)
-            put("thermal_start", result.thermalStart); put("thermal_end", result.thermalEnd)
-            put("transcript", result.transcript)
-            result.audioSha256?.let { put("audio_sha256", it) }
-        } }
         check(saved.parentFile!!.mkdirs() || saved.parentFile!!.isDirectory)
         val pending = File(saved.parentFile, "${saved.name}.tmp")
-        pending.writeText(JsonArray(rows).toString())
+        pending.writeText(speechMeasurementsJson(measurements).toString())
         check(pending.renameTo(saved)) { "Could not save benchmark results." }
     }
 }
@@ -156,6 +164,55 @@ internal fun InputStream.readSpeechWav(): ByteArray {
 }
 
 @Composable
+internal fun LocalSpeechSettings(lab: SpeechLab, beforeChange: () -> Unit, enabled: Boolean = true) {
+    var choosing by remember { mutableStateOf(false) }
+    val model = lab.selected
+    val available = enabled && !lab.busy
+    Text("Local speech models", style = MaterialTheme.typography.titleMedium)
+    Box {
+        OutlinedButton(enabled = available, onClick = { choosing = true }, modifier = Modifier.fillMaxWidth()) { Text(model.label) }
+        DropdownMenu(choosing, { choosing = false }) {
+            lab.models.forEach { item -> DropdownMenuItem(text = {
+                Text("${item.label} · ${formatSpeech(item.downloadBytes / 1_000_000.0)} MB")
+            }, onClick = { choosing = false; beforeChange(); lab.choose(item) }) }
+        }
+    }
+    val installed = model.id in lab.installed
+    val status = if (installed) "Installed" else if (model.id in lab.partial) "Partial download" else "Not installed"
+    Text("${formatSpeech(model.downloadBytes / 1_000_000.0)} MB · $status", style = MaterialTheme.typography.bodySmall)
+    Text("${model.checkpoint} · ${model.quantization} · MIT", style = MaterialTheme.typography.bodySmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!installed) OutlinedButton(enabled = available, onClick = { beforeChange(); lab.download(model) }) {
+            Text(if (model.id in lab.partial) "Retry download" else "Download model")
+        } else OutlinedButton(enabled = available, onClick = { beforeChange(); lab.choose(model) }) { Text("Load model") }
+        TextButton(enabled = available && lab.runtime.loadedModel != null, onClick = { beforeChange(); lab.unload() }) { Text("Unload") }
+        TextButton(enabled = available && (installed || model.id in lab.partial), onClick = { beforeChange(); lab.delete(model) }) { Text("Delete model") }
+    }
+    Text("Compute backend", style = MaterialTheme.typography.titleSmall)
+    FilterChip(true, {}, enabled = available, label = { Text("CPU") })
+    Text("Actual backend: ${lab.actualBackend?.takeIf { lab.runtime.loadedModel != null } ?: "No model loaded"}", style = MaterialTheme.typography.bodySmall)
+    Text("This SDK supports CPU only. Switching models unloads the previous model first.", style = MaterialTheme.typography.bodySmall)
+    SettingsSection("Model settings", "Saved separately for each model") {
+        var update by remember(model.id, lab.tuning) { mutableIntStateOf(lab.tuning.updateMs) }
+        var threshold by remember(model.id, lab.tuning) { mutableFloatStateOf(lab.tuning.vadThreshold) }
+        Text("Streaming update interval: ${formatSpeech(update / 1000.0)} s")
+        Slider(update.toFloat(), { update = it.toInt() }, enabled = available, valueRange = 200f..2000f)
+        Text("Minimum interval between partial decoding passes; stretches under load. Used by chunked recognition benchmarks.", style = MaterialTheme.typography.bodySmall)
+        Text("Moonshine speech threshold: ${formatSpeech(threshold.toDouble())}")
+        Slider(threshold, { threshold = it }, enabled = available, valueRange = .1f.. .9f)
+        Text("Native voice-activity probability threshold; higher values require stronger speech evidence. This does not control Bellpull's end-of-turn pause.", style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(enabled = available, onClick = { beforeChange(); lab.tune(SpeechTuning(update, threshold)) }) { Text("Save model settings") }
+    }
+    if (lab.busy) {
+        Text(lab.operation)
+        lab.progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
+            ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+        TextButton(onClick = lab::cancel) { Text("Stop experiment") }
+    }
+    lab.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
+}
+
+@Composable
 internal fun SpeechExperiments(lab: SpeechLab, beforeExperiment: () -> Unit) {
     var reference by rememberSaveable { mutableStateOf("") }
     var feed by rememberSaveable { mutableStateOf(SpeechFeed.THROUGHPUT) }
@@ -171,29 +228,8 @@ internal fun SpeechExperiments(lab: SpeechLab, beforeExperiment: () -> Unit) {
             } }.onSuccess(lab::importAudio).onFailure { lab.error(it.message ?: "Could not read audio.") }
         }
     }
-    Text("Local speech models", style = MaterialTheme.typography.titleMedium)
-    Text("English recognition runs on this device after download. Model choice is separate from its compute backend.", style = MaterialTheme.typography.bodySmall)
-    lab.models.forEach { model ->
-        Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.small) {
-            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(model.label, style = MaterialTheme.typography.titleSmall)
-                val status = when (model.id) { in lab.installed -> "Installed"; in lab.partial -> "Partial download"; else -> "Not installed" }
-                Text("${formatSpeech(model.downloadBytes / 1_000_000.0)} MB · $status", style = MaterialTheme.typography.bodySmall)
-                Text("${model.checkpoint} · ${model.quantization} · MIT", style = MaterialTheme.typography.bodySmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(lab.selectedId == model.id, { beforeExperiment(); lab.choose(model) },
-                        enabled = !lab.busy && model.id in lab.installed,
-                        label = { Text(if (lab.selectedId == model.id) "Selected" else "Select") })
-                    if (model.id !in lab.installed) OutlinedButton(enabled = !lab.busy, onClick = { lab.download(model) }) { Text(if (model.id in lab.partial) "Retry download" else "Download") }
-                    TextButton(enabled = !lab.busy && (model.id in lab.installed || model.id in lab.partial), onClick = { beforeExperiment(); lab.delete(model) }) { Text("Delete") }
-                }
-            }
-        }
-    }
-    Text("Compute backend", style = MaterialTheme.typography.titleSmall)
-    FlowRow { FilterChip(true, {}, label = { Text("CPU") }) }
-    Text("Actual backend: ${lab.actualBackend ?: "No model loaded"}", style = MaterialTheme.typography.bodySmall)
-    Text("GPU and TPU are not supported by this integration yet. No accelerator is selected or substituted automatically.", style = MaterialTheme.typography.bodySmall)
+    Text("Changing models or starting experiments ends any active voice session. Saved transcriptions stay in their conversation.", style = MaterialTheme.typography.bodySmall)
+    LocalSpeechSettings(lab, beforeExperiment)
     HorizontalDivider()
     Text("Benchmark", style = MaterialTheme.typography.titleMedium)
     Text("Feeds a WAV directly into recognition; does not use the speaker, microphone or Hermes. Uses one unloaded-model run and three warm runs. Pauses at severe thermal status.", style = MaterialTheme.typography.bodySmall)
@@ -215,13 +251,6 @@ internal fun SpeechExperiments(lab: SpeechLab, beforeExperiment: () -> Unit) {
     Button(enabled = !lab.busy && lab.imported != null && reference.isNotBlank() && lab.selectedId in lab.installed &&
         (boundary.isBlank() || boundary.toDoubleOrNull()?.let { it.isFinite() && it in 0.0..lab.imported!!.seconds * 1000 } == true),
         onClick = { beforeExperiment(); lab.benchmark(reference, feed, boundary.toDoubleOrNull(), sustained) }) { Text("Run benchmark") }
-    if (lab.busy) {
-        Text(lab.operation)
-        lab.progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
-            ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-        TextButton(onClick = lab::cancel) { Text("Stop experiment") }
-    }
-    lab.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
     lab.measurements.forEach { result ->
         val wer = WordErrors(result.wordEdits, result.referenceWords).rate?.let { "${formatSpeech(it * 100)}%" } ?: "unavailable"
         Text("${if (result.repetition == 0) "Unloaded model" else "Warm ${result.repetition}"} · load ${formatSpeech(result.loadMs)} ms · process ${formatSpeech(result.elapsedMs)} ms · WER $wer", style = MaterialTheme.typography.bodySmall)
@@ -236,3 +265,19 @@ internal fun SpeechExperiments(lab: SpeechLab, beforeExperiment: () -> Unit) {
         Text("Parakeet TDT has a published Pixel 10 TPU path. Realtime EOU needs separate standalone recognition and turn-detection validation; no sensitivity control is exposed before the runtime is verified.", style = MaterialTheme.typography.bodySmall)
     }
 }
+
+internal fun speechMeasurementsJson(measurements: List<SpeechRunMeasurement>): JsonArray = JsonArray(measurements.map { result -> buildJsonObject {
+            put("model", result.modelId); put("checkpoint", result.checkpoint); put("quantization", result.quantization)
+            put("runtime", result.runtime); put("actual_backend", result.backend); put("fixture", result.fixture)
+            put("feed", result.mode); put("repetition", result.repetition); put("load_ms", result.loadMs)
+            put("audio_seconds", result.audioSeconds); put("elapsed_ms", result.elapsedMs)
+            result.nativeInitializationMs?.let { put("native_initialization_ms", it) }
+            result.firstPartialMs?.let { put("first_partial_ms", it) }
+            result.lastWordToFinalMs?.let { put("last_word_to_final_ms", it) }
+            put("forced_finalization", result.forcedFinalization); put("premature_endings", result.prematureEndings)
+            put("word_edits", result.wordEdits); put("reference_words", result.referenceWords)
+            put("peak_pss_kb", result.peakPssKb); put("peak_rss_kb", result.peakRssKb)
+            put("thermal_start", result.thermalStart); put("thermal_end", result.thermalEnd)
+            put("transcript", result.transcript)
+            result.audioSha256?.let { put("audio_sha256", it) }
+        } })

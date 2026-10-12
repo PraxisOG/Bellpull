@@ -87,7 +87,8 @@ class MainActivity : ComponentActivity() {
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
                             VoicePanel(runtime.voice, config, runtime.voiceStartError,
                                 { voiceSettings.save(it); config = voiceSettings.read() }, ::requestVoice, { voiceOpen = false },
-                                onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false })
+                                onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false },
+                                speechLab = runtime.speechLab)
                         }
                     }
                     pendingShare?.takeIf { showShare }?.let { incoming ->
@@ -124,12 +125,13 @@ class MainActivity : ComponentActivity() {
                             }
                         } } },
                         pluginVersions = profiles::pluginVersions,
+                        speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
                             val profile = profiles.activeId
                             if (profile == null) androidx.compose.material3.Text("Select a server profile to configure voice conversations.")
                             else {
                                 val saved = remember(profile) { VoiceSettings(applicationContext, profile) }
-                                VoiceSettingsEditor(saved.read(), runtime.voice == null, saved::save)
+                                VoiceSettingsEditor(saved.read(), runtime.voice == null, saved::save, runtime.speechLab)
                                 androidx.compose.material3.TextButton(onClick = { reader.stop(); voiceOpen = true }) {
                                     androidx.compose.material3.Text("Open voice conversation")
                                 }
