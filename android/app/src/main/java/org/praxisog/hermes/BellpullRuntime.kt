@@ -35,6 +35,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var projects by mutableStateOf<ProjectWorkspace?>(null)
         private set
+    var planning by mutableStateOf<PlanningWorkspace?>(null)
+        private set
     var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
         private set
     var notificationEventsAvailable by mutableStateOf(false)
@@ -78,6 +80,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         store = next
+        planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true) }
         projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true) }
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
@@ -113,6 +116,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
+            planning?.supported = result.value.features["bellpull_planning"]==true
             projects?.configure(result.value.features["bellpull_projects"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
@@ -167,6 +171,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         context.stopService(android.content.Intent(context, VoiceService::class.java))
         projects?.close()
         projects = null
+        planning?.close()
+        planning = null
         capabilities = null
         phase3?.close()
         phase3 = null

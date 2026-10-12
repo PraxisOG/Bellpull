@@ -63,6 +63,19 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-12):** build two independent branches from corrected
+0.5.5 while the user is away with their phone. This worktree is
+`feature/phase8-9-reminders-calendar`: persistent reminders, native Hermes routines,
+visual day/week calendar blocks and opt-in Android CalendarContract management.
+The independent Phase 6 branch remains at `/home/praxisog/Hermes-App-Project`.
+Use local tests/disposable hosts. No personal-server access, ADB, push, merge or
+publication. No new dependencies. Define Bellpull-owned contracts in hermes-api.md.
+No automatic phone bridge/calendar writes: proposals require an explicit phone
+Apply action in this prototype. Alerts/offline delivery are Phase 10. Phase 7 now
+means Hermes prompt optimization/latency verification, not a new Quick Chat app.
+The 0.5.5 launch hotfix was installed and fixture-tested before departure.
+
+
 **Current authority (2026-10-11, local voice output and Phase 6 prelim):** finish
 Phase 5 implementation on `feature/local-voice-models`, **without further tests or
 phone access**, then create a separate branch for Phase 6 preliminary OpenCode

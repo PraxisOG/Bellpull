@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
@@ -35,6 +35,26 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    override fun readPlanning(): org.praxisog.hermes.model.PlanningSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PlanningSnapshot>(preferences.getString("planning",null)!!).validated() }.getOrNull()
+    override fun writePlanning(value: org.praxisog.hermes.model.PlanningSnapshot) { if (!closed) preferences.edit().putString("planning",json.encodeToString(value)).apply() }
+    override fun readCalendar(): org.praxisog.hermes.model.PhoneCalendarSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PhoneCalendarSnapshot>(preferences.getString("calendar",null)!!) }.getOrNull()
+    override fun writeCalendar(value: org.praxisog.hermes.model.PhoneCalendarSnapshot?) { if (!closed) preferences.edit().putString("calendar",value?.let { json.encodeToString(it) }).apply() }
+    override fun readCalendarPolicy(): org.praxisog.hermes.model.CalendarPolicy = runCatching { json.decodeFromString<org.praxisog.hermes.model.CalendarPolicy>(preferences.getString("calendar-policy",null)!!) }.getOrDefault(org.praxisog.hermes.model.CalendarPolicy())
+    override fun writeCalendarPolicy(value: org.praxisog.hermes.model.CalendarPolicy) { check(!closed && preferences.edit().putString("calendar-policy",json.encodeToString(value)).commit()) }
+    override fun calendarDevice(): String = preferences.getString("calendar-device",null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { check(preferences.edit().putString("calendar-device",it).commit()) }
+    override fun calendarRevokePending() = preferences.getBoolean("calendar-revoke",false)
+    override fun calendarRevokePending(value: Boolean) { check(!closed && preferences.edit().putBoolean("calendar-revoke",value).commit()) }
+    override fun calendarReceipt(id: String): String? = preferences.getString("calendar-op:$id",null)
+    override fun calendarReceipt(id: String, result: String) {
+        val entries=preferences.all.filterKeys { it.startsWith("calendar-op:") }
+        val edit=preferences.edit()
+        if (entries.size>=2000 && "calendar-op:$id" !in entries) {
+            val oldest=entries.filterValues { it!="pending" }.keys.minByOrNull { preferences.getLong("calendar-op-at:${it.removePrefix("calendar-op:")}",0) }
+            check(oldest!=null) { "Too many uncertain calendar operations. Review them before another write." }
+            edit.remove(oldest).remove("calendar-op-at:${oldest.removePrefix("calendar-op:")}")
+        }
+        check(!closed && edit.putString("calendar-op:$id",result).putLong("calendar-op-at:$id",System.currentTimeMillis()).commit())
+    }
 
     /** Sessions and the wall-clock time they were fetched, or null if nothing is cached. */
     override fun read(): SessionSnapshots.Snapshot? {
