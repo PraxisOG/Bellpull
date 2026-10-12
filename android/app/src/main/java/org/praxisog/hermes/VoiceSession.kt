@@ -137,19 +137,16 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun showNotice(message: String) { notice = message }
     fun start(initialMode: VoiceMode = VoiceMode.CONVERSATION) {
         mode = initialMode
-        output.prepare({ name ->
-            if (!closed) {
-                voiceName = name; readyOutput = true
-                val existing = conversation.run()
-                if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
-                    submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
-                    state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
-                } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
-                    saveTranscript(""); transcript = ""; listen()
-                } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
-                else listen()
-            }
-        }, ::pause)
+        prepareOutput {
+            val existing = conversation.run()
+            if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
+                submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
+                state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
+            } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
+                saveTranscript(""); transcript = ""; listen()
+            } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
+            else listen()
+        }
         observe = scope.launch {
             snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (selected, run) ->
                 if (closed) return@collectLatest
@@ -191,6 +188,16 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 }
             }
         }
+    }
+    private fun prepareOutput(whenReady: () -> Unit) {
+        val token = generation
+        output.prepare({ name ->
+            if (!closed && token == generation) {
+                voiceName = name; readyOutput = true
+                if (!beforeResume()) { pause("Audio is unavailable. Resume after the call or audio interruption finishes.") }
+                else whenReady()
+            }
+        }, { problem -> if (!closed && token == generation) pause(problem) })
     }
     private fun listeningBlock(run: VoiceRun): String? = when {
         run.attention -> "Hermes needs your attention. Open the chat to review its request."
@@ -413,11 +420,17 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         queuedText = ""
     }
     fun resume() {
-        if (closed || !readyOutput) return
+        if (closed) return
         if (!conversation.selected) { notice = "Reopen the voice conversation before resuming."; return }
         listeningBlock(conversation.run())?.let { pause(it); return }
         if (!beforeResume()) { notice = "Audio is still unavailable. Resume after the call or audio interruption finishes."; return }
         notice = null; queuedText = ""
+        if (!readyOutput) {
+            state = VoiceState.STARTING
+            prepareOutput(::resumeReady)
+        } else resumeReady()
+    }
+    private fun resumeReady() {
         if (unsent && !pendingForAdmission && transcript.isNotBlank()) {
             submitted = false; state = VoiceState.REVIEW
         } else if (submitted && conversation.run().busy) {

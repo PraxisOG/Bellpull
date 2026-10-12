@@ -27,6 +27,7 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
     private val main = Handler(Looper.getMainLooper())
     private var engine: TextToSpeech? = null
     private var generation = 0L
+    private var preparing = 0L
     private var done: (() -> Unit)? = null
     private var begun: (() -> Unit)? = null
     private var failure: (String) -> Unit = {}
@@ -43,8 +44,10 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
     }
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
         failure = onError
+        val token = ++preparing
+        engine?.shutdown(); engine = null
         engine = TextToSpeech(context) { result -> main.post {
-            if (closed) return@post
+            if (closed || token != preparing) return@post
             val tts = engine ?: return@post
             if (result != TextToSpeech.SUCCESS) { onError("Speech output could not start. Check your installed TTS engine."); return@post }
             val voices = tts.voices.orEmpty().filter { !it.isNetworkConnectionRequired && it.locale.language == Locale.getDefault().language }
@@ -71,7 +74,7 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
             done = null; failure("Speech playback failed. The written answer is still available.")
         }
     }
-    override fun stop() { generation++; done = null; begun = null; engine?.stop() }
+    override fun stop() { generation++; preparing++; done = null; begun = null; engine?.stop() }
     override fun close() { closed = true; stop(); tone?.release(); tone = null; engine?.shutdown(); engine = null }
 }
 

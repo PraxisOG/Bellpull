@@ -123,3 +123,9 @@ Future candidates: Qwen 1.7B for style instructions, Kokoro 82M, Supertonic 3
 (separate license review required). Failed acceleration experiments do not block
 working CPU choices. No plugin changes, push, phone access or server access in
 this offline slice.
+
+Offline source review also fixed output startup recovery: pausing during slow model
+loading cannot let a late readiness callback reopen capture. Explicit Resume
+retries preparation if it was canceled before readiness, with audio ownership
+checked again. Android TTS preparation uses a separate cancellation generation and
+shuts down the prior instance on retry. This change is compiled but untested.
