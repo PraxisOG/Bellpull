@@ -42,12 +42,13 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This local-voice development branch builds **0.5.4 (code 16)**. Settings →
+This local-voice development branch builds **0.5.5 (code 17)**. Settings →
 **Voice output** offers the default installed Android voice or an experimental
-on-device Qwen3-TTS CPU voice, with verified model downloads and tuning. Qwen
+on-device Qwen3-TTS or Pocket TTS CPU voice, with verified model downloads and tuning. Qwen
 requires 859.85 MB of weights and is currently slow on the Fold; Android voice
 remains the default. See [output setup and measurements](docs/VOICE-OUTPUT.md).
-The signed APK is ready locally; **the personal phone still has 0.5.3**, because
+The tested 0.5.4 signed APK is ready locally; the newer 0.5.5 offline implementation
+compiles but is awaiting tests/screenshots. **the personal phone still has 0.5.3**, because
 ADB disconnected before installation. Nothing in this slice has been pushed.
 
 The existing voice-input implementation It adds Moonshine

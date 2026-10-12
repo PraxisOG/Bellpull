@@ -20,6 +20,19 @@ class VoiceService : Service() {
     private var ownsAudio = false
     private var oldMode = AudioManager.MODE_NORMAL
     private var requestedRoute: AudioDeviceInfo? = null
+    @get:androidx.annotation.RequiresApi(31)
+    private val routeChanged by lazy { AudioManager.OnCommunicationDeviceChangedListener { _ ->
+        if (started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
+            audio.communicationDevice?.id != requestedRoute?.id)
+            runtime.voice?.pause("The communication route changed. Check your route and resume voice.")
+    }
+    }
+    @get:androidx.annotation.RequiresApi(31)
+    private val modeChanged by lazy { AudioManager.OnModeChangedListener { _ ->
+        if (started && runtime.voice?.state != VoiceState.PAUSED && audio.mode != AudioManager.MODE_IN_COMMUNICATION)
+            runtime.voice?.pause("Another app or call changed the audio mode. Resume voice when ready.")
+    }
+    }
     private val routes = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             if (started) runtime.voice?.pause("Audio devices changed. Check your route and resume voice.")
@@ -35,12 +48,17 @@ class VoiceService : Service() {
     override fun onCreate() {
         super.onCreate(); audio = getSystemService(AudioManager::class.java)
         audio.registerAudioDeviceCallback(routes, Handler(Looper.getMainLooper()))
+        if (Build.VERSION.SDK_INT >= 31) {
+            audio.addOnCommunicationDeviceChangedListener(mainExecutor, routeChanged)
+            audio.addOnModeChangedListener(mainExecutor, modeChanged)
+        }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) { runtime.voice?.close(); stopSelf(); return START_NOT_STICKY }
-        if (intent?.action == PAUSE) { runtime.voice?.pause(); return START_NOT_STICKY }
+        if (intent?.action == PAUSE) { if (started) runtime.voice?.pause() else stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == RESUME) { if (started) runtime.voice?.resume() else stopSelf(); return START_NOT_STICKY }
         if (started) return START_NOT_STICKY
         val store = runtime.store
         val id = runtime.voiceRequestedSession
@@ -61,9 +79,9 @@ class VoiceService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val open = PendingIntent.getActivity(this, 51, Intent(this, MainActivity::class.java).setAction(OPEN),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        fun notification(text: String) = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
+        fun notification(text: String, paused: Boolean = false) = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Bellpull voice").setContentText(text).setContentIntent(open).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, "Pause microphone", action(PAUSE, 52)).build())
+            .addAction(Notification.Action.Builder(null, if (paused) "Resume voice" else "Pause microphone", action(if (paused) RESUME else PAUSE, 52)).build())
             .addAction(Notification.Action.Builder(null, "End voice", action(STOP, 53)).build()).build()
         try {
             val serviceTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
@@ -71,25 +89,20 @@ class VoiceService : Service() {
             startForeground(2405, notification("Starting microphone and offline speech"), serviceTypes)
             oldMode = audio.mode
             check(oldMode == AudioManager.MODE_NORMAL)
-            ownsAudio = true
-            audio.mode = AudioManager.MODE_IN_COMMUNICATION
             focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setOnAudioFocusChangeListener { change ->
                     if (change != AudioManager.AUDIOFOCUS_GAIN) runtime.voice?.pause("Another app or call needs audio. Resume voice when ready.")
                 }.build()
-            check(audio.requestAudioFocus(focus!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
-            selectRoute()
+            check(acquireAudio())
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
                 runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
                     if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
                     else HttpVoiceTranscriber(config)
                 }, onClosed = { stopSelf() }, beforeResume = {
-                    val granted = focus?.let { audio.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED } == true
-                    if (granted) selectRoute()
-                    granted
+                    acquireAudio()
                 }, onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
                 onTranscript = { savedVoice.saveTranscript(id, it); if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
@@ -103,10 +116,11 @@ class VoiceService : Service() {
             started = true
             media = MediaSession(this, "Bellpull voice").also { session ->
                 session.setCallback(object : MediaSession.Callback() {
+                    override fun onPlay() = voice.resume()
                     override fun onPause() = voice.pause()
                     override fun onStop() = voice.close()
                 })
-                session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP)
+                session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP)
                     .setState(PlaybackState.STATE_PLAYING, 0, 1f).build()); session.isActive = true
             }
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
@@ -114,7 +128,14 @@ class VoiceService : Service() {
             voice.start(runtime.voiceRequestedMode)
             if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
             scope.launch {
-                androidx.compose.runtime.snapshotFlow { voice.state }.collect { manager.notify(2405, notification(it.label)) }
+                androidx.compose.runtime.snapshotFlow { voice.state }.collect { state ->
+                    val paused = state == VoiceState.PAUSED
+                    if (paused) releaseAudio()
+                    media?.setPlaybackState(PlaybackState.Builder()
+                        .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP)
+                        .setState(if (paused) PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING, 0, if (paused) 0f else 1f).build())
+                    manager.notify(2405, notification(state.label, paused))
+                }
             }
         } catch (_: Exception) {
             runtime.voiceStartError = "Voice could not start. Check microphone permission and try again with Bellpull open."
@@ -122,27 +143,50 @@ class VoiceService : Service() {
         }
         return START_NOT_STICKY
     }
-    private fun selectRoute() {
+    /** Never reclaim a call's mode or restart capture without explicit Resume. */
+    private fun acquireAudio(): Boolean {
+        if (audio.mode != AudioManager.MODE_NORMAL && !(ownsAudio && audio.mode == AudioManager.MODE_IN_COMMUNICATION)) return false
+        return runCatching {
+            check(focus?.let { audio.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED } == true)
+            ownsAudio = true
+            audio.mode = AudioManager.MODE_IN_COMMUNICATION
+            check(selectRoute())
+            true
+        }.getOrElse { releaseAudio(); false }
+    }
+    private fun releaseAudio() {
+        focus?.let(audio::abandonAudioFocusRequest)
+        requestedRoute = null
+        if (ownsAudio && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
+        if (ownsAudio && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
+        ownsAudio = false
+    }
+    private fun selectRoute(): Boolean {
         if (Build.VERSION.SDK_INT >= 31) {
             val devices = audio.availableCommunicationDevices
             val device = devices.firstOrNull { it.type in setOf(AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET,
                 AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET) }
                 ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-            device?.let { if (audio.setCommunicationDevice(it)) requestedRoute = it }
+            if (device == null || !audio.setCommunicationDevice(device)) return false
+            requestedRoute = device
         }
+        return true
     }
     override fun onDestroy() {
         started = false
         runtime.voice?.close(); runtime.voice = null; runtime.voiceRequestedSession = null
         runtime.voiceDictationToDraft = false; runtime.voiceButtonHeld = false
         media?.release(); audio.unregisterAudioDeviceCallback(routes); unregisterReceiver(noisy)
-        focus?.let(audio::abandonAudioFocusRequest)
-        if (ownsAudio && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
-        if (ownsAudio && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
+        if (Build.VERSION.SDK_INT >= 31) {
+            audio.removeOnCommunicationDeviceChangedListener(routeChanged)
+            audio.removeOnModeChangedListener(modeChanged)
+        }
+        releaseAudio()
         scope.cancel(); super.onDestroy()
     }
     companion object {
         const val STOP = "org.praxisog.hermes.STOP_VOICE"
+        const val RESUME = "org.praxisog.hermes.RESUME_VOICE"
         const val PAUSE = "org.praxisog.hermes.PAUSE_VOICE"
         const val OPEN = "org.praxisog.hermes.OPEN_VOICE"
         private const val CHANNEL = "bellpull_voice"

@@ -98,7 +98,7 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.5.4", app.name)
+        assertEquals("0.5.5", app.name)
         assertEquals(16L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {

@@ -221,3 +221,13 @@ signature and 16-KiB zip alignment verified. Local test/build evidence is in
 so personal app remains 0.5.3/code 15. Fixture package/test APK and Qwen weights
 remain to be cleaned up when ADB returns; never remove the personal app.
 No push/release publication is authorized until user acceptance/green light.
+
+## 0.5.5 offline candidate — build only
+
+Version 0.5.5/code 17 adds Pocket CPU synthesis/model lifecycle and audio-route/
+focus recovery. `assembleDebug` compiles ARM64 and x86_64. No further tests,
+screenshot recording, lint, personal install or push were performed, following
+the user's overnight instruction. The signed, previously tested 0.5.4 artifact
+remains unchanged; do not present it as containing Pocket. Personal app is still
+0.5.3. Resume isolated fixture checks and remove the old fixture packages/weights
+before preparing a signed personal update. See [VOICE-OUTPUT.md](VOICE-OUTPUT.md).

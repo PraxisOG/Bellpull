@@ -27,7 +27,7 @@ class QwenVoiceDeviceTest {
         check(app.packageName == "org.praxisog.hermes.fixture")
         val files = VoiceOutputFiles(app)
         val thermals = SpeechThermals(app)
-        val runtime = QwenRuntime(files::verify) { NativeQwenEngine(files) }
+        val runtime = LocalTtsRuntime(files::verify) { NativeQwenEngine(files) }
         val report = File(app.filesDir, "qwen-results.json")
         val rows = mutableListOf<JsonObject>()
         val peak = AtomicInteger()
@@ -59,7 +59,7 @@ class QwenVoiceDeviceTest {
                     runtime.withModel { engine, loadMs, invalid ->
                         loading = loadMs
                         val generation = System.nanoTime()
-                        engine.synthesize(text, VoiceOutputConfiguration(seed = 42), object : QwenSink {
+                        engine.synthesize(text, VoiceOutputConfiguration(seed = 42), object : LocalTtsSink {
                             override fun isCancelled(): Boolean {
                                 cancelled = thermals.severe || invalid() || (System.nanoTime() - generation) > 120_000_000_000L
                                 return cancelled
@@ -98,7 +98,7 @@ class QwenVoiceDeviceTest {
                 var first = false; var requested = 0L
                 val status = runtime.withModel { engine, _, _ -> engine.synthesize(
                     "This passage must stop as soon as its first audio chunk arrives. It must never play after interruption.",
-                    VoiceOutputConfiguration(seed = 42), object : QwenSink {
+                    VoiceOutputConfiguration(seed = 42), object : LocalTtsSink {
                         override fun isCancelled() = first || thermals.severe
                         override fun onChunk(samples: FloatArray): Boolean { first = true; requested = System.nanoTime(); return false }
                     }) }
@@ -112,8 +112,8 @@ class QwenVoiceDeviceTest {
     @Test fun nativePlaybackDrainsBeforeCompleteAndStopClearsAudio() = runBlocking {
         check(app.packageName == "org.praxisog.hermes.fixture")
         val files = VoiceOutputFiles(app); val thermals = SpeechThermals(app)
-        val runtime = QwenRuntime(files::verify) { NativeQwenEngine(files) }
-        val output = QwenVoiceOutput(runtime, VoiceOutputConfiguration(volume = .2f, seed = 42), 1f, { thermals.severe })
+        val runtime = LocalTtsRuntime(files::verify) { NativeQwenEngine(files) }
+        val output = LocalVoiceOutput(runtime, VoiceOutputConfiguration(volume = .2f, seed = 42), 1f, { thermals.severe })
         val ready = CompletableDeferred<Unit>(); val started = CompletableDeferred<Unit>(); val done = CompletableDeferred<Unit>()
         try {
             withContext(Dispatchers.Main) { output.prepare({ ready.complete(Unit) }, { ready.completeExceptionally(IllegalStateException(it)) }) }

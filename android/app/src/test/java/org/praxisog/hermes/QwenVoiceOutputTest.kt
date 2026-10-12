@@ -12,14 +12,14 @@ class QwenVoiceOutputTest {
     @Test fun pcmStartsDuringSynthesisButCompletionWaitsForPlaybackDrain() {
         val first = CountDownLatch(1); val allowFinish = CountDownLatch(1); val drained = CompletableDeferred<Unit>()
         val generating = AtomicBoolean(true); val done = CountDownLatch(1)
-        val runtime = QwenRuntime({}) { object : QwenEngine {
-            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: QwenSink): Int {
+        val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
                 assertTrue(sink.onChunk(FloatArray(2400) { .1f })); await(allowFinish)
                 generating.set(false); return 0
             }
             override fun close() {}
         } }
-        val voice = QwenVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { false }, player = { _, _ -> object : VoicePcmPlayer {
+        val voice = LocalVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { false }, player = { _, _ -> object : VoicePcmPlayer {
             override fun write(samples: FloatArray) {}
             override suspend fun drain() { drained.await() }
             override fun stop() { drained.complete(Unit) }
@@ -34,8 +34,8 @@ class QwenVoiceOutputTest {
     @Test fun stopFlushesPlaybackAndRejectsLateNativeChunksAndCompletion() {
         val first = CountDownLatch(1); val cancelled = CountDownLatch(1); val freed = CountDownLatch(1)
         val complete = AtomicBoolean(false); val stopped = AtomicBoolean(false)
-        val runtime = QwenRuntime({}) { object : QwenEngine {
-            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: QwenSink): Int {
+        val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
                 assertTrue(sink.onChunk(FloatArray(2400)))
                 val end = System.nanoTime() + 2_000_000_000
                 while (!sink.isCancelled() && System.nanoTime() < end) Thread.yield()
@@ -44,7 +44,7 @@ class QwenVoiceOutputTest {
             }
             override fun close() { freed.countDown() }
         } }
-        val voice = QwenVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { false }, player = { _, _ -> object : VoicePcmPlayer {
+        val voice = LocalVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { false }, player = { _, _ -> object : VoicePcmPlayer {
             override fun write(samples: FloatArray) {}
             override suspend fun drain() {}
             override fun stop() { stopped.set(true) }
@@ -57,9 +57,9 @@ class QwenVoiceOutputTest {
     }
     @Test fun severeThermalsFailBeforeNativeLoadOrPlayback() {
         var loaded = false
-        val runtime = QwenRuntime({}) { loaded = true; error("Must not load") }
+        val runtime = LocalTtsRuntime({}) { loaded = true; error("Must not load") }
         var failure: String? = null
-        val voice = QwenVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { true },
+        val voice = LocalVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { true },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), callbacks = Dispatchers.Unconfined)
         voice.prepare({ fail("Unexpected ready") }, { failure = it })
         assertNotNull(failure); assertFalse(loaded); voice.close()

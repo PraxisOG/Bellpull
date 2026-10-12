@@ -10,8 +10,8 @@ import kotlin.concurrent.thread
 class QwenRuntimeTest {
     @Test fun loadingIsVerifiedCachedAndUnloadedBeforeReplacement() {
         var verified = 0; var created = 0; var closed = 0
-        val runtime = QwenRuntime({ verified++ }) { created++; object : QwenEngine {
-            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: QwenSink) = 0
+        val runtime = LocalTtsRuntime({ verified++ }) { created++; object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink) = 0
             override fun close() { closed++ }
         } }
         runtime.withModel { _, _, _ -> }; runtime.withModel { _, ms, _ -> assertEquals(0.0, ms, .0) }
@@ -22,14 +22,14 @@ class QwenRuntimeTest {
     }
     @Test fun corruptOrMissingWeightsNeverCallTheNativeConstructor() {
         var created = false
-        val runtime = QwenRuntime({ error("No weights") }) { created = true; error("Must not load") }
+        val runtime = LocalTtsRuntime({ error("No weights") }) { created = true; error("Must not load") }
         assertThrows(IllegalStateException::class.java) { runtime.withModel { _, _, _ -> } }
         assertFalse(created); assertFalse(runtime.loaded)
     }
     @Test fun unloadInvalidatesActiveInferenceAndWaitsForItBeforeFreeing() {
         val admitted = CountDownLatch(1); val exited = CountDownLatch(1); val freeCount = AtomicInteger()
-        val runtime = QwenRuntime({}) { object : QwenEngine {
-            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: QwenSink) = 0
+        val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink) = 0
             override fun close() { assertEquals(0L, exited.count); freeCount.incrementAndGet() }
         } }
         val worker = thread {

@@ -35,7 +35,9 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             engine = runCatching { VoiceOutputEngine.valueOf(prefs.getString("output", "SYSTEM")!!) }.getOrDefault(VoiceOutputEngine.SYSTEM),
             speaker = prefs.getString("speaker", "ryan").orEmpty(), language = prefs.getString("language", "english").orEmpty(),
             temperature = prefs.getFloat("temperature", .9f), topP = prefs.getFloat("top_p", 1f), topK = prefs.getInt("top_k", 50),
-            repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f)))
+            repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f),
+            pocketSteps = prefs.getInt("pocket_steps", 5), pocketTemperature = prefs.getFloat("pocket_temperature", .7f),
+            pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)))
     fun save(value: VoiceConfiguration) {
         value.output.validated()
         if (value.recognition == VoiceRecognition.PRIVATE_SERVER) {
@@ -46,6 +48,8 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putString("output", value.output.engine.name).putString("speaker", value.output.speaker).putString("language", value.output.language)
             .putFloat("temperature", value.output.temperature).putFloat("top_p", value.output.topP).putInt("top_k", value.output.topK)
             .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)
+            .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
+            .putInt("pocket_chunk_frames", value.output.pocketChunkFrames)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))
             .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise).commit())
     }

@@ -9,18 +9,21 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
 
-internal enum class VoiceOutputEngine(val label: String) { SYSTEM("Default Android voice"), QWEN("Qwen3-TTS · on device") }
+internal enum class VoiceOutputEngine(val label: String) { SYSTEM("Default Android voice"), QWEN("Qwen3-TTS · on device"), POCKET("Pocket TTS · experimental") }
 internal data class VoiceOutputConfiguration(
     val engine: VoiceOutputEngine = VoiceOutputEngine.SYSTEM,
     val speaker: String = "ryan", val language: String = "english",
     val temperature: Float = .9f, val topP: Float = 1f, val topK: Int = 50,
     val repetition: Float = 1.05f, val seed: Long = -1, val volume: Float = 1f,
+    val pocketSteps: Int = 5, val pocketTemperature: Float = .7f, val pocketChunkFrames: Int = 15,
 ) {
     fun validated(): VoiceOutputConfiguration {
         require(speaker in speakers && language in languages)
         require(temperature.isFinite() && temperature in 0f..1.5f && topP.isFinite() && topP in .1f..1f)
         require(topK in 0..100 && repetition.isFinite() && repetition in 1f..1.5f && seed >= -1)
         require(volume.isFinite() && volume in 0f..1f)
+        require(pocketSteps in 1..10 && pocketTemperature.isFinite() && pocketTemperature in 0f..1.5f && pocketChunkFrames in 1..30)
+        require(engine != VoiceOutputEngine.POCKET || seed <= Int.MAX_VALUE)
         return this
     }
     companion object {
@@ -28,7 +31,7 @@ internal data class VoiceOutputConfiguration(
         val languages = listOf("english", "auto", "chinese", "japanese", "korean", "german", "french", "russian", "portuguese", "spanish", "italian")
     }
 }
-internal data class VoiceModelFile(val name: String, val bytes: Long, val sha256: String)
+internal data class VoiceModelFile(val name: String, val bytes: Long, val sha256: String, val remoteName: String = name)
 internal object QwenModel {
     const val revision = "b7ee2e8c7459c3bea99da23e3d178125a7d1713c"
     const val label = "Qwen3-TTS 0.6B CustomVoice"
@@ -40,27 +43,52 @@ internal object QwenModel {
     val bytes = files.sumOf { it.bytes }
 }
 
+internal data class OutputModel(val id: String, val label: String, val revision: String,
+    val repository: String, val files: List<VoiceModelFile>) {
+    val bytes get() = files.sumOf { it.bytes }
+}
+internal val qwenOutputModel = OutputModel("qwen-0.6b", "Qwen", QwenModel.revision,
+    "Serveurperso/Qwen3-TTS-GGUF", QwenModel.files)
+internal object PocketModel {
+    const val revision = "e715955cf50d18d919d37231513c0e914b83661a"
+    const val checkpoint = "sherpa-onnx-pocket-tts-int8-2026-01-26"
+    const val runtime = "Sherpa-ONNX 1.13.8 (Pocket only) / ONNX Runtime 1.28.2"
+    val model = OutputModel("pocket-int8", "Pocket", revision,
+        "csukuangfj2/sherpa-onnx-pocket-tts-int8-2026-01-26", listOf(
+        VoiceModelFile("decoder.int8.onnx", 22693618, "12b0857402d31aead94df19d6783b4350d1f740e811f3a3202c70ad89ae11eea"),
+        VoiceModelFile("encoder.onnx", 72713165, "e8f2f6d301ffb96e398b138a7dc6d3038622d236044636b73d920bab85890260"),
+        VoiceModelFile("lm_flow.int8.onnx", 9962530, "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529"),
+        VoiceModelFile("lm_main.int8.onnx", 76341079, "bfc0c7e7e3d72864fa3bb2ee499f62f21ddc1474b885f5f3ca570f8be73e787e"),
+        VoiceModelFile("text_conditioner.onnx", 16388343, "0b84e837d7bfaf2c896627b03e3f080320309f37f4fc7df7698c644f7ba5e6b1"),
+        VoiceModelFile("vocab.json", 69478, "6fb646346cf931016f70c4921aab0900ce7a304b893cb02135c74e294abfea01"),
+        VoiceModelFile("token_scores.json", 123616, "5be2f278caf9b9800741f0fd82bff677f4943ec764c356f907213434b622d958"),
+        VoiceModelFile("loona.wav", 50478, "82bde825fe9ad43b3d7fa2b429a7e7acc9bcda2d3a208546e2db4863043ec64c", "test_wavs/loona.wav")))
+}
+
 /** App-owned, immutable, hash-verified weights. No Hermes credentials or user paths. */
 internal class VoiceOutputFiles(private val root: File,
     private val specs: List<VoiceModelFile> = QwenModel.files,
-    private val open: (VoiceModelFile) -> InputStream = ::openVoiceModel) {
-    constructor(context: Context) : this(File(context.noBackupFilesDir, "voice-output-models"))
+    private val model: OutputModel = qwenOutputModel,
+    private val open: (VoiceModelFile) -> InputStream = { openVoiceModel(it, model) }) {
+    constructor(context: Context, model: OutputModel = qwenOutputModel) :
+        this(File(context.noBackupFilesDir, "voice-output-models"), model.files, model)
     init {
-        require(specs.size == 2 && specs.map { it.name }.distinct().size == 2)
-        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.gguf")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
+        require(model.id.matches(Regex("[a-z0-9-]+")) && model.revision.matches(Regex("[0-9a-f]{40}")))
+        require(specs.isNotEmpty() && specs.map { it.name }.distinct().size == specs.size)
+        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
     }
-    val directory get() = File(root, "qwen-0.6b-${QwenModel.revision}")
-    private val staging get() = File(root, ".qwen-0.6b-${QwenModel.revision}.partial")
+    val directory get() = File(root, "${model.id}-${model.revision}")
+    private val staging get() = File(root, ".${model.id}-${model.revision}.partial")
     val partial get() = staging.isDirectory
-    val installed get() = File(directory, ".complete").readTextOrNull() == QwenModel.revision &&
+    val installed get() = File(directory, ".complete").readTextOrNull() == model.revision &&
         specs.all { File(directory, it.name).let { f -> f.isFile && f.length() == it.bytes } }
     fun verify() {
-        check(installed) { "Download Qwen in Settings → Voice output first." }
-        check(specs.all { valid(File(directory, it.name), it) }) { "Qwen files failed verification. Delete and download the model again." }
+        check(installed) { "Download ${model.label} in Settings → Voice output first." }
+        check(specs.all { valid(File(directory, it.name), it) }) { "${model.label} files failed verification. Delete and download the model again." }
     }
     fun delete() {
-        check(!directory.exists() || directory.deleteRecursively()) { "Could not delete Qwen model files." }
-        check(!staging.exists() || staging.deleteRecursively()) { "Could not delete Qwen partial download." }
+        check(!directory.exists() || directory.deleteRecursively()) { "Could not delete ${model.label} model files." }
+        check(!staging.exists() || staging.deleteRecursively()) { "Could not delete ${model.label} partial download." }
     }
     suspend fun download(progress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
         if (installed) { verify(); return@withContext }
@@ -85,7 +113,7 @@ internal class VoiceOutputFiles(private val root: File,
                             sink.write(buffer, 0, n); progress(complete + count, total)
                         }
                     } }
-                    check(valid(temporary, spec)) { "Qwen download failed its size or SHA-256 check. Retry when connected." }
+                    check(valid(temporary, spec)) { "${model.label} download failed its size or SHA-256 check. Retry when connected." }
                     check(temporary.renameTo(destination))
                 } finally { temporary.delete() }
             }
@@ -93,9 +121,9 @@ internal class VoiceOutputFiles(private val root: File,
         }
         currentCoroutineContext().ensureActive()
         // Only a fully verified set receives a completion marker.
-        File(staging, ".complete").writeText(QwenModel.revision)
+        File(staging, ".complete").writeText(model.revision)
         check(!directory.exists()) { "Delete the incomplete installed model before retrying." }
-        check(staging.renameTo(directory)) { "Could not finish installing Qwen." }
+        check(staging.renameTo(directory)) { "Could not finish installing ${model.label}." }
     }
     private fun valid(file: File, spec: VoiceModelFile): Boolean {
         if (!file.isFile || file.length() != spec.bytes) return false
@@ -108,9 +136,9 @@ internal class VoiceOutputFiles(private val root: File,
     }
 }
 private fun File.readTextOrNull(): String? = runCatching { takeIf { isFile }?.readText() }.getOrNull()
-private fun openVoiceModel(spec: VoiceModelFile): InputStream {
-    require(spec in QwenModel.files)
-    var uri = URI("https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/${QwenModel.revision}/${spec.name}")
+private fun openVoiceModel(spec: VoiceModelFile, model: OutputModel): InputStream {
+    require(model in listOf(qwenOutputModel, PocketModel.model) && spec in model.files)
+    var uri = URI("https://huggingface.co/${model.repository}/resolve/${model.revision}/${spec.remoteName}")
     repeat(6) {
         require(uri.scheme == "https" && uri.userInfo == null && uri.fragment == null &&
             (uri.host == "huggingface.co" || uri.host?.endsWith(".huggingface.co") == true ||
@@ -123,7 +151,7 @@ private fun openVoiceModel(spec: VoiceModelFile): InputStream {
                 val next = connection.getHeaderField("Location") ?: error("Model redirect has no destination.")
                 uri = uri.resolve(next); connection.disconnect()
             } else {
-                check(status == 200) { "Qwen download failed (HTTP $status). Retry when connected." }
+                check(status == 200) { "${model.label} download failed (HTTP $status). Retry when connected." }
                 return object : FilterInputStream(connection.inputStream) {
                     override fun close() { try { super.close() } finally { connection.disconnect() } }
                 }

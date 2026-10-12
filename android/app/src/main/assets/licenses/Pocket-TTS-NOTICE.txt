@@ -1,0 +1,12 @@
+Pocket TTS by Kyutai: https://github.com/kyutai-labs/pocket-tts
+ONNX INT8 conversion and Loona reference WAV from csukuangfj2:
+https://huggingface.co/csukuangfj2/sherpa-onnx-pocket-tts-int8-2026-01-26
+Pinned model revision e715955cf50d18d919d37231513c0e914b83661a.
+Model and reference assets: Creative Commons Attribution 4.0 (see CC-BY-Pocket-TTS.txt).
+Bellpull leaves the downloaded checkpoint/reference bytes unchanged.
+Runtime: Sherpa-ONNX 1.13.8 (Apache-2.0), pinned 11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf.
+Bellpull's build adapter removes optional FST normalization and silence scaling,
+replaces process termination with caught exceptions, suppresses content logs and
+adds cancellation probes between inference steps. Numerical inference is upstream.
+Only Pocket sources are compiled: no eSpeak, piper, phonemizer, FST or other TTS models.
+ONNX Runtime 1.28.2 and nlohmann/json 3.12.0 are MIT licensed; see included notices.

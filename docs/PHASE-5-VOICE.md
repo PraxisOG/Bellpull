@@ -1,6 +1,6 @@
 # Phase 5 voice — development preview
 
-The newer `feature/voice-turn-taking` branch builds 0.5.3/code 15 with Moonshine
+The current `feature/local-voice-models` branch builds 0.5.5/code 17 with Moonshine
 on-device CPU recognition. See [local setup, status and benchmarks](LOCAL-SPEECH-LAB.md).
 All three local models completed native phone benchmarks; earlier device
 results below describe the 0.5.0 private-service foundation.
@@ -14,10 +14,10 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
 
 1. Keep your existing Hermes connection and Bellpull plugin. This client-only change
    does not require a new plugin; projects still require plugin 0.3.0 or newer.
-2. Open Settings → Voice and select **On device**. Choose Moonshine Tiny,
+2. Open Settings → Voice input and select **On device**. Choose Moonshine Tiny,
    Small or Medium Streaming, download it, then load it or start voice to load on
    the first captured utterance. Models and their tuning are device-wide. No URL
-   or speech-service key is needed. Voice → Experimental provides direct-WAV
+   or speech-service key is needed. Voice input → Experimental provides direct-WAV
    benchmarks; Display is its own settings category.
 3. Alternatively, explicitly select **Private server** and supply the full
    transcription URL, speech-service key if required, and model ID. Existing
@@ -38,7 +38,7 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
    gesture never auto-submits an inference. If a permission dialog interrupts the
    hold, release, grant permission and hold again. Releasing/canceling during startup
    cannot open the microphone later.
-6. Settings → Voice → **Using voice** documents these controls. Enable **Debugging
+6. Settings → Voice input → **Using voice** documents these controls. Enable **Debugging
    voice interface** to restore the detailed panel on tap, including review,
    hands-free and its older push-to-talk/send-on-release mode. The debug toggle is
    off by default and persists on this device. Readiness uses a 90 ms native chime
@@ -237,3 +237,24 @@ installed Android voice or the approved, pinned Qwen CPU experiment. See
 [setup, measured results and pending acceptance](VOICE-OUTPUT.md). The signed
 0.5.4 APK was built/tested but **not installed** before ADB disconnected.
 Phase 5 remains pending human/device acceptance, not declared fully verified.
+
+## Offline implementation handoff: 0.5.5
+
+Local output now includes Pocket TTS as an explicit CPU experiment alongside
+Qwen and Android. Model downloads, safe switching, tuning and output recovery are
+implemented; [VOICE-OUTPUT.md](VOICE-OUTPUT.md) records exact pins/licenses and
+separates 0.5.4 measurements from untested 0.5.5. Service pause now releases audio
+ownership and explicit Resume safely reacquires it; communication-route/mode
+changes are observed in addition to device addition/removal/focus changes.
+
+No further tests or phone access were used after the user's “finish Phase 5
+minus tests”. The source compiles, but the new UI baselines, tests, Pocket
+inference, Bluetooth/navigation/call and screen-lock checks are pending.
+
+Phase 5 implementation is ready for those checks within the currently verified
+Hermes contract. One roadmap requirement remains backend-dependent: **actual
+announcement playback before each tool executes**. Only Working is gated before
+admission; later tool events can arrive after execution starts. Prompt instructions
+and observed tool status cannot establish a before-execution guarantee. No
+fabricated approval or undocumented endpoint was introduced to pretend otherwise.
+A future verified host pause/ack mechanism would be needed for that guarantee.

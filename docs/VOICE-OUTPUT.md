@@ -68,7 +68,58 @@ fixture-only checks before a signed personal update. Test tap/hold dictation,
 activity announcements, missing/corrupt weights, selection switching, unload/delete,
 retry/restart, streaming, stop/restart and severe-thermal cancellation.
 
-Pocket TTS's source dependency is pinned/approved. The stock Sherpa AAR contains
-unrelated GPL eSpeak/piper code; it is not bundled. A smaller Pocket-only runtime
-is required before Pocket can be selected. Future candidates: Qwen 1.7B for style
-instructions, Kokoro 82M and Supertonic 3 (separate license review required).
+## Implemented offline, untested: 0.5.5/code 17
+
+Pocket is now selectable as an explicit experiment, with independent download,
+load/unload/delete controls and missing-weight preflight. Checkpoint
+`sherpa-onnx-pocket-tts-int8-2026-01-26`, revision
+`e715955cf50d18d919d37231513c0e914b83661a`: 198,342,307 bytes including the
+five ONNX components, vocab/scores and the 1.05-second Loona reference WAV.
+Main/flow/decoder are INT8; encoder/text conditioner FP32. English only.
+The SHA-256/size manifest is in `VoiceOutputModels.kt`; staged completed files
+survive retry, and only a verified full set becomes installed.
+
+Actual configured backend: CPU, four threads per session, Sherpa-ONNX 1.13.8
+`11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf`, ONNX Runtime 1.28.2. No GPU,
+TPU, NNAPI or partial fallback is selected. Qwen and Pocket share an exclusive
+runtime owner: loading either unloads the other before allocation. Selecting
+Android also unloads local output models off the main thread. Model choices and
+sampling settings remain profile-local; downloaded weights are device-wide.
+
+Pocket exposes real runtime controls: flow steps (1–10), temperature (0–1.5),
+decoder chunk frames (1–30), int32 seed (-1 random), volume and playback speed.
+This runtime generates a phrase's latents before decoding PCM chunks; do not
+claim first audio during latent generation. Cancellation probes between latent/
+flow/decoder steps and a bounded PCM queue discard stale work on interruption.
+The decoder applies backpressure when it outruns playback. Cancellation is not
+instantaneous during an ONNX operator. Custom reference import is deferred.
+
+The stock all-model Sherpa AAR is excluded because it bundles GPL eSpeak/piper.
+Only Pocket/model/tokenizer/helpers are compiled from pinned source. A checked
+build-time adapter removes optional FST normalization/Eigen/silence scaling,
+turns process-exit failures into caught exceptions, suppresses content logs and
+adds cancellation probes. ONNX Runtime is statically linked with hidden symbols
+inside `libbellpull_pocket.so`; it cannot collide with Moonshine's differently
+versioned `libonnxruntime.so`. API/JNI libraries and model licenses are included
+in app assets. Pocket model/reference assets are **CC BY 4.0**, attributed to
+Kyutai and the sherpa-onnx conversion by csukuangfj2; runtime Apache-2.0, ORT/json
+MIT. No model/reference bytes are changed.
+
+`ANDROID_HOME=/home/praxisog/Android/Sdk ./android/gradlew -p android
+:app:assembleDebug --console=plain` compiled both ABIs. Build inspection confirmed
+one Moonshine shared ORT per ABI and no shared ORT dependency in Pocket. These are
+build/source checks, **not inference/device tests**. No Pocket latency, quality,
+memory or temperature measurement is available. Qwen's table above applies only
+to the earlier tested 0.5.4 snapshot. Tests, screenshots, lint and device checks
+must run before a 0.5.5 install; none were rerun after the user's “minus tests”.
+
+Voice service also observes communication-route and audio-mode changes. Pause
+releases its route/focus/mode; explicit Resume reacquires them only if a call is
+not using audio. Notification/media controls expose Resume. Stale mode/route
+callbacks consult current Android state. No permission to read call details is
+added. Bluetooth/navigation/call/lock-screen behavior remains untested.
+
+Future candidates: Qwen 1.7B for style instructions, Kokoro 82M, Supertonic 3
+(separate license review required). Failed acceleration experiments do not block
+working CPU choices. No plugin changes, push, phone access or server access in
+this offline slice.

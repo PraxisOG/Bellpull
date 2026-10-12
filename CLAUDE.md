@@ -79,7 +79,10 @@ checks. Qwen CPU is measured at roughly 7–8 processing seconds per audio secon
 **The phone disconnected before personal installation: the personal app remains
 0.5.3/code 15**, stopped. The fixture app/test package and Qwen test weights remain
 pending cleanup when ADB returns. See `docs/VOICE-OUTPUT.md` for exact evidence.
-Any subsequent offline implementation is untested until checks resume.
+The subsequent 0.5.5/code 17 implementation compiles ARM64/x86_64 but has not
+run tests/screenshots/device checks, at the user's request. It adds Pocket-only
+Sherpa/ORT, model switching and explicit audio-route/focus recovery. Do not reuse
+0.5.4 test results as evidence for 0.5.5.
 
 **Previous authority (2026-10-11, voice controls):** work on
 `feature/voice-turn-taking` from 0.5.2 (`3c8acf7`). Default microphone tap starts/ends
