@@ -1,3 +1,14 @@
+# Phase 8/9 planning plugin preview
+
+This branch adds reminders/native routines and an opt-in phone calendar cache as
+**0.4.0-phase8-9**. Install with the existing stock-plugin procedure below, restart
+Hermes and refresh authenticated discovery: `bellpull_planning` must be true;
+`bellpull_routines` depends on the host cron API. No Docker/core patch or second
+scheduler. Back up the profile home; new metadata is additive under
+`bellpull-planning/`. Restore the old plugin and restart to roll back. The independent
+Phase 6 plugin has different features; do not mix directories or assume its version
+includes planning. See [scope/acceptance](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).
+
 # Bellpull plugin 0.3.0
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,

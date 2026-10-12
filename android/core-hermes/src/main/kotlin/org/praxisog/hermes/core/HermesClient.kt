@@ -96,6 +96,15 @@ class HermesClient(
         get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
 
     fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
+    fun planning(): HermesResult<PlanningSnapshot> = get("/api/bellpull/planning") { json.decodeFromString<PlanningSnapshot>(it).validated() }
+    fun planningAction(kind: String, body: JsonObject): HermesResult<JsonObject> {
+        require(kind in setOf("reminders","routines","proposals"))
+        return post("/api/bellpull/planning/$kind",body.toString()) { json.parseToJsonElement(it).jsonObject }
+    }
+    fun shareCalendar(device: String, body: JsonObject): HermesResult<JsonObject> {
+        require(device.matches(Regex("[a-f0-9]{32}")))
+        return execute(authed("/api/bellpull/calendar/$device").put(body.toString().toRequestBody(JSON_MEDIA)).build(),null) { json.parseToJsonElement(it).jsonObject }
+    }
     private fun projectSnapshot(body: String): ProjectSnapshot {
         val raw = json.parseToJsonElement(body).jsonObject
         require(raw["version"]?.jsonPrimitive?.intOrNull == 1 &&
@@ -229,7 +238,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_planning", "bellpull_routines")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

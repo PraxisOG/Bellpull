@@ -1,3 +1,55 @@
+# Phase 8/9 experimental planning contract — 2026-10-12
+
+These are new **Bellpull-owned** routes, implemented in this branch's
+`0.4.0-phase8-9` plugin, not guessed upstream APIs. All require the existing native
+bearer authentication; served `/p/{profile}` routes retain that profile's home and
+never fall back to root. Discovery advertises `bellpull_planning`; native cron
+availability is separately reported as `bellpull_routines`.
+
+- `GET /api/bellpull/planning`: v1 snapshot, `reminders`, `routines`, `proposals`,
+  `routines_available`, `observed_at`. Max 1,000 reminders, 500 routines, 100 proposals.
+- `POST /api/bellpull/planning/reminders`: `operation_id` (32 lowercase hex), action
+  create/edit/snooze/complete/dismiss/reopen/delete. Create uses `title`, `due_ms`
+  (absolute epoch milliseconds). Later actions require `id` and exact `revision`;
+  edit includes title/time, snooze includes time. Same operation/content is idempotent;
+  reused identity or stale revision fails 409. Due/alerted never means completed.
+- `POST /api/bellpull/planning/routines`: stable `operation_id`, action create/edit/
+  pause/resume/delete. Create/edit accept `name`, `prompt`, native `schedule` string;
+  later actions bind native `id` and snapshot `fingerprint`. New routines deliver
+  locally. Existing destinations remain visible and unchanged. No scripts, model
+  substitutions, tool execution or second scheduler. Advanced scripted/skill/monitor
+  routines need Hermes for edits. A crash after intent persistence has an explicit
+  uncertain state; retry must not submit another native job. Refresh the native list
+  and resolve the outcome before another action. External scheduler races can reject
+  stale fingerprints. Native APIs are feature-detected from inspected cron.jobs, requiring its explicit
+  `use_cron_store` context for every operation; older unsupported hosts decline routines.
+- `PUT /api/bellpull/calendar/{device}`: device ID is stable per phone connection.
+  Send `read_at_ms`, `busy_only`, and at most 500 events: `id`, `start_ms`, `end_ms`,
+  `all_day`; detailed sharing additionally sends `title` and `fingerprint`. Busy-only
+  mode omits those details on the phone and strips any supplied details on the server.
+  Snapshot age must be within five minutes. `{revoke:true}` clears this device's
+  dedicated server cache and proposals. At most 16 devices per native profile.
+- `POST /api/bellpull/planning/proposals`: `id`, owning `device`, `state` applied/
+  rejected, `result`. Same result is retry-safe. The phone reports applied only after
+  verifying the CalendarContract write; this does not prove upstream account sync.
+
+`bellpull_planning` tool actions: read/create_event/edit_event/delete_event. Reads
+are bounded to 20 unfinished reminders and 200 shared events, default next seven
+days; `from_ms`/`until_ms` can select at most 31 days. Freshness/truncation is explicit.
+A proposal uses stable `operation_id`, device, title, start/end for create/edit,
+and event ID/fingerprint for edit/delete. The server validates the shared reference,
+then stores a pending proposal. **It does not write the phone calendar.** The user
+must apply it in Bellpull. The phone rechecks OS permission, connection calendar
+selection/access, current event fingerprint and supported non-recurring scope.
+No new inbound phone token/automatic device bridge is implemented in this slice.
+
+Planning SQLite lives under each profile's `bellpull-planning/`; phone policy,
+metadata cache, revocation intent and operation receipts use the existing encrypted
+per-connection cache. Reminders have no background/offline alert transport yet.
+Calendar apps own appointment alerts. There is no automatic context injection;
+Hermes explicitly retrieves the bounded tool summary. Full routine result bodies,
+advanced delivery editing, automatic phone writes and Phase 10 delivery are deferred.
+
 # Bellpull / Hermes API contract
 
 ## Phase 5 voice boundary — 2026-10-11
