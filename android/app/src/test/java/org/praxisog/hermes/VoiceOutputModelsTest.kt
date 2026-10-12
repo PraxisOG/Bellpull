@@ -14,6 +14,23 @@ class VoiceOutputModelsTest {
     private val data = listOf("talker".toByteArray(), "codec".toByteArray())
     private val specs = data.mapIndexed { i, bytes -> VoiceModelFile("file$i.gguf", bytes.size.toLong(),
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }) }
+    @Test fun shippedModelManifestsConstructBeforeAnyModelIsInstalled() {
+        val root = temporary.newFolder()
+        for (model in listOf(qwenOutputModel, PocketModel.model)) {
+            val files = VoiceOutputFiles(root, model.files, model)
+            assertEquals(File(root, "${model.id}-${model.revision}"), files.directory)
+            assertFalse(files.installed)
+            assertFalse(files.partial)
+            assertThrows(IllegalStateException::class.java) { files.verify() }
+        }
+    }
+    @Test fun modelIdsCannotEscapeTheirOwnedFolder() {
+        for (id in listOf("../qwen", "/qwen", ".hidden", "qwen/model", "qwen\\model", "")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                VoiceOutputFiles(temporary.newFolder(), model = qwenOutputModel.copy(id = id))
+            }
+        }
+    }
     @Test fun verifiedInstallRetryAndDeleteOnlyTouchOwnedFolders() = runBlocking {
         val root = temporary.newFolder(); val unrelated = File(root, "notes.txt").apply { writeText("keep me") }
         var opens = 0

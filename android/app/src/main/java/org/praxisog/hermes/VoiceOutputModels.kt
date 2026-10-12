@@ -73,7 +73,9 @@ internal class VoiceOutputFiles(private val root: File,
     constructor(context: Context, model: OutputModel = qwenOutputModel) :
         this(File(context.noBackupFilesDir, "voice-output-models"), model.files, model)
     init {
-        require(model.id.matches(Regex("[a-z0-9-]+")) && model.revision.matches(Regex("[0-9a-f]{40}")))
+        // Checkpoint IDs include decimal sizes (qwen-0.6b). Keep them stable so
+        // an upgrade reuses downloaded weights; allow dots after a safe prefix.
+        require(model.id.matches(Regex("[a-z0-9][a-z0-9.-]*")) && model.revision.matches(Regex("[0-9a-f]{40}")))
         require(specs.isNotEmpty() && specs.map { it.name }.distinct().size == specs.size)
         require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
     }
