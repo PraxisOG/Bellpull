@@ -1,3 +1,14 @@
+## 0.5.5 launch repair — October 12
+
+The original 0.5.5 launch crash was repaired at `c913243`: the folder validator now
+accepts the shipped safe `qwen-0.6b` ID while rejecting traversal/unsafe paths.
+Eight focused JVM regressions and one isolated phone startup/preflight/Activity
+check passed. The corrected signed 0.5.5 is installed; personal app left stopped.
+See [exact artifact and signing evidence](release.md). This does **not** establish
+Pocket synthesis, route recovery, acoustic quality or personal-provider behavior.
+Voice output screenshot baselines were subsequently reviewed/updated and the API-31
+communication callback guard corrected on the shared 0.5.5 branch.
+
 # Local voice output
 
 Settings → Voice input chooses transcription. Settings → Voice output independently
