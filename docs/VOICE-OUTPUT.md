@@ -134,3 +134,6 @@ Startup reconciliation is retained across canceled/retried output loading: a
 previously admitted voice request is matched/cleared through the original recovery
 path before listening resumes, rather than exposing it as a fresh unsent turn.
 This source correction is also awaiting regression/device checks.
+
+Resume notification/headset actions are accepted only while paused; stale Play/
+Resume actions cannot reset an active turn. This guard is also untested.

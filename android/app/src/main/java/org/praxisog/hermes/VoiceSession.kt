@@ -184,14 +184,14 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun readyToListen() {
         if (startupReconciled) { resumeReady(); return }
         startupReconciled = true
-            val existing = conversation.run()
-            if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
-                submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
-                state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
-            } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
-                saveTranscript(""); transcript = ""; listen()
-            } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
-            else listen()
+        val existing = conversation.run()
+        if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
+            submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
+            state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
+        } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
+            saveTranscript(""); transcript = ""; listen()
+        } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
+        else listen()
     }
     private fun prepareOutput(whenReady: () -> Unit) {
         val token = generation

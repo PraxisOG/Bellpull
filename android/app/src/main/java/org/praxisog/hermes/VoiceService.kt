@@ -21,17 +21,19 @@ class VoiceService : Service() {
     private var oldMode = AudioManager.MODE_NORMAL
     private var requestedRoute: AudioDeviceInfo? = null
     @get:androidx.annotation.RequiresApi(31)
-    private val routeChanged by lazy { AudioManager.OnCommunicationDeviceChangedListener { _ ->
-        if (started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
-            audio.communicationDevice?.id != requestedRoute?.id)
-            runtime.voice?.pause("The communication route changed. Check your route and resume voice.")
-    }
+    private val routeChanged by lazy {
+        AudioManager.OnCommunicationDeviceChangedListener {
+            if (started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
+                audio.communicationDevice?.id != requestedRoute?.id)
+                runtime.voice?.pause("The communication route changed. Check your route and resume voice.")
+        }
     }
     @get:androidx.annotation.RequiresApi(31)
-    private val modeChanged by lazy { AudioManager.OnModeChangedListener { _ ->
-        if (started && runtime.voice?.state != VoiceState.PAUSED && audio.mode != AudioManager.MODE_IN_COMMUNICATION)
-            runtime.voice?.pause("Another app or call changed the audio mode. Resume voice when ready.")
-    }
+    private val modeChanged by lazy {
+        AudioManager.OnModeChangedListener {
+            if (started && runtime.voice?.state != VoiceState.PAUSED && audio.mode != AudioManager.MODE_IN_COMMUNICATION)
+                runtime.voice?.pause("Another app or call changed the audio mode. Resume voice when ready.")
+        }
     }
     private val routes = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
@@ -58,7 +60,10 @@ class VoiceService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) { runtime.voice?.close(); stopSelf(); return START_NOT_STICKY }
         if (intent?.action == PAUSE) { if (started) runtime.voice?.pause() else stopSelf(); return START_NOT_STICKY }
-        if (intent?.action == RESUME) { if (started) runtime.voice?.resume() else stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == RESUME) {
+            if (!started) stopSelf() else if (runtime.voice?.state == VoiceState.PAUSED) runtime.voice?.resume()
+            return START_NOT_STICKY
+        }
         if (started) return START_NOT_STICKY
         val store = runtime.store
         val id = runtime.voiceRequestedSession
@@ -116,7 +121,7 @@ class VoiceService : Service() {
             started = true
             media = MediaSession(this, "Bellpull voice").also { session ->
                 session.setCallback(object : MediaSession.Callback() {
-                    override fun onPlay() = voice.resume()
+                    override fun onPlay() { if (voice.state == VoiceState.PAUSED) voice.resume() }
                     override fun onPause() = voice.pause()
                     override fun onStop() = voice.close()
                 })
