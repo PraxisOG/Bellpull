@@ -97,8 +97,8 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.5.1", app.name)
-        assertEquals(13L, app.code)
+        assertEquals("0.5.2", app.name)
+        assertEquals(14L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {
                 AboutDialog(app, listOf(ServerPluginVersion("Current fixture", "https://current.invalid", "0.3.0", 0.0),
@@ -109,6 +109,30 @@ class ProjectsUiDeviceTest {
                 await { text(label) != null }
                 text(label)!!.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             }
+        }
+    }
+    @Test fun missingSpeechModelCannotStartVoice() = withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val lab = SpeechLab(context) { _, _ -> error("Missing models must never enter native code") }
+        check(!lab.files.installed(lab.selected)) { "Run this regression in a fresh fixture sandbox without models" }
+        val starts = java.util.concurrent.atomic.AtomicInteger()
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            scene.onActivity { activity -> activity.setContent { HermesTheme {
+                VoicePanel(null, VoiceConfiguration(), null, {}, { starts.incrementAndGet() }, {}, speechLab = lab)
+            } } }
+            for (mode in listOf("Hands-free", "Review before sending", "Push to talk")) {
+                await { text(mode) != null }
+                tap(text(mode)!!)
+                await { text("Start voice") != null }
+                // Android exposes the text child independently of Compose's disabled semantics.
+                // JVM coverage checks those semantics; real touch here must never dispatch Start.
+                tap(text("Start voice")!!)
+                automation.waitForIdle(150, 3000)
+                assertEquals(0, starts.get())
+            }
+            await { text("Download ${lab.selected.label} in Settings → Voice → Experimental first.") != null }
+            assertNull(lab.runtime.loadedModel)
+            assertNotNull(text("Voice settings"))
         }
     }
     @Test fun localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels() = withWindows {

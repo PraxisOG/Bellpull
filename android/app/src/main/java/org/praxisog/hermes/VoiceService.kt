@@ -50,16 +50,9 @@ class VoiceService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         val config = VoiceSettings(this, profile).read()
-        if (config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) {
-            runtime.voiceStartError = "Configure your selected private transcription service first."; stopSelf(); return START_NOT_STICKY
-        }
-        if (config.recognition == VoiceRecognition.LOCAL) {
-            val lab = runtime.speechLab
-            if (lab.busy || lab.selectedId !in lab.installed) {
-                runtime.voiceStartError = if (lab.busy) "Finish the speech experiment before starting voice." else
-                    "Download ${lab.selected.label} in Settings → Voice → Experimental first."
-                stopSelf(); return START_NOT_STICKY
-            }
+        config.startProblem { runtime.speechLab.voiceStartProblem() }?.let { problem ->
+            runtime.voiceStartError = problem
+            stopSelf(); return START_NOT_STICKY
         }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "Voice session", NotificationManager.IMPORTANCE_LOW))

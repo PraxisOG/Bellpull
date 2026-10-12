@@ -42,13 +42,15 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This local-speech development branch builds **0.5.1 (code 13)**. It adds Moonshine
+This local-speech development branch builds **0.5.2 (code 14)**. It adds Moonshine
 Tiny, Small and Medium Streaming on-device CPU transcription, collapsible Settings
 categories, and model downloads/load/unload/delete controls. Choose **On device**
 in Settings → Voice; model experiments and direct-WAV benchmarks are under
 **Voice → Experimental**. A downloaded model needs no transcription URL or key.
 All three models completed direct-input phone benchmarks and sustained thermal
-tests. The data-preserving 0.5.1 update is installed; open Voice settings and download
+tests. Start voice is disabled until the selected local model is installed;
+missing/incomplete files are checked again before permissions, service startup and
+recognizer creation. Open Voice settings and download
 a model in the personal app. See [measured results](benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
 and [setup and limits](docs/LOCAL-SPEECH-LAB.md).
 

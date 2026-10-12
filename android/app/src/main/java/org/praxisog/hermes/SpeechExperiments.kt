@@ -53,9 +53,14 @@ internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> Local
         settings.tune(selectedId, value); tuning = value; actualBackend = null
         notice = "Saved. The next load uses these settings."
     }
+    fun voiceStartProblem(): String? = when {
+        busy -> "Finish the speech experiment before starting voice."
+        // The UI's installed snapshot may predate a deletion or an interrupted installation.
+        !files.installed(selected) -> "Download ${selected.label} in Settings → Voice → Experimental first."
+        else -> null
+    }
     fun voiceTranscriber(): VoiceTranscriber {
-        check(!busy) { "Finish the speech experiment before starting voice." }
-        check(selectedId in installed) { "Download ${selected.label} in Settings → Voice → Experimental first." }
+        voiceStartProblem()?.let { throw IllegalStateException(it) }
         val thermals = SpeechThermals(app)
         return LocalVoiceTranscriber(runtime, selected) { thermals.severe }
     }

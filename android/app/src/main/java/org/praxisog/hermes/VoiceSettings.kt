@@ -11,6 +11,15 @@ internal class VoiceConfiguration(val endpoint: String = "", val key: String = "
     val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
+
+/** Recheck at each permission/service boundary; a model can be deleted while a dialog is open. */
+internal fun VoiceConfiguration.startProblem(localProblem: () -> String?): String? =
+    when (recognition) {
+        VoiceRecognition.LOCAL -> localProblem()
+        VoiceRecognition.PRIVATE_SERVER -> if (endpoint.isBlank())
+            "Configure your selected private transcription service first." else null
+    }
+
 @Suppress("DEPRECATION")
 internal class VoiceSettings(private val prefs: SharedPreferences) {
     constructor(context: Context, profileId: String) : this(EncryptedSharedPreferences.create(context, "bellpull_voice_$profileId",

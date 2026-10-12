@@ -80,7 +80,15 @@ Parakeet TDT's Pixel TPU route as proof of Realtime EOU compatibility. Report ac
 backend, source-checked inputs, timing annotation limits and measured/untested/blocked
 results separately. No merge or release publication.
 
-CPU delivery is now verified and installed as 0.5.1/code 13. See the measured
+The current 0.5.2/code 14 patch disables Start voice for missing/incomplete local
+models and during model operations. Actual file availability is rechecked before
+permissions, service start and recognizer construction. Regression validation passed
+481 local tests (one live-server skip), 156 screenshots, build/lint and two isolated
+phone checks (all three blocked voice modes and About). The signed update preserved
+personal UID/data and was left stopped; fixture apps were removed. No personal server
+access or plugin update. Signing/rollback details are in `docs/release.md`.
+
+The previous CPU delivery was verified and installed as 0.5.1/code 13. See the measured
 report under `benchmarks/speech/pixel-10-pro-fold-2026-10-11/`: 206 model benchmark
 rows, all three native suites passed, and eight distinct device checks passed
 after fixing the UI harness's stale accessibility cache/scroll handling. Local

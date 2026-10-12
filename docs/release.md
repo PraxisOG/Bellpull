@@ -1,19 +1,32 @@
 # Building and upgrading Bellpull
 
-The current local-speech branch builds **0.5.1, version code 13**, from the Phase 5
+The current local-speech branch builds **0.5.2, version code 14**, from the Phase 5
 foundation. See [local speech status and setup](LOCAL-SPEECH-LAB.md) and
 [Phase 5 acceptance](PHASE-5-VOICE.md). No plugin update is required for voice;
 download Moonshine for local CPU recognition, or explicitly select your own private
 transcription service. Answers use the phone's installed offline voice. Phone
 recognition, native switching/local review and thermal comparisons passed in the
 isolated fixture app; [results](../benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
-include limitations. The signed 0.5.1 update was installed with unchanged UID and
-data directory inodes and left stopped. Temporary display settings were restored
-and fixture apps/weights removed. APK SHA-256:
-`fda71758e610aca31094d61be7a618ce8ce30f1d22d2323bdc1646935a4b225d`.
-Local signed APK/rollback copy are under ignored `build/releases/0.5.1/` and
+include limitations. 0.5.2 disables Start voice until the selected local model is
+installed and model operations have finished. It checks files again before permissions,
+service startup and recognizer creation; an unloaded installed model can still start.
+Missing/incomplete/deleted-file regression tests and all three disabled voice modes
+are covered. Private-server mode remains independent of local downloads.
+Local validation passed 481 tests with one opt-in live-server skip, all 156 screenshot
+baselines, debug/release builds and lint. Signed APK SHA-256:
+`a681d69a0d326bd914d365907fea3ec0021d0f399acfeafc1cffb748b2eb2fd6`.
+Local signed APK/rollback copies are under ignored `build/releases/0.5.2/`,
+`build/releases/0.5.1/` and
 `build/speech-lab/personal-upgrade/`. No release was published; do not test against
 the personal Hermes server.
+
+Two isolated phone regressions passed: real taps cannot start any of the three voice
+modes without a model, and About reports the installed version. The signed 0.5.2
+update was installed over 0.5.1 with the same signing certificate, UID and data
+directory inodes. The personal app was left stopped and fixture apps removed.
+No personal Hermes/provider call was made. Local logs for this patch are under
+ignored `build/speech-lab/voice-start-guard-*.txt`; the 0.5.1 benchmark data above
+remains the measured recognition/thermal evidence.
 
 Isolated voice checks use `tools/voice-device-fixture.py` on loopback 18647 and
 `mock-hermes/server.py` on loopback 18646 with `MOCK_HERMES_KEY=voice-device-hermes-key`.

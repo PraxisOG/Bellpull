@@ -46,11 +46,13 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (editing) VoiceSettingsEditor(config, voice == null, { onSave(it); editing = false }, speechLab)
                     else if (voice == null) {
+                        val startProblem = config.startProblem {
+                            if (speechLab == null) "Choose and download a model in Settings → Voice → Experimental first."
+                            else speechLab.voiceStartProblem()
+                        }
                         if (config.recognition == VoiceRecognition.LOCAL) {
                             Text("Speech is transcribed on this device. Answers use an installed offline voice. Sending your words to Hermes still needs a connection.")
                             Text("${speechLab?.selected?.label ?: "Moonshine Tiny Streaming"} · CPU", style = MaterialTheme.typography.bodySmall)
-                            if (speechLab != null && speechLab.selectedId !in speechLab.installed)
-                                Text("Download the selected model in Voice settings before starting.", style = MaterialTheme.typography.bodySmall)
                         } else {
                             Text("Audio goes to your selected private transcription service; answers use an installed offline voice.")
                             Text("Transcription model: ${config.model}", style = MaterialTheme.typography.bodySmall)
@@ -61,8 +63,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                             FilterChip(mode == VoiceMode.PUSH_TO_TALK, { mode = VoiceMode.PUSH_TO_TALK }, label = { Text("Push to talk") })
                         }
                         Text("Hands-free sends recognized speech automatically. Review mode lets you correct each transcription. A visible notification controls the microphone while the app is in the background.", style = MaterialTheme.typography.bodySmall)
-                        startError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        Button(onClick = { onStart(mode) }) { Text("Start voice") }
+                        (startProblem ?: startError)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        Button(enabled = startProblem == null, onClick = { onStart(mode) }) { Text("Start voice") }
                         TextButton(onClick = { editing = true }) { Text("Voice settings") }
                     } else {
                         Text(voice.state.label, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { contentDescription = "Voice state: ${voice.state.label}" })

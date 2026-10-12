@@ -55,7 +55,9 @@ internal class SpeechModelFiles(private val root: File,
     private fun staging(model: SpeechModel) = File(root, ".${model.id}-${model.checkpoint}.partial")
     fun hasPartial(model: SpeechModel): Boolean { directory(model); return staging(model).isDirectory }
     fun installed(model: SpeechModel): Boolean = directory(model).let { dir ->
-        File(dir, ".complete").isFile && model.files.all { File(dir, it.name).length() == it.bytes }
+        File(dir, ".complete").isFile && model.files.all { file ->
+            File(dir, file.name).let { it.isFile && it.length() == file.bytes }
+        }
     }
     fun verify(model: SpeechModel) {
         check(installed(model)) { "Download ${model.label} in Settings → Voice → Experimental first." }

@@ -1,7 +1,7 @@
 # Local speech experiments — on-device CPU preview
 
 Branch: `feature/local-speech-lab`, based on `66ceb2d` (0.5.0).
-Current development APK: 0.5.1, version code 13; installed in place, not published.
+Current development APK: 0.5.2, version code 14; installed in place, not published.
 The user's October 11 addendum supersedes the earlier “Large” request: the first
 three models are **Moonshine Tiny, Small and Medium Streaming**. Finish their CPU
 integration and baseline measurements before additional models or accelerator ports.
@@ -72,6 +72,12 @@ Sources: [Moonshine Android SDK](https://github.com/moonshine-ai/moonshine/tree/
    No GPU/TPU fallback is claimed. Native API version, tuning and SDK thread defaults
    are included in benchmark result metadata.
 
+Start voice is disabled while the selected model is missing or a speech experiment
+is busy. It shows the selected model's download instructions. The same preflight
+checks actual file presence and sizes before each permission/service boundary and
+recognizer creation, even if the cached installed status is stale. A downloaded
+model may remain unloaded until its first transcription; no automatic download or
+model substitution occurs. Checksum verification still runs on the loading worker.
 Missing/corrupt local weights and native loading failures produce a local error;
 they never invoke the private service. Local WAV recognition needs neither Hermes
 nor a service URL/key. Sending a recognized prompt still needs Hermes. Selecting a
@@ -208,6 +214,9 @@ not a neural EOU sensitivity setting.
 1. Keep your existing Hermes connection and plugin 0.3.0. Open Settings → Voice →
    **On device**, select a model and download it. Test weights live only in the
    disposable fixture sandbox; the personal app needs its own download.
+   Before downloading, confirm **Start voice** is disabled in all three modes and
+   the download instruction names the selected model. Delete the selected model
+   later and confirm Start becomes disabled again while Voice settings stays available.
 2. Load Tiny, switch to Small, then Medium. Confirm installed/download sizes,
    actual CPU backend and saved per-model tuning. Unload, restart the app and
    confirm the selected model and installed status survive. Delete an unused

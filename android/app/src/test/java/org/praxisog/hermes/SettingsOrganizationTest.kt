@@ -79,6 +79,23 @@ class SettingsOrganizationTest {
         compose.onNodeWithText("On device").performClick()
         compose.onNodeWithText("Full transcription URL").assertDoesNotExist()
     }
+    @Test fun missingModelDisablesEveryVoiceModeAndPrivateModeStillStarts() {
+        var started = 0
+        var config by mutableStateOf(VoiceConfiguration())
+        compose.setContent { HermesTheme {
+            val context = LocalContext.current
+            val lab = remember { SpeechLab(context) { _, _ -> error("Must not load native code") } }
+            VoicePanel(null, config, null, {}, { started++ }, {}, speechLab = lab)
+        } }
+        for (mode in listOf("Hands-free", "Review before sending", "Push to talk")) {
+            compose.onNodeWithText(mode).performClick()
+            compose.onNodeWithText("Start voice").assertIsNotEnabled().performTouchInput { click() }
+        }
+        compose.onNodeWithText("Download Moonshine Tiny Streaming in Settings → Voice → Experimental first.").assertExists()
+        compose.runOnIdle { assertEquals(0, started); config = VoiceConfiguration("https://speech.invalid/v1/audio/transcriptions") }
+        compose.onNodeWithText("Start voice").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, started) }
+    }
     private fun localSettings() {
         compose.setContent { HermesTheme {
             val context = LocalContext.current
