@@ -210,3 +210,14 @@ Publishing is a separate action; neither CI nor the release script performs it.
 Keep the preceding APK and server image. Android normally rejects lower version
 codes; prefer a fix with a higher code signed through the same lineage. Server
 rollback is described in [the plugin migration guide](../plugins/bellpull/README.md).
+
+## 0.5.4 local voice-output snapshot — not installed
+
+Signed APK `build/releases/0.5.4/Bellpull.apk`, SHA-256
+`8341e1830a4bc8225e9c7acbbeaed5af3adb93cbc9fa86555e722197ca4a5e22`.
+Signer SHA-256 `c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf`;
+signature and 16-KiB zip alignment verified. Local test/build evidence is in
+[VOICE-OUTPUT.md](VOICE-OUTPUT.md). The phone disconnected before installation,
+so personal app remains 0.5.3/code 15. Fixture package/test APK and Qwen weights
+remain to be cleaned up when ADB returns; never remove the personal app.
+No push/release publication is authorized until user acceptance/green light.

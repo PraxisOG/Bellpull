@@ -62,7 +62,10 @@ class MainActivity : ComponentActivity() {
             insets
         }
         androidx.core.view.ViewCompat.requestApplyInsets(window.decorView)
-        val reader = MessageReader(this)
+        val reader = MessageReader(this) {
+            check(runtime.voice == null) { "End voice conversation before using Read aloud." }
+            runtime.voiceOutputs.output(runtime.profileId?.let { VoiceSettings(this, it).read() } ?: VoiceConfiguration())
+        }
         messageReader = reader
         profiles = ServerProfiles(this, scope, runtime, onLeaving = {
             reader.stop()
@@ -88,7 +91,7 @@ class MainActivity : ComponentActivity() {
                             VoicePanel(runtime.voice, voiceConfig, runtime.voiceStartError,
                                 { savedVoiceSettings!!.save(it); voiceConfig = savedVoiceSettings.read() }, ::requestVoice, { voiceOpen = false },
                                 onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false },
-                                speechLab = runtime.speechLab)
+                                speechLab = runtime.speechLab, outputLab = runtime.voiceOutputs)
                         }
                     }
                     pendingShare?.takeIf { showShare }?.let { incoming ->
@@ -136,6 +139,12 @@ class MainActivity : ComponentActivity() {
                                     androidx.compose.material3.Text(if (preferences.value.debuggingVoiceInterface) "Open voice conversation" else if (runtime.voice != null) "End voice" else "Start voice conversation")
                                 }
                                 runtime.voiceStartError?.let { androidx.compose.material3.Text(it) }
+                            }
+                        },
+                        voiceOutputSettings = {
+                            VoiceOutputSettings(voiceConfig, runtime.voiceOutputs, runtime.voice == null,
+                                canSave = savedVoiceSettings != null, beforeChange = { reader.stop() }) {
+                                savedVoiceSettings?.save(it); voiceConfig = savedVoiceSettings?.read() ?: it
                             }
                         },
                         sessionSource = current?.sessionSource,
@@ -199,7 +208,7 @@ class MainActivity : ComponentActivity() {
                         composerLeading = current?.openSessionId?.let { id -> {
                             androidx.compose.foundation.layout.Row {
                                 val active = runtime.voice != null || runtime.voiceRequestedSession != null
-                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || voiceConfig.startProblem { runtime.speechLab.voiceStartProblem() } == null,
+                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || runtime.voiceProblem(voiceConfig) == null,
                                     preferences.value.reduceMotion, ::toggleVoice, ::holdVoice, ::releaseVoice)
                                 if (files != null) {
                                     if (!files.runAttachmentsSupported) UnavailableAttachmentsButton(files.filesSupported)
@@ -210,7 +219,7 @@ class MainActivity : ComponentActivity() {
                             }
                         } },
                         attachmentStrip = current?.openSessionId?.let { id -> {
-                            val problem = voiceConfig.startProblem { runtime.speechLab.voiceStartProblem() }
+                            val problem = runtime.voiceProblem(voiceConfig)
                             VoiceInlineStatus(runtime.voice, runtime.voiceStartError ?: problem,
                                 profiles::showSettings, {
                                     runtime.voice?.let { voice ->
@@ -393,7 +402,7 @@ class MainActivity : ComponentActivity() {
     private fun voiceReady(): Boolean {
         val profile = runtime.profileId
         if (profile == null) { runtime.voiceStartError = "Open a conversation before starting voice."; return false }
-        runtime.voiceStartError = VoiceSettings(this, profile).read().startProblem { runtime.speechLab.voiceStartProblem() }
+        runtime.voiceStartError = runtime.voiceProblem(VoiceSettings(this, profile).read())
         return runtime.voiceStartError == null
     }
     private fun requestNotifications(enabled: Boolean) {

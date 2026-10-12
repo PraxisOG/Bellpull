@@ -63,7 +63,25 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
-**Current authority (2026-10-11, voice controls):** work on
+**Current authority (2026-10-11, local voice output and Phase 6 prelim):** finish
+Phase 5 implementation on `feature/local-voice-models`, **without further tests or
+phone access**, then create a separate branch for Phase 6 preliminary OpenCode
+monitoring through Hermes. No personal server access. No push until the user's
+green light; no merge or release publication. The user approved qwentts.cpp/GGML
+and Sherpa-ONNX 1.13.8 with ONNX Runtime for local output. No Google accelerator
+libraries are approved. Keep the previous voice-turn-taking behavior and provider
+thinking controls unchanged. Voice input and Voice output are separate categories.
+Android speech remains the default; never silently substitute engines.
+
+The tested 0.5.4/code 16 Qwen/Android snapshot passed 519 local tests (one live
+smoke skip), 161 screenshot baselines, builds/lint and two isolated native phone
+checks. Qwen CPU is measured at roughly 7–8 processing seconds per audio second.
+**The phone disconnected before personal installation: the personal app remains
+0.5.3/code 15**, stopped. The fixture app/test package and Qwen test weights remain
+pending cleanup when ADB returns. See `docs/VOICE-OUTPUT.md` for exact evidence.
+Any subsequent offline implementation is untested until checks resume.
+
+**Previous authority (2026-10-11, voice controls):** work on
 `feature/voice-turn-taking` from 0.5.2 (`3c8acf7`). Default microphone tap starts/ends
 conversation mode with a clear pulsing indicator; holding dictates into the composer
 for review. Keep the previous panel behind Settings → Voice → Debugging voice
@@ -287,8 +305,9 @@ that installation; preserve the signing lineage and app data.
   Compose + `androidx.security:security-crypto` (app), Robolectric + Roborazzi (tests),
   and user-approved CommonMark Java 0.30.1 with its table extension (2026-10-10).
   Moonshine Voice Android CPU SDK 0.1.5 is also user-approved (2026-10-11), with
-  unused Google Material and WorkManager transitives excluded. This does not
-  authorize Google LiteRT/Tensor libraries or additional speech runtimes.
+  unused Google Material and WorkManager transitives excluded. Qwen's pinned CPU runtime/GGML and Sherpa-ONNX 1.13.8 with bundled ONNX
+  Runtime (including its existing JSON dependency) are also user-approved for
+  voice output. This does not authorize Google LiteRT/Tensor libraries.
   OkHttp was chosen over `HttpURLConnection` for the SSE path specifically because a
   long-lived stream needs clean cancellation and a bounded connect timeout with no read
   timeout; `HttpURLConnection.disconnect()` mid-read is not well defined.

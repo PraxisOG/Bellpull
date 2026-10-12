@@ -76,7 +76,7 @@ class VoiceControlsTest {
                 SettingsWorkspace(BellpullPreferences(), {}, voiceSettings = { Text("Speech recognition") })
             }
         } } }
-        compose.onNodeWithText("Voice").performClick()
+        compose.onNodeWithText("Voice input").performClick()
         compose.onNodeWithText("Using voice").performClick()
         compose.onNodeWithText("Debugging voice interface").assertExists()
         compose.onRoot().captureRoboImage()

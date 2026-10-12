@@ -83,7 +83,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     serverProfiles: (@Composable () -> Unit)? = null,
     pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
     speechLab: (@Composable () -> Unit)? = null,
-    voiceSettings: (@Composable () -> Unit)? = null) {
+    voiceSettings: (@Composable () -> Unit)? = null,
+    voiceOutputSettings: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
@@ -166,7 +167,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
                 preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
         }
-        if (voiceSettings != null || speechLab != null) SettingsSection("Voice", "Recognition, spoken answers and experiments") {
+        if (voiceSettings != null || speechLab != null) SettingsSection("Voice input", "Recognition, conversation controls and experiments") {
             SettingsSection("Using voice", "Tap for conversation; hold for dictation") {
                 Text("Tap the microphone to start conversation mode; tap again to end. The pulsing button means voice is on (steady with Reduce motion). Hold to dictate: wait for the soft chime, speak, then release to put words in the draft for review.")
             }
@@ -175,6 +176,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             voiceSettings?.invoke()
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
         }
+        voiceOutputSettings?.let { SettingsSection("Voice output", "Local models, voices and playback") { it() } }
         SettingsSection("About", "Installed app and server plugin versions") { AboutSettings(pluginVersions) }
     }
 }

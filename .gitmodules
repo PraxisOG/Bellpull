@@ -1,0 +1,6 @@
+[submodule "third-party/qwentts.cpp"]
+	path = third-party/qwentts.cpp
+	url = https://github.com/ServeurpersoCom/qwentts.cpp.git
+[submodule "third-party/sherpa-onnx"]
+	path = third-party/sherpa-onnx
+	url = https://github.com/k2-fsa/sherpa-onnx.git

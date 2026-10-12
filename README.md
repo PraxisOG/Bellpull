@@ -42,11 +42,19 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This voice-controls development branch builds **0.5.3 (code 15)**. It adds Moonshine
+This local-voice development branch builds **0.5.4 (code 16)**. Settings →
+**Voice output** offers the default installed Android voice or an experimental
+on-device Qwen3-TTS CPU voice, with verified model downloads and tuning. Qwen
+requires 859.85 MB of weights and is currently slow on the Fold; Android voice
+remains the default. See [output setup and measurements](docs/VOICE-OUTPUT.md).
+The signed APK is ready locally; **the personal phone still has 0.5.3**, because
+ADB disconnected before installation. Nothing in this slice has been pushed.
+
+The existing voice-input implementation It adds Moonshine
 Tiny, Small and Medium Streaming on-device CPU transcription, collapsible Settings
 categories, and model downloads/load/unload/delete controls. Choose **On device**
-in Settings → Voice; model experiments and direct-WAV benchmarks are under
-**Voice → Experimental**. A downloaded model needs no transcription URL or key.
+in Settings → Voice input; model experiments and direct-WAV benchmarks are under
+**Voice input → Experimental**. A downloaded model needs no transcription URL or key.
 All three models completed direct-input phone benchmarks and sustained thermal
 tests. Start voice is disabled until the selected local model is installed;
 missing/incomplete files are checked again before permissions, service startup and
@@ -56,7 +64,7 @@ and [setup and limits](docs/LOCAL-SPEECH-LAB.md).
 
 Tap the microphone to start/end conversation mode; its filled button pulses while
 voice is on. Hold, wait for the ready chime, speak and release to dictate into the
-message draft. Settings → Voice has a short **Using voice** guide and an optional
+message draft. Settings → Voice input has a short **Using voice** guide and an optional
 **Debugging voice interface** toggle for the previous detailed panel. Voice prompts
 request one paragraph, minimal reasoning and a purpose before each tool/search;
 provider thinking controls remain unchanged. Bellpull reads genuine activity statuses
@@ -148,11 +156,12 @@ future work. Its existing packaged release contains the earlier 0.1.0 phone prev
 the Android download above contains the current phone update. Desktop packaging is
 parked while Android development continues.
 
-Requires JDK 17, Android SDK Platform 37, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
+Requires JDK 17, Android SDK Platform 37, NDK 29.0.14206865, CMake 3.31.6, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
 
-From the repository root:
+Initialize pinned native sources and run from the repository root:
 
 ```sh
+git submodule update --init --recursive
 ./android/gradlew -p android test verifyRoborazziDebug :app:assembleDebug :app:lintDebug
 ```
 

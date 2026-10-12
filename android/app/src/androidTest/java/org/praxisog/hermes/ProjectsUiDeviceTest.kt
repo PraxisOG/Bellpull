@@ -98,8 +98,8 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.5.3", app.name)
-        assertEquals(15L, app.code)
+        assertEquals("0.5.4", app.name)
+        assertEquals(16L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {
                 AboutDialog(app, listOf(ServerPluginVersion("Current fixture", "https://current.invalid", "0.3.0", 0.0),
@@ -131,7 +131,7 @@ class ProjectsUiDeviceTest {
                 automation.waitForIdle(150, 3000)
                 assertEquals(0, starts.get())
             }
-            await { text("Download ${lab.selected.label} in Settings → Voice → Experimental first.") != null }
+            await { text("Download ${lab.selected.label} in Settings → Voice input → Experimental first.") != null }
             assertNull(lab.runtime.loadedModel)
             assertNotNull(text("Voice settings"))
         }

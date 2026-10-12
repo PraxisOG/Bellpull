@@ -51,7 +51,7 @@ class VoiceService : Service() {
         }
         val config = VoiceSettings(this, profile).read()
         if (runtime.voiceDictationToDraft && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }
-        config.startProblem { runtime.speechLab.voiceStartProblem() }?.let { problem ->
+        runtime.voiceProblem(config)?.let { problem ->
             runtime.voiceStartError = problem
             stopSelf(); return START_NOT_STICKY
         }
@@ -83,7 +83,7 @@ class VoiceService : Service() {
             selectRoute()
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
-                AndroidVoiceOutput(this, config.rate), AndroidVoiceCapture(scope), transcriber = {
+                runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
                     if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
                     else HttpVoiceTranscriber(config)
                 }, onClosed = { stopSelf() }, beforeResume = {

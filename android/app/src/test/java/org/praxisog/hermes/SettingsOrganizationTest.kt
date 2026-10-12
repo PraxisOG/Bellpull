@@ -29,7 +29,7 @@ class SettingsOrganizationTest {
         val lab = remember { SpeechLab(context) { _, _ -> error("No native runtime in UI tests") } }
         androidx.compose.material3.Surface {
             SettingsWorkspace(BellpullPreferences(), {}, serverProfiles = { Text("Server profiles") },
-                voiceSettings = { Text("Private transcription settings") }, speechLab = { SpeechExperiments(lab, {}) })
+                voiceSettings = { Text("Private transcription settings") }, speechLab = { SpeechExperiments(lab, {}) }, voiceOutputSettings = { Text("Output models") })
         }
     }
     @Test fun categoriesCover() { compose.setContent { HermesTheme { Settings() } }; compose.onRoot().captureRoboImage() }
@@ -38,7 +38,7 @@ class SettingsOrganizationTest {
     }
     private fun experiments() {
         compose.setContent { HermesTheme { Settings() } }
-        compose.onNodeWithText("Voice").performScrollTo().performClick()
+        compose.onNodeWithText("Voice input").performScrollTo().performClick()
         compose.onNodeWithText("Experimental").performScrollTo().performClick()
         compose.onNodeWithText("Local speech models").performScrollTo()
         compose.onNodeWithText("Moonshine Tiny Streaming").assertExists()
@@ -57,7 +57,7 @@ class SettingsOrganizationTest {
     @Test fun categoryExpansionSurvivesRecreation() {
         val restoration = StateRestorationTester(compose)
         restoration.setContent { HermesTheme { Settings() } }
-        compose.onNodeWithText("Voice").performScrollTo().performClick()
+        compose.onNodeWithText("Voice input").performScrollTo().performClick()
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithText("Experimental").assertExists()
         compose.onNodeWithText("Private transcription settings").assertExists()
@@ -91,7 +91,7 @@ class SettingsOrganizationTest {
             compose.onNodeWithText(mode).performClick()
             compose.onNodeWithText("Start voice").assertIsNotEnabled().performTouchInput { click() }
         }
-        compose.onNodeWithText("Download Moonshine Tiny Streaming in Settings → Voice → Experimental first.").assertExists()
+        compose.onNodeWithText("Download Moonshine Tiny Streaming in Settings → Voice input → Experimental first.").assertExists()
         compose.runOnIdle { assertEquals(0, started); config = VoiceConfiguration("https://speech.invalid/v1/audio/transcriptions") }
         compose.onNodeWithText("Start voice").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(1, started) }
@@ -116,7 +116,7 @@ class SettingsOrganizationTest {
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun localSettingsUnfoldedDark() = localSettings()
     @Test fun modelPickerExposesAllThreeSizesAndSeparateCpuBackend() {
         compose.setContent { HermesTheme { Settings() } }
-        compose.onNodeWithText("Voice").performScrollTo().performClick()
+        compose.onNodeWithText("Voice input").performScrollTo().performClick()
         compose.onNodeWithText("Experimental").performScrollTo().performClick()
         compose.onNodeWithText("Moonshine Tiny Streaming").performScrollTo().performClick()
         compose.onNodeWithText("Moonshine Small Streaming · 142.30 MB").assertExists()

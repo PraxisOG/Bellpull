@@ -229,3 +229,11 @@ SDK. Audio integration follows Android's
 [microphone service type](https://developer.android.com/develop/background-work/services/fgs/service-types#microphone).
 The separate transcription wire shape follows the
 [compatible multipart transcription contract](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create).
+
+## Local voice output (0.5.4)
+
+Voice input and Voice output now have separate Settings categories. Output offers
+installed Android voice or the approved, pinned Qwen CPU experiment. See
+[setup, measured results and pending acceptance](VOICE-OUTPUT.md). The signed
+0.5.4 APK was built/tested but **not installed** before ADB disconnected.
+Phase 5 remains pending human/device acceptance, not declared fully verified.

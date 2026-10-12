@@ -14,3 +14,6 @@ keystore.properties
 *.jks
 *.keystore
 *.p12
+
+# Android native intermediates
+.cxx/

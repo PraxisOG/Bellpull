@@ -6,9 +6,10 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
 internal enum class VoiceRecognition { LOCAL, PRIVATE_SERVER }
-internal class VoiceConfiguration(val endpoint: String = "", val key: String = "", val model: String = "whisper-1",
+internal data class VoiceConfiguration(val endpoint: String = "", val key: String = "", val model: String = "whisper-1",
     val rate: Float = 1.05f, val pauseMs: Int = 1600, val concise: Boolean = true,
-    val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER) {
+    val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
+    val output: VoiceOutputConfiguration = VoiceOutputConfiguration()) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
 
@@ -29,13 +30,22 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
     fun read() = VoiceConfiguration(prefs.getString("endpoint", "").orEmpty(), prefs.getString("key", "").orEmpty(),
         prefs.getString("model", "whisper-1").orEmpty(), prefs.getFloat("rate", 1.05f), prefs.getInt("pause", 1600), prefs.getBoolean("concise", true),
         prefs.getString("recognition", null)?.let(VoiceRecognition::valueOf)
-            ?: if (prefs.getString("endpoint", "").isNullOrBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER)
+            ?: if (prefs.getString("endpoint", "").isNullOrBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
+        VoiceOutputConfiguration(
+            engine = runCatching { VoiceOutputEngine.valueOf(prefs.getString("output", "SYSTEM")!!) }.getOrDefault(VoiceOutputEngine.SYSTEM),
+            speaker = prefs.getString("speaker", "ryan").orEmpty(), language = prefs.getString("language", "english").orEmpty(),
+            temperature = prefs.getFloat("temperature", .9f), topP = prefs.getFloat("top_p", 1f), topK = prefs.getInt("top_k", 50),
+            repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f)))
     fun save(value: VoiceConfiguration) {
+        value.output.validated()
         if (value.recognition == VoiceRecognition.PRIVATE_SERVER) {
             org.praxisog.hermes.core.PrivateTranscription.validateEndpoint(value.endpoint)
             require(value.model.isNotBlank() && value.model.length <= 200)
         }
         check(prefs.edit().putString("endpoint", value.endpoint.trim()).putString("key", value.key.trim()).putString("model", value.model.trim())
+            .putString("output", value.output.engine.name).putString("speaker", value.output.speaker).putString("language", value.output.language)
+            .putFloat("temperature", value.output.temperature).putFloat("top_p", value.output.topP).putInt("top_k", value.output.topK)
+            .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))
             .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise).commit())
     }

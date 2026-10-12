@@ -25,15 +25,19 @@ val hasReleaseKeystore = keystoreProperties.getProperty("storeFile")?.let { File
 android {
     namespace = "org.praxisog.hermes"
     compileSdk = 37
+    ndkVersion = "29.0.14206865"
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" } }
 
     defaultConfig {
         // Device fixtures use a separate sandbox; personal profiles are never loaded.
         applicationId = if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true")
             "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_static" } }
         targetSdk = 37
-        versionCode = 15
-        versionName = "0.5.3"
+        versionCode = 16
+        versionName = "0.5.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -11,6 +11,8 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
+    val voiceOutputs by lazy { VoiceOutputLab(this.context) }
+    fun voiceProblem(config: VoiceConfiguration) = config.startProblem { speechLab.voiceStartProblem() } ?: voiceOutputs.startProblem(config)
     val speechLab by lazy { SpeechLab(this.context) }
     var voice by mutableStateOf<VoiceSession?>(null)
     var voiceStartError by mutableStateOf<String?>(null)

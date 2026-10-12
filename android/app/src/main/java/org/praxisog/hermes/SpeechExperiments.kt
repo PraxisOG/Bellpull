@@ -56,7 +56,7 @@ internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> Local
     fun voiceStartProblem(): String? = when {
         busy -> "Finish the speech experiment before starting voice."
         // The UI's installed snapshot may predate a deletion or an interrupted installation.
-        !files.installed(selected) -> "Download ${selected.label} in Settings → Voice → Experimental first."
+        !files.installed(selected) -> "Download ${selected.label} in Settings → Voice input → Experimental first."
         else -> null
     }
     fun voiceTranscriber(): VoiceTranscriber {

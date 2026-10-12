@@ -60,7 +60,7 @@ internal class SpeechModelFiles(private val root: File,
         }
     }
     fun verify(model: SpeechModel) {
-        check(installed(model)) { "Download ${model.label} in Settings → Voice → Experimental first." }
+        check(installed(model)) { "Download ${model.label} in Settings → Voice input → Experimental first." }
         check(model.files.all { valid(File(directory(model), it.name), it) }) { "Model files failed verification. Delete and download this model again." }
     }
     fun delete(model: SpeechModel) {

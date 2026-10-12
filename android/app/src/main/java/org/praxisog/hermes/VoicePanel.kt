@@ -36,7 +36,7 @@ internal fun VoiceGlyph(active: Boolean = false) {
 @Composable
 internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startError: String?,
     onSave: (VoiceConfiguration) -> Unit, onStart: (VoiceMode) -> Unit, onDismiss: () -> Unit,
-    onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null) {
+    onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null) {
     var editing by remember { mutableStateOf(config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
     var mode by remember { mutableStateOf(VoiceMode.CONVERSATION) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -47,14 +47,14 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                     if (editing) VoiceSettingsEditor(config, voice == null, { onSave(it); editing = false }, speechLab)
                     else if (voice == null) {
                         val startProblem = config.startProblem {
-                            if (speechLab == null) "Choose and download a model in Settings → Voice → Experimental first."
+                            if (speechLab == null) "Choose and download a model in Settings → Voice input → Experimental first."
                             else speechLab.voiceStartProblem()
-                        }
+                        } ?: outputLab?.startProblem(config)
                         if (config.recognition == VoiceRecognition.LOCAL) {
-                            Text("Speech is transcribed on this device. Answers use an installed offline voice. Sending your words to Hermes still needs a connection.")
+                            Text("Speech is transcribed on this device. Answers use the saved Voice output selection. Sending your words to Hermes still needs a connection.")
                             Text("${speechLab?.selected?.label ?: "Moonshine Tiny Streaming"} · CPU", style = MaterialTheme.typography.bodySmall)
                         } else {
-                            Text("Audio goes to your selected private transcription service; answers use an installed offline voice.")
+                            Text("Audio goes to your selected private transcription service; answers use the saved Voice output selection.")
                             Text("Transcription model: ${config.model}", style = MaterialTheme.typography.bodySmall)
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,7 +129,7 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     speechLab: SpeechLab? = null) {
     val editable = enabled && speechLab?.busy != true
     var endpoint by remember { mutableStateOf(initial.endpoint) }; var key by remember { mutableStateOf(initial.key) }
-    var model by remember { mutableStateOf(initial.model) }; var rate by remember { mutableFloatStateOf(initial.rate) }
+    var model by remember { mutableStateOf(initial.model) }
     var pause by remember { mutableIntStateOf(initial.pauseMs) }; var concise by remember { mutableStateOf(initial.concise) }
     var error by remember { mutableStateOf<String?>(null) }
     var recognition by remember { mutableStateOf(initial.recognition) }
@@ -143,7 +143,7 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     if (recognition == VoiceRecognition.LOCAL) {
         Text("Audio stays on this device for transcription. Download a model once, then recognition works offline.", style = MaterialTheme.typography.bodySmall)
         if (speechLab != null) LocalSpeechSettings(speechLab, {}, enabled)
-        else Text("Choose and download Moonshine Tiny, Small or Medium Streaming in Settings → Voice → Experimental.", style = MaterialTheme.typography.bodySmall)
+        else Text("Choose and download Moonshine Tiny, Small or Medium Streaming in Settings → Voice input → Experimental.", style = MaterialTheme.typography.bodySmall)
     } else {
         Text("Private transcription", style = MaterialTheme.typography.titleMedium)
         Text("Use a service you manage that accepts an OpenAI-compatible WAV transcription request. This is separate from Hermes; no service is selected automatically.", style = MaterialTheme.typography.bodySmall)
@@ -153,14 +153,13 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
         OutlinedTextField(model, { model = it }, label = { Text("Transcription model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
     }
     Text("Conversation", style = MaterialTheme.typography.titleMedium)
-    Text("Speech rate: ${"%.2f".format(rate)}×"); Slider(rate, { rate = it }, valueRange = .7f..1.5f)
     Text("End-of-turn pause: ${"%.1f".format(pause / 1000f)} seconds"); Slider(pause.toFloat(), { pause = it.toInt() }, valueRange = 1000f..3500f)
     Row { Checkbox(concise, { concise = it }); Text("Brief voice responses (one paragraph)") }
     Text("Asks for at most 180 words, minimal reasoning, and a brief purpose before every tool or web search. Model thinking controls stay unchanged. Spoken answer text is capped at 180 words.", style = MaterialTheme.typography.bodySmall)
     Text("The preset is included visibly in voice messages. Typed messages and their model settings keep their existing behavior.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {
-        onSave(VoiceConfiguration(endpoint, key, model, rate, pause, concise, recognition))
+        onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition))
         if (recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
     }.onFailure { error = it.message ?: "Could not save voice settings." } }) { Text("Save voice settings") }
 }
