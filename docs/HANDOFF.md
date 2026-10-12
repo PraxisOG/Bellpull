@@ -1,5 +1,21 @@
 # Bellpull / Hermes app handoff
 
+## 2026-10-12: 0.5.5 installed on request
+
+Built and signed Phase 5 commit `c5dceec` from `feature/local-voice-models` and
+installed **0.5.5/code 17** over personal 0.5.3 with `adb install -r`. The Phase 6
+prototype is excluded. Signature and 16-KiB ZIP alignment passed. Android UID
+**10260**, credential-encrypted data inode **117766** and device-encrypted data
+inode **116002** are unchanged. The personal app was left stopped; no personal
+server access or app-data clearing. Removed only the fixture app/test packages,
+including their test weights. No new functional tests, screenshots or benchmarks
+were run; Pocket and recovery acceptance remains pending.
+
+APK: `build/releases/0.5.5/Bellpull.apk`; SHA-256
+`42c5d4ff4c943bdef7f36bcd064491b374602c9d5fa77143d54e4762a7c847cb`.
+Ignored package/install evidence is under `build/releases/0.5.5/personal-upgrade/`.
+Neither branch pushed. Returned to `feature/phase6-opencode-activity` afterward.
+
 ## 2026-10-11 overnight: Phase 5 offline and Phase 6 prelim
 
 - Phase 5: `feature/local-voice-models`, commit `c5dceec`, 0.5.5/code 17.

@@ -56,15 +56,18 @@ The signed **0.5.4/code 16** APK is `build/releases/0.5.4/Bellpull.apk`, SHA-256
 `8341e1830a4bc8225e9c7acbbeaed5af3adb93cbc9fa86555e722197ca4a5e22`.
 ADB disconnected before personal installation or fixture cleanup. The personal
 app remains **0.5.3/code 15**, stopped. The temporary fixture app/test package and
-Qwen test weights need removal when ADB returns. Preserve personal app data and
-signing lineage. Do not describe 0.5.4 as installed.
+Qwen test weights needed removal when ADB returned. **October 12 update:** the
+user requested and received 0.5.5/code 17 directly over 0.5.3; 0.5.4 was never
+installed. Signing/UID/data-directory identity was preserved and fixture packages/
+weights removed. The app was left stopped, with no personal server access.
+See [installation evidence](HANDOFF.md). No new functional tests were run.
 
 ## Pending acceptance
 
-No further tests while the phone is away, per user instruction. Human listening,
+Further functional tests remain deferred. Human listening,
 speaker echo, headsets/car/Bluetooth, interrupted mid-compute synthesis, screen lock,
 background lifecycle and personal-provider responses remain unverified. Resume
-fixture-only checks before a signed personal update. Test tap/hold dictation,
+fixture-only checks when testing resumes. Test tap/hold dictation,
 activity announcements, missing/corrupt weights, selection switching, unload/delete,
 retry/restart, streaming, stop/restart and severe-thermal cancellation.
 

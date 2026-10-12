@@ -4,7 +4,9 @@ Branch `feature/phase6-opencode-activity`, based on Phase 5 offline commit
 `c5dceec`. **Preliminary, not an enabled integration.** No personal server access,
 phone access, OpenCode execution, inference, plugin deployment or push. The user
 asked for implementation without further tests; only compilation/source inspection
-was performed. Phone currently remains on 0.5.3.
+was performed for this preliminary work. On October 12, the user requested and
+received the separate Phase 5 **0.5.5/code 17** update; this Phase 6 prototype was
+excluded. See [installation evidence](HANDOFF.md).
 
 ## Scope and first slice
 

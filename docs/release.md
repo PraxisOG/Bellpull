@@ -222,12 +222,18 @@ so personal app remains 0.5.3/code 15. Fixture package/test APK and Qwen weights
 remain to be cleaned up when ADB returns; never remove the personal app.
 No push/release publication is authorized until user acceptance/green light.
 
-## 0.5.5 offline candidate — build only
+## 0.5.5 local candidate — installed 2026-10-12
 
 Version 0.5.5/code 17 adds Pocket CPU synthesis/model lifecycle and audio-route/
-focus recovery. `assembleDebug` compiles ARM64 and x86_64. No further tests,
-screenshot recording, lint, personal install or push were performed, following
-the user's overnight instruction. The signed, previously tested 0.5.4 artifact
-remains unchanged; do not present it as containing Pocket. Personal app is still
-0.5.3. Resume isolated fixture checks and remove the old fixture packages/weights
-before preparing a signed personal update. See [VOICE-OUTPUT.md](VOICE-OUTPUT.md).
+focus recovery. Debug and signed release builds compile ARM64 and x86_64. On the
+user's October 12 request, Phase 5 commit `c5dceec` was signed and installed over
+0.5.3 using the existing lineage. Signer, UID 10260 and both data-directory inodes
+are preserved. Personal app left stopped; no server access. Fixture packages and
+their test weights removed. No fresh functional tests, screenshots or benchmarks
+were run; Pocket/recovery acceptance remains pending. Nothing pushed or published.
+
+Signed APK `build/releases/0.5.5/Bellpull.apk`; SHA-256
+`42c5d4ff4c943bdef7f36bcd064491b374602c9d5fa77143d54e4762a7c847cb`.
+Signature and 16-KiB ZIP alignment verified; install/package evidence is under
+`build/releases/0.5.5/personal-upgrade/`. The Phase 6 prototype is excluded.
+See [VOICE-OUTPUT.md](VOICE-OUTPUT.md) for pending acceptance.

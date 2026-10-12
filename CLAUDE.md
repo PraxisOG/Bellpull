@@ -63,6 +63,14 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**October 12 installation update:** the user requested installation of 0.5.5.
+Signed Phase 5 commit `c5dceec` was installed in place (code 17), preserving signer,
+UID 10260 and both data-directory inodes. Personal app left stopped; no server
+access. Fixture app/test package and weights removed. Release build, signature,
+16-KiB ZIP alignment and installed package checks passed; no new functional tests.
+Pocket/recovery remain awaiting acceptance. Phase 6 prototype excluded. No push,
+merge or release publication. See `docs/HANDOFF.md` for evidence.
+
 **Current authority (2026-10-11, local voice output and Phase 6 prelim):** finish
 Phase 5 implementation on `feature/local-voice-models`, **without further tests or
 phone access**, then create a separate branch for Phase 6 preliminary OpenCode
