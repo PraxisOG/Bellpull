@@ -1,0 +1,29 @@
+=== moonshine-tiny ===
+INSTRUMENTATION_RESULT: stream=
+
+Time: 463.856
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+=== moonshine-small ===
+INSTRUMENTATION_RESULT: stream=
+
+Time: 572.992
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+=== moonshine-medium ===
+INSTRUMENTATION_RESULT: stream=
+
+Time: 701.497
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1

@@ -68,15 +68,31 @@ trust, not a second use of the old one.
 Moonshine Tiny, Small and Medium Streaming, Settings organization, downloads/switching
 and direct-input CPU benchmarks before additional models or acceleration ports.
 Display is a separate category; experiments belong under Voice → Experimental.
-The user approved Moonshine CPU SDK 0.1.5, then explicitly requested a pause after
-adding it and took back the phone. **Pause here; do not use ADB or continue runtime
-integration/benchmarks until resumed.** Use the separate fixture app and preserve
+The user approved Moonshine CPU SDK 0.1.5 and resumed local integration after the
+SDK-only pause. **The user has now returned ADB for isolated tests and benchmarks.**
+Make local recognition and optional private-server recognition explicit choices;
+local mode must not ask for a URL or service key or silently use a remote service.
+Use the separate fixture app and preserve
 personal signing/data when phone testing resumes; do not access the personal Hermes
 server. A separate pending request covers
 an optional exception for standalone Google LiteRT/Tensor libraries. Do not treat
 Parakeet TDT's Pixel TPU route as proof of Realtime EOU compatibility. Report actual
 backend, source-checked inputs, timing annotation limits and measured/untested/blocked
 results separately. No merge or release publication.
+
+CPU delivery is now verified and installed as 0.5.1/code 13. See the measured
+report under `benchmarks/speech/pixel-10-pro-fold-2026-10-11/`: 206 model benchmark
+rows, all three native suites passed, and eight distinct device checks passed
+after fixing the UI harness's stale accessibility cache/scroll handling. Local
+validation: 477 passed, one live-server skip, 156 screenshot baselines, build/lint.
+Personal signing/UID/data directories were preserved; personal app left stopped,
+fixture apps/weights removed and original display settings restored. Human acoustic,
+car/headset, screen-lock and personal-server acceptance remain open. Additional
+models/accelerators remain earmarked, not implemented.
+
+Read `BELLPULL-FILE-SHARE-MANUAL.md` for the sharing workflow. The user requested
+recommendations before starting file-sharing changes; discussion alone does not
+authorize that separate plugin update.
 
 **Previous authority (2026-10-11, Phase 5):** the user authorized conversational
 voice implementation and the compact drawer/filter changes, with ADB testing while

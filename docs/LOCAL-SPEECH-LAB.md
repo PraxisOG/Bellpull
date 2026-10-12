@@ -1,6 +1,7 @@
-# Local speech experiments — work in progress
+# Local speech experiments — on-device CPU preview
 
 Branch: `feature/local-speech-lab`, based on `66ceb2d` (0.5.0).
+Current development APK: 0.5.1, version code 13; installed in place, not published.
 The user's October 11 addendum supersedes the earlier “Large” request: the first
 three models are **Moonshine Tiny, Small and Medium Streaming**. Finish their CPU
 integration and baseline measurements before additional models or accelerator ports.
@@ -10,19 +11,20 @@ integration and baseline measurements before additional models or accelerator po
 Settings has collapsible categories, with Display separate from Appearance and
 private speech configuration under Voice. The experimental model UI, verified
 download manager, exclusive model owner and benchmark runner are implemented.
-**Moonshine Voice CPU SDK 0.1.5 is approved and packaged, but the experimental
-screen is not yet connected in MainActivity and local recognition is not operational.**
-The user requested a pause immediately after adding the SDK and reclaimed the phone.
-Do not use ADB or continue native integration or benchmarks until resumed. No plugin
+**Moonshine Voice CPU SDK 0.1.5 is connected to voice conversations and the
+experimental screen in MainActivity. All three models completed native phone benchmarks and sustained CPU tests.**
+The user resumed local integration after the SDK-only pause and returned ADB.
+[Phone results and raw evidence](../benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
+cover 206 benchmark measurements. No plugin
 update is required for local recognition; Bellpull plugin 0.3.0 can continue serving
 the existing remote chat interfaces. The separate question about standalone Google
 LiteRT libraries concerns a later optional TPU experiment.
 
 | Checkpoint | Quantization | Download bytes | Runtime | Actual backend / phone results |
 | --- | --- | ---: | --- | --- |
-| Moonshine Tiny Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 45,233,659 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused before native integration; no phone recognition measurements |
-| Moonshine Small Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 142,300,974 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused: same |
-| Moonshine Medium Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 269,141,623 | Moonshine Voice 0.1.5 packaged; adapter pending | Paused: same |
+| Moonshine Tiny Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 45,233,659 | Moonshine Voice 0.1.5 / explicit ONNX Runtime CPU | Measured on Pixel 10 Pro Fold |
+| Moonshine Small Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 142,300,974 | Moonshine Voice 0.1.5 / explicit ONNX Runtime CPU | Measured on Pixel 10 Pro Fold |
+| Moonshine Medium Streaming English, `quantized_26_08_21` | INT8 per-channel `.ort` | 269,141,623 | Moonshine Voice 0.1.5 / explicit ONNX Runtime CPU | Measured on Pixel 10 Pro Fold |
 
 The pinned eight-file sets and upstream CRC32C values are in
 `android/app/src/main/assets/speech-models.json`, sourced from upstream commit
@@ -40,11 +42,42 @@ Bellpull removes its optional microphone permission Activity and retains the exi
 capture/permission lifecycle. Unused Google Material and SDK WorkManager transitives
 are excluded; required AndroidX types remain. Upstream and native third-party license
 notices are retained in `third-party/` and packaged under `assets/licenses/`.
-The local build and lint pass with the pinned SDK; native loading is not device-tested.
+The local build and lint pass with the pinned SDK. Native loading, repeated recognition and app-managed downloads passed on all three models on the phone.
 
 Sources: [Moonshine Android SDK](https://github.com/moonshine-ai/moonshine/tree/234f60faa0eb388b01cdf7e60aca232af37aefda/android),
 [model documentation](https://moonshine-voice.readthedocs.io/en/latest/models/available-models/),
 [SDK artifact](https://repo.maven.apache.org/maven2/ai/moonshine/moonshine-voice/0.1.5/moonshine-voice-0.1.5.aar).
+
+## Local setup and compatibility
+
+1. Open Settings → Voice. New profiles default to **On device**. Existing saved
+   private-service configurations retain **Private server** until explicitly changed;
+   their encrypted URL/key/model fields remain available when switching back.
+2. Select Tiny, Small or Medium Streaming. The selected model and its tuning are
+   device-wide; private service credentials and voice drafts remain profile-scoped.
+3. Download the model. The UI shows its exact total download size, installed/partial
+   status and retry/delete controls. Loading verifies its bytes again.
+4. Choose **Load model**, or start voice to load it on the first captured utterance.
+   **Unload** releases native model state without deleting the downloaded files.
+   A switch unloads the old model before creating the new one. Model work stays off
+   the UI thread. Closing/cancelling voice never frees a model during native inference.
+5. Model settings expose the actual Moonshine VAD probability threshold and streaming
+   update interval. Settings persist separately per model; saving unloads the current
+   model so the next load applies them. The interval is a minimum and stretches under
+   load; it affects chunked benchmark partials. Conversation recognition currently
+   transcribes a bounded utterance after Bellpull's microphone pause detector finishes.
+   Bellpull's end-of-turn pause and playback rate are separate conversation controls.
+6. CPU is the only offered backend. The adapter passes `ort_providers=cpu`; the
+   [pinned SDK documents CPU-only shipped providers](https://github.com/moonshine-ai/moonshine/blob/v0.1.5/docs/execution-providers.md).
+   No GPU/TPU fallback is claimed. Native API version, tuning and SDK thread defaults
+   are included in benchmark result metadata.
+
+Missing/corrupt local weights and native loading failures produce a local error;
+they never invoke the private service. Local WAV recognition needs neither Hermes
+nor a service URL/key. Sending a recognized prompt still needs Hermes. Selecting a
+model or running experiments ends an active voice session and preserves saved text.
+The native adapter uses fresh stream handles and its own completion deduplication
+for each utterance, avoiding cross-stream reuse of upstream completed-line IDs.
 
 ## Measurement protocol
 
@@ -56,14 +89,14 @@ mix level and any timing annotations. A script or TTS prompt alone is not a veri
 transcript. An automatic alignment is an estimate and must be labeled accordingly.
 The four WAVs have been prepared with source-checked transcripts. See
 `benchmarks/speech/README.md` and the pinned fixture manifest for regeneration,
-licenses and limits. No recognizer fixture-suite pass is claimed.
+licenses and limits. Phone result claims are listed separately below.
 
 For each case and model:
 
 1. Unload the previous model before loading the next. Record verification plus native
    model-load time separately from recognition. “Cold” here means unloaded model;
-   OS file caches are not flushed. Also capture first process/library initialization
-   separately when the native adapter becomes available.
+   OS file caches are not flushed. The first JNI library initialization is recorded
+   separately and included in that model's loading time; later warm calls omit it.
 2. Run maximum-throughput whole-file recognition, followed by three repeated warm
    runs. Report audio seconds / processing seconds; do not include model loading in
    throughput. Record native settings and thread count.
@@ -108,30 +141,48 @@ separately, and treats invalid sentinel readings as unavailable. At severe statu
 it stops only `org.praxisog.hermes.fixture`. Never substitute the personal app ID.
 ADB monitoring is supplementary: use the app API for thermal headroom.
 
-## Evidence so far
+## Verification and limits
 
-- **Measured on this phone:** read-only idle thermal/logging smoke check, not ASR.
-  Pixel 10 Pro Fold, GrapheneOS/Android 17, OPENED posture, USB connected,
-  brightness setting 7 with adaptive brightness enabled. Thermal status 0;
-  battery approximately 26.5°C, VIRTUAL-SKIN approximately 28.34°C, BIG/LITTLE
-  approximately 31°C. GPU/TPU readings unavailable. Adaptive brightness must be
-  fixed and restored for actual comparisons.
-- **Implemented and checked locally:** model installation integrity/recovery/deletion,
-  CRC32C compatibility fallback, strict WAV parsing, lexical WER, model reuse,
-  unload-before-switch, failed-switch/cancel cleanup, settings organization and
-  cover/unfolded screenshots. `test verifyRoborazziDebug assembleDebug lintDebug`
-  passed: 461 tests passed and one opt-in live-server test skipped; 154 screenshot
-  baselines, including a repeat after adding the SDK. The APK contains its arm64
-  native libraries and matching license assets; its merged manifest excludes the
-  SDK permission Activity. Two thermal-parser Python tests passed. The corpus generator completed
-  for all four files and verified references against the primary dataset.
-  Rerun checks after final native integration.
-- **Implemented but untested on hardware:** the benchmark runner's timing, PSS/RSS,
-  app thermal-headroom sampling and sustained-run controls. Native recognition,
-  app model downloads, switching and end-to-end offline dictation are unverified.
-- **Paused:** all Moonshine phone recognition metrics until native integration and
-  device testing resume. No cold-load, partial/final latency, WER, throughput or sustained
-  thermal numbers are represented as measured.
+- **Measured on this phone:** all three downloads verified; each model passed four
+  identical clips in whole-file and paced 100 ms modes, with one unloaded-model and
+  three warm runs per case, followed by at least 180 seconds of sustained work.
+  There are 206 saved measurements. Exact checkpoints, INT8 quantization, runtime,
+  explicit CPU backend, cold load, partial/final timing, lexical WER, early segment
+  boundaries, forced flushing, PSS/RSS and thermal/headroom data are in the
+  [results](../benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md).
+  USB power/100% battery, manual brightness 9 and unfolded posture stayed fixed;
+  each model began after cooling to the recorded common baseline. Maximum Android
+  thermal status was 0. Peak HAL readings: `battery` 32.3°C, `VIRTUAL-SKIN` 35.66°C,
+  `BIG`/`LITTLE` 52°C. GPU/TPU temperature readings were unavailable.
+- **Native functional checks:** Tiny → Small → Medium → Tiny switching, saved tuning,
+  deletion of Medium without deleting Tiny/Small, and direct captured PCM through
+  the real local recognizer into unsent Review passed. App UID network counters
+  did not change during that test. The real microphone released/restarted correctly;
+  installed offline `en_US` playback and AEC enabled successfully. The default
+  1.6-second Bellpull pause detector completed exactly one turn per corpus clip,
+  with zero endings before the estimated last word. These detector results are
+  separate from Moonshine's more frequent completed transcript segments. All four
+  UI checks passed after fixing stale/offscreen accessibility handling in the test
+  harness; the initial run passed seven of eight and the final UI rerun passed four
+  of four. The personal app was updated in place to 0.5.1/code 13 with unchanged
+  signing, UID and data directory inodes, and left stopped. Test apps/weights were
+  removed; original display settings restored.
+- **Local checks:** 477 tests passed, one opt-in live-server test skipped; all 156
+  screenshot baselines verified. Debug build, signed release build, lint and fixture
+  instrumentation compilation passed. Tests cover installation integrity/retry,
+  strict WAV parsing, lexical WER, exclusive model reuse/switching, failed/cancelled
+  native cleanup, explicit CPU options, repeated native line IDs and profile-scoped
+  local/private migration. A store integration test feeds real PCM through the local
+  adapter with fake native inference and verifies exactly one durable admission.
+  Two Python thermal-parser tests passed. The APK retains native license assets,
+  excludes the SDK's permission Activity and passes 16 KiB ZIP alignment checks.
+- **Implemented but still unverified in real use:** acoustic transcription quality
+  from this phone's microphone, car/headset behavior, echo/barge-in, screen-lock
+  behavior with local inference and other phones/ABIs. Starting voice after a fully
+  offline restart is not established; voice entry currently needs an opened chat.
+  This short audiobook corpus includes distance/time numbers but no decimals;
+  alignment boundaries are estimates, and three minutes does not establish a
+  long-term thermal steady state. No personal Hermes/provider test was performed.
 
 ## Later experiments
 
@@ -152,18 +203,29 @@ combined memory, processing, thermal cost and end-to-end latency. Expose only ac
 runtime timing/threshold controls. Bellpull's microphone silence-pause control is
 not a neural EOU sensitivity setting.
 
-## Before delivery
+## Manual acceptance
 
-- After the user resumes work, implement the native adapter for the added SDK.
-- Wire Settings → Voice → Experimental and explicit local/private recognizer choice.
-  Missing selected local weights must never cause silent off-device transcription.
-- Preserve profile-scoped private credentials and drafts; offline STT does not make
-  remote Hermes inference available offline.
-- Run native repeated-stream tests, model download/restart/delete/switch tests, direct
-  fixture benchmarks, sustained thermal comparisons and separate acoustic tests in
-  the fixture app. Do not access the personal Hermes server.
-- Replace the blocked table with measured per-fixture cold/warm/chunked results and
-  identify exact runtime/checkpoint/backend. Keep unavailable metrics explicit.
-- Run `./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug`;
-  inspect screenshot differences. Install only a validated APK with the existing
-  signing lineage. No merge or release publication.
+1. Keep your existing Hermes connection and plugin 0.3.0. Open Settings → Voice →
+   **On device**, select a model and download it. Test weights live only in the
+   disposable fixture sandbox; the personal app needs its own download.
+2. Load Tiny, switch to Small, then Medium. Confirm installed/download sizes,
+   actual CPU backend and saved per-model tuning. Unload, restart the app and
+   confirm the selected model and installed status survive. Delete an unused
+   model and confirm the other downloads remain installed.
+3. Open Voice conversation → **Review before sending**. Speak a short sentence,
+   correct the result and send it. Check the reply and offline spoken playback.
+   No transcription URL or speech-service key is needed for local mode.
+4. After downloading and loading a model in an already opened idle conversation,
+   repeat local review with networking
+   disabled. Recognition should work; sending to remote Hermes still needs a
+   connection. Review should keep your unsent words until connectivity returns.
+5. Test real pauses, measurements/decimals, your accent, road noise, a headset,
+   speaker echo and barge-in. These need human/acoustic acceptance; the direct-input
+   corpus and microphone lifecycle checks do not establish that behavior.
+6. If you use a private service too, switch to **Private server** explicitly and
+   confirm its saved profile-scoped fields remain. Switch back to **On device**;
+   missing local weights must show a local error without contacting that service.
+
+Do not run the automated instrumentation suite against personal app profiles.
+Use the fixture package for repeatable tests; no merge or release publication is
+part of this development branch.

@@ -1,0 +1,929 @@
+[
+  {
+    "model": "moonshine-tiny",
+    "start": "2026-10-12T01:27:51.291710+00:00",
+    "baseline": {
+      "thermal_status": 0,
+      "sensors": [
+        {
+          "label": "USB-MINUS-CHARGING",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-PERSIST",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.800985,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-TOP-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 26.949661,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "thb_hda",
+          "hal_type": -1,
+          "status": 0,
+          "value": 54.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "usb_pwr_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 29.833002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 32.590565,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "soc_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 32.205,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "quiet_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.578001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "rfpa_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.940002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "outer_disp_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 27.829,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BG-TASKS-THROTTLING-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-THROTTLING",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "INNER-DISPLAY-DIFF",
+          "hal_type": -1,
+          "status": 0,
+          "value": 2.749014,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "BIG",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BIG_MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "TPU",
+          "hal_type": 9,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "battery",
+          "hal_type": 2,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-BOTTOM-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 28.80125,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.34306,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "cellular-emergency",
+          "hal_type": 5,
+          "status": 0,
+          "value": 31.38181,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "charging_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 32.105003,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_secondary",
+          "hal_type": -1,
+          "status": 0,
+          "value": 25.7,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 26.78077,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-INNER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 31.34306,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN",
+          "hal_type": 3,
+          "status": 0,
+          "value": 31.38181,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "inner_brightness",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-MODEL",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.37113,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "inner_disp_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.383001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-UI",
+          "hal_type": 4,
+          "status": 0,
+          "value": 0.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "GPU",
+          "hal_type": 1,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "LITTLE",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-WIRED",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.800985,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "north_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.639002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "flash_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 30.986002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_base",
+          "hal_type": -1,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "DEVICE-SCREEN-AOD-OFF-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        }
+      ],
+      "utc": "2026-10-12T01:27:48.906202+00:00",
+      "elapsed_s": 142.28428632300347,
+      "battery_raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 3000000\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d17h17m10s746ms\n  Max charging voltage: 5000000\n  Charge counter: 4655000\n  status: 2\n  health: 2\n  present: true\n  level: 100\n  scale: 100\n  voltage: 4472\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d17h39m0s683ms\n The last voltage value sent via the battery changed broadcast: 4469\n  temperature: 294\n  technology: Li-ion\n  Charging state: 1\n  Charging policy: 1\n  Capacity level: 5"
+    },
+    "end": "2026-10-12T01:35:37.505826+00:00"
+  },
+  {
+    "model": "moonshine-small",
+    "start": "2026-10-12T01:40:38.411553+00:00",
+    "baseline": {
+      "thermal_status": 0,
+      "sensors": [
+        {
+          "label": "USB-MINUS-CHARGING",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-PERSIST",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.746786,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-TOP-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 27.207993,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "thb_hda",
+          "hal_type": -1,
+          "status": 0,
+          "value": 54.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "usb_pwr_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 29.852001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 32.640503,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "soc_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.845001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "quiet_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.202002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "rfpa_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.736002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "outer_disp_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 28.472002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BG-TASKS-THROTTLING-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-THROTTLING",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "INNER-DISPLAY-DIFF",
+          "hal_type": -1,
+          "status": 0,
+          "value": 2.05717,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "BIG",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BIG_MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 33.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "TPU",
+          "hal_type": 9,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "battery",
+          "hal_type": 2,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-BOTTOM-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 28.873041,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.176792,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "cellular-emergency",
+          "hal_type": 5,
+          "status": 0,
+          "value": 31.364853,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "charging_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.687002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_secondary",
+          "hal_type": -1,
+          "status": 0,
+          "value": 26.2,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 27.604193,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-INNER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 31.176792,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN",
+          "hal_type": 3,
+          "status": 0,
+          "value": 31.364853,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "inner_brightness",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-MODEL",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.350775,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "inner_disp_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.083002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-UI",
+          "hal_type": 4,
+          "status": 0,
+          "value": 0.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "GPU",
+          "hal_type": 1,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "LITTLE",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-WIRED",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.746786,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "north_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.285002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "flash_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 30.908,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_base",
+          "hal_type": -1,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "DEVICE-SCREEN-AOD-OFF-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        }
+      ],
+      "utc": "2026-10-12T01:40:37.978763+00:00",
+      "elapsed_s": 911.3568468219601,
+      "battery_raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 3000000\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d17h17m10s746ms\n  Max charging voltage: 5000000\n  Charge counter: 4677500\n  status: 5\n  health: 2\n  present: true\n  level: 100\n  scale: 100\n  voltage: 4442\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d17h49m0s681ms\n The last voltage value sent via the battery changed broadcast: 4443\n  temperature: 293\n  technology: Li-ion\n  Charging state: 1\n  Charging policy: 1\n  Capacity level: 5"
+    },
+    "end": "2026-10-12T01:50:13.592550+00:00"
+  },
+  {
+    "model": "moonshine-medium",
+    "start": "2026-10-12T01:54:44.640330+00:00",
+    "baseline": {
+      "thermal_status": 0,
+      "sensors": [
+        {
+          "label": "USB-MINUS-CHARGING",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-PERSIST",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.805714,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-TOP-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 26.891106,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "thb_hda",
+          "hal_type": -1,
+          "status": 0,
+          "value": 54.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "usb_pwr_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 29.725002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 32.595047,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "soc_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 32.252003,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "quiet_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.538002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "rfpa_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 32.263,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "outer_disp_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 27.948002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BG-TASKS-THROTTLING-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-THROTTLING",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "INNER-DISPLAY-DIFF",
+          "hal_type": -1,
+          "status": 0,
+          "value": 2.6781876,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "BIG",
+          "hal_type": 0,
+          "status": 0,
+          "value": 35.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "BIG_MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "TPU",
+          "hal_type": 9,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "battery",
+          "hal_type": 2,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-BOTTOM-SPEAKER",
+          "hal_type": -1,
+          "status": 0,
+          "value": 28.708841,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-LEGACY",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.39743,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "cellular-emergency",
+          "hal_type": 5,
+          "status": 0,
+          "value": 31.305576,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "charging_therm",
+          "hal_type": -1,
+          "status": 0,
+          "value": 32.019,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_secondary",
+          "hal_type": -1,
+          "status": 0,
+          "value": 25.800001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-OUTER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 26.949274,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-INNER-DISPLAY",
+          "hal_type": 11,
+          "status": 0,
+          "value": 31.39743,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN",
+          "hal_type": 3,
+          "status": 0,
+          "value": 31.305576,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "inner_brightness",
+          "hal_type": -1,
+          "status": 0,
+          "value": null,
+          "unit": "vendor quantity (not interpreted)",
+          "available": false
+        },
+        {
+          "label": "VIRTUAL-SKIN-MODEL",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.277155,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "inner_disp_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.356,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-USB-UI",
+          "hal_type": 4,
+          "status": 0,
+          "value": 0.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "MID",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "GPU",
+          "hal_type": 1,
+          "status": 0,
+          "value": null,
+          "unit": "C",
+          "available": false
+        },
+        {
+          "label": "LITTLE",
+          "hal_type": 0,
+          "status": 0,
+          "value": 34.0,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "VIRTUAL-SKIN-CHARGE-WIRED",
+          "hal_type": -1,
+          "status": 0,
+          "value": 31.805714,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        },
+        {
+          "label": "north_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 31.563002,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "flash_therm",
+          "hal_type": -1,
+          "status": 1,
+          "value": 30.995,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "maxfg_base",
+          "hal_type": -1,
+          "status": 0,
+          "value": 29.300001,
+          "unit": "C",
+          "available": true
+        },
+        {
+          "label": "DEVICE-SCREEN-AOD-OFF-HINT",
+          "hal_type": -1,
+          "status": 0,
+          "value": 0.0,
+          "unit": "vendor quantity (not interpreted)",
+          "available": true
+        }
+      ],
+      "utc": "2026-10-12T01:54:41.936834+00:00",
+      "elapsed_s": 1755.31491679803,
+      "battery_raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 3000000\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d17h17m10s746ms\n  Max charging voltage: 5000000\n  Charge counter: 4668333\n  status: 5\n  health: 2\n  present: true\n  level: 100\n  scale: 100\n  voltage: 4438\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d18h6m0s685ms\n The last voltage value sent via the battery changed broadcast: 4437\n  temperature: 294\n  technology: Li-ion\n  Charging state: 1\n  Charging policy: 1\n  Capacity level: 5"
+    },
+    "end": "2026-10-12T02:06:28.281467+00:00"
+  }
+]

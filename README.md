@@ -42,11 +42,21 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This Phase 5 development branch builds **0.5.0 (code 12)**. It adds a service-owned
-conversational voice preview with private WAV transcription, installed offline
+This local-speech development branch builds **0.5.1 (code 13)**. It adds Moonshine
+Tiny, Small and Medium Streaming on-device CPU transcription, collapsible Settings
+categories, and model downloads/load/unload/delete controls. Choose **On device**
+in Settings → Voice; model experiments and direct-WAV benchmarks are under
+**Voice → Experimental**. A downloaded model needs no transcription URL or key.
+All three models completed direct-input phone benchmarks and sustained thermal
+tests. The data-preserving 0.5.1 update is installed; open Voice settings and download
+a model in the personal app. See [measured results](benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
+and [setup and limits](docs/LOCAL-SPEECH-LAB.md).
+
+The Phase 5 foundation adds a service-owned
+conversational voice preview with optional private WAV transcription, installed offline
 speech, review/hands-free/push-to-talk modes, streaming sentences and recovery.
-**Configure your own private transcription service first**; no speech server or
-cloud fallback is bundled. See [voice setup, limits and acceptance](docs/PHASE-5-VOICE.md).
+Private-server mode requires your own service configuration; it is never an automatic
+fallback from local recognition. See [voice setup, limits and acceptance](docs/PHASE-5-VOICE.md).
 The drawer now groups project/source choices in the filter icon left of Search,
 uses two-line compact titles and removes API/CLI/TUI badges from chat rows.
 This is a development preview, not a new public release.

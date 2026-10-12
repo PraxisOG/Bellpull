@@ -1,10 +1,19 @@
 # Building and upgrading Bellpull
 
-The current voice development branch builds **0.5.0, version code 12**, from the
-validated Phase 4 branch. See [Phase 5 setup and acceptance](PHASE-5-VOICE.md).
-No plugin update is required for voice; provide a separate private transcription
-service and use the phone's installed offline voice. Preserve the existing signing
-lineage and personal app data. Do not test against the personal Hermes server.
+The current local-speech branch builds **0.5.1, version code 13**, from the Phase 5
+foundation. See [local speech status and setup](LOCAL-SPEECH-LAB.md) and
+[Phase 5 acceptance](PHASE-5-VOICE.md). No plugin update is required for voice;
+download Moonshine for local CPU recognition, or explicitly select your own private
+transcription service. Answers use the phone's installed offline voice. Phone
+recognition, native switching/local review and thermal comparisons passed in the
+isolated fixture app; [results](../benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
+include limitations. The signed 0.5.1 update was installed with unchanged UID and
+data directory inodes and left stopped. Temporary display settings were restored
+and fixture apps/weights removed. APK SHA-256:
+`fda71758e610aca31094d61be7a618ce8ce30f1d22d2323bdc1646935a4b225d`.
+Local signed APK/rollback copy are under ignored `build/releases/0.5.1/` and
+`build/speech-lab/personal-upgrade/`. No release was published; do not test against
+the personal Hermes server.
 
 Isolated voice checks use `tools/voice-device-fixture.py` on loopback 18647 and
 `mock-hermes/server.py` on loopback 18646 with `MOCK_HERMES_KEY=voice-device-hermes-key`.

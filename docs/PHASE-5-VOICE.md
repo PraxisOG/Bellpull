@@ -1,5 +1,10 @@
 # Phase 5 voice — development preview
 
+The newer `feature/local-speech-lab` branch builds 0.5.1/code 13 with Moonshine
+on-device CPU recognition. See [local setup, status and benchmarks](LOCAL-SPEECH-LAB.md).
+All three local models completed native phone benchmarks; earlier device
+results below describe the 0.5.0 private-service foundation.
+
 Authorized 2026-10-11 on `feature/phase5-voice`, from the validated Phase 4 branch.
 Android version 0.5.0, build 12. This does not publish a release. The updated October
 11 roadmap governs scope: conversational voice in small slices, independent of
@@ -9,15 +14,20 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
 
 1. Keep your existing Hermes connection and Bellpull plugin. This client-only change
    does not require a new plugin; projects still require plugin 0.3.0 or newer.
-2. Open a chat, then its microphone button, or Settings → Voice settings and
-   conversation. Supply the **full transcription URL**, speech-service key if
-   required, and the model ID accepted by that service. Settings are isolated to
-   the selected Bellpull server connection and stored encrypted.
-3. Use your private Whisper-compatible service. It must accept multipart POST fields
+2. In 0.5.1, open Settings → Voice and select **On device**. Choose Moonshine Tiny,
+   Small or Medium Streaming, download it, then load it or start voice to load on
+   the first captured utterance. Models and their tuning are device-wide. No URL
+   or speech-service key is needed. Voice → Experimental provides direct-WAV
+   benchmarks; Display is its own settings category.
+3. Alternatively, explicitly select **Private server** and supply the full
+   transcription URL, speech-service key if required, and model ID. Existing
+   0.5.0 private configurations retain this choice until changed. These settings
+   remain isolated to the selected Bellpull server connection and stored encrypted.
+   The private Whisper-compatible service must accept multipart POST fields
    `file` (16 kHz, mono, PCM16 WAV), `model`, and `response_format=json`, returning
    `{"text":"recognized words"}`. `/v1/audio/transcriptions` is an example path,
    not an assumed Hermes endpoint. Bellpull does not install a speech model/server.
-4. Use HTTPS, or HTTP over Tailscale/loopback. Embedded credentials, query strings,
+4. For private-server mode use HTTPS, or HTTP over Tailscale/loopback. Embedded credentials, query strings,
    fragments and insecure ordinary LAN URLs are rejected. Redirects are refused.
    The speech request never borrows your Hermes bearer key.
 5. Start with **Review before sending**, grant microphone access, speak, correct
@@ -27,8 +37,8 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
    accessibility click toggles recording instead.
 
 On the test Fold, GrapheneOS provides an installed offline English TTS voice;
-Android reports no on-device speech recognizer. No Claude recognizer or cloud
-fallback is selected. Other phones need an installed TTS voice that reports offline
+Android’s platform SpeechRecognizer is unavailable; 0.5.1 supplies its own
+Moonshine runtime. No cloud fallback is selected. Other phones need an installed TTS voice that reports offline
 support in their current language. Existing message read-aloud remains separate.
 
 ## Implemented behavior
@@ -74,7 +84,7 @@ support in their current language. Existing message read-aloud remains separate.
 
 ## Honest limits before calling Phase 5 complete
 
-A private STT service must be configured by the user. The wire fixture validates
+In private-server mode a private STT service must be configured by the user. The wire fixture validates
 requests; it is deliberately **not a speech recognizer** and is never selected by
 production defaults. Real provider recognition, speaker echo/barge-in quality,
 false-turn rejection in ambient noise and perceived latency need listening tests.
@@ -100,7 +110,9 @@ installed offline voice and rate controls, not a full voice-selection catalog.
 
 ## Manual acceptance
 
-- [ ] Configure the private STT URL/key/model for each desired server profile.
+- [ ] For local mode, download/load each Moonshine size and check offline recognition,
+      switching, restart, unload/delete and visible failure when selected weights are missing.
+- [ ] If using private mode, configure the STT URL/key/model for each desired server profile.
 - [ ] Dictate, pause naturally, correct the text, send once and hear the response.
 - [ ] Hold a longer utterance, release it, and verify no early task was started.
 - [ ] Continue hands-free for several turns. Verify the same chat/project is used.
@@ -149,8 +161,9 @@ evidence, not inferred from local success.
 
 ## Sources and implementation references
 
-Reuses Bellpull's durable runs, profile isolation and native installed TTS, with
-no added dependencies. Audio integration follows Android's
+Reuses Bellpull's durable runs, profile isolation and native installed TTS. The
+0.5.0 foundation added no dependencies; 0.5.1 adds the user-approved Moonshine CPU
+SDK. Audio integration follows Android's
 [communication capture source](https://developer.android.com/reference/android/media/MediaRecorder.AudioSource#VOICE_COMMUNICATION),
 [acoustic echo cancellation](https://developer.android.com/reference/android/media/audiofx/AcousticEchoCanceler),
 [audio focus](https://developer.android.com/media/optimize/audio-focus), and
