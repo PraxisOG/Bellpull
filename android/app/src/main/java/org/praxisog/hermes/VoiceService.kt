@@ -23,7 +23,7 @@ class VoiceService : Service() {
     @get:androidx.annotation.RequiresApi(31)
     private val routeChanged by lazy {
         AudioManager.OnCommunicationDeviceChangedListener {
-            if (started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
+            if (Build.VERSION.SDK_INT >= 31 && started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
                 audio.communicationDevice?.id != requestedRoute?.id)
                 runtime.voice?.pause("The communication route changed. Check your route and resume voice.")
         }
