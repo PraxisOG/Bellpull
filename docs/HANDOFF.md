@@ -1,5 +1,28 @@
 # Bellpull / Hermes app handoff
 
+## 2026-10-11 overnight: Phase 5 offline and Phase 6 prelim
+
+- Phase 5: `feature/local-voice-models`, commit `c5dceec`, 0.5.5/code 17.
+  Pocket CPU download/selection/tuning, exclusive model ownership and explicit
+  audio/startup recovery implemented. Compiles ARM64/x86_64. **Further tests,
+  screenshots/lint and device acceptance deferred at user request.**
+- Phase 6: `feature/phase6-opencode-activity`, based on that Phase 5 commit.
+  Source audit and unconnected bounded CLI timeline prototype for OpenCode
+  started by Hermes. No live adapter, network route, runner or plugin update.
+  Pure model and APK compilation passed; regressions remain pending.
+- **Personal phone still 0.5.3/code 15**, stopped. ADB disconnected before
+  the signed 0.5.4 update. Tested signed 0.5.4 APK is retained unchanged locally;
+  it does not contain the newer Pocket implementation. Fixture app/test package
+  and Qwen weights remain pending cleanup when ADB returns.
+- Neither branch pushed. No personal server access, additional phone access,
+  merge or release publication. Push remains gated on the user's green light.
+
+Details: [voice output/evidence and remaining Phase 5 acceptance](VOICE-OUTPUT.md),
+[Phase 5 scope](PHASE-5-VOICE.md), [Phase 6 contracts and acceptance](PHASE-6-OPENCODE.md).
+Actual pre-tool playback ordering still needs a verified host coordination
+mechanism; observed tool announcements cannot provide that guarantee.
+
+
 ## 0.5.0 conversational voice preview — 2026-10-11
 
 Branch **`feature/phase5-voice`**, based on Phase 4 commit `a8d49cc`. Android

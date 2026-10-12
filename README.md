@@ -147,6 +147,15 @@ See [the handoff](docs/HANDOFF.md) for exact counts, phone acceptance, advisory 
 warnings and remaining hardware/network limits. The gallery above shows the 0.3.3 UI;
 its [source list](docs/images/README.txt) is included. No private phone screenshots are published.
 
+## Phase 6 preliminary work
+
+`feature/phase6-opencode-activity` contains a source audit and an unconnected,
+bounded OpenCode CLI activity model. The goal is to monitor OpenCode started by
+Hermes in the existing chat. Live session binding, workspace/diffs and child
+controls require a verified host contract; none is advertised or enabled yet.
+See [scope, evidence and next steps](docs/PHASE-6-OPENCODE.md). No additional tests,
+phone/server access or push were used for this preliminary slice.
+
 ## Build and test
 
 For the experimental Linux Mint launcher that runs a Bellpull APK in an isolated

@@ -66,7 +66,11 @@ trust, not a second use of the old one.
 **Current authority (2026-10-11, local voice output and Phase 6 prelim):** finish
 Phase 5 implementation on `feature/local-voice-models`, **without further tests or
 phone access**, then create a separate branch for Phase 6 preliminary OpenCode
-monitoring through Hermes. No personal server access. No push until the user's
+monitoring through Hermes. Phase 5 is committed at `c5dceec`; current Phase 6
+branch is `feature/phase6-opencode-activity`. Its scope/evidence is
+`docs/PHASE-6-OPENCODE.md`: source audit and unconnected typed CLI timeline only,
+not a live integration. No new Hermes API, plugin deployment or OpenCode run.
+No personal server access. No push until the user's
 green light; no merge or release publication. The user approved qwentts.cpp/GGML
 and Sherpa-ONNX 1.13.8 with ONNX Runtime for local output. No Google accelerator
 libraries are approved. Keep the previous voice-turn-taking behavior and provider
