@@ -1,4 +1,33 @@
+## Phase 6 local implementation — October 12
+
+Independent corrected-0.5.5 branch `feature/phase6-opencode-activity` now has a
+read-only OpenCode activity journal, Android timeline/recovery and workspace diffs.
+APK preview version `0.6.0-preview`/18; plugin `0.4.0-phase6`. Not installed or pushed.
+[Implementation, actual checks, limitations and acceptance](PHASE-6-OPENCODE.md).
+The separate combined planning branch is at `/home/praxisog/Bellpull-phase8-9`.
+No personal server access or additional ADB use after the launch repair.
+
 # Bellpull / Hermes app handoff
+
+## 2026-10-12: immediate 0.5.5 launch repair
+
+The first 0.5.5 candidate crashed when chat composition initialized VoiceOutputLab:
+the new folder-ID validator rejected the shipped `qwen-0.6b` ID. Fixed at
+`c913243` on `feature/local-voice-models`, preserving existing model paths and
+still rejecting traversal/unsafe prefixes. Eight focused JVM tests passed, and a
+new fixture-only phone startup/preflight/Activity test passed. Corrected signed
+0.5.5/code 17 installed in place; signer, UID and both data-directory inodes
+preserved. No personal server access; personal app left stopped. Fixture packages
+removed after the check. Pocket synthesis and the other pending acceptance were
+not tested by this regression.
+
+Corrected APK SHA-256:
+`1e7121c0a32658ded36fcb02122b7b581f8c5dd0a8993646b0f25f28f20415d5`.
+Evidence: ignored `build/launch-crash-*` logs and
+`build/releases/0.5.5/launch-crash/`. Both independent development branches now
+include the repair: `feature/phase6-opencode-activity` and
+`feature/phase8-9-reminders-calendar` (worktree `/home/praxisog/Bellpull-phase8-9`).
+The user authorized building both while away; no further phone access or push.
 
 ## 2026-10-12: 0.5.5 installed on request
 

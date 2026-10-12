@@ -1,3 +1,14 @@
+# Phase 6 plugin preview
+
+This branch adds read-only OpenCode activity as **0.4.0-phase6**. Install with the
+existing stock-plugin procedure below, restart Hermes and refresh capabilities;
+`bellpull_coding_activity` must be true. No core patch, Docker or separate OpenCode
+port is required. Modern turn/process ownership hooks are required. Older hosts
+keep existing features and report coding unavailable. Back up the profile home;
+new journals live under `bellpull-coding/` and can remain during rollback.
+Read [scope, actual checks and manual acceptance](../../docs/PHASE-6-OPENCODE.md).
+The independent Phase 8/9 preview has different features; do not mix plugin folders.
+
 # Bellpull plugin 0.3.0
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,

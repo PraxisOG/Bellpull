@@ -35,6 +35,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var projects by mutableStateOf<ProjectWorkspace?>(null)
         private set
+    var coding by mutableStateOf<CodingActivityWorkspace?>(null)
+        private set
     var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
         private set
     var notificationEventsAvailable by mutableStateOf(false)
@@ -78,6 +80,10 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         store = next
+        coding = CodingActivityWorkspace(scope, client, cache?.let { saved -> object : CodingCache {
+            override fun readCoding(id: String) = saved.readCoding(id)
+            override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
+        } }, capabilities.features["bellpull_coding_activity"] == true)
         projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true) }
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
@@ -113,6 +119,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
+            coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             projects?.configure(result.value.features["bellpull_projects"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
@@ -160,6 +167,7 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun disconnect() {
+        coding?.close(); coding = null
         voice?.close()
         voice = null
         voiceRequestedSession = null

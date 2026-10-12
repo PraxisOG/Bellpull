@@ -63,6 +63,14 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-12):** after fixing the 0.5.5 launch crash, continue
+both independent branches from corrected 0.5.5: Phase 6 OpenCode activity here,
+and combined Phase 8/9 reminders/routines/visual phone calendar at
+`/home/praxisog/Bellpull-phase8-9`. Use local tests and disposable hosts. The user
+is away with the phone; no ADB, personal-server access, push, merge or publication.
+The hotfix was installed and fixture-tested before departure; see HANDOFF.
+
+
 **Current authority (2026-10-12, Phase 6 implementation):** the user approved
 building out the proposed Hermes/OpenCode activity view while away, with phone
 acceptance on return. Work on `feature/phase6-opencode-activity`: portable plugin

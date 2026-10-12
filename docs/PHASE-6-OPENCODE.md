@@ -1,33 +1,79 @@
-# Phase 6 prelim: monitor OpenCode through Hermes
+# Phase 6 preview: monitor OpenCode through Hermes
 
-Branch `feature/phase6-opencode-activity`, based on Phase 5 offline commit
-`c5dceec`. **Preliminary, not an enabled integration.** No personal server access,
-phone access, OpenCode execution, inference, plugin deployment or push. The user
-asked for implementation without further tests; only compilation/source inspection
-was performed for this preliminary work. On October 12, the user requested and
-received the separate Phase 5 **0.5.5/code 17** update; this Phase 6 prototype was
-excluded. See [installation evidence](HANDOFF.md).
+Independent branch `feature/phase6-opencode-activity`, based on corrected 0.5.5.
+This is a local preview, not a published release or a personal-server deployment.
+The phone has only the corrected Phase 5 build. No new phone access is needed to
+continue this branch.
 
-## Scope and first slice
+## Implemented slice
 
-The October 11 roadmap defines a coding/activity view of the existing Hermes
-conversation and run. The user clarified that Hermes uses OpenCode and that
-OpenCode is what we should monitor. Keep the existing session/project navigation,
-drafts, run journal, approvals and Stop. A coding view must show the distinction
-between the Hermes coordinator and its OpenCode work, with expandable plain-text
-command output and honest connection/waiting states. Workspace identity and
-read-only diffs follow. No separate agent runner, generic terminal, mobile IDE,
-automatic worktrees, new coding provider or blanket permissions.
+Chat → Activity observes existing Hermes-owned OpenCode background processes. It
+never starts another runner or inference. The plugin binds an exact terminal tool
+receipt to the active Hermes run/turn, session, owning task and process incarnation.
+Simple JSON launches show typed completed text/reasoning/tool parts. Simple PTY/TUI
+and ordinary run launches have an explicitly labeled inert text fallback. Shell
+pipelines, administrative/attach commands and foreground-only work are not attached.
+No OpenCode-server adapter, live token promise or OpenCode approval/question control
+is implied. Existing Hermes approvals, Stop and chat follow-up remain available.
 
-Added a transport-independent Kotlin prototype in
-[OpenCodeActivity.kt](../android/core-model/src/main/kotlin/org/praxisog/hermes/model/OpenCodeActivity.kt): explicit profile/Hermes run/session/
-OpenCode session/process/workspace binding, bounded CLI JSON-line decoding and a
-bounded timeline with part-ID replacement. It has no network/command/control path
-and is not connected to the app. Synthetic fixtures are under
-`docs/phase6/fixtures/`; they are constructed from source schemas, not live captures.
-No new dependency or Hermes endpoint was added. `:core-model:compileKotlin` and
-`:app:assembleDebug` pass;
-regressions and phone acceptance have not run.
+The plugin journals bounded activity in profile-local SQLite and exposes authenticated
+read-only APIs documented in [the contract](hermes-api.md). Native profile prefixes
+and legitimate compression lineage are preserved; ordinary branches remain separate.
+Reconnect uses durable cursors and snapshots. Tail loss, retention and restart are
+visible. Process exit is distinct from parent completion and step completion. A
+missing process becomes lost, never successful. Running records are not evicted to
+make room for newer work; capacity exhaustion is an explicit incomplete view.
+
+Workspace changes list bounded Git changes and read-only text diffs using opaque
+file IDs. Symlinks, traversal, binary/large data, external diff/textconv/hooks and
+parent-repository expansion are refused. Changes are not attributed exclusively
+to OpenCode. Phone state is an encrypted, connection-scoped cache; drafts and run
+ownership continue through the existing chat runtime.
+
+## Local verification — October 12
+
+- **Android:** 532 discovered JVM tests, 531 passed and the opt-in live-provider
+  smoke test skipped; 164 screenshot baselines verified; debug APK and lint passed.
+  New coverage exercises cursor merging, profile-prefixed GETs, retry/no-admission,
+  shutdown, cache isolation, output expansion and both display widths.
+- **Python:** all 18 focused coding tests passed against disposable unmodified
+  Hermes commit `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`. This includes one actual
+  native adapter/plugin-hook/ProcessRegistry integration with exactly one admitted
+  run and a deterministic local executable named `opencode`. It is not a real
+  OpenCode/provider run. Core file hashes stayed unchanged; wrong bearer auth failed.
+- The complete plugin suite was also attempted on that newer stock checkout:
+  **97 tests, 20 failures and 4 errors**. The legacy source-pinned branch/pagination
+  routes are deliberately disabled on this unreviewed core revision, and the optional
+  extended run module is absent. These are not passing checks. The pinned Docker
+  CI host is unavailable locally; no fresh CI result or provider/device result is claimed.
+- Logs: `build/phase6/android-final.log`, `python-final.log`,
+  `plugin-full-stock.log`. No personal server, phone, push, merge or release publication.
+
+## Compatibility and installation when ready
+
+Use this branch's single Bellpull plugin; its preview is `0.4.0-phase6` and discovery
+must advertise `bellpull_coding_activity`. Existing chat/voice/files remain capability
+gated and work with the older plugin. New observation requires modern identity-bearing
+post-tool hooks and process ownership fields. Unsupported hosts show an update message.
+Do not install the separate planning branch's plugin expecting coding features.
+Back up the profile home; plugin storage is additive under `bellpull-coding/`. Restore
+the previous plugin and restart the gateway to roll back; do not replace core modules.
+
+## Manual acceptance on return
+
+1. Install the preview APK/plugin manually on a disposable or backed-up stock host.
+   Refresh discovery; check root and a served named profile without root fallback.
+2. Ask Hermes for one normal OpenCode task. Confirm Chat/Activity shows the same run
+   and child, with no second admission. Check JSON and ordinary PTY/text invocations.
+3. Expand output, preserve a draft, switch chats/projects, background and reconnect.
+   Confirm no duplicates; gaps and stale cached child states must remain visible.
+4. Stop through the existing Hermes control. Verify the actual child on the host;
+   older/remote backends may not reap it. No fake OpenCode approval buttons should appear.
+5. Inspect changed/untracked/binary/large/symlink files read-only. Confirm other actors'
+   edits are labeled Workspace changes. Test a compressed continuation and an ordinary
+   branch/profile; only legitimate ownership shares activity.
+6. Restart the gateway with a running child. Lost identity/output must not become success.
+   Reopen and follow up exactly once through normal chat.
 
 ## Source findings
 
@@ -70,96 +116,3 @@ Important source details:
   ownership/epoch evidence. Older builds/remote backends may differ; current
   Bellpull Stop remains the only enabled control. Do not advertise that it kills
   every OpenCode child on the personal host before verification.
-
-## Proposed host bridge, not a current API
-
-Use the Bellpull plugin as the authenticated boundary if a live bridge is added.
-The phone keeps the selected Hermes URL/native-profile prefix and bearer auth.
-OpenCode credentials/endpoints stay host-side. No second phone login, public
-OpenCode port, SSH requirement or Docker/core-module replacement.
-
-```mermaid
-flowchart LR
-    A[Existing Bellpull conversation/run] --> B[Hermes authenticated run API]
-    B --> C[Hermes terminal/process tools]
-    C --> D[Existing OpenCode work]
-    A -. proposed read-only monitor .-> E[Bellpull plugin observer]
-    E -. verified ownership .-> C
-    E -. explicit session binding .-> D
-```
-
-Before defining HTTP routes or advertising capabilities, verify these contracts in
-a disposable host matching the user's versions:
-
-1. **Binding and isolation.** Capture the launch's Hermes run/conversation and
-   owning task, process incarnation, explicit OpenCode session and real workspace.
-   Persist a versioned binding; scope it to the authenticated native Hermes
-   profile. Device cache is additionally scoped to its saved connection. Preserve
-   legitimate compression identity without attaching work to an ordinary branch.
-2. **Observation.** Prefer events/messages from the actual OpenCode instance when
-   it exists. For CLI JSON launches, retain structured output and explicitly report
-   its reduced fidelity. Existing PTY/TUI work may only have text tails; display
-   that limitation. Never rerun/admit work to obtain a richer monitor.
-3. **Recovery.** Host-assigned durable event IDs, bounded retention, authoritative
-   snapshots and explicit replay gaps. Separate parent run, child process, child
-   session and connection state. On gateway restart, verify process incarnation;
-   disappearance becomes unknown/lost, not success. No duplicate inference.
-4. **Requests and controls.** Bind real approvals/questions to the exact source,
-   session, request ID and lifetime. Hermes approval IDs cannot be sent to
-   OpenCode. Until this is verified, only existing Hermes controls are available.
-   Follow-ups use the existing chat after settling; in-flight steering stays absent
-   unless there is a verified implementation. Reopening must not replay a reply.
-5. **Workspace and diffs.** Server-returned, authorized workspace IDs, no arbitrary
-   client filesystem path. Keep reads inside the resolved root, including symlink
-   checks; bound content/diff bytes, file count and duration. Treat binary/large/
-   missing/non-Git files explicitly. No write, restore, revert or shell endpoint.
-   Diff commands must disable external diff/textconv and use fixed argv/literal
-   paths. Workspaces may contain other actors' edits: label those **Workspace
-   changes**. Even an OpenCode session snapshot is not exclusive attribution.
-6. **Compatibility and cleanup.** Feature-detect supported hooks/API versions,
-   share observers without clobbering sinks, remove subscriptions on shutdown,
-   and visibly report unavailable features. Native profile rejection must never
-   fall back to root. Keep portable plugin registration; no core patch deployer.
-
-Detailed proposed contracts deliberately remain undecided. There is no verified
-current endpoint for this in `hermes-api.md`; no guessed path was added to client
-or plugin. The existing plugin remains **0.3.0**.
-
-## Prototype limitations and next checks
-
-The prototype accepts only the source-checked CLI envelope; SSE and the newer
-OpenCode V2 message schema need separate adapters. It refuses other sessions,
-malformed/type-mismatched lines and excessive nesting. Output/detail and retained
-rows are bounded; truncated/evicted/ignored/invalid data are counted. IDs replace
-existing rows in the retained window; this is not a durable replay guarantee.
-Reasoning stays a separate kind for future collapsed display. No raw output is
-logged by model `toString`. No text becomes a tool command or approval action.
-Connection loss discards a partial line and marks continuity lost; it never marks
-a task finished. Profile isolation depends on a separately instantiated, verified
-binding and a future authenticated host implementation, not the session string alone.
-
-Resume with pure-model regressions for split/coalesced lines and Unicode, CRLF,
-wrong nested/session IDs, duplicates/updates, excessive input, bounded eviction,
-malformed permission text, lost partial lines, step-finish versus task completion,
-and same OpenCode ID under separate profiles. Then exercise a disposable Hermes +
-OpenCode host for process/run binding, real child states, Stop, genuine requests,
-restart/replay and workspace read containment. No provider/phone check is claimed.
-
-Manual acceptance once implemented:
-
-- From a Hermes chat, start one normal OpenCode task. Open activity without starting
-  another run; identify the coordinator, child, workspace and actual backend version.
-- Expand command output, switch chats/projects, background/reopen and disconnect/
-  reconnect. Preserve drafts, run identity and chronology; show any replay gap.
-- Observe a real wait/request; answer once on the exact source. Test denial and
-  expired requests. Confirm plain CLI warning text never gains approval buttons.
-- Stop from Bellpull and check both coordinator and child. If child-stop is not
-  proven, show its state honestly. A follow-up admits exactly once after settlement.
-- Inspect text/binary/large/untracked changes read-only. Edit the same workspace
-  outside the run and confirm the app labels shared workspace changes honestly.
-- Check another profile, an ordinary branch and a compressed continuation. Work
-  and files remain associated only with their verified owner/lineage.
-
-Phase 5 lives independently on `feature/local-voice-models`; its untested offline
-changes and device cleanup are in [VOICE-OUTPUT.md](VOICE-OUTPUT.md). Neither branch
-has been pushed. Do not install this preliminary branch as a verified update.

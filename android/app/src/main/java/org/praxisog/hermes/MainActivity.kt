@@ -193,6 +193,7 @@ class MainActivity : ComponentActivity() {
                         branchingSession = current?.branchingSession ?: false, branchError = current?.branchError,
                         onDismissBranchError = { current?.dismissBranchError() },
                         disconnected = current == null, settingsRevision = profiles.settingsRevision,
+                        coding = runtime.coding,
                         extraTools = runtime.client?.let { client -> {
                             FileSharingStatus(files?.filesSupported == true, files?.runAttachmentsSupported == true,
                                 runtime::refreshCapabilities)

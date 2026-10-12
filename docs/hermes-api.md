@@ -1,5 +1,40 @@
 # Bellpull / Hermes API contract
 
+## Phase 6 experimental plugin contract — 2026-10-12
+
+This is a newly implemented **Bellpull-owned** contract, not an assumed upstream
+Hermes/OpenCode endpoint. Plugin 0.4.0-phase6 adds `bellpull_coding_activity` only where
+the inspected tool-hook identities and process registry fields are present.
+All routes retain native bearer authentication and `/p/{profile}` rejection/
+scoping. No phone-to-OpenCode connection or new run admission is involved.
+
+- `GET /api/bellpull/sessions/{session_id}/coding[?after=N]`: version 1 snapshot
+  with `session_id`, legitimate compression `session_ids`, durable profile-local
+  `cursor`, `reset`, `gap`, `available`, `note`, `observed_at`, `works`, `rows`.
+  A reset replaces the client snapshot; otherwise rows update by `(work_id,key)`.
+  Retention/cursor discontinuity is explicit. Ordinary forks remain separate.
+  Each work identifies its Hermes run, process and observed OpenCode session,
+  transport, child state, workspace identity and limitations. Each row contains
+  sequence, work ID/key, timestamp, kind, label, detail and optional command/outcome.
+- `GET /api/bellpull/coding/{work_id}/workspace[?file=opaque_id]`: version 1
+  read-only `Workspace changes`, at most 200 files and a bounded UTF-8 diff.
+  File IDs come from the returned list; arbitrary client paths are not accepted.
+  Binary/oversized/symlink/inaccessible previews return visible errors. No writes,
+  external diff/textconv/hooks, filesystem search, revert or terminal endpoint.
+
+The initial transports observe exact simple background `opencode run --format
+json` terminal receipts and simple PTY/TUI/plain-run launches as inert terminal text. It verifies the live Hermes turn and process ownership/
+incarnation. CLI text/tool parts arrive when those parts complete. The observer
+polls the process tail without replacing `on_output`; lost tail data sets `gap`.
+Its SQLite journal retains up to 128 works, 300 rows per work and 3,000 events per
+profile. The phone displays a bounded 300-row window and caches a smaller tail.
+Process exit is separate from step finish, parent completion and connection loss.
+Plain CLI permission warnings are inert text. Existing Hermes approvals and Stop
+are the only enabled controls; no OpenCode question/permission/steering API is
+advertised. Foreground-only output, shell wrappers and an OpenCode-server adapter remain
+unsupported in this first slice. Local integration evidence is recorded separately
+in `PHASE-6-OPENCODE.md`; no personal host/device/provider result is implied.
+
 ## Phase 5 voice boundary — 2026-10-11
 
 Android 0.5.3 also uses the existing chat Stop path after confirmed non-echo speech

@@ -17,6 +17,7 @@ from .compatibility import source_mode
 
 
 def wire(app, adapter):
+    from .coding import Observer
     from hermes_cli import __version__
     required = ("_expected_api_key", "_check_auth", "_run_idempotency_scope", "_ensure_session_db_async",
                 "_get_existing_session_or_404", "_session_response", "_read_json_body")
@@ -38,15 +39,19 @@ def wire(app, adapter):
     sampler = Sampler()
     snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
+    coding = Observer(adapter)
+    app.on_startup.append(coding.start)
     housekeeping = {}
     active = True
     def stop():
         nonlocal active
         active = False
         stop_streaming()
+        coding.stop()
         snapshots.close()
         relay.stop()
     async def close():
+        await coding.close()
         stop_streaming()
         snapshots.close()
         await relay.close()
@@ -86,6 +91,7 @@ def wire(app, adapter):
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
+                "bellpull_coding_activity": coding.supported,
                 "bellpull_artifact_lifecycle": files_ready},
             "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
             headers={"Cache-Control": "no-store"})
@@ -153,6 +159,8 @@ def wire(app, adapter):
 
     routes = [("GET", "/api/bellpull/capabilities", capabilities)]
     if projects_ready:
+        routes.extend(coding.routes())
+    if projects_ready:
         routes.extend(projects.routes(adapter))
     if files_ready:
         routes.extend([
@@ -188,4 +196,5 @@ def wire(app, adapter):
     for method, path, handler in routes:
         for prefix in ("", "/p/{profile}"):
             app.router.add_route(method, prefix + path, authenticated(handler))
+    stop.coding = coding
     return stop

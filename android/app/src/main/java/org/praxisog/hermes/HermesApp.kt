@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.Session
 
@@ -98,7 +99,9 @@ internal fun HermesApp(
     speechLab: (@Composable () -> Unit)? = null,
     voiceSettings: (@Composable () -> Unit)? = null,
     voiceOutputSettings: (@Composable () -> Unit)? = null,
+    coding: CodingActivityWorkspace? = null,
 ) {
+    var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected && projects?.selectedProject == null) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
@@ -142,6 +145,11 @@ internal fun HermesApp(
         }
     }
     HermesTheme(appearance = preferences.appearance, palette = preferences.palette, customAccent = preferences.customAccent) {
+        DisposableEffect(coding, openSessionId, activityOpen, foreground, mode) {
+            openSessionId?.let { coding?.observe(it, activityOpen && foreground && mode == WorkspaceMode.CHATS) }
+            onDispose { openSessionId?.let { coding?.observe(it, false) } }
+        }
+        coding?.let { CodingWorkspaceDialog(it) }
         CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode,
             LocalLabeledControls provides preferences.labeledControls) {
             branchError?.let { error ->
@@ -255,7 +263,16 @@ internal fun HermesApp(
                                 } else {
                                     if (disconnected) DisconnectedBanner(openSettings)
                                     RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
-                                    screenState.SaveableStateProvider(openSessionId) {
+                                    if (coding != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(selected = !activityOpen, onClick = { activityOpen = false }, label = { Text("Chat") })
+                                        FilterChip(selected = activityOpen, onClick = { activityOpen = true }, label = { Text("Activity") }, modifier = Modifier.testTag("open-coding-activity"))
+                                    }
+                                    if (activityOpen && coding != null) CodingActivityPanel(coding.snapshot, coding.loading,
+                                        coding.supported, coding.disconnected, coding.problem, runPresentation?.label,
+                                        coding::retry, { coding.inspect(it) }, { activityOpen = false }, onStop,
+                                        canStop = (turn as? TurnState.Streaming)?.canStop == true,
+                                        modifier = Modifier.weight(1f))
+                                    else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,

@@ -113,6 +113,17 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
         .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
+    fun readCoding(id: String): org.praxisog.hermes.model.CodingSnapshot? = runCatching {
+        preferences.getString("coding:$id", null)?.let { json.decodeFromString<org.praxisog.hermes.model.CodingSnapshot>(it).validated(id) }
+    }.getOrNull()
+    fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) {
+        if (closed) return
+        // Cache a bounded tail; the plugin remains authoritative after reconnect.
+        val tail = value.copy(rows = value.rows.takeLast(40), gap = value.gap || value.rows.size > 40)
+        val edit = preferences.edit().putString("coding:${value.sessionId}", json.encodeToString(tail))
+        preferences.all.keys.filter { it.startsWith("coding:") && it != "coding:${value.sessionId}" }.drop(9).forEach(edit::remove)
+        edit.apply()
+    }
     fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw)
         .putLong("capabilities_checked_at", System.currentTimeMillis()).apply() }
     fun capabilitiesCheckedAt(): Double? = preferences.getLong("capabilities_checked_at", 0).takeIf { it > 0 }?.div(1000.0)

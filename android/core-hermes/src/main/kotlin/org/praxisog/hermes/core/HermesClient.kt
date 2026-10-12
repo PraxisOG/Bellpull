@@ -96,6 +96,23 @@ class HermesClient(
         get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
 
     fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
+    fun codingActivity(sessionId: String, after: Long? = null): HermesResult<CodingSnapshot> {
+        require(after == null || after >= 0)
+        return get("/api/bellpull/sessions/${urlPart(sessionId)}/coding" + (after?.let { "?after=$it" } ?: ""), sessionId) {
+            json.decodeFromString<CodingSnapshot>(it).validated(sessionId)
+        }
+    }
+    fun codingWorkspace(workId: String, fileId: String? = null): HermesResult<CodingWorkspaceSnapshot> {
+        require(workId.matches(Regex("[a-f0-9]{32}")) && (fileId == null || fileId.matches(Regex("[a-f0-9]{64}"))))
+        return get("/api/bellpull/coding/$workId/workspace" + (fileId?.let { "?file=$it" } ?: "")) {
+            json.decodeFromString<CodingWorkspaceSnapshot>(it).also { value ->
+                require(value.version == 1 && value.files.size <= 200 && value.files.map { f -> f.id }.distinct().size == value.files.size)
+                require(value.files.all { f -> f.id.matches(Regex("[a-f0-9]{64}")) && f.path.length <= 4096 })
+                require((value.diff?.length ?: 0) <= 262144)
+                require(fileId == null || value.file?.id == fileId)
+            }
+        }
+    }
     private fun projectSnapshot(body: String): ProjectSnapshot {
         val raw = json.parseToJsonElement(body).jsonObject
         require(raw["version"]?.jsonPrimitive?.intOrNull == 1 &&
@@ -229,7 +246,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_coding_activity")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

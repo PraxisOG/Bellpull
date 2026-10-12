@@ -1,6 +1,6 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.3.0"
+VERSION = "0.4.0-phase6"
 
 
 def register(ctx):
@@ -10,6 +10,10 @@ def register(ctx):
     instances = []
     def factory(app, adapter):
         instances.append(wire(app, adapter))
+    def observe_tool(**kwargs):
+        from .coding import dispatch_tool
+        dispatch_tool(**kwargs)
+    ctx.register_hook("post_tool_call", observe_tool)
     def unload():
         for stop in instances:
             stop()
