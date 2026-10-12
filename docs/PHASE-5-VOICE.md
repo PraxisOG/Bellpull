@@ -1,6 +1,6 @@
 # Phase 5 voice — development preview
 
-The newer `feature/local-speech-lab` branch builds 0.5.1/code 13 with Moonshine
+The newer `feature/voice-turn-taking` branch builds 0.5.3/code 15 with Moonshine
 on-device CPU recognition. See [local setup, status and benchmarks](LOCAL-SPEECH-LAB.md).
 All three local models completed native phone benchmarks; earlier device
 results below describe the 0.5.0 private-service foundation.
@@ -14,7 +14,7 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
 
 1. Keep your existing Hermes connection and Bellpull plugin. This client-only change
    does not require a new plugin; projects still require plugin 0.3.0 or newer.
-2. In 0.5.1, open Settings → Voice and select **On device**. Choose Moonshine Tiny,
+2. Open Settings → Voice and select **On device**. Choose Moonshine Tiny,
    Small or Medium Streaming, download it, then load it or start voice to load on
    the first captured utterance. Models and their tuning are device-wide. No URL
    or speech-service key is needed. Voice → Experimental provides direct-WAV
@@ -30,11 +30,19 @@ Quick Chat, on-device inference, assistant replacement and Android Auto.
 4. For private-server mode use HTTPS, or HTTP over Tailscale/loopback. Embedded credentials, query strings,
    fragments and insecure ordinary LAN URLs are rejected. Redirects are refused.
    The speech request never borrows your Hermes bearer key.
-5. Start with **Review before sending**, grant microphone access, speak, correct
-   the recognized words and tap Send to Hermes. Then try **Hands-free**, which
-   sends recognized utterances automatically after the configured pause. **Push to
-   talk** records while you hold its button and transcribes/sends on release; an
-   accessibility click toggles recording instead.
+5. **Tap the chat microphone** to start conversation mode; tap again to end voice.
+   The button pulses while voice is on (steady when Reduce motion is enabled).
+   Wait for the brief soft chime before speaking. Recognized turns send after the
+   configured pause. **Hold the microphone** to dictate, then release to insert
+   words at the message draft's cursor/selection; review and send normally. This
+   gesture never auto-submits an inference. If a permission dialog interrupts the
+   hold, release, grant permission and hold again. Releasing/canceling during startup
+   cannot open the microphone later.
+6. Settings → Voice → **Using voice** documents these controls. Enable **Debugging
+   voice interface** to restore the detailed panel on tap, including review,
+   hands-free and its older push-to-talk/send-on-release mode. The debug toggle is
+   off by default and persists on this device. Readiness uses a 90 ms native chime
+   at 12% of voice-call stream volume; perceived loudness depends on route/volume.
 
 On the test Fold, GrapheneOS provides an installed offline English TTS voice;
 Android’s platform SpeechRecognizer is unavailable; 0.5.1 supplies its own
@@ -54,18 +62,30 @@ support in their current language. Existing message read-aloud remains separate.
 - Review, push-to-talk and continuous hands-free modes share one conversation, including its
   project, history, tools and existing run permissions. Typed drafts and model
   preferences remain independent. A visible voice-message preset asks for concise,
-  friendly answers and economical tool use; it does not disable verification or
-  secretly substitute models/change reasoning settings.
-- A short actual TTS preamble completes **before** the phone submits a run. Coherent
+  friendly answers of at most one paragraph/180 words, minimal reasoning and a brief
+  explanation before each tool/search. **Provider thinking controls remain unchanged**;
+  this is a visible prompt instruction. Spoken answer text has a separate 180-word
+  cap even if the provider ignores the prompt. Activity announcements are outside
+  that cap; full written output remains available if a provider ignores the limit.
+- An actual **“Working”** TTS preamble completes **before** the phone submits a run. Coherent
   answer sentences begin playback while generation continues; incomplete words,
   thinking and raw tool payloads are excluded. Code/link formatting is converted
   for speech. Status output can drop earlier tool commentary without corrupting
-  the spoken final answer.
+  the spoken final answer. Genuine live thinking/tool/search events generate short,
+  deduplicated announcements, prioritized ahead of queued answer sentences. Thinking
+  announces only its status, never its content; raw tool arguments/previews are never
+  spoken. The preceding public assistant commentary supplies the stated purpose;
+  otherwise a factual tool-role description says when no specific purpose was given.
 - Barge-in stops playback and clears stale queued speech. A contiguous-text echo
   guard prevents recognized playback phrases becoming another inference. A new
-  utterance can wait for the existing run; multiple additions are retained together.
-  Stop speaking does not cancel the agent. Cancel agent work uses the existing
-  stop request and cannot undo tools already executed.
+  utterance now requests the existing **chat Stop** after nonempty, non-echo recognition.
+  The new utterance is saved as one replacement turn; it is not appended to the
+  original request. It waits for Stop and authoritative history to settle before one
+  fresh admission. Pre-admission interruption waits for the same run to obtain its
+  stoppable identity. Stop errors or 30 seconds without settlement pause voice and
+  retain new words for review. Playback stops on speech onset; remote Stop waits for
+  recognition, which includes the VAD pause/model latency. The debug **Stop speaking**
+  still stops only playback. No stop request can undo tools already executed.
 - The latest unsent transcription and completed-chunk playback progress are encrypted and
   scoped to profile/chat. Restored words require review. Admission acknowledgment,
   rather than merely tapping Send, clears the saved voice draft. Interrupted
@@ -94,9 +114,9 @@ turn detector or acoustic guarantee. Hold/review controls remain available.
 The current Hermes stream reports tool activity but has no verified playback-ACK
 contract that lets the phone gate each individual tool execution. Native plugin
 `pre_tool_call` is a bounded policy hook, not a verified speech-delivery handshake.
-This build guarantees the general pre-submission announcement, requests brief
-specific announcements through the visible preset, and streams commentary as
-speech. It **does not guarantee** that specific commentary finishes before every
+This build guarantees “Working” before submission, requests brief specific purposes
+through the visible preset, and announces observed live activity with public commentary.
+It **does not guarantee** that specific commentary finishes before every
 tool starts. Completing that requirement needs a separately tested host contract;
 no core patch or fake approval was introduced.
 
@@ -113,13 +133,22 @@ installed offline voice and rate controls, not a full voice-selection catalog.
 - [ ] For local mode, download/load each Moonshine size and check offline recognition,
       switching, restart, unload/delete and visible failure when selected weights are missing.
 - [ ] If using private mode, configure the STT URL/key/model for each desired server profile.
-- [ ] Dictate, pause naturally, correct the text, send once and hear the response.
-- [ ] Hold a longer utterance, release it, and verify no early task was started.
+- [ ] With Debugging voice interface off, tap the microphone, wait for its chime,
+      speak and hear a response. Confirm the active button pulses; tap again to end.
+- [ ] Hold the microphone, dictate and release. Confirm words land at the draft's
+      cursor/selection and no inference starts until you send. Cancel a hold and
+      confirm no dictation is inserted. Check typed text around the cursor survives.
+- [ ] Enable Debugging voice interface. Confirm the older detailed panel opens on
+      tap and its review/push-to-talk controls still work. Turn it off for normal use.
 - [ ] Continue hands-free for several turns. Verify the same chat/project is used.
 - [ ] Request a long answer. Confirm speech begins before generation completes and
       does not read thinking/tool arguments. Review the timing values.
 - [ ] Speak over an answer on the speaker, then on a headset. Check stale speech
-      never resumes, echo does not submit a new turn, and the follow-up is preserved.
+      never resumes, echo does not submit a new turn, chat Stop settles and the
+      follow-up submits once. Repeat while Hermes is still silently working.
+- [ ] Ask for a web search and a file/tool operation. Hear Working, then the real
+      activity and its stated purpose. Check thinking is announced without reading
+      reasoning, answers stay brief and provider thinking settings are unchanged.
 - [ ] Compare Stop speaking with Cancel agent work. Inspect the saved full answer.
 - [ ] Make STT unavailable. Retry the recording; verify Hermes receives at most one
       admitted turn. Restart before sending a reviewed transcription and recover it.
@@ -134,7 +163,37 @@ installed offline voice and rate controls, not a full voice-selection catalog.
       project, API/CLI/TUI or All sources. Confirm two-line titles, right-edge chat
       actions, no source badges, and correct behavior on cover/unfolded screens.
 
-## Verification for this preview
+## Verification of 0.5.3 voice controls
+
+The required Android local checks passed: **501 tests passed**, one opt-in
+live-server test skipped, **158 screenshot baselines** verified, debug/release
+builds and lint. New regressions cover recognized interruption, delayed admission,
+completed runs awaiting history, failed/timed-out Stop, draft insertion, canceled
+holds, release before audio readiness, announcement priority/replay suppression
+and the spoken word limit. The actual store/durable journal test checks exactly
+one Stop, settled history and one new admission without resubmitting the old run.
+Speech during silent work also suppresses a late answer before ASR confirms Stop.
+
+Five isolated checks passed on the unfolded Pixel 10 Pro Fold: native taps/holds/
+release/cancel through button recomposition, missing-model Start protection, About,
+native chime/offline TTS/microphone release and foreground-service background/
+Pause/End behavior. The first gesture test exposed the standard long-press handler
+reporting cancel as release; the corrected handler and both JVM/phone regressions
+passed. The service test uses fake loopback inference/transcription; it does not
+establish human recognition, echo quality or provider behavior. Existing 0.5.1
+Moonshine benchmarks remain the recognition evidence; they were not rerun for this
+controls-only change. Thermal service status was NONE before/after these brief
+device checks. No display/brightness/fold overrides were applied.
+
+Signed 0.5.3/code 15 was installed over 0.5.2 with the same signing lineage, UID and
+data-directory inodes, without clearing data. Selected models/downloads were not
+modified. The personal app stayed stopped; the personal Hermes server was not
+accessed. Fixture apps, our reverse ports and fixture processes were removed.
+Local evidence is under ignored `build/speech-lab/voice-controls-*` and
+`build/speech-lab/personal-upgrade/0.5.3/`; signed APK/hash/rollback instructions are
+in [release instructions](release.md). This is a branch delivery, not a release.
+
+## Verification of the original 0.5.0 foundation
 
 The required local command `./android/gradlew -p android test
 verifyRoborazziDebug assembleDebug lintDebug` passed: 444 tests passed, one opt-in

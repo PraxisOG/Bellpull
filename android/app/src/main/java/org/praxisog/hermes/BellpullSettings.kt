@@ -36,6 +36,7 @@ internal data class BellpullPreferences(
     val denseChatWindow: Boolean = true,
     val titleOnlyConversations: Boolean = true,
     val labeledControls: Boolean = false,
+    val debuggingVoiceInterface: Boolean = false,
 )
 
 internal fun normalizedAccent(text: String): String? = text.trim().removePrefix("#")
@@ -56,6 +57,7 @@ internal class BellpullSettings(context: Context) {
         denseChatWindow = prefs.getBoolean("dense_chat_window", true),
         titleOnlyConversations = prefs.getBoolean("title_only_conversations", true),
         labeledControls = prefs.getBoolean("labeled_controls", false),
+        debuggingVoiceInterface = prefs.getBoolean("debugging_voice_interface", false),
     ))
         private set
     fun update(next: BellpullPreferences) {
@@ -68,6 +70,7 @@ internal class BellpullSettings(context: Context) {
             .putBoolean("dense_chat_window", validated.denseChatWindow)
             .putBoolean("title_only_conversations", validated.titleOnlyConversations)
             .putBoolean("labeled_controls", validated.labeledControls)
+            .putBoolean("debugging_voice_interface", validated.debuggingVoiceInterface)
             .putString("palette", validated.palette.name)
             .putString("custom_accent", validated.customAccent).apply()
         prefs.edit().putBoolean("notifications", validated.notifications).apply()
@@ -164,6 +167,11 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                 preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
         }
         if (voiceSettings != null || speechLab != null) SettingsSection("Voice", "Recognition, spoken answers and experiments") {
+            SettingsSection("Using voice", "Tap for conversation; hold for dictation") {
+                Text("Tap the microphone to start conversation mode; tap again to end. The pulsing button means voice is on (steady with Reduce motion). Hold to dictate: wait for the soft chime, speak, then release to put words in the draft for review.")
+            }
+            PreferenceSwitch("Debugging voice interface", "Open the detailed voice panel when tapping the microphone.",
+                preferences.debuggingVoiceInterface) { onChange(preferences.copy(debuggingVoiceInterface = it)) }
             voiceSettings?.invoke()
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
         }

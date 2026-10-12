@@ -2,6 +2,13 @@
 
 ## Phase 5 voice boundary — 2026-10-11
 
+Android 0.5.3 also uses the existing chat Stop path after confirmed non-echo speech
+interrupts a reply. It waits for the original run/history to settle before admitting
+one replacement turn. Voice brevity/minimal-thinking/tool-purpose requests are
+visible prompt text; no provider reasoning settings or API fields are changed.
+Tool/thinking/search announcements derive from the existing live event transcript;
+they do not introduce a tool-execution playback acknowledgment or gate.
+
 Android 0.5.0 uses the existing run/history/stop/approval contracts for voice text.
 No Hermes audio endpoint is assumed, and no plugin feature/version is added.
 Microphone WAVs go to a separately configured private transcription endpoint with

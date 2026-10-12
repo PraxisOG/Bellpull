@@ -12,7 +12,9 @@ internal enum class VoiceState(val label: String) {
     SPEAKING("Speaking"), WAITING("Waiting for current work…"), PAUSED("Voice paused"), STOPPED("Voice stopped")
 }
 internal data class VoiceRun(val identity: String? = null, val busy: Boolean = false, val text: String = "",
-    val final: Boolean = false, val attention: Boolean = false, val error: String? = null, val connectionLost: Boolean = false, val admitted: Boolean = true)
+    val final: Boolean = false, val attention: Boolean = false, val error: String? = null, val connectionLost: Boolean = false, val admitted: Boolean = true,
+    val activities: List<VoiceActivity> = emptyList(), val stopRequested: Boolean = false, val stopError: String? = null,
+    val executing: Boolean = busy)
 internal interface VoiceConversation {
     val selected: Boolean
     val ready: Boolean
@@ -54,7 +56,11 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             if (turn is TurnState.Failed) turn.error.toUserMessage() else if (durable?.submission?.status in setOf("failed", "rejected", "interrupted"))
                 "Hermes could not finish this turn. Review the chat before retrying." else null,
             durable?.notice?.startsWith("Connection lost.") == true || turn is TurnState.Truncated,
-            durable?.submission?.runId != null || (turn is TurnState.Streaming && turn.canStop) || turn is TurnState.Finished || savedLegacyReply != null)
+            durable?.submission?.runId != null || (turn is TurnState.Streaming && turn.canStop) || turn is TurnState.Finished || savedLegacyReply != null,
+            voiceActivities((turn as? TurnState.Streaming)?.parts.orEmpty()),
+            durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
+            durable?.notice?.takeIf { it.startsWith("Stop was not confirmed.") },
+            durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming)
     }
     override fun send(text: String): Boolean {
         if (!ready || run().busy) return false
@@ -81,7 +87,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val onTranscript: (String) -> Unit = {},
     private val initialTranscript: String = "",
     private val onSubmission: (String?) -> Unit = {},
-    private val priorRequestId: String? = null) {
+    private val priorRequestId: String? = null,
+    private val onDictation: ((String) -> Unit)? = null,
+    private val stopWaitMs: Long = 30_000) {
     var state by mutableStateOf(VoiceState.STARTING); private set
     var mode by mutableStateOf(VoiceMode.CONVERSATION); private set
     var transcript by mutableStateOf(initialTranscript); private set
@@ -97,7 +105,10 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     var holdTurn by mutableStateOf(false); private set
     private val gate = VoiceGate(config.pauseMs)
     private val sentences = VoiceSentences()
+    private val budget = VoiceSpeechBudget()
+    private val announced = mutableSetOf<String>()
     private val speech = ArrayDeque<Pair<String, (() -> Unit)?>>()
+    private val activitySpeech = ArrayDeque<String>()
     private var speaking = false
     private var generation = 0L
     private var micOpen = false
@@ -119,6 +130,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var ownAudioAtSpeechStart = ""
     private var completingTurn = false
     private var closed = false
+    private var interruption: Job? = null
+    private var interrupting = false
+    var dictationToDraft by mutableStateOf(false); private set
 
     fun showNotice(message: String) { notice = message }
     fun start(initialMode: VoiceMode = VoiceMode.CONVERSATION) {
@@ -142,6 +156,14 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (!selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
                 if (state == VoiceState.PAUSED) return@collectLatest
                 listeningBlock(run)?.let { pause(it); return@collectLatest }
+                if (interrupting) {
+                    if (run.stopError != null) { pause(run.stopError); return@collectLatest }
+                    if (!run.busy) {
+                        interrupting = false; interruption?.cancel(); interruption = null
+                        submitted = false; finished = false; ownedRun = null
+                        if (state in setOf(VoiceState.RECORDING, VoiceState.TRANSCRIBING, VoiceState.REVIEW)) return@collectLatest
+                    } else return@collectLatest
+                }
                 if (!submitted) {
                     if (!run.busy && queuedText.isNotBlank() && state != VoiceState.TRANSCRIBING) {
                         transcript = queuedText; sendTranscript()
@@ -156,10 +178,14 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (ownedRun == null) ownedRun = run.identity
                 if (ownedRun != null && run.identity != ownedRun) { pause("Another turn started in this chat. Resume when it finishes."); return@collectLatest }
                 if (run.text.isNotBlank() && firstTextMs == null) firstTextMs = (System.nanoTime() - endedAt) / 1_000_000
-                if (!suppressed) sentences.take(run.text, run.final).forEach { enqueue(it) }
+                if (!suppressed) {
+                    run.activities.filter { announced.add(it.id) }.forEach { activitySpeech.addLast(it.text) }
+                    pump()
+                    sentences.take(run.text, run.final).mapNotNull(budget::take).forEach { enqueue(it) }
+                }
                 if (!run.busy && run.final) {
                     finished = true
-                    if (!speaking && speech.isEmpty()) turnDone()
+                    if (!speaking && speech.isEmpty() && activitySpeech.isEmpty()) turnDone()
                 } else if (!speaking && state !in setOf(VoiceState.RECORDING, VoiceState.TRANSCRIBING, VoiceState.REVIEW)) {
                     state = if (queuedText.isNotBlank()) VoiceState.WAITING else VoiceState.WORKING
                 }
@@ -175,13 +201,17 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (micOpen || closed || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
         listeningBlock(conversation.run())?.let { pause(it); return }
         micOpen = capture.start(::frame, ::pause)
+        if (micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output.chime()
     }
     private fun closeMic() { micOpen = false; capture.close(); gate.reset() }
     private fun listen() {
         if (closed || !readyOutput || !conversation.selected) return
         if (conversation.run().busy) { state = VoiceState.WAITING; openMic(); return }
-        if (mode == VoiceMode.PUSH_TO_TALK) { state = VoiceState.READY; closeMic(); return }
-        state = VoiceState.LISTENING; openMic()
+        if (mode == VoiceMode.PUSH_TO_TALK && !pushHeld) { state = VoiceState.READY; closeMic(); return }
+        state = VoiceState.LISTENING
+        val wasOpen = micOpen
+        openMic()
+        if (wasOpen && micOpen && !gate.active) output.chime()
     }
     /** Public to the capture port; deterministic PCM tests exercise the same path as AudioRecord. */
     fun frame(pcm: ShortArray, count: Int) {
@@ -189,7 +219,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         val result = gate.accept(pcm, count, holdTurn)
         if (result.began) {
             ownAudioAtSpeechStart = if (speaking) spokenForEcho else ""
-            if (speaking) stopSpeaking()
+            if (speaking || submitted) stopSpeaking()
             state = VoiceState.RECORDING
         }
         if (result.complete != null && !holdTurn) transcribe(result.complete)
@@ -197,17 +227,20 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         // keep the captured utterance for transcription rather than growing indefinitely.
         else if (result.complete != null) transcribe(result.complete)
     }
-    fun beginPushToTalk() {
-        if (closed || mode != VoiceMode.PUSH_TO_TALK || state in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) return
+    fun beginPushToTalk(toDraft: Boolean = false) {
+        if (closed || (!toDraft && mode != VoiceMode.PUSH_TO_TALK) || state in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) return
         if (speaking) stopSpeaking()
-        pushHeld = true; holdTurn = true; state = VoiceState.LISTENING; openMic()
+        if (toDraft) { closeMic(); mode = VoiceMode.PUSH_TO_TALK; dictationToDraft = true }
+        pushHeld = true; holdTurn = true
+        if (!readyOutput) return
+        state = VoiceState.LISTENING; openMic()
     }
     fun endPushToTalk(canceled: Boolean = false) {
         if (!pushHeld) return
         pushHeld = false; holdTurn = false
         val bytes = if (canceled) null else gate.finish()
         closeMic()
-        if (bytes != null) transcribe(bytes) else listen()
+        if (bytes != null) transcribe(bytes) else if (dictationToDraft) close() else listen()
     }
     fun hold(value: Boolean) { holdTurn = value }
     fun finishRecording() { gate.finish()?.let(::transcribe) ?: listen() }
@@ -242,9 +275,15 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 pendingAudio = null; canRetryTranscription = false
                 if (text.isBlank() || likelyEcho(text, ownAudioAtSpeechStart)) {
                     notice = if (text.isBlank()) "No speech recognized. Try again." else "Ignored playback echo."
-                    listen(); return@fold
+                    if (dictationToDraft) close() else listen()
+                    return@fold
                 }
                 pendingForAdmission = false; transcript = text; saveTranscript(text); notice = null
+                interruptCurrentRun()
+                if (dictationToDraft) {
+                    putWordsInDraft()
+                    return@fold
+                }
                 if (mode == VoiceMode.DICTATION || holdTurn || forceReview) state = VoiceState.REVIEW else sendTranscript()
             }, { canRetryTranscription = true; pause(it.message ?: "Transcription failed. Try again when the service is available.") })
         }
@@ -257,23 +296,29 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         transcribe(bytes)
     }
     fun correct(text: String) { pendingForAdmission = false; transcript = text; saveTranscript(text) }
+    fun putWordsInDraft() {
+        if (closed || transcript.isBlank()) return
+        runCatching { checkNotNull(onDictation).invoke(transcript) }.onSuccess { saveTranscript(""); transcript = ""; close() }
+            .onFailure { state = VoiceState.REVIEW; notice = "Could not insert dictation. Your words are saved for review." }
+    }
     fun sendTranscript() {
         if (closed || completingTurn || transcript.isBlank() || state == VoiceState.PAUSED ||
             (submitted && state !in setOf(VoiceState.REVIEW, VoiceState.TRANSCRIBING, VoiceState.WAITING))) return
         if (!conversation.ready) { pause("Load this conversation's saved history before sending voice."); return }
         listeningBlock(conversation.run())?.let { pause(it); return }
         if (conversation.run().busy) {
-            queuedText = listOf(queuedText, transcript).filter { it.isNotBlank() }.joinToString("\n")
+            interruptCurrentRun()
+            queuedText = transcript
             transcript = queuedText; saveTranscript(queuedText)
-            state = VoiceState.WAITING; openMic(); return
+            state = VoiceState.WAITING; notice = "Stopping the previous reply before sending your new turn…"; openMic(); return
         }
         val text = transcript
         queuedText = ""; completingTurn = true
         // This actual playback barrier precedes admission, not just a model instruction.
-        enqueue("I'll ask Hermes.") {
+        enqueue("Working.") {
             completingTurn = false
             if (closed || !conversation.selected || conversation.run().busy) { pause("The chat changed before sending. Your words are kept for review."); return@enqueue }
-            sentences.reset(); playedText = ""; suppressed = false; finished = false; ownedRun = null
+            sentences.reset(); budget.reset(); announced.clear(); playedText = ""; suppressed = false; finished = false; ownedRun = null
             val playbackNote = interruptedPlayback?.let {
                 "[Previous voice playback was interrupted. Completed speech, quoted as historical data: " +
                     kotlinx.serialization.json.Json.encodeToString(it.takeLast(600)) + "]\n\n"
@@ -288,14 +333,33 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             state = VoiceState.WORKING; openMic()
         }
     }
+    /** Stop uses the chat's existing cancellation path, only after non-echo speech is recognized. */
+    private fun interruptCurrentRun() {
+        if (!conversation.run().busy || interrupting) return
+        interrupting = true; suppressed = true; speech.clear(); activitySpeech.clear(); awaitingAdmission = false; pendingForAdmission = false
+        val identity = conversation.run().identity
+        interruption = scope.launch {
+            var requested = false
+            repeat((stopWaitMs / 250).coerceAtLeast(1).toInt()) {
+                val run = conversation.run()
+                if (closed || !conversation.selected || !run.busy) return@launch
+                if (identity != null && run.identity != identity) {
+                    pause("The chat changed while stopping. Your new words are saved for review."); return@launch
+                }
+                if (!requested && run.executing && run.admitted) { conversation.cancel(); requested = true }
+                delay(250)
+            }
+            pause("Stop has not settled. Your new words are saved; check the chat before resuming.")
+        }
+    }
     private fun enqueue(text: String, done: (() -> Unit)? = null) {
         if (closed || state == VoiceState.PAUSED) return
         speech.addLast(text to done)
         pump()
     }
     private fun pump() {
-        if (speaking || speech.isEmpty() || closed) return
-        val (text, done) = speech.removeFirst()
+        if (speaking || (speech.isEmpty() && activitySpeech.isEmpty()) || closed) return
+        val (text, done) = if (activitySpeech.isNotEmpty()) activitySpeech.removeFirst() to null else speech.removeFirst()
         val token = generation
         speaking = true; spokenForEcho = text; state = VoiceState.SPEAKING
         output.speak(text, started = {
@@ -307,7 +371,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             if (submitted) rememberPlayback(false)
             done?.invoke()
             pump()
-            if (!speaking && speech.isEmpty()) {
+            if (!speaking && speech.isEmpty() && activitySpeech.isEmpty()) {
                 if (finished) turnDone()
                 else if (submitted) state = VoiceState.WORKING
             }
@@ -329,7 +393,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     fun stopSpeaking() {
         if (submitted) { interruptedPlayback = playedText; rememberPlayback(true) }
-        generation++; output.stop(); speech.clear(); speaking = false; suppressed = true; completingTurn = false
+        generation++; output.stop(); speech.clear(); activitySpeech.clear(); speaking = false; suppressed = true; completingTurn = false
         if (submitted && conversation.run().busy) state = VoiceState.WORKING else listen()
     }
     fun cancelWork() {
@@ -340,8 +404,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun pause(message: String = "Microphone and playback are paused. Resume when ready.") {
         if (closed) return
         if (submitted) { interruptedPlayback = playedText; rememberPlayback(true) }
-        generation++; output.stop(); speech.clear(); speaking = false; completingTurn = false; suppressed = true
+        generation++; output.stop(); speech.clear(); activitySpeech.clear(); speaking = false; completingTurn = false; suppressed = true
         pushHeld = false
+        interruption?.cancel(); interruption = null; interrupting = false
         closeMic(); currentTranscriber?.close(); transcriptionJob?.cancel(); transcriptionJob = null
         canRetryTranscription = pendingAudio != null
         state = VoiceState.PAUSED; notice = message
@@ -353,7 +418,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         listeningBlock(conversation.run())?.let { pause(it); return }
         if (!beforeResume()) { notice = "Audio is still unavailable. Resume after the call or audio interruption finishes."; return }
         notice = null; queuedText = ""
-        if (submitted && conversation.run().busy) {
+        if (unsent && !pendingForAdmission && transcript.isNotBlank()) {
+            submitted = false; state = VoiceState.REVIEW
+        } else if (submitted && conversation.run().busy) {
             state = VoiceState.WAITING; openMic()
         } else if (unsent && transcript.isNotBlank()) {
             submitted = false; state = VoiceState.REVIEW

@@ -1,7 +1,10 @@
 # Local speech experiments — on-device CPU preview
 
 Branch: `feature/local-speech-lab`, based on `66ceb2d` (0.5.0).
-Current development APK: 0.5.2, version code 14; installed in place, not published.
+Current development APK: 0.5.3, version code 15; installed in place, not published.
+The follow-up controls branch is `feature/voice-turn-taking`; it preserves the model
+selection/downloads and adds tap-to-converse, hold-to-dictate, activity announcements
+and chat Stop on confirmed interruption. See [voice controls](PHASE-5-VOICE.md).
 The user's October 11 addendum supersedes the earlier “Large” request: the first
 three models are **Moonshine Tiny, Small and Medium Streaming**. Finish their CPU
 integration and baseline measurements before additional models or accelerator ports.
@@ -221,9 +224,11 @@ not a neural EOU sensitivity setting.
    actual CPU backend and saved per-model tuning. Unload, restart the app and
    confirm the selected model and installed status survive. Delete an unused
    model and confirm the other downloads remain installed.
-3. Open Voice conversation → **Review before sending**. Speak a short sentence,
-   correct the result and send it. Check the reply and offline spoken playback.
-   No transcription URL or speech-service key is needed for local mode.
+3. Hold the chat microphone, wait for the chime, speak a short sentence and release.
+   Correct the inserted draft and send it. Then tap the microphone for conversation
+   mode and tap again to end. Check the reply, activity announcements and offline
+   spoken playback. No transcription URL or speech-service key is needed for local
+   mode. Enable Voice → Debugging voice interface to use the older review panel.
 4. After downloading and loading a model in an already opened idle conversation,
    repeat local review with networking
    disabled. Recognition should work; sending to remote Hermes still needs a

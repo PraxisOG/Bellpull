@@ -14,8 +14,10 @@ internal class BellpullRuntime private constructor(context: Context) {
     val speechLab by lazy { SpeechLab(this.context) }
     var voice by mutableStateOf<VoiceSession?>(null)
     var voiceStartError by mutableStateOf<String?>(null)
-    var voiceRequestedSession: String? = null
+    var voiceRequestedSession by mutableStateOf<String?>(null)
     var voiceRequestedMode = VoiceMode.CONVERSATION
+    var voiceButtonHeld = false
+    var voiceDictationToDraft = false
     var cache: SessionCache? = null
         private set
     var drafts = ChatDrafts()

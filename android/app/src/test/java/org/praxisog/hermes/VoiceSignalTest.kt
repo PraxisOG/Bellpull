@@ -6,6 +6,31 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class VoiceSignalTest {
+    @Test fun voicePresetRequestsShortAnswersAndReasoningWithoutProviderOptions() {
+        assertTrue(VOICE_PRESET.contains("at most one paragraph"))
+        assertTrue(VOICE_PRESET.contains("180 words"))
+        assertTrue(VOICE_PRESET.contains("reasoning minimal"))
+        assertTrue(VOICE_PRESET.contains("what you are doing and why"))
+    }
+    @Test fun spokenBudgetCapsNonCompliantRepliesAndResetsForTheNextTurn() {
+        val budget = VoiceSpeechBudget()
+        assertEquals(170, budget.take(List(170) { "word" }.joinToString(" "))!!.split(' ').size)
+        assertEquals(10, budget.take(List(80) { "extra" }.joinToString("\n"))!!.split(' ').size)
+        assertNull(budget.take("More words."))
+        budget.reset(); assertEquals("Next reply.", budget.take("Next reply."))
+    }
+    @Test fun activityAnnouncementsUseGenuineKindsAndCommentaryWithoutSpeakingThinkingOrArguments() {
+        val parts = listOf(LivePart.Prose("a", "private reasoning", true),
+            LivePart.Prose("b", "Checking tomorrow's forecast for your walk."),
+            LivePart.Tools("c", listOf(LiveTool("search", "web_search", "RAW TOKEN SECRET"), LiveTool("file", "read_file", "PRIVATE PATH"))))
+        val activities = voiceActivities(parts)
+        assertEquals("Thinking.", activities[0].text)
+        assertEquals("Web search. Checking tomorrow's forecast for your walk.", activities[1].text)
+        assertTrue(activities[2].text.startsWith("Tool call. Read file."))
+        assertFalse(activities.joinToString().contains("private reasoning"))
+        assertFalse(activities.joinToString().contains("SECRET"))
+        assertFalse(activities.joinToString().contains("PRIVATE PATH"))
+    }
     private val loud = ShortArray(320) { if (it % 2 == 0) 2400 else -2400 }
     @Test fun noiseAndBriefClicksDoNotCreateAnUtterance() {
         val gate = VoiceGate()

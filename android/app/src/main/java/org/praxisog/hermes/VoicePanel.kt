@@ -25,8 +25,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
-internal fun VoiceGlyph() {
-    val color = MaterialTheme.colorScheme.primary
+internal fun VoiceGlyph(active: Boolean = false) {
+    val color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
     Canvas(Modifier.size(20.dp)) {
         drawRoundRect(color, Offset(size.width * .35f, 0f), androidx.compose.ui.geometry.Size(size.width * .3f, size.height * .6f), androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
         drawArc(color, 0f, 180f, false, Offset(size.width * .15f, size.height * .15f), androidx.compose.ui.geometry.Size(size.width * .7f, size.height * .65f), style = Stroke(1.7.dp.toPx()))
@@ -94,7 +94,7 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                                 Text(if (held) "Release to send" else "Hold to speak")
                             }
                         }
-                        if (voice.queuedText.isNotBlank()) Text("Next turn waits for the current work to settle. You can cancel the current work below.", style = MaterialTheme.typography.bodySmall)
+                        if (voice.queuedText.isNotBlank()) Text("Stopping the previous reply before sending your new turn. Your new words are saved while Stop settles.", style = MaterialTheme.typography.bodySmall)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (voice.state == VoiceState.READY && voice.mode != VoiceMode.PUSH_TO_TALK) Button(onClick = voice::resume) { Text("Record next turn") }
                             else if (voice.state == VoiceState.PAUSED) Button(onClick = voice::resume) { Text("Resume voice") }
@@ -155,7 +155,8 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     Text("Conversation", style = MaterialTheme.typography.titleMedium)
     Text("Speech rate: ${"%.2f".format(rate)}×"); Slider(rate, { rate = it }, valueRange = .7f..1.5f)
     Text("End-of-turn pause: ${"%.1f".format(pause / 1000f)} seconds"); Slider(pause.toFloat(), { pause = it.toInt() }, valueRange = 1000f..3500f)
-    Row { Checkbox(concise, { concise = it }); Text("Concise spoken-answer preset") }
+    Row { Checkbox(concise, { concise = it }); Text("Brief voice responses (one paragraph)") }
+    Text("Asks for at most 180 words, minimal reasoning, and a brief purpose before every tool or web search. Model thinking controls stay unchanged. Spoken answer text is capped at 180 words.", style = MaterialTheme.typography.bodySmall)
     Text("The preset is included visibly in voice messages. Typed messages and their model settings keep their existing behavior.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {

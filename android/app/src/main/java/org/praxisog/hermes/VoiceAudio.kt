@@ -19,6 +19,7 @@ internal interface VoiceOutput {
     fun speak(text: String, started: () -> Unit, complete: () -> Unit)
     fun stop()
     fun close()
+    fun chime() {}
 }
 /** Only voices explicitly reported as offline by the installed engine are eligible. */
 internal class AndroidVoiceOutput(context: Context, private val rate: Float) : VoiceOutput {
@@ -30,6 +31,16 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
     private var begun: (() -> Unit)? = null
     private var failure: (String) -> Unit = {}
     private var closed = false
+    private var tone: ToneGenerator? = null
+    override fun chime() {
+        tone?.release()
+        val next = runCatching { ToneGenerator(AudioManager.STREAM_VOICE_CALL, 12) }.getOrNull() ?: return
+        tone = next
+        runCatching { next.startTone(ToneGenerator.TONE_PROP_BEEP, 90) }.onFailure {
+            next.release(); tone = null; return
+        }
+        main.postDelayed({ if (tone === next) { next.release(); tone = null } }, 150)
+    }
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
         failure = onError
         engine = TextToSpeech(context) { result -> main.post {
@@ -61,7 +72,7 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
         }
     }
     override fun stop() { generation++; done = null; begun = null; engine?.stop() }
-    override fun close() { closed = true; stop(); engine?.shutdown(); engine = null }
+    override fun close() { closed = true; stop(); tone?.release(); tone = null; engine?.shutdown(); engine = null }
 }
 
 internal interface VoiceCapture {

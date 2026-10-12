@@ -100,4 +100,40 @@ internal fun likelyEcho(transcript: String, spoken: String): Boolean {
     return heard.size >= 3 && said.windowed(heard.size).any { it == heard }
 }
 
-internal const val VOICE_PRESET = "[Bellpull voice turn: answer in concise, friendly spoken language. Use tools and reasoning economically, while verifying facts when needed. Briefly describe meaningful tool work before doing it. Keep necessary detail available in the written response.]"
+internal const val VOICE_PRESET = "[Bellpull voice turn: give at most one paragraph, no more than 180 words, in friendly spoken language. Keep reasoning minimal and spend as little time thinking as this request permits; still verify facts when needed. Before every tool call or web search, briefly tell the user what you are doing and why. Do not include lists, long explanations or hidden reasoning in the answer.]"
+
+/** Bound spoken answers even when a provider ignores the visible voice preset. Statuses are separate. */
+internal class VoiceSpeechBudget(private val limit: Int = 180) {
+    private var words = 0
+    fun take(text: String): String? {
+        val remaining = limit - words
+        if (remaining <= 0) return null
+        val tokens = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        words += tokens.size.coerceAtMost(remaining)
+        return tokens.take(remaining).joinToString(" ").takeIf { it.isNotBlank() }
+    }
+    fun reset() { words = 0 }
+}
+
+internal data class VoiceActivity(val id: String, val text: String)
+internal fun voiceActivities(parts: List<LivePart>): List<VoiceActivity> {
+    var commentary = ""
+    return buildList {
+        parts.forEach { part -> when (part) {
+            is LivePart.Prose -> if (part.thinking) add(VoiceActivity("thinking:${part.id}", "Thinking."))
+                else commentary = speechText(part.text).replace(Regex("\\s+"), " ").trim()
+                    .split(' ').take(35).joinToString(" ")
+            is LivePart.Tools -> part.rows.forEach { row ->
+                val purpose = commentary.takeIf { it.isNotBlank() } ?: when (row.name) {
+                    "web_search" -> "Searching the web for this request."
+                    "web_extract", "web_fetch" -> "Reading a webpage for this request."
+                    "read_file", "file_read" -> "Reading a file for this request."
+                    "terminal" -> "Running a command for this request."
+                    else -> "Using this tool for your request; no specific purpose was provided."
+                }
+                val label = if (row.name == "web_search") "Web search" else "Tool call. ${toolDisplayName(row.name)}"
+                add(VoiceActivity("tool:${row.id}", "$label. $purpose"))
+            }
+        } }
+    }
+}

@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -97,8 +98,8 @@ class ProjectsUiDeviceTest {
 
     @Test fun aboutShowsInstalledVersionAndDistinctPluginStatuses() = withWindows {
         val app = installedAppVersion(ApplicationProvider.getApplicationContext())
-        assertEquals("0.5.2", app.name)
-        assertEquals(14L, app.code)
+        assertEquals("0.5.3", app.name)
+        assertEquals(15L, app.code)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {
                 AboutDialog(app, listOf(ServerPluginVersion("Current fixture", "https://current.invalid", "0.3.0", 0.0),
@@ -133,6 +134,39 @@ class ProjectsUiDeviceTest {
             await { text("Download ${lab.selected.label} in Settings → Voice → Experimental first.") != null }
             assertNull(lab.runtime.loadedModel)
             assertNotNull(text("Voice settings"))
+        }
+    }
+    @Test fun microphoneTapHoldReleaseAndCancelSurviveActiveRecomposition() = withWindows {
+        val taps = java.util.concurrent.atomic.AtomicInteger()
+        val holds = java.util.concurrent.atomic.AtomicInteger()
+        val releases = java.util.concurrent.atomic.AtomicInteger()
+        val canceled = java.util.concurrent.atomic.AtomicInteger()
+        var active by mutableStateOf(false)
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            scene.onActivity { activity -> activity.setContent { HermesTheme {
+                Box(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+                    VoiceButton(active, true, false, { taps.incrementAndGet(); active = !active },
+                        { holds.incrementAndGet(); active = true }, { releases.incrementAndGet(); if (it) canceled.incrementAndGet() })
+                }
+            } } }
+            fun control() = find { it.contentDescription?.toString() in setOf("Voice conversation", "End voice conversation") }
+            await { control() != null }
+            tap(control()!!); await { taps.get() == 1 }
+            tap(control()!!); await { taps.get() == 2 }
+            repeat(2) { iteration ->
+                val bounds = Rect().also { control()!!.getBoundsInScreen(it) }
+                val downTime = SystemClock.uptimeMillis()
+                fun inject(action: Int) {
+                    val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, bounds.exactCenterX(), bounds.exactCenterY(), 0)
+                    try { assertTrue(automation.injectInputEvent(event, true)) } finally { event.recycle() }
+                }
+                inject(MotionEvent.ACTION_DOWN)
+                await { holds.get() == iteration + 1 }
+                await { control()?.contentDescription?.toString() == "End voice conversation" }
+                inject(if (iteration == 0) MotionEvent.ACTION_UP else MotionEvent.ACTION_CANCEL)
+                await { releases.get() == iteration + 1 }
+            }
+            assertEquals(2, taps.get()); assertEquals(2, holds.get()); assertEquals(2, releases.get()); assertEquals(1, canceled.get())
         }
     }
     @Test fun localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels() = withWindows {

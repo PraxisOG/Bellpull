@@ -48,6 +48,7 @@ class VoiceDeviceTest {
             try {
                 main { output.prepare(ready::set, error::set) }
                 await { ready.get() != null || error.get() != null }; assertNull(error.get()); assertNotNull(ready.get())
+                main { output.chime() }; Thread.sleep(200)
                 main { output.speak("Bellpull voice test.", { started.incrementAndGet() }, { done.incrementAndGet() }) }
                 await { done.get() == 1 || error.get() != null }; assertNull(error.get()); assertEquals(1, started.get())
                 main { assertTrue(capture.start({ _, count -> samples.addAndGet(count) }, error::set)) }
@@ -63,6 +64,7 @@ class VoiceDeviceTest {
                 instrumentation.sendStatus(0, Bundle().apply {
                     putString("offline_voice", ready.get()); putString("aec_available", AcousticEchoCanceler.isAvailable().toString())
                     putString("aec_enabled", capture.echoCancellation.toString())
+                    putString("ready_chime", "90ms native ToneGenerator, 12 percent voice-call volume")
                     putString("on_device_recognition", (Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)).toString())
                 })
             } finally { main { capture.close(); output.close() }; scope.cancel() }

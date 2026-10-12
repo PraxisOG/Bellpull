@@ -81,12 +81,12 @@ class MainActivity : ComponentActivity() {
                 // Discard all saved UI navigation/selection when the account changes.
                 key(profiles.activeId) {
                     val current = store
+                    val savedVoiceSettings = remember(profiles.activeId) { profiles.activeId?.let { VoiceSettings(applicationContext, it) } }
+                    var voiceConfig by remember(savedVoiceSettings) { mutableStateOf(savedVoiceSettings?.read() ?: VoiceConfiguration()) }
                     if (voiceOpen && profiles.activeId != null) {
-                        val voiceSettings = remember(profiles.activeId) { VoiceSettings(applicationContext, profiles.activeId!!) }
-                        var config by remember(voiceSettings) { mutableStateOf(voiceSettings.read()) }
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
-                            VoicePanel(runtime.voice, config, runtime.voiceStartError,
-                                { voiceSettings.save(it); config = voiceSettings.read() }, ::requestVoice, { voiceOpen = false },
+                            VoicePanel(runtime.voice, voiceConfig, runtime.voiceStartError,
+                                { savedVoiceSettings!!.save(it); voiceConfig = savedVoiceSettings.read() }, ::requestVoice, { voiceOpen = false },
                                 onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false },
                                 speechLab = runtime.speechLab)
                         }
@@ -130,11 +130,12 @@ class MainActivity : ComponentActivity() {
                             val profile = profiles.activeId
                             if (profile == null) androidx.compose.material3.Text("Select a server profile to configure voice conversations.")
                             else {
-                                val saved = remember(profile) { VoiceSettings(applicationContext, profile) }
-                                VoiceSettingsEditor(saved.read(), runtime.voice == null, saved::save, runtime.speechLab)
-                                androidx.compose.material3.TextButton(onClick = { reader.stop(); voiceOpen = true }) {
-                                    androidx.compose.material3.Text("Open voice conversation")
+                                VoiceSettingsEditor(voiceConfig, runtime.voice == null,
+                                    { savedVoiceSettings!!.save(it); voiceConfig = savedVoiceSettings.read() }, runtime.speechLab)
+                                androidx.compose.material3.TextButton(onClick = ::toggleVoice) {
+                                    androidx.compose.material3.Text(if (preferences.value.debuggingVoiceInterface) "Open voice conversation" else if (runtime.voice != null) "End voice" else "Start voice conversation")
                                 }
+                                runtime.voiceStartError?.let { androidx.compose.material3.Text(it) }
                             }
                         },
                         sessionSource = current?.sessionSource,
@@ -197,8 +198,9 @@ class MainActivity : ComponentActivity() {
                         } },
                         composerLeading = current?.openSessionId?.let { id -> {
                             androidx.compose.foundation.layout.Row {
-                                androidx.compose.material3.IconButton(onClick = { reader.stop(); voiceOpen = true },
-                                    modifier = androidx.compose.ui.Modifier.semantics { contentDescription = "Voice conversation" }) { VoiceGlyph() }
+                                val active = runtime.voice != null || runtime.voiceRequestedSession != null
+                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || voiceConfig.startProblem { runtime.speechLab.voiceStartProblem() } == null,
+                                    preferences.value.reduceMotion, ::toggleVoice, ::holdVoice, ::releaseVoice)
                                 if (files != null) {
                                     if (!files.runAttachmentsSupported) UnavailableAttachmentsButton(files.filesSupported)
                                     else AttachButton(files, id) { target ->
@@ -207,8 +209,15 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         } },
-                        attachmentStrip = files?.let { workspace -> current?.openSessionId?.let { id ->
-                            { AttachmentStrip(workspace, id) }
+                        attachmentStrip = current?.openSessionId?.let { id -> {
+                            val problem = voiceConfig.startProblem { runtime.speechLab.voiceStartProblem() }
+                            VoiceInlineStatus(runtime.voice, runtime.voiceStartError ?: problem,
+                                profiles::showSettings, {
+                                    runtime.voice?.let { voice ->
+                                        if (voice.sessionId == id) voice.putWordsInDraft()
+                                    }
+                                })
+                            files?.let { AttachmentStrip(it, id) }
                         } },
                         uploading = files?.sending?.get(current?.openSessionId) == true || (files?.importing?.get(current?.openSessionId) ?: 0) > 0,
                         previewPane = preview?.takeIf { previewDocked }?.let { item -> files?.let { workspace ->
@@ -252,7 +261,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == VoiceService.OPEN) {
             runtime.voice?.let { store?.openSession(it.sessionId) }
-            voiceOpen = true
+            voiceOpen = preferences.value.debuggingVoiceInterface
             return
         }
         IncomingShare.from(intent)?.let {
@@ -320,7 +329,7 @@ class MainActivity : ComponentActivity() {
         store?.loadSessions(); store?.refreshHistory(); runtime.refreshCapabilities()
         if (preferences.value.notifications && store != null) setNotifications(true)
     }
-    override fun onPause() { foreground = false; super.onPause() }
+    override fun onPause() { foreground = false; if (runtime.voiceButtonHeld) releaseVoice(true); super.onPause() }
     override fun onDestroy() {
         profiles.close()
         messageReader?.close()
@@ -335,6 +344,30 @@ class MainActivity : ComponentActivity() {
             microphoneRequest = VoicePermissionRequest(profile, session, mode)
             microphonePermission.launch(android.Manifest.permission.RECORD_AUDIO)
         } else continueVoice(mode)
+    }
+    private fun toggleVoice() {
+        messageReader?.stop()
+        if (preferences.value.debuggingVoiceInterface) { voiceOpen = true; return }
+        runtime.voice?.let { if (it.dictationToDraft && it.holdTurn) it.endPushToTalk() else it.close(); return }
+        runtime.voiceDictationToDraft = false
+        requestVoice(VoiceMode.CONVERSATION)
+    }
+    private fun holdVoice() {
+        messageReader?.stop()
+        val voice = runtime.voice
+        if (voice != null && voice.sessionId != store?.openSessionId) {
+            runtime.voiceStartError = "End voice in its original conversation before dictating here."; return
+        }
+        runtime.voiceButtonHeld = true
+        if (voice != null) voice.beginPushToTalk(toDraft = true)
+        else { runtime.voiceDictationToDraft = true; requestVoice(VoiceMode.PUSH_TO_TALK) }
+    }
+    private fun releaseVoice(canceled: Boolean) {
+        runtime.voiceButtonHeld = false
+        if (microphoneRequest?.mode == VoiceMode.PUSH_TO_TALK) microphoneRequest = null
+        if (voiceNotificationRequest?.mode == VoiceMode.PUSH_TO_TALK) voiceNotificationRequest = null
+        runtime.voice?.takeIf { it.dictationToDraft }?.endPushToTalk(canceled)
+        if (runtime.voice == null && runtime.voiceDictationToDraft) runtime.voiceRequestedSession = null
     }
     private fun continueVoice(mode: VoiceMode) {
         if (!voiceReady()) return
@@ -353,6 +386,7 @@ class MainActivity : ComponentActivity() {
         messageReader?.stop()
         runtime.voiceRequestedSession = id; runtime.voiceRequestedMode = mode
         runCatching { startForegroundService(Intent(this, VoiceService::class.java)) }.onFailure {
+            runtime.voiceRequestedSession = null
             runtime.voiceStartError = "Could not start voice. Try again with Bellpull open."
         }
     }

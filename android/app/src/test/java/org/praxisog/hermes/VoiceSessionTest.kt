@@ -25,6 +25,8 @@ class VoiceSessionTest {
         val said = CopyOnWriteArrayList<String>()
         var completion: (() -> Unit)? = null
         var failure: ((String) -> Unit)? = null
+        var chimes = 0
+        override fun chime() { chimes++ }
         override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { failure = onError; onReady("offline-fixture") }
         override fun speak(text: String, started: () -> Unit, complete: () -> Unit) { said += text; completion = complete; started() }
         fun complete() { val callback = completion; completion = null; callback?.invoke(); tick() }
@@ -56,9 +58,137 @@ class VoiceSessionTest {
         await { voice.state != VoiceState.TRANSCRIBING }
     }
     @After fun close() { voice.close(); scope.cancel() }
+    @Test fun confirmedSpeechUsesChatStopWhilePlaybackStopsBeforeTranscriptionFinishes() {
+        voice.start(); assertEquals(1, output.chimes)
+        utterance(); output.complete()
+        target.value = VoiceRun("run-1", true, "A reply is playing. More")
+        await { voice.state == VoiceState.SPEAKING }
+        val late = output.completion!!
+        repeat(10) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        assertNull(output.completion); assertEquals(0, target.canceled)
+        late(); assertEquals(VoiceState.RECORDING, voice.state)
+        recognized = "New question instead."
+        repeat(15) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        repeat(90) { voice.frame(ShortArray(320), 320) }
+        await { target.canceled == 1 }
+        assertEquals(1, target.sent.size); assertEquals(recognized, voice.queuedText)
+        target.value = VoiceRun("run-1", false, final = true, stopRequested = true)
+        await { output.said.last() == "Working." }
+        output.complete(); assertEquals(2, target.sent.size)
+        assertTrue(target.sent.last().endsWith(recognized))
+    }
+    @Test fun interruptionBeforeAdmissionWaitsForTheSameRunToBecomeStoppable() {
+        target.acknowledge = false
+        voice.start(); utterance(); output.complete()
+        recognized = "Change of plan."
+        utterance(); assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
+        target.value = target.value.copy(admitted = true)
+        await { target.canceled == 1 }
+        assertEquals(1, target.sent.size)
+        target.value = target.value.copy(busy = false, final = true)
+        await { output.said.size == 2 }
+        output.complete(); assertEquals(2, target.sent.size)
+    }
+    @Test fun speechDuringSilentWorkSuppressesLaterPlaybackBeforeRecognitionConfirmsStop() {
+        voice.start(); utterance(); output.complete()
+        repeat(10) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        target.value = target.value.copy(text = "The old answer is arriving. More")
+        tick()
+        assertEquals(VoiceState.RECORDING, voice.state)
+        assertEquals(listOf("Working."), output.said); assertEquals(0, target.canceled)
+        recognized = "Actually, change the question."
+        repeat(15) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        repeat(90) { voice.frame(ShortArray(320), 320) }
+        await { target.canceled == 1 }
+        assertEquals(recognized, voice.queuedText); assertEquals(1, target.sent.size)
+    }
+    @Test fun completedRunAwaitingSavedHistoryIsNotStoppedAndNewWordsWaitForReconciliation() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", busy = true, final = true, executing = false)
+        recognized = "After that, a new question."
+        utterance()
+        assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
+        assertEquals(recognized, voice.queuedText)
+        target.value = target.value.copy(busy = false)
+        await { output.said.size == 2 }
+        output.complete(); assertEquals(2, target.sent.size); assertEquals(0, target.canceled)
+    }
+    @Test fun failedStopKeepsTheNewWordsForReviewAndDoesNotSubmitThem() {
+        voice.start(); utterance(); output.complete()
+        recognized = "Keep these new words."
+        utterance()
+        target.value = target.value.copy(stopError = "Stop was not confirmed.")
+        await { voice.state == VoiceState.PAUSED }
+        assertEquals(recognized, voice.transcript); assertEquals(1, target.sent.size)
+        target.value = target.value.copy(stopError = null)
+        voice.resume(); assertEquals(VoiceState.REVIEW, voice.state)
+        assertEquals(recognized, voice.transcript)
+    }
+    @Test fun aStopThatNeverSettlesPausesInsteadOfLoopingOrAdmittingAgain() {
+        target.value = VoiceRun("old", busy = true)
+        val waiting = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            initialTranscript = "New words.", stopWaitMs = 250)
+        try {
+            waiting.start(); waiting.sendTranscript()
+            await { waiting.state == VoiceState.PAUSED }
+            assertTrue(waiting.notice!!.startsWith("Stop has not settled"))
+            assertEquals("New words.", waiting.transcript)
+            assertEquals(1, target.canceled); assertTrue(target.sent.isEmpty()); assertFalse(capture.active)
+        } finally { waiting.close() }
+    }
+    @Test fun quickHeldDictationReturnsWordsToDraftWithoutSubmittingAnything() {
+        val drafts = CopyOnWriteArrayList<String>()
+        val persisted = CopyOnWriteArrayList<String>()
+        val dictation = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            transcriber = { object : VoiceTranscriber {
+                override fun transcribe(wav: ByteArray) = Result.success("Dictated words.")
+                override fun close() {}
+            } }, onDictation = drafts::add, onTranscript = persisted::add)
+        try {
+            dictation.start(VoiceMode.PUSH_TO_TALK); assertFalse(capture.active)
+            dictation.beginPushToTalk(toDraft = true); assertTrue(capture.active)
+            repeat(25) { dictation.frame(ShortArray(320) { 2500 }, 320) }
+            repeat(100) { dictation.frame(ShortArray(320), 320) }
+            assertTrue(drafts.isEmpty())
+            dictation.endPushToTalk()
+            await { dictation.state == VoiceState.STOPPED }
+            assertEquals(listOf("Dictated words."), drafts)
+            assertEquals("", persisted.last()); assertTrue(target.sent.isEmpty()); assertTrue(output.said.isEmpty())
+            assertFalse(capture.active)
+        } finally { dictation.close() }
+    }
+    @Test fun releaseBeforeOutputReadinessCannotOpenTheMicrophoneLater() {
+        var prepared: (() -> Unit)? = null
+        val delayed = object : VoiceOutput {
+            override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { prepared = { onReady("fixture") } }
+            override fun speak(text: String, started: () -> Unit, complete: () -> Unit) = Unit
+            override fun stop() = Unit
+            override fun close() = Unit
+        }
+        val dictation = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), delayed, capture, onDictation = {})
+        dictation.start(VoiceMode.PUSH_TO_TALK); dictation.beginPushToTalk(toDraft = true)
+        assertFalse(capture.active)
+        dictation.endPushToTalk(canceled = true); prepared!!()
+        assertEquals(VoiceState.STOPPED, dictation.state); assertFalse(capture.active)
+        assertTrue(target.sent.isEmpty())
+    }
+    @Test fun liveActivitiesAreAnnouncedOnceAndAheadOfQueuedAnswerSentences() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", true, "First sentence. Second sentence. More")
+        await { output.said.size == 2 }
+        val activity = VoiceActivity("web:1", "Web search. Checking the forecast.")
+        target.value = target.value.copy(activities = listOf(activity))
+        tick(); output.complete()
+        await { output.said.size == 3 }
+        assertEquals(activity.text, output.said.last())
+        target.value = target.value.copy(text = "First sentence. Second sentence. More words")
+        tick(); output.complete()
+        assertEquals("Second sentence.", output.said.last())
+        assertEquals(1, output.said.count { it == activity.text })
+    }
     @Test fun actualPreamblePlaybackPrecedesOneAdmissionAndAnswerStreamsBeforeCompletion() {
         voice.start(); utterance()
-        assertEquals(listOf("I'll ask Hermes."), output.said)
+        assertEquals(listOf("Working."), output.said)
         assertTrue(target.sent.isEmpty())
         output.complete(); assertEquals(1, target.sent.size)
         target.value = VoiceRun("run-1", true, "Here is the first sentence. More")
@@ -102,14 +232,14 @@ class VoiceSessionTest {
         assertEquals(2, output.said.size); assertEquals(1, target.sent.size); assertEquals(0, target.canceled)
         voice.cancelWork(); assertEquals(1, target.canceled)
     }
-    @Test fun spokenInterruptionQueuesOneFollowupUntilPriorRunSettles() {
+    @Test fun recognizedInterruptionStopsTheRunAndSendsOneReplacementAfterStopSettles() {
         voice.start(); utterance(); output.complete()
         target.value = VoiceRun("run-1", true, "First sentence. More")
         await { voice.state == VoiceState.SPEAKING }
         recognized = "What about the battery?"; utterance()
-        assertEquals(1, target.sent.size); assertEquals(recognized, voice.queuedText)
+        assertEquals(1, target.sent.size); assertEquals(recognized, voice.queuedText); assertEquals(1, target.canceled)
         target.value = VoiceRun("run-1", false, "First sentence. More detail.", final = true)
-        await { output.said.last() == "I'll ask Hermes." && voice.state == VoiceState.SPEAKING }
+        await { output.said.last() == "Working." && voice.state == VoiceState.SPEAKING }
         output.complete(); assertEquals(2, target.sent.size); assertTrue(target.sent.last().endsWith(recognized)); assertTrue(target.sent.last().contains("playback was interrupted"))
     }
     @Test fun selectingAnotherChatPausesAndDropsNoWorkOntoThatChat() {
@@ -147,13 +277,13 @@ class VoiceSessionTest {
         target.value = VoiceRun("run-1", true, "Here are the wiring instructions. More")
         await { voice.state == VoiceState.SPEAKING }
         recognized = "Here are the wiring instructions"; utterance()
-        assertEquals(1, target.sent.size); assertTrue(voice.queuedText.isBlank())
+        assertEquals(1, target.sent.size); assertTrue(voice.queuedText.isBlank()); assertEquals(0, target.canceled)
     }
     @Test fun resumeDoesNotReplayTheExistingRun() {
         voice.start(); utterance(); output.complete(); voice.pause(); voice.resume()
         target.value = VoiceRun("run-1", false, "Previously generated answer.", final = true)
         await { voice.state == VoiceState.LISTENING }
-        assertEquals(listOf("I'll ask Hermes."), output.said); assertEquals(1, target.sent.size)
+        assertEquals(listOf("Working."), output.said); assertEquals(1, target.sent.size)
     }
     @Test fun connectionLossPausesMicWithoutResubmittingTheAdmittedRun() {
         voice.start(); utterance(); output.complete()

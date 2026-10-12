@@ -50,6 +50,7 @@ class VoiceService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         val config = VoiceSettings(this, profile).read()
+        if (runtime.voiceDictationToDraft && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }
         config.startProblem { runtime.speechLab.voiceStartProblem() }?.let { problem ->
             runtime.voiceStartError = problem
             stopSelf(); return START_NOT_STICKY
@@ -93,7 +94,11 @@ class VoiceService : Service() {
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
                 onTranscript = { savedVoice.saveTranscript(id, it); if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
                 initialTranscript = savedVoice.pending(id),
-                onSubmission = savedVoice::saveRequest, priorRequestId = savedVoice.pendingRequest(id))
+                onSubmission = savedVoice::saveRequest, priorRequestId = savedVoice.pendingRequest(id),
+                onDictation = { text ->
+                    check(runtime.profileId == profile && store.openSessionId == id)
+                    store.updateDraft(insertVoiceDictation(store.draft, text))
+                })
             runtime.voice = voice; runtime.voiceStartError = null
             started = true
             media = MediaSession(this, "Bellpull voice").also { session ->
@@ -107,6 +112,7 @@ class VoiceService : Service() {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 voice.showNotice("Android is hiding the voice notification. Return here to end voice, or use Android's active-app controls.")
             voice.start(runtime.voiceRequestedMode)
+            if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
             scope.launch {
                 androidx.compose.runtime.snapshotFlow { voice.state }.collect { manager.notify(2405, notification(it.label)) }
             }
@@ -128,6 +134,7 @@ class VoiceService : Service() {
     override fun onDestroy() {
         started = false
         runtime.voice?.close(); runtime.voice = null; runtime.voiceRequestedSession = null
+        runtime.voiceDictationToDraft = false; runtime.voiceButtonHeld = false
         media?.release(); audio.unregisterAudioDeviceCallback(routes); unregisterReceiver(noisy)
         focus?.let(audio::abandonAudioFocusRequest)
         if (ownsAudio && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()

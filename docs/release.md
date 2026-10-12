@@ -1,6 +1,33 @@
 # Building and upgrading Bellpull
 
-The current local-speech branch builds **0.5.2, version code 14**, from the Phase 5
+The current `feature/voice-turn-taking` branch builds **0.5.3, version code 15**.
+Tap the microphone to start/end conversation mode; hold and release to dictate into
+the message draft. The active button pulses, and a brief chime signals microphone
+readiness. Settings → Voice → Using voice documents the controls; Debugging voice
+interface restores the previous panel. See [voice behavior and limits](PHASE-5-VOICE.md).
+No plugin update, new dependency or provider thinking-control change is required.
+Voice prompt text asks for minimal reasoning and one paragraph/180 words. Live activity
+announcements use actual events, and recognized non-echo speech requests the normal
+chat Stop before one replacement admission. Completed runs still syncing history are
+allowed to reconcile without a redundant Stop. Failures/30-second timeout keep new
+words for review instead of waiting indefinitely or resubmitting the interrupted run.
+
+0.5.3 validation passed **501 local tests**, one opt-in live-server skip, **158
+screenshot checks**, debug/release builds, lint and five isolated unfolded-phone
+checks. See [the current verification record](PHASE-5-VOICE.md#verification-of-053-voice-controls).
+The signed APK passed signature and 16 KiB ZIP-alignment verification. SHA-256:
+`e42c207a9bd8535a6ca13b35bf6b0266355d1f4f6e8bf5450f1087b2afd16d82`.
+It was installed over 0.5.2 with the same signing lineage, UID and data-directory
+inodes; personal data was not cleared and the personal app stayed stopped. No
+personal Hermes/provider call was made. Model selection and downloads were not
+changed. Test packages, our two reverse ports and local fixture servers were removed.
+Signed delivery and prior rollback APKs remain under ignored `build/releases/0.5.3/`
+and `build/releases/0.5.2/`; logs are under `build/speech-lab/voice-controls-*` and
+`build/speech-lab/personal-upgrade/0.5.3/`. Do not uninstall or clear app data to
+roll back; Android's version-code downgrade restrictions still apply. No public
+release was published. Real acoustic/provider acceptance remains open.
+
+The previous local-speech branch built **0.5.2, version code 14**, from the Phase 5
 foundation. See [local speech status and setup](LOCAL-SPEECH-LAB.md) and
 [Phase 5 acceptance](PHASE-5-VOICE.md). No plugin update is required for voice;
 download Moonshine for local CPU recognition, or explicitly select your own private

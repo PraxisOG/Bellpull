@@ -63,7 +63,32 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
-**Current authority (2026-10-11, local speech experiments):** work on
+**Current authority (2026-10-11, voice controls):** work on
+`feature/voice-turn-taking` from 0.5.2 (`3c8acf7`). Default microphone tap starts/ends
+conversation mode with a clear pulsing indicator; holding dictates into the composer
+for review. Keep the previous panel behind Settings → Voice → Debugging voice
+interface; add Using voice and a brief readiness chime. Voice prompts ask for one
+paragraph/180 words, minimal reasoning and specific tool/search purposes. The user
+explicitly said **do not change thinking controls**, only ask for less thinking.
+Announce genuine live activity, never raw reasoning/tool arguments; observed status
+does not establish playback before tool execution. Confirm non-echo speech before
+using the existing chat Stop behavior; save one replacement turn until Stop settles,
+with visible recovery on failure/timeout. Keep selected ASR model/downloads unchanged.
+No new dependencies or plugin changes. Prior install/test/push authority persists;
+test only the fixture sandbox, preserve personal signing/data and do not access the
+personal Hermes server. No merge or release publication.
+
+0.5.3/code 15 passed 501 local tests (one opt-in live-server skip), 158 screenshot
+baselines, build/lint and five isolated phone checks. These cover tap/hold/release/
+cancel through active recomposition, missing-model protection, About, native
+chime/TTS/microphone cleanup and background-service controls. The real store/run
+journal regression verifies one Stop and one replacement admission. Signed install
+preserved the personal UID/data directories; the personal app was left stopped.
+Model selection/downloads were not changed. Listening/echo, personal-provider
+compliance and per-tool playback ordering remain user acceptance; see
+`docs/PHASE-5-VOICE.md` and `docs/release.md` for evidence and limits.
+
+**Previous authority (2026-10-11, local speech experiments):** work on
 `feature/local-speech-lab`; see `docs/LOCAL-SPEECH-LAB.md`. The addendum prioritizes
 Moonshine Tiny, Small and Medium Streaming, Settings organization, downloads/switching
 and direct-input CPU benchmarks before additional models or acceleration ports.

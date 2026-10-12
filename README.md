@@ -42,7 +42,7 @@ and example server addresses. Click any image to view it at full size.
 
 ## Current state
 
-This local-speech development branch builds **0.5.2 (code 14)**. It adds Moonshine
+This voice-controls development branch builds **0.5.3 (code 15)**. It adds Moonshine
 Tiny, Small and Medium Streaming on-device CPU transcription, collapsible Settings
 categories, and model downloads/load/unload/delete controls. Choose **On device**
 in Settings → Voice; model experiments and direct-WAV benchmarks are under
@@ -53,6 +53,15 @@ missing/incomplete files are checked again before permissions, service startup a
 recognizer creation. Open Voice settings and download
 a model in the personal app. See [measured results](benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
 and [setup and limits](docs/LOCAL-SPEECH-LAB.md).
+
+Tap the microphone to start/end conversation mode; its filled button pulses while
+voice is on. Hold, wait for the ready chime, speak and release to dictate into the
+message draft. Settings → Voice has a short **Using voice** guide and an optional
+**Debugging voice interface** toggle for the previous detailed panel. Voice prompts
+request one paragraph, minimal reasoning and a purpose before each tool/search;
+provider thinking controls remain unchanged. Bellpull reads genuine activity statuses
+and requests chat Stop after recognizing non-echo user speech during a reply.
+See [voice behavior and limits](docs/PHASE-5-VOICE.md).
 
 The Phase 5 foundation adds a service-owned
 conversational voice preview with optional private WAV transcription, installed offline
