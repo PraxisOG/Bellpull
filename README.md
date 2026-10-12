@@ -48,10 +48,10 @@ on-device Qwen3-TTS or Pocket TTS CPU voice, with verified model downloads and t
 requires 859.85 MB of weights and is currently slow on the Fold; Android voice
 remains the default. See [output setup and measurements](docs/VOICE-OUTPUT.md).
 The tested 0.5.4 signed APK is ready locally; the newer 0.5.5 offline implementation
-compiles but is awaiting tests/screenshots. **the personal phone still has 0.5.3**, because
+compiles but is awaiting tests/screenshots. **The personal phone still has 0.5.3**, because
 ADB disconnected before installation. Nothing in this slice has been pushed.
 
-The existing voice-input implementation It adds Moonshine
+The existing voice-input implementation adds Moonshine
 Tiny, Small and Medium Streaming on-device CPU transcription, collapsible Settings
 categories, and model downloads/load/unload/delete controls. Choose **On device**
 in Settings → Voice input; model experiments and direct-WAV benchmarks are under
@@ -59,7 +59,7 @@ in Settings → Voice input; model experiments and direct-WAV benchmarks are und
 All three models completed direct-input phone benchmarks and sustained thermal
 tests. Start voice is disabled until the selected local model is installed;
 missing/incomplete files are checked again before permissions, service startup and
-recognizer creation. Open Voice settings and download
+recognizer creation. Open Voice input settings and download
 a model in the personal app. See [measured results](benchmarks/speech/pixel-10-pro-fold-2026-10-11/README.md)
 and [setup and limits](docs/LOCAL-SPEECH-LAB.md).
 

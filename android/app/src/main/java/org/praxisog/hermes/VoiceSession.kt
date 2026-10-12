@@ -126,6 +126,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var suppressed = false
     private var finished = false
     private var readyOutput = false
+    private var startupReconciled = false
     private var spokenForEcho = ""
     private var ownAudioAtSpeechStart = ""
     private var completingTurn = false
@@ -137,16 +138,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun showNotice(message: String) { notice = message }
     fun start(initialMode: VoiceMode = VoiceMode.CONVERSATION) {
         mode = initialMode
-        prepareOutput {
-            val existing = conversation.run()
-            if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
-                submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
-                state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
-            } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
-                saveTranscript(""); transcript = ""; listen()
-            } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
-            else listen()
-        }
+        prepareOutput(::readyToListen)
         observe = scope.launch {
             snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (selected, run) ->
                 if (closed) return@collectLatest
@@ -188,6 +180,18 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 }
             }
         }
+    }
+    private fun readyToListen() {
+        if (startupReconciled) { resumeReady(); return }
+        startupReconciled = true
+            val existing = conversation.run()
+            if (priorRequestId != null && priorRequestId == existing.identity && existing.busy) {
+                submitted = true; ownedRun = priorRequestId; suppressed = true; awaitingAdmission = true; pendingForAdmission = true
+                state = VoiceState.WAITING; notice = "Recovering the existing voice turn. It will not be submitted again."; openMic()
+            } else if (priorRequestId != null && priorRequestId == existing.identity && existing.admitted) {
+                saveTranscript(""); transcript = ""; listen()
+            } else if (transcript.isNotBlank()) { state = VoiceState.REVIEW; notice = "Saved voice words restored. Check the chat before sending if delivery was interrupted." }
+            else listen()
     }
     private fun prepareOutput(whenReady: () -> Unit) {
         val token = generation
@@ -427,8 +431,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         notice = null; queuedText = ""
         if (!readyOutput) {
             state = VoiceState.STARTING
-            prepareOutput(::resumeReady)
-        } else resumeReady()
+            prepareOutput(::readyToListen)
+        } else readyToListen()
     }
     private fun resumeReady() {
         if (unsent && !pendingForAdmission && transcript.isNotBlank()) {

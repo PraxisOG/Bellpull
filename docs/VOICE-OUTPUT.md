@@ -129,3 +129,8 @@ loading cannot let a late readiness callback reopen capture. Explicit Resume
 retries preparation if it was canceled before readiness, with audio ownership
 checked again. Android TTS preparation uses a separate cancellation generation and
 shuts down the prior instance on retry. This change is compiled but untested.
+
+Startup reconciliation is retained across canceled/retried output loading: a
+previously admitted voice request is matched/cleared through the original recovery
+path before listening resumes, rather than exposing it as a fresh unsent turn.
+This source correction is also awaiting regression/device checks.
