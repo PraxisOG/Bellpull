@@ -63,7 +63,20 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
-**Current authority (2026-10-11, Phase 5):** the user authorized conversational
+**Current authority (2026-10-11, local speech experiments):** work on
+`feature/local-speech-lab`; see `docs/LOCAL-SPEECH-LAB.md`. The addendum prioritizes
+Moonshine Tiny, Small and Medium Streaming, Settings organization, downloads/switching
+and direct-input CPU benchmarks before additional models or acceleration ports.
+Display is a separate category; experiments belong under Voice → Experimental.
+ADB is authorized. Use the separate fixture app and preserve personal signing/data;
+do not access the personal Hermes server. Dependency approval was requested and
+is pending for the Moonshine SDK/native runtimes. A separate pending request covers
+an optional exception for standalone Google LiteRT/Tensor libraries. Do not treat
+Parakeet TDT's Pixel TPU route as proof of Realtime EOU compatibility. Report actual
+backend, source-checked inputs, timing annotation limits and measured/untested/blocked
+results separately. No merge or release publication.
+
+**Previous authority (2026-10-11, Phase 5):** the user authorized conversational
 voice implementation and the compact drawer/filter changes, with ADB testing while
 they are unavailable. Use `feature/phase5-voice` and `docs/PHASE-5-VOICE.md`.
 Do not access the personal Hermes server or deploy a speech provider. Native

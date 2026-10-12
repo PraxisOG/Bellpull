@@ -41,6 +41,7 @@ class BellpullInteractionTest {
         compose.onAllNodesWithText("Tailscale routing for the Fold").onFirst().performClick()
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Display").performClick()
         compose.onNodeWithText("Collapse thinking by default").assertIsDisplayed()
         compose.onNodeWithText("Chats").performClick()
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
@@ -84,6 +85,7 @@ class BellpullInteractionTest {
     @Test fun themesApplyAndCustomColorValidatesBeforeSaving() {
         app()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Appearance").performClick()
         compose.onNodeWithText("Maroon").performClick()
         assertEquals(Palette.MAROON, preferences.palette)
         compose.onNodeWithText("Black").performClick()
@@ -101,6 +103,7 @@ class BellpullInteractionTest {
     @Test @Config(sdk = [29]) fun wallpaperChoiceExplainsOlderAndroidLimit() {
         app()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Appearance").performClick()
         compose.onNodeWithText("Android wallpaper").assertIsNotEnabled()
         compose.onNodeWithText("Wallpaper colors require Android 12 or later.").assertIsDisplayed()
     }

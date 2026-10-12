@@ -105,6 +105,7 @@ class DenseChatScreenshotTest {
     }
     @Test fun toggleRestoresNamesAndPermanentActions() {
         app(); menu("Settings")
+        compose.onNodeWithText("Display").performClick()
         compose.onNodeWithContentDescription("Dense chat window").performScrollTo().performClick()
         assertFalse(prefs.value.denseChatWindow)
         compose.runOnUiThread { back.onBackPressed() }

@@ -116,7 +116,7 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
     }
 }
 @Composable
-private fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, onSave: (VoiceConfiguration) -> Unit) {
+internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, onSave: (VoiceConfiguration) -> Unit) {
     var endpoint by remember { mutableStateOf(initial.endpoint) }; var key by remember { mutableStateOf(initial.key) }
     var model by remember { mutableStateOf(initial.model) }; var rate by remember { mutableFloatStateOf(initial.rate) }
     var pause by remember { mutableIntStateOf(initial.pauseMs) }; var concise by remember { mutableStateOf(initial.concise) }

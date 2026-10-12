@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.Role
 
 internal enum class Appearance(val label: String) { SYSTEM("System"), LIGHT("White"), DARK("Black") }
 internal enum class Palette(val label: String, val seed: Long) {
@@ -75,86 +78,118 @@ internal class BellpullSettings(context: Context) {
 internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (BellpullPreferences) -> Unit,
     notificationsAvailable: Boolean = false, onNotificationsChange: (Boolean) -> Unit = {},
     serverProfiles: (@Composable () -> Unit)? = null,
-    pluginVersions: () -> List<ServerPluginVersion> = { emptyList() }) {
+    pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
+    speechLab: (@Composable () -> Unit)? = null,
+    voiceSettings: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        serverProfiles?.invoke()
+        serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
         if (notificationsAvailable) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SettingsSection("Notifications", "Reply and approval alerts") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Reply notifications", style = MaterialTheme.typography.titleMedium)
+                        Text("Replies and requests needing attention. Keeps a quiet connection notification while enabled.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(checked = preferences.notifications, onCheckedChange = onNotificationsChange)
+                }
+            }
+        }
+        SettingsSection("Appearance", "Theme, colors and preview") {
+            Text("Appearance", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Appearance.entries.forEach { choice ->
+                    FilterChip(selected = choice == preferences.appearance,
+                        onClick = { onChange(preferences.copy(appearance = choice)) }, label = { Text(choice.label) })
+                }
+            }
+            Text("Color scheme", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Palette.entries.forEach { choice ->
+                    val supported = choice != Palette.WALLPAPER || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    FilterChip(selected = choice == preferences.palette, enabled = supported,
+                        onClick = { onChange(preferences.copy(palette = choice)) }, label = { Text(choice.label) },
+                        leadingIcon = {
+                            Box(Modifier.size(14.dp).background(
+                                if (choice == Palette.WALLPAPER) MaterialTheme.colorScheme.primary
+                                else if (choice == Palette.CUSTOM) accentColor(preferences.customAccent)
+                                else Color(choice.seed), CircleShape))
+                        })
+                }
+            }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                Text("Wallpaper colors require Android 12 or later.", style = MaterialTheme.typography.bodySmall)
+            } else if (preferences.palette == Palette.WALLPAPER) {
+                Text("Uses your Android wallpaper and system color palette.", style = MaterialTheme.typography.bodySmall)
+            }
+            if (preferences.palette == Palette.CUSTOM) {
+                var accent by rememberSaveable(preferences.customAccent) { mutableStateOf(preferences.customAccent) }
+                val valid = normalizedAccent(accent)
+                OutlinedTextField(value = accent, onValueChange = { accent = it }, label = { Text("Accent color") },
+                    prefix = { Text("#") }, singleLine = true, isError = valid == null,
+                    supportingText = { Text(if (valid == null) "Enter six hex digits, for example 59091E." else "Surfaces and chat bubbles follow this color.") },
+                    modifier = Modifier.fillMaxWidth())
+                Button(onClick = { valid?.let { onChange(preferences.copy(customAccent = it)) } },
+                    enabled = valid != null && valid != preferences.customAccent) { Text("Apply color") }
+            }
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Preview", style = MaterialTheme.typography.labelMedium)
+                    Surface(color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.align(Alignment.End)) {
+                        Text("Your message", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (!preferences.denseChatWindow) Text("Hermes", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Surface(color = Color.Transparent, shape = MaterialTheme.shapes.small,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Text("A little more you.", Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+        SettingsSection("Display", "Chat density, thinking, motion and system bars") {
+            PreferenceSwitch("Dense chat window", "Hide speaker names and action bars. Long-press a message for its actions.",
+                preferences.denseChatWindow) { onChange(preferences.copy(denseChatWindow = it)) }
+            PreferenceSwitch("Title-only conversations", "A compact list of chat titles. Turn off to include previews and statistics.",
+                preferences.titleOnlyConversations) { onChange(preferences.copy(titleOnlyConversations = it)) }
+            PreferenceSwitch("Larger labeled controls", "Show labels and larger icons on navigation controls.",
+                preferences.labeledControls) { onChange(preferences.copy(labeledControls = it)) }
+            PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
+                preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
+            PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",
+                preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
+            PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
+                preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
+        }
+        if (voiceSettings != null || speechLab != null) SettingsSection("Voice", "Recognition, spoken answers and experiments") {
+            voiceSettings?.invoke()
+            speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
+        }
+        SettingsSection("About", "Installed app and server plugin versions") { AboutSettings(pluginVersions) }
+    }
+}
+
+@Composable
+internal fun SettingsSection(title: String, detail: String, initiallyExpanded: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit) {
+    var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded) }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = if (expanded) "Collapse" else "Expand") {
+                expanded = !expanded
+            }.semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f)) {
-                    Text("Reply notifications", style = MaterialTheme.typography.titleMedium)
-                    Text("Replies and requests needing attention. Keeps a quiet connection notification while enabled.", style = MaterialTheme.typography.bodySmall)
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(detail, style = MaterialTheme.typography.bodySmall)
                 }
-                Switch(checked = preferences.notifications, onCheckedChange = onNotificationsChange)
+                Text(if (expanded) "−" else "+", style = MaterialTheme.typography.titleLarge)
             }
+            if (expanded) Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
         }
-        Text("Appearance", style = MaterialTheme.typography.titleMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Appearance.entries.forEach { choice ->
-                FilterChip(selected = choice == preferences.appearance,
-                    onClick = { onChange(preferences.copy(appearance = choice)) }, label = { Text(choice.label) })
-            }
-        }
-        Text("Color scheme", style = MaterialTheme.typography.titleMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Palette.entries.forEach { choice ->
-                val supported = choice != Palette.WALLPAPER || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                FilterChip(selected = choice == preferences.palette, enabled = supported,
-                    onClick = { onChange(preferences.copy(palette = choice)) }, label = { Text(choice.label) },
-                    leadingIcon = {
-                        Box(Modifier.size(14.dp).background(
-                            if (choice == Palette.WALLPAPER) MaterialTheme.colorScheme.primary
-                            else if (choice == Palette.CUSTOM) accentColor(preferences.customAccent)
-                            else Color(choice.seed), CircleShape))
-                    })
-            }
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            Text("Wallpaper colors require Android 12 or later.", style = MaterialTheme.typography.bodySmall)
-        } else if (preferences.palette == Palette.WALLPAPER) {
-            Text("Uses your Android wallpaper and system color palette.", style = MaterialTheme.typography.bodySmall)
-        }
-        if (preferences.palette == Palette.CUSTOM) {
-            var accent by rememberSaveable(preferences.customAccent) { mutableStateOf(preferences.customAccent) }
-            val valid = normalizedAccent(accent)
-            OutlinedTextField(value = accent, onValueChange = { accent = it }, label = { Text("Accent color") },
-                prefix = { Text("#") }, singleLine = true, isError = valid == null,
-                supportingText = { Text(if (valid == null) "Enter six hex digits, for example 59091E." else "Surfaces and chat bubbles follow this color.") },
-                modifier = Modifier.fillMaxWidth())
-            Button(onClick = { valid?.let { onChange(preferences.copy(customAccent = it)) } },
-                enabled = valid != null && valid != preferences.customAccent) { Text("Apply color") }
-        }
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Preview", style = MaterialTheme.typography.labelMedium)
-                Surface(color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.align(Alignment.End)) {
-                    Text("Your message", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.bodyMedium)
-                }
-                if (!preferences.denseChatWindow) Text("Hermes", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                Surface(color = Color.Transparent, shape = MaterialTheme.shapes.small,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                    Text("A little more you.", Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-        HorizontalDivider()
-        PreferenceSwitch("Dense chat window", "Hide speaker names and action bars. Long-press a message for its actions.",
-            preferences.denseChatWindow) { onChange(preferences.copy(denseChatWindow = it)) }
-        PreferenceSwitch("Title-only conversations", "A compact list of chat titles. Turn off to include previews and statistics.",
-            preferences.titleOnlyConversations) { onChange(preferences.copy(titleOnlyConversations = it)) }
-        PreferenceSwitch("Larger labeled controls", "Show labels and larger icons on navigation controls.",
-            preferences.labeledControls) { onChange(preferences.copy(labeledControls = it)) }
-        PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
-            preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
-        PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",
-            preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
-        PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
-            preferences.immersiveMode) { onChange(preferences.copy(immersiveMode = it)) }
-        HorizontalDivider()
-        AboutSettings(pluginVersions)
     }
 }
 

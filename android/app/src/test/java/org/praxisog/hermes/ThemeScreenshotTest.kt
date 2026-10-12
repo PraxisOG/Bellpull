@@ -5,6 +5,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -30,6 +32,7 @@ class ThemeScreenshotTest {
                 }
             }
         }
+        if (settings) compose.onNodeWithText("Appearance").performClick()
         compose.mainClock.advanceTimeBy(1000)
         compose.onRoot().captureRoboImage()
     }

@@ -44,6 +44,7 @@ class DisconnectedWorkspaceTest {
     @Test fun settingsCover() {
         compose.setContent { App() }
         compose.onNodeWithText("Open Settings").performClick()
+        compose.onNodeWithText("Servers").performClick()
         compose.onNodeWithText("Server profiles").assertIsDisplayed()
         compose.onRoot().captureRoboImage()
     }
@@ -74,9 +75,9 @@ class DisconnectedWorkspaceTest {
         }) }
     }
     @Test fun savedProfilesCover() {
-        compose.setContent { ProfileSettings() }; compose.onRoot().captureRoboImage()
+        compose.setContent { ProfileSettings() }; compose.onNodeWithText("Servers").performClick(); compose.onRoot().captureRoboImage()
     }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun savedProfilesUnfoldedDark() {
-        compose.setContent { ProfileSettings() }; compose.onRoot().captureRoboImage()
+        compose.setContent { ProfileSettings() }; compose.onNodeWithText("Servers").performClick(); compose.onRoot().captureRoboImage()
     }
 }

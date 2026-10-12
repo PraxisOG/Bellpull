@@ -124,6 +124,17 @@ class MainActivity : ComponentActivity() {
                             }
                         } } },
                         pluginVersions = profiles::pluginVersions,
+                        voiceSettings = {
+                            val profile = profiles.activeId
+                            if (profile == null) androidx.compose.material3.Text("Select a server profile to configure voice conversations.")
+                            else {
+                                val saved = remember(profile) { VoiceSettings(applicationContext, profile) }
+                                VoiceSettingsEditor(saved.read(), runtime.voice == null, saved::save)
+                                androidx.compose.material3.TextButton(onClick = { reader.stop(); voiceOpen = true }) {
+                                    androidx.compose.material3.Text("Open voice conversation")
+                                }
+                            }
+                        },
                         sessionSource = current?.sessionSource,
                         onSessionSourceChange = current?.let { currentStore -> { source ->
                             runtime.cache?.rememberSessionSource(source)
@@ -215,9 +226,6 @@ class MainActivity : ComponentActivity() {
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,
                                 profiles::removeAll, profiles::rename)
                             if (files?.modelsSupported == true) ModelControl(files, null)
-                            if (profiles.activeId != null) androidx.compose.material3.TextButton(onClick = { reader.stop(); voiceOpen = true }) {
-                                androidx.compose.material3.Text("Voice settings and conversation")
-                            }
                         },
                     )
                 }

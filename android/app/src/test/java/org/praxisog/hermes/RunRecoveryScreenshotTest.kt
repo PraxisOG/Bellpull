@@ -32,7 +32,11 @@ class RunRecoveryScreenshotTest {
                 notificationsAvailable = true, preferences = BellpullPreferences(palette = Palette.MAROON, notifications = true))
         }
         compose.waitForIdle()
-        if (settings) { compose.onNodeWithText("Settings").performClick(); compose.waitForIdle() }
+        if (settings) {
+            compose.onNodeWithText("Settings").performClick()
+            compose.onNodeWithText("Notifications").performClick()
+            compose.waitForIdle()
+        }
         if (review) { compose.onNodeWithText("Review saved request").performClick(); compose.waitForIdle() }
         compose.onRoot().captureRoboImage()
     }
