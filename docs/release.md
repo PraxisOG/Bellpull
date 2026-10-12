@@ -1,3 +1,19 @@
+## Corrected 0.5.5 installation — 2026-10-12
+
+The first 0.5.5 APK from `c5dceec` crashes on launch: the shipped Qwen checkpoint
+ID `qwen-0.6b` was rejected by the new folder validator. **Do not use that artifact**
+(SHA-256 `42c5d4ff4c943bdef7f36bcd064491b374602c9d5fa77143d54e4762a7c847cb`).
+Fix `c913243` preserves the ID/downloads and permits the safe decimal dot. Eight
+focused JVM tests and one isolated real-phone fixture startup/preflight/Activity
+check passed. The corrected signed 0.5.5/code 17 APK was installed in place:
+SHA-256 `1e7121c0a32658ded36fcb02122b7b581f8c5dd0a8993646b0f25f28f20415d5`.
+Signer, UID 10260 and both data-directory inodes were preserved. Personal app was
+left stopped; fixture packages removed. No personal server was accessed.
+This startup check does not verify Pocket synthesis, audio routes or provider use.
+Later local baseline/API-level guard corrections are in `feature/local-voice-models`;
+Phase 6 and Phase 8/9 previews inherit them and remain independent branches.
+No preview installation, push, merge or release publication is implied.
+
 # Building and upgrading Bellpull
 
 The current `feature/voice-turn-taking` branch builds **0.5.3, version code 15**.
