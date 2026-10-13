@@ -73,6 +73,14 @@ prerelease with matching APK/plugin/instructions. A documentation-only front-pag
 update is authorized; do not merge preview app code into master. No personal
 server access or personal plugin deployment. Earlier no-push/publication rules
 below are superseded only for this requested development release.
+The first prerelease is published and verified; the default page is updated with
+only documentation/gallery/license changes. Dev gateway/dashboard migration to
+stock Hermes0.21.5/plugin0.4.0 passed with backups, unchanged provider/model settings,
+58 sessions/562 messages retained and three byte-identical downloads. No personal
+server access or inference. The user additionally requested all build source on
+GitHub: a fresh recursive release clone built successfully, and `.2` adds a complete
+source archive/build guide plus verified test/CI portability fixes. Production APK
+and runtime behavior are unchanged; no further phone install is needed.
 
 **Latest authority (2026-10-13, personal app update):** after combined fixture
 acceptance, the user explicitly requested the latest app on their phone to try.

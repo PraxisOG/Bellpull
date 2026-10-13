@@ -23,6 +23,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.TimeZone
 
 /** Same live run and client through both destinations; navigation cannot stop/readmit it. */
 @RunWith(RobolectricTestRunner::class) @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -30,6 +31,12 @@ import java.util.concurrent.atomic.AtomicInteger
 @Config(sdk=[35])
 class CombinedWorkspaceScreenshotTest {
     @get:Rule val compose = createComposeRule()
+    private lateinit var previousTimeZone: TimeZone
+    @Before fun fixedSampleTimeZone() {
+        previousTimeZone=TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+    }
+    @After fun restoreTimeZone() { TimeZone.setDefault(previousTimeZone) }
     private fun navigate(cover: Boolean) {
         val app = RuntimeEnvironment.getApplication()
         shadowOf(app).denyPermissions(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)

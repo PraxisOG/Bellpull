@@ -3,7 +3,7 @@
 The user authorized publishing the latest development preview, including the
 phase roadmap and a refreshed GitHub front page, and prioritized publication
 before completing the dev-server migration. Source is `integration/phase6-8-9`;
-release tag is `android-v0.8.1-integration-preview.1`. App 0.8.1/build20 and plugin
+release tag is `android-v0.8.1-integration-preview.2`. App 0.8.1/build20 and plugin
 0.4.0-integration-preview are paired. `docs/ROADMAP.md` incorporates the later
 Phase 7 decision: Hermes prompt optimization only, no Quick Chat app feature.
 The original October 11 roadmap is included unchanged. Default-branch changes
@@ -13,8 +13,28 @@ For the separately requested local dev-server migration, the old host is still
 the legacy four-overlay gateway. A replacement official unmodified Hermes
 v2026.9.24/internal0.21.5 image passed 43 focused tests (coding18/planning9/
 projects13/portable3). Its digest and limitations are in the integration guide.
-No cutover has occurred yet; publication takes priority. Personal server remains
+Cutover completed after publication: gateway and dashboard now use that clean
+stock image and the single plugin. The idle check passed before stopping both
+writers. A full private data-home backup and stopped original containers remain
+for rollback. Exactly 58 sessions/562 messages were retained; all three migrated
+artifact downloads matched their stored size/SHA-256. Auth rejection, unserved
+profile rejection, coding/planning/projects reads and all six feature flags passed.
+Only plugin allow/deny lists and the native config schema marker (41→46) changed;
+provider/model settings stayed exact. No inference request was submitted. The first
+attempt rolled back when a conservative config check caught that schema marker;
+the reviewed retry passed. Legacy branch/input/model/notification extensions are
+gated off on the new stock host. OpenCode itself is not installed there yet. Personal server remains
 off limits. The device update and combined test evidence follow below.
+
+Source verification: a fresh recursive GitHub clone of tag `.1` built debug/lint
+successfully with no local source/signing files. Test-only fixes pin screenshot
+fixture timezones and distinguish unsupported legacy coding from the modern
+positive integration. Full Android checks under UTC passed (548 + one live-smoke
+skip, 170 baselines). Exact pinned optional legacy Docker: 126 discovered, 125
+passed, one modern-only skip; modern coding: 18 passed, one older-only skip. This
+new exact-image result does not erase the earlier mixed-fixture failures. Preview
+`.2` adds build instructions and a source archive including all submodules. The
+signed APK and production app/plugin behavior are unchanged.
 
 ## October 13: combined integration passed isolated phone acceptance
 

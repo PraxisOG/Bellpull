@@ -22,7 +22,15 @@ import inspect
 import model_tools
 
 
-@unittest.skipUnless(all(k in inspect.signature(getattr(model_tools,"_emit_post_tool_call_hook",lambda:None)).parameters for k in ("turn_id","tool_call_id")) and "owner_task_id" in ProcessSession.__dataclass_fields__, "Host lacks verified native ownership hooks; pure observer tests still run")
+NATIVE_TRACKING = (
+    all(k in inspect.signature(getattr(model_tools,"_emit_post_tool_call_hook",lambda:None)).parameters
+        for k in ("task_id","session_id","turn_id","tool_call_id"))
+    and all(k in ProcessSession.__dataclass_fields__
+            for k in ("owner_task_id","parent_session_id","started_at","total_output_chars"))
+)
+
+
+@unittest.skipUnless(NATIVE_TRACKING, "Host lacks native ownership/output tracking; unsupported-host rejection is tested separately")
 class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
     async def test_stock_admission_coding_and_planning_share_one_plugin_and_one_run(self):
         release=threading.Event()
@@ -112,3 +120,44 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                 if callable(getattr(status,"flush_runtime_status",None)):
                     await asyncio.to_thread(status.flush_runtime_status)
         self.assertEqual(hashes,[hashlib.sha256(p.read_bytes()).hexdigest() for p in paths])
+
+
+@unittest.skipIf(NATIVE_TRACKING, "Supported host runs the full admission/observation test")
+class UnsupportedCodingNativeTest(unittest.IsolatedAsyncioTestCase):
+    async def test_older_stock_declines_activity_without_admitting_inference(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ,{
+            "HERMES_HOME":temporary,"BELLPULL_NTFY_URL":""
+        }):
+            Path(temporary,"config.yaml").write_text("plugins:\n  enabled:\n    - bellpull\n")
+            manager=get_plugin_manager(); manager.discover_and_load()
+            key="coding-unsupported-disposable-key"
+            adapter=api_server.APIServerAdapter(PlatformConfig(enabled=True,
+                extra={"key":key,"host":"127.0.0.1","port":18648}))
+            admissions=[]
+            def reject_inference(**kwargs):
+                admissions.append(kwargs)
+                raise AssertionError("Unsupported activity must not submit inference")
+            adapter._create_agent=reject_inference
+            try:
+                self.assertTrue(await adapter.connect())
+                async with ClientSession(headers={"Authorization":"Bearer "+key}) as client:
+                    origin="http://127.0.0.1:18648"
+                    response=await client.get(origin+"/api/bellpull/capabilities")
+                    self.assertEqual(200,response.status)
+                    self.assertFalse((await response.json())["features"]["bellpull_coding_activity"])
+                    response=await client.post(origin+"/api/sessions",json={})
+                    self.assertEqual(201,response.status)
+                    session=(await response.json())["session"]["id"]
+                    response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding")
+                    self.assertEqual(200,response.status)
+                    snapshot=await response.json()
+                    self.assertFalse(snapshot["available"])
+                    self.assertTrue(snapshot["note"])
+                    self.assertEqual([],snapshot["works"])
+                    self.assertEqual([],snapshot["rows"])
+                    self.assertEqual([],admissions)
+            finally:
+                await adapter.disconnect(); manager.unload()
+                from gateway import status
+                if callable(getattr(status,"flush_runtime_status",None)):
+                    await asyncio.to_thread(status.flush_runtime_status)

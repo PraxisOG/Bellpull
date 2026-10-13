@@ -21,12 +21,19 @@ import kotlinx.coroutines.*
 import org.praxisog.hermes.core.HermesClient
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class) @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
 @Config(sdk=[35],qualifiers="w393dp-h850dp")
 class PlanningScreenshotTest {
     @get:Rule val compose=createComposeRule()
+    private lateinit var previousTimeZone: TimeZone
+    @Before fun fixedSampleTimeZone() {
+        previousTimeZone=TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+    }
+    @After fun restoreTimeZone() { TimeZone.setDefault(previousTimeZone) }
     private fun screen(week: Boolean=false) {
         val day=LocalDate.of(2026,10,12); val zone=ZoneId.systemDefault(); val zero=day.atStartOfDay(zone).toInstant().toEpochMilli()
         val utc=day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()

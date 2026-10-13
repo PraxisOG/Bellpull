@@ -6,7 +6,7 @@ branches remain intact. App **0.8.1-integration-preview / build 20**; one Bellpu
 plugin **0.4.0-integration-preview**. The combined **fixture app** passed phone
 acceptance on October 13. The user then requested the latest personal app; the
 signed build20 was installed in place over 0.5.5 with its signer and data preserved.
-Development release: [0.8.1 integration preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1).
+Development release: [0.8.1 integration preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2).
 The user authorized pushing this branch and publishing the experimental bundle.
 The default branch receives documentation only; preview app code remains here.
 No personal-server access. The [current phase roadmap](ROADMAP.md) accompanies
@@ -173,8 +173,8 @@ passed **43 focused Python tests**: 18 coding, 9 planning, 13 projects and
 3 portable-sharing tests. This is a separate stock-image result, not a full-suite
 or real-inference pass. It confirms the new process tracking and native plugin
 surface needed for coding/planning. Private hash-pinned legacy branch/input/model
-extensions remain gated off on this newer stock image. The dev server migration
-is a separate action; no success is implied merely by publishing this bundle.
+extensions remain gated off on this newer stock image. The local dev server was subsequently migrated to this stock image; details
+and limits follow below.
 
 ## Personal app installation — October 13
 
@@ -200,3 +200,53 @@ Still unverified: actual OpenCode/provider behavior and personal-host Stop, real
 scheduled inference, account/cloud sync and marker retention through a sync adapter,
 calendar-app handoff, physical hinge transitions, exact pinned Docker CI. Reminder
 background/offline alerts remain Phase 10. No automatic calendar writes or invitations.
+
+## Source/CI follow-up and local development deployment
+
+The first published tag cloned recursively from GitHub and built debug/lint in a
+fresh directory. Qwen, its nested GGML and Sherpa revisions were all fetched from
+public GitHub sources; no untracked library/source or signing file was used. The
+SDK/shared dependency cache was reused. See [complete build instructions](BUILDING.md).
+The `.2` development tag includes a complete tracked-source archive with submodules
+and `SOURCE-REVISIONS.json`; GitHub's automatic source archive does not include them.
+Production app code, signed APK bytes and plugin runtime code are unchanged.
+
+GitHub run 38374644552 failed in both jobs. Its six Android comparison images were
+inspected: they differ in default timezone/date labels. The two fixture classes
+now set/restore their sample timezone, following the existing GPU screenshot test;
+no baseline or production timezone behavior changed. Full required Android checks
+reran under UTC: **549 discovered, 548 passed, one opt-in smoke skipped; 170
+baselines, APK and lint passed**. The modern coding CI step now uses the supported
+0.21.5 stock digest above. Native tests require all ownership/output tracking fields;
+older hosts explicitly prove unavailable activity without inference rather than
+running a positive test for a capability they lack.
+
+The exact pinned `server-host/Dockerfile` image was built and its **126-test suite
+passed: 125 passed, one modern-only coding case skipped**. Approval checks ran and
+passed. Modern stock coding passed 18 with one older-only case skipped. An initial
+new negative-test assertion expected HTTP200 for creation; native session creation
+returns HTTP201, and the corrected full suite passed. These exact-image results
+are distinct from the historical mixed-fixture three failures and newer-source
+full-suite compatibility failures recorded above. GitHub results for the follow-up
+commit must be inspected separately; local success is not a remote CI claim.
+
+The local development gateway/dashboard now run unmodified official Hermes
+0.21.5 plus the single 0.4.0-integration-preview plugin. Both writers were stopped
+only after healthy/idle and empty background-queue checks. Full private data-home
+backup and original stopped containers are retained outside the repository.
+Three root-profile legacy artifact records were migrated using the proven current
+auth/profile namespace; all three downloads matched their old size and SHA-256.
+All **58 sessions and 562 messages** survived. Authenticated coding/planning/projects
+reads returned HTTP200; unauthenticated discovery returned401, an unserved native
+profile returned404, and coding/planning/routines/projects/artifacts/lifecycle flags
+are true. Provider/model settings, credentials, mounts, network and ports were
+preserved. Native startup advanced only `_config_version` 41→46 beyond the intended
+plugin-list changes. The first conservative check rolled back on that marker;
+its reviewed retry passed. No inference was submitted or personal server accessed.
+
+Private legacy selected-message branching, model overrides, run attachments,
+snapshot paging and notification-event extensions are unavailable on this newer
+stock host and advertise false. Stop/SSE remain native. OpenCode is not installed
+on the development container yet; real coding/provider acceptance remains open.
+Local logs: `build/dev-server-2026-10-13/`; private backup details are in the ignored
+deployment record. Do not publish inspection/configuration/data-home backups.

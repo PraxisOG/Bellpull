@@ -9,10 +9,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Development preview](https://img.shields.io/badge/preview-0.8.1-59091e?style=flat-square)](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1)
+[![Development preview](https://img.shields.io/badge/preview-0.8.1-59091e?style=flat-square)](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the preview**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1)
+[**Download the preview**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.2/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2)
 
 </div>
 
@@ -57,12 +57,12 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 > pairs with Bellpull plugin **0.4.0-integration-preview**. New server features need
 > the plugin and compatible Hermes capabilities. Background/offline reminder alerts
 > are planned for Phase 10. Real OpenCode/provider, car audio and cloud calendar sync
-> still need acceptance. The full plugin compatibility suite has known failures;
-> this is not a claim that every check is green.
+> still need acceptance. Supported-host checks and historical compatibility
+> failures are reported separately in the evidence.
 
 ## Get started
 
-1. Download [**Bellpull.apk**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/Bellpull.apk) from the development release.
+1. Download [**Bellpull.apk**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.2/Bellpull.apk) from the development release.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -71,12 +71,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.2/Bellpull-source-0.8.1.tar.gz) ·
+[Build instructions](docs/BUILDING.md) ·
 [Earlier 0.3.3 preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.2/SHA256SUMS)
 
 ## Connect Hermes
 
-The release includes a [**matching plugin bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/bellpull-plugin-0.4.0-integration-preview.tar.gz).
+The release includes a [**matching plugin bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.2/bellpull-plugin-0.4.0-integration-preview.tar.gz).
 Unpack it on your Hermes host, back up the data home, then preview the installer:
 
 ```bash
@@ -103,8 +105,10 @@ simulated narrow widths, including the actual calendar permission flow. One live
 provider smoke test was skipped. Phone checks used disposable local Hermes,
 deterministic inference/child processes and a disposable LOCAL calendar.
 
-Known legacy approval failures and unsupported host-extension checks remain
-recorded in the handoff. These results do not establish personal-provider behavior,
+The exact pinned legacy Docker suite passed **125 tests with one skip**; modern
+stock coding passed **18 tests with one skip**. The skipped cases cover opposite
+host capabilities; unsupported-host rejection is tested on the older host. Earlier
+mixed-fixture/new-source compatibility failures remain recorded separately. These results do not establish personal-provider behavior,
 real scheduled inference, account synchronization or physical hinge transitions.
 See [the evidence](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/INTEGRATION-6-8-9.md)
 and [the phase roadmap](docs/ROADMAP.md) for what is implemented, provisional and deferred.
@@ -129,6 +133,7 @@ be run indiscriminately against a configured personal app.
 
 | Read first | Purpose |
 | :--- | :--- |
+| [Build from source](docs/BUILDING.md) | Recursive clone, complete source archive, pinned dependencies and signing. |
 | [Phase roadmap](docs/ROADMAP.md) | Phases 0–17, revised scope and honest implementation status. |
 | [Handoff](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
 | [API contract](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
