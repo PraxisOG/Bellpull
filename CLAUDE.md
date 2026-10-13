@@ -63,6 +63,17 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-13, development deployment and GitHub):** the user
+requested updating the local development server, pushing the latest development
+release for their agent, including the phase roadmap, and improving the GitHub
+front page. Back up/migrate the local Docker playground to one Bellpull plugin;
+use a supported stock Hermes image, preserve data/configuration and verify idle
+before restart. Push the integration branch and publish a clearly labeled
+prerelease with matching APK/plugin/instructions. A documentation-only front-page
+update is authorized; do not merge preview app code into master. No personal
+server access or personal plugin deployment. Earlier no-push/publication rules
+below are superseded only for this requested development release.
+
 **Latest authority (2026-10-13, personal app update):** after combined fixture
 acceptance, the user explicitly requested the latest app on their phone to try.
 Install the signed 0.8.1-integration-preview/build20 APK in place, preserving the

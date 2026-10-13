@@ -3,7 +3,9 @@
 `integration/phase6-8-9` combines the independently tested OpenCode and planning
 branches. App `0.8.1-integration-preview`, plugin `0.4.0-integration-preview`.
 Signed local artifacts are in `build/releases/0.8.1-integration-preview/` with
-`SHA256SUMS`; this is a local preview, not a published release.
+`SHA256SUMS`. The user authorized publishing the matching
+[experimental prerelease](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1),
+including the phase roadmap. This is not a stable-release declaration.
 The APK uses the existing signer/rotation lineage; signature, version metadata
 and 16-KiB ZIP alignment were checked. SHA-256:
 `84069d410f42cefea93dea8d53f03475e89aed335f767fd747c1e81bab86d92b`.
@@ -17,7 +19,9 @@ over corrected 0.5.5 with the same certificate, UID10260 and CE/DE data-director
 inodes 117766/116002. The previous installed APK was copied to `personal-upgrade/`
 first; installation and package verification logs are beside it. The app was left
 stopped for the user to open. No personal plugin deployment, personal-server
-access, push or release publication occurred.
+access occurred during installation. Subsequent GitHub publication is separately
+authorized; preview app code remains on `integration/phase6-8-9` and the default
+branch receives only the front-page/roadmap documentation update.
 
 ## Corrected 0.5.5 installation — 2026-10-12
 

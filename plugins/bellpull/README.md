@@ -41,12 +41,13 @@ work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
 Use Bellpull Android 0.3.7 or newer for the complete audit repair. The earlier Phase 4 pair was Android 0.4.0/plugin 0.3.0. This integration package
 includes those project and file features; use the matching integration checkout or
-local plugin archive. This integration branch has not been pushed or published.
+plugin archive from the
+[0.8.1 development release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1).
 Install on your server yourself:
 
 ```bash
 # From the matching unpacked integration plugin bundle or repository checkout:
-# integration/phase6-8-9 is local until it is explicitly pushed.
+# Source branch: integration/phase6-8-9; use the complete matching release bundle.
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
 HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu

@@ -1,3 +1,7 @@
+> **Current phases:** see [docs/ROADMAP.md](docs/ROADMAP.md), updated October 13.
+> The implementation notes below are historical; Phase 7 is now Hermes prompt
+> optimization rather than a Quick Chat app feature.
+
 ## Bellpull implementation — 2026-10-10
 
 **2026-10-11 Phase 5:** conversational voice and compact drawer/filter work are

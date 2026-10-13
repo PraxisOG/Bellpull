@@ -6,7 +6,11 @@ branches remain intact. App **0.8.1-integration-preview / build 20**; one Bellpu
 plugin **0.4.0-integration-preview**. The combined **fixture app** passed phone
 acceptance on October 13. The user then requested the latest personal app; the
 signed build20 was installed in place over 0.5.5 with its signer and data preserved.
-No push, default-branch merge, release publication or personal-server access.
+Development release: [0.8.1 integration preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1).
+The user authorized pushing this branch and publishing the experimental bundle.
+The default branch receives documentation only; preview app code remains here.
+No personal-server access. The [current phase roadmap](ROADMAP.md) accompanies
+the release, including Phase 7's later backend-only scope.
 
 ## What was combined
 
@@ -161,6 +165,16 @@ reverse ports removed, physical resolution restored, existing density override 4
 preserved, and local fixture processes stopped. At fixture cleanup the personal
 package was still stopped at **0.5.5/code17, UID10260** with saved accounts untouched.
 Thermal status was 0 when checked; this acceptance was not a thermal benchmark.
+
+Additional deployment preflight on unmodified official Hermes `v2026.9.24`
+(internal `0.21.5`, amd64 digest
+`sha256:2fd023efbb8d3d2b0ce1a73d028b07370cff34f567cfe0e999553e8c327ea283`)
+passed **43 focused Python tests**: 18 coding, 9 planning, 13 projects and
+3 portable-sharing tests. This is a separate stock-image result, not a full-suite
+or real-inference pass. It confirms the new process tracking and native plugin
+surface needed for coding/planning. Private hash-pinned legacy branch/input/model
+extensions remain gated off on this newer stock image. The dev server migration
+is a separate action; no success is implied merely by publishing this bundle.
 
 ## Personal app installation — October 13
 

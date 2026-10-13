@@ -1,3 +1,21 @@
+## October 13: experimental release and phase roadmap
+
+The user authorized publishing the latest development preview, including the
+phase roadmap and a refreshed GitHub front page, and prioritized publication
+before completing the dev-server migration. Source is `integration/phase6-8-9`;
+release tag is `android-v0.8.1-integration-preview.1`. App 0.8.1/build20 and plugin
+0.4.0-integration-preview are paired. `docs/ROADMAP.md` incorporates the later
+Phase 7 decision: Hermes prompt optimization only, no Quick Chat app feature.
+The original October 11 roadmap is included unchanged. Default-branch changes
+are documentation/gallery only; preview app code is not merged into master.
+
+For the separately requested local dev-server migration, the old host is still
+the legacy four-overlay gateway. A replacement official unmodified Hermes
+v2026.9.24/internal0.21.5 image passed 43 focused tests (coding18/planning9/
+projects13/portable3). Its digest and limitations are in the integration guide.
+No cutover has occurred yet; publication takes priority. Personal server remains
+off limits. The device update and combined test evidence follow below.
+
 ## October 13: combined integration passed isolated phone acceptance
 
 The user authorized merging the two feature branches, then asking for ADB and
