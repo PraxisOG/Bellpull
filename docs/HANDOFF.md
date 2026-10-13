@@ -9,7 +9,11 @@ Exactly one admission, live updates/reconnects, drafts, child/coordinator comple
 compression/fork isolation and missing-model startup passed. UI harness clipping
 was repaired; no Phase 6 product change required. Real OpenCode/provider/personal
 host behavior and exact Docker CI remain unverified. Personal 0.5.5 untouched.
-See PHASE-6-OPENCODE.md for reproduction and evidence; planning phone checks follow.
+See PHASE-6-OPENCODE.md for reproduction and evidence. The independent planning
+branch subsequently passed three phone tests at both widths, the actual permission
+flow and nine focused Python tests; evidence is committed at `3deab54`. All fixture
+packages, test forwarding/captures and temporary display overrides were cleaned up.
+Personal app remains 0.5.5; neither branch was pushed or merged.
 
 ## Phase 6 local implementation — October 12
 
