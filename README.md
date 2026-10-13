@@ -1,137 +1,146 @@
-<img src="docs/images/bellpull-icon.png" alt="Bellpull app icon: a white hand pulling a bell cord on maroon" width="96" height="96" align="right">
+<div align="center">
 
-# Bellpull — Hermes Android
+<img src="docs/images/bellpull-icon.png" alt="Bellpull bell cord icon" width="112" height="112">
 
-**[Download Bellpull 0.3.3 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.3-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1)
+# Bellpull
 
-## Try it on your phone
+**Your Hermes conversations, projects, voice, and ongoing work.**
 
-1. Download **Bellpull.apk** on an Android 10 or newer phone.
-2. Open the download and allow your browser or file manager to install this app if Android asks.
-3. Open **Bellpull** and tap **Explore a sample chat**. No account or server connection is required.
-4. When you want to connect an agent, open **Settings → Server profiles → Add server**.
-   Enter a profile name, your Hermes API server URL and API key, then tap **Save and connect**.
-   Settings is also available from the chat's three-dot menu.
+A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
-The sample conversation is local and fictional; it does not run an LLM or contact
-an agent. You can explore the layout, copy/read sample messages and change appearance.
-No agent, server account or API key is included. This development preview is signed
-with the project's current debug certificate; it can update the matching development
-build without uninstalling it. Existing connections migrate into an **Existing server**
-profile with their local chats and drafts preserved.
+[![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
+[![Development preview](https://img.shields.io/badge/preview-0.8.1-59091e?style=flat-square)](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1)
+[![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-Use a reachable HTTPS URL, or your server's Tailscale address. Optional Bellpull
-features need the [server extensions](server-patches/README.md); the app checks
-what your server supports. Source/build details follow below.
+[**Download the preview**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.1)
 
-A native Android chat client for a self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built with Kotlin and Jetpack Compose. Designed for compact, adaptive conversation layouts on a Pixel Fold running GrapheneOS, without Firebase or Google Play Services.
+</div>
 
-## A look inside
+---
 
-Foldable layouts, compact message controls, light and dark themes, and optional server
-profiles. These screenshots are rendered from Bellpull 0.3.3 using fictional chats
-and example server addresses. Click any image to view it at full size.
+## A place for the work already in Hermes
 
-| Maroon · unfolded with camera cutout | Black · conversations, chat and context |
+Chat with live thinking and tool activity. Organize conversations into projects.
+Talk with on-device speech recognition. Follow coding work without leaving the
+conversation, and keep reminders and calendar blocks nearby.
+
+| Conversations and context | Fold-aware workspace |
 | :---: | :---: |
-| [<img src="docs/images/unfolded-maroon.png" alt="Maroon unfolded layout with conversations, compact message actions, tool results and a context panel beside the camera cutout" width="420">](docs/images/unfolded-maroon.png) | [<img src="docs/images/unfolded-dark.png" alt="Black theme with three panes for conversations, chat and context" width="420">](docs/images/unfolded-dark.png) |
+| [<img src="docs/images/unfolded-dark.png" alt="Dark conversation view with compact responses and a context panel" width="430">](docs/images/unfolded-dark.png) | [<img src="docs/images/unfolded-maroon.png" alt="Maroon chat layout adapted around a foldable camera cutout" width="430">](docs/images/unfolded-maroon.png) |
 
-| Explore without connecting | Compact message controls | Server profiles and themes |
+| Projects | Coding activity | Calendar blocks |
 | :---: | :---: | :---: |
-| [<img src="docs/images/welcome.png" alt="Bellpull welcome screen offering a local sample chat and optional Settings" width="250">](docs/images/welcome.png) | [<img src="docs/images/message-controls.png" alt="Maroon chat with compact response action buttons and tool results" width="250">](docs/images/message-controls.png) | [<img src="docs/images/server-profiles.png" alt="Settings showing fictional desktop and compute server profiles, sign out, credential removal and theme choices" width="250">](docs/images/server-profiles.png) |
+| [<img src="docs/images/projects-preview.png" alt="Project overview with a description, pinned chat and running conversation" width="250">](docs/images/projects-preview.png) | [<img src="docs/images/coding-preview.png" alt="OpenCode activity showing tool output and a response" width="250">](docs/images/coding-preview.png) | [<img src="docs/images/calendar-preview.png" alt="Day calendar with overlapping appointments and an unfinished reminder" width="250">](docs/images/calendar-preview.png) |
 
-## Current state
+*Rendered screenshots use fictional data. The conversation gallery shows 0.3.3;
+the project, coding and calendar panels show the development preview.*
 
-Bellpull Phase 2 is implemented: streaming conversations, compact tool/thinking rows, searchable history, context panels, message copying and read-aloud, selected-message branching, prompt editing, themes and Android wallpaper colors. Durable runs recover from disconnects and app restarts; unread conversations rise to the top. Optional ntfy-backed notifications and exact-request tool approvals use the accompanying server extensions.
+## What is in the preview?
 
-Phase 2 also includes encrypted named server profiles, switching, sign-out and removal
-of saved credentials. Chats, drafts, unread state and run recovery are isolated by profile.
-New installations open a useful disconnected workspace with optional setup in Settings.
+| Area | What you can do |
+| :--- | :--- |
+| **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
+| **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
+| **Voice input** | Use downloaded Moonshine Tiny, Small or Medium Streaming locally; tap for conversation mode or hold for dictation. |
+| **Voice output** | Use the installed Android voice, or experiment with on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
+| **Coding activity** | Open a chat → **Activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
+| **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
+| **Calendar** | Opt into selected phone calendars, view day/week blocks, and separately enable writes. Hermes proposals require a phone Apply action. |
+| **Files and profiles** | Preview/share persistent files and keep credentials, caches, drafts and organization scoped to each Hermes connection. |
 
-Phase 3 adds configured model selection in Context, supported reasoning controls,
-per-profile defaults for new chats, file/image selection and camera capture, persistent
-uploads with retry/cancel, native PDF/image previews, a Tools attachment browser, and
-Android share-in/share-out. Generated files use the same authenticated records as
-uploads. Files appear as compact conversation artifacts with filename, Download and
-View actions. View opens a rounded preview dialog with scrolling, fit/zoom, PDF page
-navigation, Open/Save/Share, and an optional right drawer for side-by-side reading.
-The separate [GPU plugin](plugins/bellpull_gpu/README.md) reads local
-AMD/NVIDIA temperatures on the Hermes host; no SSH or model call is needed.
+No Firebase or Google Play Services. A Hermes server and its model provider remain
+yours to configure. Speech input can run entirely on the phone; model downloads
+are required. Bellpull never silently substitutes a speech engine or inference model.
 
-These features require the [Phase 3 server extension](server-patches/bellpull-phase3/README.md).
-Model availability and vision/reasoning depend on the configured backend. The verified
-local Qwen route supports thinking On/Off, not graded effort. GPU cards appear only
-when the plugin can read actual hardware; missing tools/sensors show unavailable.
+> [!IMPORTANT]
+> **This is an experimental prerelease:** Android **0.8.1-integration-preview / build 20**
+> pairs with Bellpull plugin **0.4.0-integration-preview**. New server features need
+> the plugin and compatible Hermes capabilities. Background/offline reminder alerts
+> are planned for Phase 10. Real OpenCode/provider, car audio and cloud calendar sync
+> still need acceptance. The full plugin compatibility suite has known failures;
+> this is not a claim that every check is green.
 
-Each Hermes response now shares one outlined bubble across its text, thinking,
-tool calls and generated artifacts. Tool and file rows reach the bubble edges,
-sharing its outline and outer corners. **Settings → Dense chat window** hides speaker
-names and permanent action bars; long-press a bubble for its actions. Copy and Select
-text cover the response's prose, while tool rows retain their own details and data.
-The chat's three-dot menu includes **View artifacts**. Android Back returns from
-Settings to your chat and closes an open conversations panel before leaving the app.
+## Get started
 
-Projects and Today still have placeholder pages. Settings include experimental immersive
-mode with camera-cutout-aware headers. Side panels slide in 180ms unless Reduce motion
-or Android's animation settings disable motion. See the handoff for physical-versus-rendered coverage.
+1. Download [**Bellpull.apk**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/Bellpull.apk) from the development release.
+2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
+   preserve its data and signing identity rather than uninstalling it.
+3. Open the app. **Explore a sample chat** works without a server.
+4. Add your server under **Settings → Server profiles → Add server**, using its HTTPS
+   API URL and bearer key. Served native profile URLs such as `/p/work` are supported.
+5. For on-device voice, choose and download a model in **Settings → Voice input**.
+   Choose speech playback separately under **Voice output**.
 
-Phase 3 validation includes JVM/screenshot checks, APK/lint, isolated real-adapter
-tests, Android content-provider imports, failed-upload retry, native PDF/image previews,
-camera capture and an actual Sharesheet recipient with read-only grants. A live Hermes
-test identified an uploaded image, read a PDF and generated a new downloadable PDF.
-See [the handoff](docs/HANDOFF.md) for exact counts, phone acceptance, advisory lint
-warnings and remaining hardware/network limits. The gallery above shows the 0.3.3 UI;
-its [source list](docs/images/README.txt) is included. No private phone screenshots are published.
+[Earlier 0.3.3 preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1) ·
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/SHA256SUMS)
 
-## Build and test
+## Connect Hermes
 
-For the experimental Linux Mint launcher that runs a Bellpull APK in an isolated
-Android emulator, see [desktop/mint-emulator/README.txt](desktop/mint-emulator/README.txt).
-It builds a `.deb` and portable archive, keeps its own Android data and never targets
-a connected phone. This is a desktop preview; a native Compose Desktop port remains
-future work. Its existing packaged release contains the earlier 0.1.0 phone preview;
-the Android download above contains the current phone update. Desktop packaging is
-parked while Android development continues.
+The release includes a [**matching plugin bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.1-integration-preview.1/bellpull-plugin-0.4.0-integration-preview.tar.gz).
+Unpack it on your Hermes host, back up the data home, then preview the installer:
 
-Requires JDK 17, Android SDK Platform 37, Python 3 for the local HTTP fixtures, and network access to download Gradle dependencies. Set `ANDROID_HOME` to your SDK directory or create an untracked `android/local.properties` containing `sdk.dir=/absolute/path/to/Android/Sdk`.
-
-From the repository root:
-
-```sh
-./android/gradlew -p android test verifyRoborazziDebug :app:assembleDebug :app:lintDebug
+```bash
+python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
+python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
+HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu
+HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins enable bellpull
 ```
 
-The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. These checks run locally without a phone or live inference; the live smoke test is opt-in. Device instrumentation includes a credential-clearing test and should not be run indiscriminately on a configured personal phone.
+Restart the gateway with its existing service manager, then reconnect Bellpull to
+refresh discovery. Skip disabling `bellpull_gpu` if it is not installed. Use the
+actual data home, including for a named Hermes profile. **Stock installation uses
+one plugin; no Docker or core-file replacements are required.** Existing legacy
+core-overlay installations need the documented migration rather than an overlay.
 
-Android 10 (API 29) is the minimum supported version; the current target is API 37. Release signing is optional and configured through ignored `android/keystore.properties` and your own keystore. A release build without those credentials is unsigned.
+[Installation, compatibility and rollback](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/plugins/bellpull/README.md) ·
+[Combined acceptance and known failures](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/INTEGRATION-6-8-9.md)
 
-## Connect a server
+## Verification and scope
 
-Open **Settings → Server profiles → Add server** and enter a name, reachable Hermes API
-URL and bearer key. The verified deployment uses Tailscale; provide your own server
-access and credentials. Keys are stored through Android encrypted preferences and
-are never part of this repository.
+The combined build passed **548 JVM tests**, **170 screenshot baselines**, Android
+build/lint, and **11 final fixture-phone test executions** across unfolded and
+simulated narrow widths, including the actual calendar permission flow. One live
+provider smoke test was skipped. Phone checks used disposable local Hermes,
+deterministic inference/child processes and a disposable LOCAL calendar.
 
-Save separate profiles for a desktop test server and a compute server, then tap
-**Use profile** to switch. **Sign out** returns to the disconnected workspace while
-keeping saved profiles. **Remove** deletes one profile; **Remove all credentials**
-deletes all saved server URLs, keys and local account data, including cached chats,
-drafts and recovery records. Neither option deletes remote chats or revokes server
-keys. Switching or signing out leaves remote work running; saved profiles recover
-their work when selected again. Notifications follow the active profile.
+Known legacy approval failures and unsupported host-extension checks remain
+recorded in the handoff. These results do not establish personal-provider behavior,
+real scheduled inference, account synchronization or physical hinge transitions.
+See [the evidence](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/INTEGRATION-6-8-9.md)
+and [the phase roadmap](docs/ROADMAP.md) for what is implemented, provisional and deferred.
 
-[docs/hermes-api.md](docs/hermes-api.md) is the API contract. Some features require the capability-gated extensions in [server-patches](server-patches/README.md); they are not assumed to exist in an arbitrary upstream Hermes installation. The patches include their tested base versions, build order, isolated tests and deployment caveats. No live server configuration or credentials are included.
+## For contributors and agents
 
-## Where to start
+The preview source is on **[`integration/phase6-8-9`](https://github.com/PraxisOG/Bellpull/tree/integration/phase6-8-9)**.
+The default branch retains the earlier app code with updated documentation;
+use the integration branch to inspect or build this preview.
 
-- [docs/HANDOFF.md](docs/HANDOFF.md): latest implementation, verification and remaining work, followed by historical entries.
-- [ROADMAP.md](ROADMAP.md) and [Bellpull-Implementation-Prompt.txt](Bellpull-Implementation-Prompt.txt): Bellpull direction and phased work. Later user refinements recorded in the handoff supersede the original brief.
-- [CLAUDE.md](CLAUDE.md): repository conventions and constraints; older status sections should be read alongside the latest handoff.
-- `android/app`: Compose UI, local state, recovery, notifications and Android services.
-- `android/core-hermes` and `android/core-model`: HTTP/SSE client and shared data types.
-- `mock-hermes`: local contract-test fixtures.
-- `desktop/mint-emulator`: isolated Linux Mint emulator launcher, packaging and smoke fixture.
-- `server-patches`: versioned server extensions needed by the current client.
-- `phone-ping-plugin` and [ROADMAP-TIER2.md](ROADMAP-TIER2.md): the older phone-bridge track, separate from Bellpull Phase 2.
+```bash
+git clone --branch integration/phase6-8-9 --recurse-submodules https://github.com/PraxisOG/Bellpull.git
+cd Bellpull
+./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
+```
 
-The upstream Hermes code included under `server-patches` retains its [MIT notice](server-patches/LICENSE.hermes-agent). No project-wide open-source license has been selected for the app.
+Use JDK 21, Android SDK platform 37/build-tools 37.0.0, NDK 29.0.14206865 and
+CMake 3.31.6. Local fixtures use Python 3. Debug APKs are separate from the signed
+release and must not be assumed to update a personal installation. Instrumentation
+uses the disposable fixture package; some tests clear credentials and must never
+be run indiscriminately against a configured personal app.
+
+| Read first | Purpose |
+| :--- | :--- |
+| [Phase roadmap](docs/ROADMAP.md) | Phases 0–17, revised scope and honest implementation status. |
+| [Handoff](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
+| [API contract](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
+| [Repository instructions](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/CLAUDE.md) | Scope, dependencies and deployment boundaries. |
+| [Build/signing notes](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/release.md) | Signing lineage, updates and rollback limits. |
+
+The [Linux Mint emulator launcher](https://github.com/PraxisOG/Bellpull/tree/integration/phase6-8-9/desktop/mint-emulator)
+is a separate earlier experiment. Desktop packaging, on-device LLMs, offline agent
+conversations and Android Auto are not requirements for this preview.
+
+---
+
+Bellpull is [MIT licensed](LICENSE). Hermes and bundled libraries retain their own
+notices in the repository and in **Settings → About**. No server credentials,
+private phone captures or model weights are included in the release.

@@ -1,4 +1,4 @@
-Bellpull README images — version 0.3.3
+Bellpull README images — 0.3.3 gallery and 0.8.1 development panels
 
 bellpull-icon.png is an unchanged copy of the app icon in
 android/app/src/main/res/drawable-nodpi/bellpull_icon.png.
@@ -15,3 +15,8 @@ unfolded-dark.png <- org.praxisog.hermes.HermesAppScreenshotTest.threePaneUnfold
 welcome.png <- org.praxisog.hermes.DisconnectedWorkspaceTest.welcomeCover.png
 message-controls.png <- org.praxisog.hermes.ThemeScreenshotTest.maroonWhiteCover.png
 server-profiles.png <- org.praxisog.hermes.DisconnectedWorkspaceTest.savedProfilesCover.png
+
+Development panels copied unchanged from the combined preview's verified baselines:
+projects-preview.png <- org.praxisog.hermes.ProjectsScreenshotTest.projectViewCover.png
+coding-preview.png <- org.praxisog.hermes.CodingActivityScreenshotTest.activityCover.png
+calendar-preview.png <- org.praxisog.hermes.PlanningScreenshotTest.calendarDayCover.png

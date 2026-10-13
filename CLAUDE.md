@@ -63,6 +63,15 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Current documentation authority (2026-10-13):** the user requested the latest
+experimental release, its phase roadmap, and a refreshed GitHub front page.
+This default-branch update is documentation/gallery/licensing only. The preview
+app/plugin source is on `integration/phase6-8-9`; read its CLAUDE.md and handoff
+before implementing or deploying. `docs/ROADMAP.md` describes the current phases
+0–17, including backend-only Phase 7. The phase/status notes below are historical.
+The user's personal Hermes server is off limits. No personal-server access is
+implied by the published bundle or by the local development-server update.
+
 **Current authority (2026-10-09):** `Bellpull-Implementation-Prompt.txt` and later
 user refinements define Bellpull Phases 0–7. The Tier 1/2/3 paragraphs below are
 historical, not the active phase plan. Bellpull Phase 2 is reliable runs, unread

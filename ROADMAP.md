@@ -1,3 +1,7 @@
+> **Current phases:** see [docs/ROADMAP.md](docs/ROADMAP.md), updated October 13.
+> The notes below describe the earlier implementation. Preview source is on
+> `integration/phase6-8-9`; Phase 7 now means Hermes prompt optimization.
+
 ## Bellpull implementation — 2026-10-10
 
 The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
