@@ -76,7 +76,16 @@ internal object DeviceFixtureUi {
         }
         error("Touch target remains clipped: $value")
     }
+    fun scroll(forward: Boolean) {
+        val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        val node = find { it.isScrollable && it.actionList.any { a -> a.id == action } }
+        checkNotNull(node) { "No scrollable fixture view" }
+        check(node.performAction(action))
+        automation.waitForIdle(300, 3000)
+    }
     fun screenshot(name: String) {
+        automation.waitForIdle(300, 3000)
+        SystemClock.sleep(200)
         val context = ApplicationProvider.getApplicationContext<Context>()
         File(context.getExternalFilesDir(null), "$name.png").outputStream().use {
             checkNotNull(automation.takeScreenshot()).compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
@@ -85,7 +94,7 @@ internal object DeviceFixtureUi {
     fun withWindows(block: () -> Unit) {
         guard()
         val flags = automation.serviceInfo.flags
-        automation.serviceInfo = automation.serviceInfo.apply { this.flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS }
+        automation.serviceInfo = automation.serviceInfo.apply { this.flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS }
         try { block() } finally { automation.serviceInfo = automation.serviceInfo.apply { this.flags = flags } }
     }
 }

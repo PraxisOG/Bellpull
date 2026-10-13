@@ -1,3 +1,17 @@
+## Local combined integration preview — 0.8.1 / build 20
+
+`integration/phase6-8-9` combines the independently tested OpenCode and planning
+branches. App `0.8.1-integration-preview`, plugin `0.4.0-integration-preview`.
+Signed local artifacts are in `build/releases/0.8.1-integration-preview/` with
+`SHA256SUMS`; this is not a published release or an installed personal update.
+The APK uses the existing signer/rotation lineage; signature, version metadata
+and 16-KiB ZIP alignment were checked. SHA-256:
+`84069d410f42cefea93dea8d53f03475e89aed335f767fd747c1e81bab86d92b`.
+Local checks and remaining CI/provider limits are in
+[the combined handoff](INTEGRATION-6-8-9.md). Ask for ADB availability before using
+the fixture package for combined acceptance. Personal app remains corrected 0.5.5;
+no access to the personal Hermes server, push or release publication is authorized.
+
 ## Corrected 0.5.5 installation — 2026-10-12
 
 The first 0.5.5 APK from `c5dceec` crashes on launch: the shipped Qwen checkpoint

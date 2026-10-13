@@ -1,5 +1,10 @@
 # Phase 6 preview: monitor OpenCode through Hermes
 
+> This records the original feature branch and its independent acceptance.
+> The combined app/plugin versions and current checks are documented in
+> [the integration handoff](INTEGRATION-6-8-9.md).
+
+
 Independent branch `feature/phase6-opencode-activity`, based on corrected 0.5.5.
 This is a local preview, not a published release or a personal-server deployment.
 The personal app remains corrected Phase 5. The user returned ADB for isolated

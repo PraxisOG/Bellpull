@@ -24,7 +24,7 @@ import model_tools
 
 @unittest.skipUnless(all(k in inspect.signature(getattr(model_tools,"_emit_post_tool_call_hook",lambda:None)).parameters for k in ("turn_id","tool_call_id")) and "owner_task_id" in ProcessSession.__dataclass_fields__, "Host lacks verified native ownership hooks; pure observer tests still run")
 class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
-    async def test_stock_admission_observation_reconnect_workspace_and_one_run(self):
+    async def test_stock_admission_coding_and_planning_share_one_plugin_and_one_run(self):
         release=threading.Event()
         original_sink=process_registry.on_output
         core=Path(api_server.__file__).resolve().parents[2]
@@ -63,6 +63,13 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(await adapter.connect())
                 async with ClientSession(headers={"Authorization":"Bearer "+key}) as client:
                     origin="http://127.0.0.1:18648"
+                    response=await client.get(origin+"/api/bellpull/capabilities")
+                    capabilities=await response.json()
+                    self.assertTrue(capabilities["features"]["bellpull_coding_activity"])
+                    self.assertTrue(capabilities["features"]["bellpull_planning"])
+                    reminder=dict(operation_id="e"*32,action="create",title="Review coding output",due_ms=2000000000000)
+                    response=await client.post(origin+"/api/bellpull/planning/reminders",json=reminder)
+                    self.assertEqual(200,response.status,await response.text())
                     response=await client.post(origin+"/api/sessions",json={})
                     session=(await response.json())["session"]["id"]
                     response=await client.post(origin+"/v1/runs",headers={"Idempotency-Key":"coding-once"},json={"input":"Fixture","session_id":session})
@@ -78,6 +85,13 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                         self.fail("No observed output")
                     snapshot=await observed()
                     self.assertEqual(run,snapshot["works"][0]["run_id"])
+                    response=await client.get(origin+"/api/bellpull/planning")
+                    planning=await response.json()
+                    self.assertEqual(["Review coding output"],[r["title"] for r in planning["reminders"]])
+                    current=planning["reminders"][0]
+                    response=await client.post(origin+"/api/bellpull/planning/reminders",json=dict(
+                        operation_id="f"*32,action="complete",id=current["id"],revision=current["revision"]))
+                    self.assertEqual(200,response.status,await response.text())
                     self.assertEqual("ses_fixture",snapshot["works"][0]["open_code_session_id"])
                     response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding?after={snapshot['cursor']}")
                     delta=await response.json(); self.assertFalse(delta["reset"]); self.assertEqual([],delta["rows"])

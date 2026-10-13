@@ -1,5 +1,12 @@
 <img src="docs/images/bellpull-icon.png" alt="Bellpull app icon: a white hand pulling a bell cord on maroon" width="96" height="96" align="right">
 
+Local combined preview: **0.8.1-integration-preview** / build 20, with Bellpull
+plugin **0.4.0-integration-preview**, on `integration/phase6-8-9`.
+It includes OpenCode activity and Today reminders/routines/phone calendar alongside
+existing chat, projects, files and voice. See [integration checks and installation](docs/INTEGRATION-6-8-9.md).
+This branch is not a published release; earlier feature-preview notes below are historical.
+
+
 # Bellpull — Hermes Android
 
 **[Download Bellpull 0.3.3 for Android (.apk)](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.3.3-preview.1/Bellpull.apk)** · [Release notes and checksum](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1)

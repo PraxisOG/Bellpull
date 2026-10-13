@@ -84,6 +84,7 @@ internal fun HermesApp(
     serverProfiles: (@Composable () -> Unit)? = null,
     settingsRevision: Int = 0,
     extraTools: (@Composable () -> Unit)? = null,
+    planningView: (@Composable () -> Unit)? = null,
     modelControl: (@Composable () -> Unit)? = null,
     composerLeading: (@Composable () -> Unit)? = null,
     attachmentStrip: (@Composable () -> Unit)? = null,
@@ -253,7 +254,7 @@ internal fun HermesApp(
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
                                     selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,
                                     preferences.titleOnlyConversations)
-                                WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
+                                WorkspaceMode.TODAY -> if (planningView != null) planningView() else Column(Modifier.padding(24.dp)) {
                                     Text("Coming soon", style = MaterialTheme.typography.titleLarge)
                                     Text("Reminders and follow-ups will appear here.")
                                 }

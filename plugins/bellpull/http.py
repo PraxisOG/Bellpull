@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, streaming, projects
+from . import VERSION, branches, models_files, streaming, projects, planning
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -92,6 +92,8 @@ def wire(app, adapter):
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
                 "bellpull_coding_activity": coding.supported,
+                "bellpull_planning": projects_ready,
+                "bellpull_routines": projects_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
             "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
             headers={"Cache-Control": "no-store"})
@@ -162,6 +164,7 @@ def wire(app, adapter):
         routes.extend(coding.routes())
     if projects_ready:
         routes.extend(projects.routes(adapter))
+        routes.extend(planning.routes(adapter))
     if files_ready:
         routes.extend([
             ("GET", "/api/bellpull/plugins/gpu", gpu),

@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
         if (permissionProfile != null && permissionProfile == runtime.profileId) setNotifications(granted)
     }
+    private var calendarPermissionProfile: String? = null
+    private val calendarPermissions = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+        if (calendarPermissionProfile==runtime.profileId) runtime.planning?.permissionChanged()
+        calendarPermissionProfile=null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,6 +126,12 @@ class MainActivity : ComponentActivity() {
                         onDispose { reader.stop() }
                     }
                     HermesApp(
+                        planningView = runtime.planning?.let { planning -> {
+                            PlanningScreen(planning,foreground) { write ->
+                                calendarPermissionProfile=runtime.profileId
+                                calendarPermissions.launch(if (write) arrayOf(android.Manifest.permission.READ_CALENDAR,android.Manifest.permission.WRITE_CALENDAR) else arrayOf(android.Manifest.permission.READ_CALENDAR))
+                            }
+                        } },
                         projects = runtime.projects,
                         onRetryProjectCreation = { runtime.projects?.let { workspace -> scope.launch {
                             when (val result = workspace.retryPending()) {

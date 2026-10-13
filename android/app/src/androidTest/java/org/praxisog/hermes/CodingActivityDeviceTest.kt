@@ -45,6 +45,7 @@ class CodingActivityDeviceTest {
         val client = HermesClient(origin, { key })
         val capabilities = (client.capabilities() as HermesResult.Ok).value
         assertTrue(capabilities.features["bellpull_coding_activity"] == true)
+        assertTrue(capabilities.features["bellpull_planning"] == true)
         withCache(profile.id) { cache ->
             cache.writeCapabilities(capabilities.raw.toString())
             cache.rememberSession("phone_coding")
@@ -76,6 +77,27 @@ class CodingActivityDeviceTest {
                     runtime.coding?.workspace?.diff?.contains("+After fixture edit") == true }
                 ui.screenshot("phase6-diff")
                 ui.tapText("Close")
+                // Exercise both destinations through the same application-owned runtime/client.
+                if (ui.text("Today") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
+                ui.tapText("Today")
+                ui.awaitMain("Combined planning did not load") { runtime.planning?.snapshot != null && runtime.planning?.loading == false }
+                ui.main { runtime.planning!!.action("reminders",buildJsonObject {
+                    put("operation_id",java.util.UUID.randomUUID().toString().replace("-",""))
+                    put("action","create"); put("title","Review ongoing OpenCode work")
+                    put("due_ms",System.currentTimeMillis()+3600000)
+                }) }
+                ui.awaitMain("Reminder mutation interrupted the coding run") {
+                    runtime.planning?.snapshot?.reminders?.any { it.title=="Review ongoing OpenCode work" } == true &&
+                        runtime.store?.runs?.states?.get("phone_coding")?.busy == true
+                }
+                ui.screenshot("combined-today-during-coding")
+                if (ui.text("Chats") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
+                ui.tapText("Chats")
+                ui.awaitMain("Activity or draft did not survive Today navigation") {
+                    runtime.coding?.snapshot?.works?.size == 2 && runtime.store?.draft?.text=="Preserve this follow-up draft"
+                }
+                ui.await("Activity did not return") { ui.text("OpenCode · Running") != null }
+                assertEquals(1,control()["admissions"]!!.jsonPrimitive.int)
                 // A background/foreground transition must resume observation, not admission.
                 scene.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
                 control("advance")

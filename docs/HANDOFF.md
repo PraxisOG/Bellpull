@@ -1,3 +1,21 @@
+## October 12: combined integration ready for ADB request
+
+The user authorized merging the two feature branches, then asking for ADB and
+running combined phone acceptance. Integration is on `integration/phase6-8-9`;
+original feature branches are retained. App 0.8.1-integration-preview/build20,
+one plugin 0.4.0-integration-preview. No personal server, ADB, push or publication.
+
+Full Android checks passed: 548 JVM tests, one live smoke skip, 170 baselines,
+build/lint. Combined coding/planning Python checks: 27 passed; real native run
+observation and reminder mutation coexist with one admission. Full legacy fixture:
+122/125 pass, the same three baseline approval failures. Newer stock full suite:
+125 tests, 29 failures/4 errors in unsupported legacy/host routes; not a passing check.
+Exact Docker CI and combined phone behavior remain unverified. Signed APK and matching
+plugin bundle are prepared under build/releases/0.8.1-integration-preview/.
+See [combined evidence, compatibility and acceptance](INTEGRATION-6-8-9.md).
+
+The feature-branch evidence below is historical, not proof about this combined APK.
+
 ## October 12: Phase 6 isolated phone acceptance
 
 User returned ADB and requested Phase 6 tests first, then planning after clean
@@ -30,6 +48,64 @@ These are local artifacts, not an installed or published update.
 Full Android checks passed. All 18 focused coding Python tests passed on stock.
 The local legacy compatibility fixture had 113/116 passing, with three approval
 failures also reproduced on the unchanged 0.5.5 plugin; exact Docker CI is unrun.
+## October 12: isolated phone acceptance after Phase 6
+
+The user returned ADB for Phase 6 first, then planning after it passed. Phase 6
+passed two tests at unfolded and simulated narrow widths plus 18 focused Python
+tests, recorded on its independent branch at `37bbb85`.
+
+This branch passed three device tests at both widths (two planning scenarios and
+startup), a separate real permission-prompt check, all nine focused Python planning
+tests, fixture compilation and lint. Actual native Hermes routine storage, Android
+CalendarContract LOCAL-calendar CRUD/recurrence/marker retry, busy-only sharing,
+dropped result recovery without duplicate insertion, offline revocation, drafts and
+encrypted cache were exercised. Zero inference admissions; exact disposable calendar
+cleaned, including a final removal assertion. Product code/APK bytes unchanged.
+Harness fixes cover clipping, cover navigation, UI settling and permission prompts.
+
+Personal app remains corrected 0.5.5/code17/UID10260; no personal-server access,
+push, merge or release. Account/cloud sync, calendar-app handoff, actual scheduled
+inference, real OpenCode/provider behavior and exact Docker CI remain unverified.
+Older three approval-fixture failures remain baseline limitations; no checks weakened.
+See PHASE-8-9-REMINDERS-CALENDAR.md for reproduction/evidence and scope limitations.
+
+## Phase 8/9 local planning preview — 2026-10-12
+
+Independent branch `feature/phase8-9-reminders-calendar`, from corrected 0.5.5.
+App `0.8.0-planning-preview`/19, plugin `0.4.0-phase8-9`. Reminders, native routine
+controls, opted-in CalendarContract management and day/week blocks are implemented.
+Scope, compatibility and a concrete stock-host/phone acceptance checklist are in
+[PHASE-8-9-REMINDERS-CALENDAR.md](PHASE-8-9-REMINDERS-CALENDAR.md).
+
+Checks actually run:
+
+- Android: **537 discovered JVM tests, 536 passed, one opt-in live smoke skip**;
+  **165 screenshot baselines** verified; debug APK and lint passed. Includes five
+  CalendarContract fixture tests, two controller recovery tests, model/HTTP contracts
+  and both-width calendar/Today screenshots. Dialog opening/cancellation passed at
+  cover and unfolded widths; provider tests do not establish real account behavior.
+- Python: **nine focused planning tests passed** on unmodified disposable Hermes
+  `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`, including actual native cron storage,
+  authenticated HTTP, two-profile scheduler isolation and interrupted creation.
+- Full plugin attempt on the local legacy compatibility fixture: **107 tests,
+  104 passed, three legacy approval failures**. That fixture combines current source/
+  plugin loader with hash-pinned archived legacy adapter/approval modules, host v1
+  overlay and a synthetic 0.21.1 install stamp. The same failures reproduce with the
+  unchanged 0.5.5 plugin (10 approval tests, three failures); no exact Docker CI pass
+  is claimed. CI now includes focused planning tests with pinned action revisions.
+- Logs under `build/planning/`: `android-final.log`, `python-final.log`,
+  `plugin-legacy-fixture.log`; the baseline comparison is in the Phase 6 worktree,
+  `build/phase6/legacy-approval-baseline.log`.
+
+Signed local preview APK/plugin archive: `build/releases/phase8-9-0.8.0-preview/`.
+Release build, signature and ZIP alignment checks passed; APK SHA-256
+`86c7dfe0649940dc31e158f761d4bdeec0476ee6e989d16a8e27fbd577ce5164`.
+Local artifacts only; no device upgrade check was performed.
+
+No personal server access, ADB, preview installation, push, merge or publication.
+Reminder background/offline alerts, routine output bodies, automatic phone transport,
+real provider/sync adapter behavior and device acceptance remain open. The personal
+phone has corrected 0.5.5; its installation evidence is in [release.md](release.md).
 
 # Bellpull / Hermes app handoff
 

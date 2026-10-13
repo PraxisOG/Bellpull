@@ -1,15 +1,28 @@
-# Phase 6 plugin preview
+# Bellpull integration plugin 0.4.0-integration-preview
 
-This branch adds read-only OpenCode activity as **0.4.0-phase6**. Install with the
-existing stock-plugin procedure below, restart Hermes and refresh capabilities;
-`bellpull_coding_activity` must be true. No core patch, Docker or separate OpenCode
-port is required. Modern turn/process ownership hooks are required. Older hosts
-keep existing features and report coding unavailable. Back up the profile home;
-new journals live under `bellpull-coding/` and can remain during rollback.
-Read [scope, actual checks and manual acceptance](../../docs/PHASE-6-OPENCODE.md).
-The independent Phase 8/9 preview has different features; do not mix plugin folders.
+This single plugin includes OpenCode activity, reminders/native Hermes routines,
+opt-in phone calendar context/proposals, and the existing chat/files/projects features.
+Pair it with Android **0.8.1-integration-preview** (build 20) from
+`integration/phase6-8-9`. The separate Phase 6/8/9 preview plugin directories are
+superseded by this combined package; do not overlay individual module copies.
 
-# Bellpull plugin 0.3.0
+Install the entire `plugins/bellpull/` directory using the stock-plugin procedure
+below, restart Hermes, and refresh authenticated capabilities in Bellpull. No core
+replacement, Docker, second scheduler or separate OpenCode server is required.
+`bellpull_coding_activity` requires modern identity-bearing hooks;
+`bellpull_planning` requires the supported API handler surface;
+`bellpull_routines` additionally requires the per-profile native cron store.
+An older host can advertise only the features it supports. Calendar writes still
+require an explicit phone action, with sharing/writes off by default.
+
+Back up each native profile home and the old plugin. New coding/planning metadata
+is additive under `bellpull-coding/` and `bellpull-planning/`. Restore the whole old
+plugin and restart for rollback; stored chat/session schemas are unchanged.
+See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.md),
+[OpenCode scope](../../docs/PHASE-6-OPENCODE.md) and
+[planning scope](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).
+
+## Existing stock features and installation
 
 One Hermes plugin owns Bellpull's branch/edit endpoints, model controls,
 persistent artifacts, conversation projects, notification relay and optional GPU telemetry. It registers
@@ -26,17 +39,14 @@ atomic admission, concurrency, cancellation, replay and exact-request approvals.
 File publishing, authenticated downloads, storage management and GPU telemetry
 work through the native `register_platform_handler` plugin surface. They require
 **no Docker access, core replacements, pinned source hashes or hardcoded URL**.
-Use Bellpull Android 0.3.7 or newer for the complete audit repair. Phase 4 pairs
-Android **0.4.0** with this **0.3.0** plugin; its project metadata is additive.
-Phase 4 is on `feature/phase4-projects`; it is not a public release. Use
-the matching checkout or unpacked plugin bundle for Phase 4.
+Use Bellpull Android 0.3.7 or newer for the complete audit repair. The earlier Phase 4 pair was Android 0.4.0/plugin 0.3.0. This integration package
+includes those project and file features; use the matching integration checkout or
+local plugin archive. This integration branch has not been pushed or published.
 Install on your server yourself:
 
 ```bash
-# Obtain this development version in a fresh checkout:
-git clone --single-branch --branch feature/phase4-projects https://github.com/PraxisOG/Bellpull.git bellpull-0.4.0
-cd bellpull-0.4.0
-# From the matching unpacked Bellpull plugin bundle or repository checkout:
+# From the matching unpacked integration plugin bundle or repository checkout:
+# integration/phase6-8-9 is local until it is explicitly pushed.
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
 HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu
