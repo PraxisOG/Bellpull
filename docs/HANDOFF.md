@@ -3,7 +3,7 @@
 The user authorized publishing the latest development preview, including the
 phase roadmap and a refreshed GitHub front page, and prioritized publication
 before completing the dev-server migration. Source is `integration/phase6-8-9`;
-release tag is `android-v0.8.1-integration-preview.2`. App 0.8.1/build20 and plugin
+release tag is `android-v0.8.1-integration-preview.3`. App 0.8.1/build20 and plugin
 0.4.0-integration-preview are paired. `docs/ROADMAP.md` incorporates the later
 Phase 7 decision: Hermes prompt optimization only, no Quick Chat app feature.
 The original October 11 roadmap is included unchanged. Default-branch changes
@@ -33,8 +33,11 @@ positive integration. Full Android checks under UTC passed (548 + one live-smoke
 skip, 170 baselines). Exact pinned optional legacy Docker: 126 discovered, 125
 passed, one modern-only skip; modern coding: 18 passed, one older-only skip. This
 new exact-image result does not erase the earlier mixed-fixture failures. Preview
-`.2` adds build instructions and a source archive including all submodules. The
-signed APK and production app/plugin behavior are unchanged.
+`.2` added build instructions and a source archive including all submodules. The
+signed APK and production app/plugin behavior are unchanged. GitHub's follow-up
+plugin job passed; Android exposed a project screenshot's stale rendered-state
+race. `.3` additionally waits for the cached banner to leave the semantics tree
+before capture, without changing its baseline or production behavior.
 
 ## October 13: combined integration passed isolated phone acceptance
 

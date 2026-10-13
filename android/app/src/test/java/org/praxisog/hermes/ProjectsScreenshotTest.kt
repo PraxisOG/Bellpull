@@ -52,7 +52,14 @@ class ProjectsScreenshotTest {
             ProjectsPanel(workspace, sessions, UiFixtures.NOW, setOf("root"), mapOf("recent" to "Running"), setOf("recent"),
                 workspace::choose, {}, {}, {}, {}, {})
         } } }
-        if (supported) compose.waitUntil(5000) { workspace.fresh }
+        if (supported) {
+            compose.waitUntil(5000) { workspace.fresh }
+            // Background refresh can finish before Compose has applied its new snapshot.
+            compose.waitUntil(5000) {
+                compose.onAllNodesWithText("Showing cached organization. Reconnect and refresh to make changes.")
+                    .fetchSemanticsNodes().isEmpty()
+            }
+        }
         compose.waitForIdle()
         compose.onRoot().captureRoboImage()
     }
@@ -86,7 +93,12 @@ class ProjectsScreenshotTest {
     private fun organize() {
         val workspace = workspace(project.id)
         compose.setContent { HermesTheme { ProjectChatDialog(workspace, sessions.first()) {} } }
-        compose.waitUntil(5000) { workspace.fresh }; compose.waitForIdle(); captureScreenRoboImage()
+        compose.waitUntil(5000) { workspace.fresh }
+        compose.waitUntil(5000) {
+            compose.onAllNodesWithText("Reconnect and refresh projects to make changes.")
+                .fetchSemanticsNodes().isEmpty()
+        }
+        compose.waitForIdle(); captureScreenRoboImage()
     }
     @Test fun organizeCover() = organize()
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun organizeUnfoldedDark() = organize()

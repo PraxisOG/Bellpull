@@ -42,7 +42,7 @@ work through the native `register_platform_handler` plugin surface. They require
 Use Bellpull Android 0.3.7 or newer for the complete audit repair. The earlier Phase 4 pair was Android 0.4.0/plugin 0.3.0. This integration package
 includes those project and file features; use the matching integration checkout or
 plugin archive from the
-[0.8.1 development release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2).
+[0.8.1 development release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.3).
 Install on your server yourself:
 
 ```bash

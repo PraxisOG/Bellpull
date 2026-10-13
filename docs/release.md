@@ -4,7 +4,7 @@
 branches. App `0.8.1-integration-preview`, plugin `0.4.0-integration-preview`.
 Signed local artifacts are in `build/releases/0.8.1-integration-preview/` with
 `SHA256SUMS`. The user authorized publishing the matching
-[experimental prerelease](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2),
+[experimental prerelease](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.3),
 including the phase roadmap. This is not a stable-release declaration.
 The APK uses the existing signer/rotation lineage; signature, version metadata
 and 16-KiB ZIP alignment were checked. SHA-256:

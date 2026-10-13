@@ -6,7 +6,7 @@ branches remain intact. App **0.8.1-integration-preview / build 20**; one Bellpu
 plugin **0.4.0-integration-preview**. The combined **fixture app** passed phone
 acceptance on October 13. The user then requested the latest personal app; the
 signed build20 was installed in place over 0.5.5 with its signer and data preserved.
-Development release: [0.8.1 integration preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.2).
+Development release: [0.8.1 integration preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.3).
 The user authorized pushing this branch and publishing the experimental bundle.
 The default branch receives documentation only; preview app code remains here.
 No personal-server access. The [current phase roadmap](ROADMAP.md) accompanies
@@ -250,3 +250,12 @@ stock host and advertise false. Stop/SSE remain native. OpenCode is not installe
 on the development container yet; real coding/provider acceptance remains open.
 Local logs: `build/dev-server-2026-10-13/`; private backup details are in the ignored
 deployment record. Do not publish inspection/configuration/data-home backups.
+
+Follow-up GitHub run 38382175146 passed the complete plugin job, including exact
+legacy approvals and modern coding. Android passed the timezone fixes but failed
+one older project-view screenshot: its comparison image shows a cached-state
+banner after the background `fresh` flag changed. The test now also waits for the
+rendered cached banner to disappear before capture. Baselines and production code
+remain unchanged. The `.3` source follow-up carries this explicit UI synchronization;
+its remote CI result is separate evidence. The complete `.2` source archive already
+built debug/lint outside any Git checkout, with no local source or signing files.

@@ -78,7 +78,7 @@ only documentation/gallery/license changes. Dev gateway/dashboard migration to
 stock Hermes0.21.5/plugin0.4.0 passed with backups, unchanged provider/model settings,
 58 sessions/562 messages retained and three byte-identical downloads. No personal
 server access or inference. The user additionally requested all build source on
-GitHub: a fresh recursive release clone built successfully, and `.2` adds a complete
+GitHub: a fresh recursive release clone built successfully, and the source follow-ups add a complete
 source archive/build guide plus verified test/CI portability fixes. Production APK
 and runtime behavior are unchanged; no further phone install is needed.
 
