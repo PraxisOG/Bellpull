@@ -2,8 +2,9 @@
 
 Independent branch `feature/phase8-9-reminders-calendar`, from corrected 0.5.5.
 APK `0.8.0-planning-preview`/19; this branch's plugin is `0.4.0-phase8-9`.
-The independent OpenCode branch has different features; neither preview is installed,
-pushed, merged or published. No personal Hermes server was accessed.
+The independent OpenCode branch has different features. Both previews were tested
+as separate fixture APKs after ADB returned; the personal app remains 0.5.5. Neither
+preview was pushed, merged or published. No personal Hermes server was accessed.
 
 ## Implemented
 
@@ -55,11 +56,11 @@ drafts and runs; Today is not forced on startup.
 
 ## Verification and practical limits
 
-Local JVM/controller/provider and Compose screenshot tests exercise this code without
-phone access. The CalendarContract fixture is an in-memory provider, **not** Android's
-real provider or a Nextcloud sync adapter. Real permission UI, GrapheneOS provider
-behavior, marker retention, calendar app handoff, account sync and background behavior
-require phone acceptance. The signed personal app remains corrected 0.5.5.
+The initial JVM CalendarContract fixture is an in-memory provider. Subsequent isolated
+phone tests below exercise the actual GrapheneOS provider and permission UI. Account
+sync, retention through an external sync adapter, calendar-app handoff, scheduled
+inference and background delivery remain unverified. The signed personal app remains
+corrected 0.5.5.
 
 Python tests use disposable unmodified Hermes commit
 `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`, real cron storage APIs, native API bearer
@@ -74,6 +75,64 @@ token and visible audit log; automatic bounded reminder context after a stable p
 prefix; richer routine output/delivery controls; natural date entry and richer event
 editing. The prototype uses explicit ISO times with UTC offsets to avoid ambiguous
 dates. Do not read the branch name as completion of every Phase 8/9 requirement.
+
+## Isolated phone acceptance — October 12
+
+Phase 6 passed first, as requested. On Pixel 10 Pro Fold / GrapheneOS API 37,
+**three instrumentation tests passed at both unfolded and simulated narrow
+1080×2424 viewports**: two planning scenarios and the shared startup/missing-model
+regression. A separate Android permission-prompt test passed. Narrow width is a
+display override, not a physical hinge transition test. All **nine** focused Python
+planning tests were rerun successfully; fixture APK/test compilation and Android
+lint passed. Existing broad JVM/screenshot results in HANDOFF were not rerun or
+recounted as new phone tests.
+
+- Actual MainActivity Today navigation, keyboard-open reminder creation, overdue
+  grouping, snooze/complete/reopen, native routine create/pause/resume/cancel,
+  cached offline recovery and encrypted planning/draft cache reopening passed.
+  The disposable host's native scheduler contained exactly one created job and
+  zero after cancellation; **zero inference admissions** throughout.
+- Actual phone CalendarContract provider, selected LOCAL test calendar only:
+  marker-based create/retry, edit, stale-edit rejection, all-day event, three
+  recurring instances, overlap placement, UI event creation, day/week rendering,
+  write-policy rejection and verified deletion passed. The exact disposable
+  calendar was deleted in `finally`; final unfolded run verifies removal, and the
+  permission check confirms no calendars under the fixture account prefix remain. No
+  existing calendar was selected, shared or mutated. Cloud synchronization is
+  separate and was not invoked or verified.
+- Busy-only sharing omitted titles/fingerprints, detailed opt-in accepted a tool
+  proposal, one phone event survived a dropped result response and reapplication
+  without duplicate insertion, and offline sharing revocation recovered and
+  removed the dedicated server cache.
+- Actual Android read-permission denial/grant and write access recognition passed.
+  Granting OS access left Bellpull sharing/writes disabled, selection empty and
+  destination unset. The permission test uses accessibility actions for app
+  navigation/denial and a touchscreen gesture on the enabled Android Allow button.
+  Other planning scenarios use real touch. OS permission-group behavior must not
+  be mistaken for automatic Bellpull consent.
+
+Initial failures were in the new harness: clipped targets, opening cover navigation,
+waiting for rendered screenshots/dialog transitions, and a contradictory revocation
+assertion. They were corrected without product-code changes. The focused tests do
+not resolve the older full-plugin compatibility/approval-fixture limitations or
+establish a fresh Docker CI result. Personal server/accounts/app data were untouched.
+
+Reproduce using a fresh `tools/planning-device-fixture.py --hermes-source /PATH/TO/STOCK`,
+reverse TCP 18649, build `-PbellpullDeviceFixture=true`, and install only the fixture
+app/test APK. Run `PlanningDeviceTest,VoiceStartupDeviceTest` against the fresh host.
+For `PlanningPermissionDeviceTest`, stop the fixture app, revoke both fixture calendar
+permissions and clear their `user-set`/`user-fixed` flags from shell before starting
+instrumentation; revoking a permission inside instrumentation can kill its process.
+Never run these tests on the personal application ID. Native calendar tests create
+only a UUID-account `LOCAL` calendar and clean its exact ID/account URI. Remove
+fixture packages and this forwarding port afterward; restore display overrides.
+The completed run removed both fixture packages, both test forwarding ports and
+manual capture files, and restored the original size/density settings.
+
+Ignored evidence: `build/planning/device-{tests,narrow-tests,permission-tests,python,build,lint,server}.log`
+and `build/planning/device-{wide,narrow}/files/planning-*.png`. Fixture source and
+instrumentation checks are committed with this branch; signed preview product bytes
+are unchanged by these test-only additions.
 
 ## Stock non-Docker installation and manual acceptance
 

@@ -1,3 +1,24 @@
+## October 12: isolated phone acceptance after Phase 6
+
+The user returned ADB for Phase 6 first, then planning after it passed. Phase 6
+passed two tests at unfolded and simulated narrow widths plus 18 focused Python
+tests, recorded on its independent branch at `37bbb85`.
+
+This branch passed three device tests at both widths (two planning scenarios and
+startup), a separate real permission-prompt check, all nine focused Python planning
+tests, fixture compilation and lint. Actual native Hermes routine storage, Android
+CalendarContract LOCAL-calendar CRUD/recurrence/marker retry, busy-only sharing,
+dropped result recovery without duplicate insertion, offline revocation, drafts and
+encrypted cache were exercised. Zero inference admissions; exact disposable calendar
+cleaned, including a final removal assertion. Product code/APK bytes unchanged.
+Harness fixes cover clipping, cover navigation, UI settling and permission prompts.
+
+Personal app remains corrected 0.5.5/code17/UID10260; no personal-server access,
+push, merge or release. Account/cloud sync, calendar-app handoff, actual scheduled
+inference, real OpenCode/provider behavior and exact Docker CI remain unverified.
+Older three approval-fixture failures remain baseline limitations; no checks weakened.
+See PHASE-8-9-REMINDERS-CALENDAR.md for reproduction/evidence and scope limitations.
+
 ## Phase 8/9 local planning preview — 2026-10-12
 
 Independent branch `feature/phase8-9-reminders-calendar`, from corrected 0.5.5.

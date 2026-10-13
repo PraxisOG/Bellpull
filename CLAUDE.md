@@ -63,6 +63,14 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-12, ADB returned):** test Phase 6 first, then Phases 8/9
+when its isolated acceptance passes. Both now pass fixture phone checks at unfolded
+and simulated narrow widths. Use only the separate test app and disposable local
+hosts; personal app data/server remain untouched. No push, merge or publication.
+See docs/PHASE-8-9-REMINDERS-CALENDAR.md for actual evidence and remaining limits.
+Earlier no-ADB instructions below are historical.
+
+
 **Latest authority (2026-10-12):** build two independent branches from corrected
 0.5.5 while the user is away with their phone. This worktree is
 `feature/phase8-9-reminders-calendar`: persistent reminders, native Hermes routines,
