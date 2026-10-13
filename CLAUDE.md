@@ -63,6 +63,30 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-13, personal app update):** after combined fixture
+acceptance, the user explicitly requested the latest app on their phone to try.
+Install the signed 0.8.1-integration-preview/build20 APK in place, preserving the
+existing signer, UID and app data. Keep a local copy of the installed 0.5.5 APK.
+Do not launch the personal app/contact its server; leave opening it to the user.
+No personal plugin deployment, push or publication is authorized.
+Completed: signed build20 installed with matching certificate, UID10260 and
+CE/DE inodes 117766/116002 preserved. Previous installed APK backed up; the app was
+left stopped for the user to open. The personal app is now 0.8.1-integration-preview.
+
+**Latest authority (2026-10-13, combined ADB acceptance):** after the requested
+integration merge and ADB question, the user replied “send it.” Resume the combined
+fixture phone checks on `integration/phase6-8-9`. Use disposable loopback Hermes and
+the separate fixture package, preserve personal app/accounts/data, and keep the
+personal Hermes server prohibition. No push, default-branch merge or publication.
+The earlier wait-for-ADB instruction below is now satisfied.
+Acceptance completed: 11 final device-test executions passed across both widths
+and the actual permission flow. The initial diff-close navigation failure was in
+the test harness; its wait is fixed. No product/APK change. Fixture packages,
+reverse ports and temporary size override are removed; original density preserved.
+At fixture cleanup the personal app was stopped at 0.5.5/code17/UID10260; the
+subsequently authorized update is recorded above. See INTEGRATION-6-8-9.md.
+
+
 **Latest authority (2026-10-12, integration):** the user explicitly requested merging
 Phase 6 and Phases 8/9, then asking for ADB and testing when available. Work on
 `integration/phase6-8-9`, preserving both original feature branches. Combine app and

@@ -5,6 +5,10 @@ plugin **0.4.0-integration-preview**, on `integration/phase6-8-9`.
 It includes OpenCode activity and Today reminders/routines/phone calendar alongside
 existing chat, projects, files and voice. See [integration checks and installation](docs/INTEGRATION-6-8-9.md).
 This branch is not a published release; earlier feature-preview notes below are historical.
+Combined fixture phone acceptance passed at unfolded and simulated narrow widths
+on October 13. At the user's request, the signed build20 is now installed over the
+personal 0.5.5 app with data preserved. See the integration handoff for actual
+checks, compatibility failures, manual plugin setup and provider/cloud-sync limits.
 
 
 # Bellpull — Hermes Android

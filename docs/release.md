@@ -3,14 +3,21 @@
 `integration/phase6-8-9` combines the independently tested OpenCode and planning
 branches. App `0.8.1-integration-preview`, plugin `0.4.0-integration-preview`.
 Signed local artifacts are in `build/releases/0.8.1-integration-preview/` with
-`SHA256SUMS`; this is not a published release or an installed personal update.
+`SHA256SUMS`; this is a local preview, not a published release.
 The APK uses the existing signer/rotation lineage; signature, version metadata
 and 16-KiB ZIP alignment were checked. SHA-256:
 `84069d410f42cefea93dea8d53f03475e89aed335f767fd747c1e81bab86d92b`.
 Local checks and remaining CI/provider limits are in
-[the combined handoff](INTEGRATION-6-8-9.md). Ask for ADB availability before using
-the fixture package for combined acceptance. Personal app remains corrected 0.5.5;
-no access to the personal Hermes server, push or release publication is authorized.
+[the combined handoff](INTEGRATION-6-8-9.md). ADB was returned October 13 and the
+combined fixture passed 11 final device-test executions, including both widths and
+the real calendar permission flow. The initial navigation-harness timing failure
+was fixed; production APK bytes are unchanged. Fixture cleanup is complete.
+The user then requested the latest personal app. Signed build20 was installed
+over corrected 0.5.5 with the same certificate, UID10260 and CE/DE data-directory
+inodes 117766/116002. The previous installed APK was copied to `personal-upgrade/`
+first; installation and package verification logs are beside it. The app was left
+stopped for the user to open. No personal plugin deployment, personal-server
+access, push or release publication occurred.
 
 ## Corrected 0.5.5 installation — 2026-10-12
 

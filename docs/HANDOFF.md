@@ -1,17 +1,33 @@
-## October 12: combined integration ready for ADB request
+## October 13: combined integration passed isolated phone acceptance
 
 The user authorized merging the two feature branches, then asking for ADB and
 running combined phone acceptance. Integration is on `integration/phase6-8-9`;
 original feature branches are retained. App 0.8.1-integration-preview/build20,
-one plugin 0.4.0-integration-preview. No personal server, ADB, push or publication.
+one plugin 0.4.0-integration-preview. User returned ADB with “send it.”
 
 Full Android checks passed: 548 JVM tests, one live smoke skip, 170 baselines,
 build/lint. Combined coding/planning Python checks: 27 passed; real native run
 observation and reminder mutation coexist with one admission. Full legacy fixture:
 122/125 pass, the same three baseline approval failures. Newer stock full suite:
 125 tests, 29 failures/4 errors in unsupported legacy/host routes; not a passing check.
-Exact Docker CI and combined phone behavior remain unverified. Signed APK and matching
-plugin bundle are prepared under build/releases/0.8.1-integration-preview/.
+Combined fixture acceptance now passed **11 final device-test executions**:
+coding/startup and planning/startup at unfolded and simulated narrow widths, plus
+actual Android calendar permission denial/grant. Today/reminder navigation preserved
+the same coding run/draft with one admission. Actual LOCAL CalendarContract CRUD,
+recurrence, proposal retry, sharing revocation and exact fixture cleanup passed;
+planning admitted no inference. Initial diff-close navigation timing failed in the
+harness; explicit navigation waiting fixed it, with both widths passing afterward.
+No product code/APK bytes changed during acceptance.
+
+Fixture packages/captures, reverse ports and temporary size override are removed;
+the original density override is preserved. The user then requested the latest
+personal app: signed 0.8.1-integration-preview/build20 was installed over 0.5.5,
+preserving the signer, UID10260 and CE/DE inodes 117766/116002. Previous APK backed
+up; personal app left stopped for the user to open. No personal-server access,
+personal plugin deployment, push or publication. Real OpenCode/provider, scheduled
+inference, cloud calendar sync, physical hinge transitions and exact Docker CI
+remain unverified. Signed APK and
+updated plugin bundle are under build/releases/0.8.1-integration-preview/.
 See [combined evidence, compatibility and acceptance](INTEGRATION-6-8-9.md).
 
 The feature-branch evidence below is historical, not proof about this combined APK.

@@ -78,7 +78,10 @@ class CodingActivityDeviceTest {
                 ui.screenshot("phase6-diff")
                 ui.tapText("Close")
                 // Exercise both destinations through the same application-owned runtime/client.
-                if (ui.text("Today") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
+                ui.await("Workspace navigation did not return after closing the diff") {
+                    ui.text("Today") != null || ui.find { it.contentDescription?.toString() == "Back to sessions" } != null
+                }
+                if (ui.text("Today") == null) ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "Back to sessions" }))
                 ui.tapText("Today")
                 ui.awaitMain("Combined planning did not load") { runtime.planning?.snapshot != null && runtime.planning?.loading == false }
                 ui.main { runtime.planning!!.action("reminders",buildJsonObject {
@@ -91,7 +94,10 @@ class CodingActivityDeviceTest {
                         runtime.store?.runs?.states?.get("phone_coding")?.busy == true
                 }
                 ui.screenshot("combined-today-during-coding")
-                if (ui.text("Chats") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
+                ui.await("Chat navigation did not render from Today") {
+                    ui.text("Chats") != null || ui.find { it.contentDescription?.toString() == "Back to sessions" } != null
+                }
+                if (ui.text("Chats") == null) ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "Back to sessions" }))
                 ui.tapText("Chats")
                 ui.awaitMain("Activity or draft did not survive Today navigation") {
                     runtime.coding?.snapshot?.works?.size == 2 && runtime.store?.draft?.text=="Preserve this follow-up draft"

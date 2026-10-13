@@ -3,8 +3,10 @@
 Branch: `integration/phase6-8-9`, merging `feature/phase6-opencode-activity`
 (`091abec`) and `feature/phase8-9-reminders-calendar` (`3deab54`). Both original
 branches remain intact. App **0.8.1-integration-preview / build 20**; one Bellpull
-plugin **0.4.0-integration-preview**. Local development only: no push, default-branch
-merge, release publication, personal-server access or combined phone installation.
+plugin **0.4.0-integration-preview**. The combined **fixture app** passed phone
+acceptance on October 13. The user then requested the latest personal app; the
+signed build20 was installed in place over 0.5.5 with its signer and data preserved.
+No push, default-branch merge, release publication or personal-server access.
 
 ## What was combined
 
@@ -56,9 +58,8 @@ write was added.
   No approval policy, compatibility check or test was weakened to turn it green.
 - Fixture application and Android test APK compile with the combined version;
   lint passed again. The phone test now includes Today/reminder navigation during
-  the same native coding run. **It has not run on the phone yet.** Earlier feature
-  branch device results are recorded in their scope documents and do not establish
-  combined-build acceptance.
+  the same native coding run. Combined phone results are recorded below; earlier
+  feature-branch results in their scope documents remain separate evidence.
 - Local release build/signature and 16-KiB ZIP alignment passed. APK identifies
   `org.praxisog.hermes`, build 20, with the existing signing lineage. APK SHA-256:
   `84069d410f42cefea93dea8d53f03475e89aed335f767fd747c1e81bab86d92b`.
@@ -92,20 +93,94 @@ The existing files/projects data is retained; new `bellpull-coding/` and
 restart to roll back. App build 20 exceeds both original preview build codes;
 keep its signer/app data, and do not uninstall the personal app for an upgrade.
 
-## Combined phone acceptance — awaiting ADB
+## Combined phone acceptance — October 13
 
-The user explicitly requested an ADB availability question after local integration.
-Do not connect to/use the phone until that reply. Once returned:
+After the ADB question, the user replied “send it.” Tests used only the separate
+`org.praxisog.hermes.fixture` app on the Pixel 10 Pro Fold/GrapheneOS API 37 and
+disposable loopback stock Hermes `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`.
+The native API, plugin loader, run ownership hooks, ProcessRegistry and routine
+storage were real; inference and the two OpenCode-named child processes were
+deterministic fixtures. No personal server/provider was contacted.
 
-1. Use only `org.praxisog.hermes.fixture` and disposable loopback Hermes. Run the
-   combined `CodingActivityDeviceTest` plus startup check at unfolded/narrow widths.
-   During one native run, open Today, create a reminder, return to Activity, then
-   verify drafts, reconnects, diffs, independent child completion and one admission.
-2. Run `PlanningDeviceTest`/startup on a fresh planning fixture, then the separate
-   permission flow. Use only a UUID-account LOCAL test calendar; verify removal,
-   proposal retry without duplicate writes and offline sharing revocation.
-3. Preserve personal app/accounts/signer/data and the personal server prohibition.
-   Remove test calendars/packages, our ADB forwarding and display overrides afterward.
+| Final device suite | Viewport | Result |
+| --- | --- | --- |
+| Coding activity + missing-model startup | Unfolded, 2076×2152 | 2 passed |
+| Coding activity + missing-model startup | Simulated narrow, 1080×2424 | 2 passed |
+| Planning + missing-model startup | Unfolded | 3 passed |
+| Planning + missing-model startup | Simulated narrow | 3 passed |
+| Actual Android calendar permission denial/grant | Unfolded | 1 passed |
+
+**11 executions passed in the final suites.** The first unfolded attempt failed
+with a test-harness null navigation target immediately after closing the diff.
+The test now waits for workspace navigation to return before choosing the wide
+or narrow path. Both widths passed afterward; no product code or APK bytes changed.
+
+Coding acceptance covers live reasoning/output, read-only diffs, Today/reminder
+navigation during the same busy run, preserved drafts, background catch-up,
+disconnect/recreation/reconnect, child completion before coordinator completion,
+history reconciliation, encrypted cache reopening, compression lineage and ordinary
+branch isolation. Each fixture admitted exactly one run, including after recovery.
+
+Planning acceptance covers real reminder create/snooze/complete/reopen, native
+routine create/pause/resume/cancel, offline cache and draft preservation. Actual
+CalendarContract checks cover a UUID-account LOCAL calendar, immutable retry marker,
+create/edit/delete/stale-edit rejection, all-day events, three recurring instances,
+overlapping day/week blocks, and UI creation with the keyboard open. Busy-only
+sharing omits details; opt-in proposal application survives a dropped result without
+inserting a duplicate event. Offline sharing revocation recovers. Zero inference
+admissions occurred in either planning fixture.
+
+The separate real permission dialog test denied then granted access and verified
+that sharing, writes, calendar selection and destination remained disabled/empty.
+Exact test-calendar deletion was asserted after each provider scenario; the final
+test confirmed zero LOCAL calendars matching the fixture account prefix remained.
+Day/week, Activity/diff and combined Today screenshots were inspected at both widths.
+
+Reproduction: build the fixture APKs from the repository root:
+
+```bash
+./android/gradlew -p android -PbellpullDeviceFixture=true \
+  :app:assembleDebug :app:assembleDebugAndroidTest
+```
+
+Run `tools/coding-device-fixture.py` or
+`tools/planning-device-fixture.py` with `--hermes-source` pointing to disposable stock
+source, and reverse only its loopback port (18648/18649). Use the classes listed
+above with the fixture instrumentation runner. Restart the coding host for every
+attempt (one admission per lifetime), and planning host for each width. Run the
+permission class separately after force-stopping the fixture, revoking both
+READ/WRITE_CALENDAR permissions and clearing their `user-set`/`user-fixed` flags.
+Never substitute the personal package or a personal host.
+
+Logs and captures: `build/integration/device-2026-10-13/{wide,narrow,permission}/`;
+the original failed attempt remains in `wide/coding/tests.log`, with the successful
+retry in `tests-retry.log`. Test compilation log: `test-build.log`.
+
+Cleanup completed: fixture app/test package and their captures removed, both test
+reverse ports removed, physical resolution restored, existing density override 440
+preserved, and local fixture processes stopped. At fixture cleanup the personal
+package was still stopped at **0.5.5/code17, UID10260** with saved accounts untouched.
+Thermal status was 0 when checked; this acceptance was not a thermal benchmark.
+
+## Personal app installation — October 13
+
+After acceptance, the user explicitly requested the latest app on their phone.
+The signed **0.8.1-integration-preview/build20** APK above was installed in place
+with `adb install -r`. The installed 0.5.5 APK was first copied locally and its
+checksum matched the corrected release. Both APKs passed signature verification
+with the same public certificate SHA-256
+`c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf`.
+The package remains `org.praxisog.hermes`, UID **10260**, with CE/DE data-directory
+inodes **117766/116002** unchanged. No uninstall or data clear occurred. Build20
+metadata was verified after installation; the app was left stopped for the user
+to open, avoiding personal-server access. This is an installed local preview,
+not a published release or personal-provider functional test.
+
+Installation/metadata/signer logs and the previous APK are under
+`build/releases/0.8.1-integration-preview/personal-upgrade/`. The matching plugin
+bundle is for manual server installation only; no personal plugin was deployed.
+Do not uninstall to downgrade: Android may reject an older release version code;
+prefer a higher-code fix preserving data and the signing lineage.
 
 Still unverified: actual OpenCode/provider behavior and personal-host Stop, real
 scheduled inference, account/cloud sync and marker retention through a sync adapter,
