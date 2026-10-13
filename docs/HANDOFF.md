@@ -1,3 +1,16 @@
+## October 12: Phase 6 isolated phone acceptance
+
+User returned ADB and requested Phase 6 tests first, then planning after clean
+Phase 6 acceptance. Two tests passed at both unfolded and simulated narrow
+viewports; all 18 focused coding Python tests reran successfully. Real native
+Hermes admission/hooks/process registry, deterministic child CLI output, actual
+Android Activity/runtime/cache and read-only diffs were exercised end to end.
+Exactly one admission, live updates/reconnects, drafts, child/coordinator completion,
+compression/fork isolation and missing-model startup passed. UI harness clipping
+was repaired; no Phase 6 product change required. Real OpenCode/provider/personal
+host behavior and exact Docker CI remain unverified. Personal 0.5.5 untouched.
+See PHASE-6-OPENCODE.md for reproduction and evidence; planning phone checks follow.
+
 ## Phase 6 local implementation — October 12
 
 Independent corrected-0.5.5 branch `feature/phase6-opencode-activity` now has a

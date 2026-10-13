@@ -2,8 +2,8 @@
 
 Independent branch `feature/phase6-opencode-activity`, based on corrected 0.5.5.
 This is a local preview, not a published release or a personal-server deployment.
-The phone has only the corrected Phase 5 build. No new phone access is needed to
-continue this branch.
+The personal app remains corrected Phase 5. The user returned ADB for isolated
+Phase 6 acceptance, followed by planning acceptance only after Phase 6 passes.
 
 ## Implemented slice
 
@@ -56,6 +56,38 @@ ownership continue through the existing chat runtime.
   `legacy-approval-baseline.log`. No deployment uses these mixed modules.
 - Logs: `build/phase6/android-final.log`, `python-final.log`,
   `plugin-full-stock.log`. No personal server, phone, push, merge or release publication.
+
+## Isolated phone acceptance — October 12
+
+On Pixel 10 Pro Fold / GrapheneOS API 37, two instrumentation tests passed at
+both the physical unfolded viewport and a simulated narrow 1080×2424 viewport.
+The latter is a display override, not a physical fold/hinge transition test.
+`CodingActivityDeviceTest` exercises the actual MainActivity/runtime, encrypted
+cache, HTTP client and plugin against unmodified disposable stock Hermes. One
+native run starts two deterministic executables named `opencode`, covering JSON
+and ordinary terminal output. Reasoning expansion, workspace file selection/diff,
+background catch-up, injected 503/disconnection, Activity recreation, retry,
+chat/draft isolation, independent child completion, final history reconciliation,
+cache reopening, compression and ordinary branch isolation passed. Exactly **one
+admission per run of the test**; two injected failures recovered. The carried
+startup/missing-model regression also passed. All 18 focused Python coding tests
+were rerun and passed.
+
+The initial UI harness could touch the clipped part of a button. It now checks
+its clickable ancestor against the scroll viewport, scrolls fully into view and
+injects a proper touchscreen gesture after window animations settle. No product
+change was necessary. The fixture uses no real inference/OpenCode binary/provider,
+and does not prove personal-host Stop or deployment compatibility. Existing
+full-suite/legacy CI limitations above still apply. Personal app/accounts/server
+were not used; no push or publication.
+
+Reproduce with a fresh `tools/coding-device-fixture.py --hermes-source /PATH/TO/STOCK`,
+reverse TCP 18648, then build with `-PbellpullDeviceFixture=true` and install only
+`org.praxisog.hermes.fixture` plus its test APK. Run only `CodingActivityDeviceTest`
+and `VoiceStartupDeviceTest`; restart the host before repeating (one admission
+allowed). Do not run unrelated destructive instrumentation on personal app data.
+Ignored evidence: `build/phase6/device-{tests,narrow-tests,python,build,server}.log`
+and `build/phase6/device-{wide,narrow}/files/*.png`.
 
 ## Compatibility and installation when ready
 

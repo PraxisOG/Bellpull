@@ -63,6 +63,13 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-12, ADB returned):** the user requested isolated phone
+testing of Phase 6 first, then Phases 8/9 after clean Phase 6 acceptance. Fixture
+installs/tests and necessary fixes are authorized. Keep personal app data and
+server untouched; no push, merge or publication. Phase 6 passed both widths;
+see docs/PHASE-6-OPENCODE.md. Earlier no-ADB instructions below are historical.
+
+
 **Latest authority (2026-10-12):** after fixing the 0.5.5 launch crash, continue
 both independent branches from corrected 0.5.5: Phase 6 OpenCode activity here,
 and combined Phase 8/9 reminders/routines/visual phone calendar at
