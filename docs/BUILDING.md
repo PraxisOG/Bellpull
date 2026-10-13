@@ -9,7 +9,7 @@ page; it is not the source of the 0.8.1 APK.
 Use a recursive clone of the release tag:
 
 ```bash
-git clone --branch android-v0.8.1-integration-preview.2 --recurse-submodules \
+git clone --branch android-v0.8.1-integration-preview.3 --recurse-submodules \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
