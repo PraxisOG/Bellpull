@@ -54,7 +54,9 @@ class PlanningStore:
             CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,hash TEXT NOT NULL,result TEXT);
             CREATE TABLE IF NOT EXISTS calendars(device TEXT PRIMARY KEY,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS proposals(id TEXT PRIMARY KEY,data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS proposal_receipts(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             """)
+            self.prune_proposals(c)
         self.path.chmod(0o600)
 
     @contextmanager
@@ -150,14 +152,25 @@ class PlanningStore:
             if calendar["busy_only"] or not any(e["id"]==value["event_id"] and e.get("fingerprint")==value["fingerprint"] for e in calendar["events"]): raise ArtifactError("Event is absent or changed. Refresh the phone calendar.",409)
         with self.db() as c:
             old=c.execute("SELECT data FROM proposals WHERE id=?",(pid,)).fetchone()
+            if not old: old=c.execute("SELECT data FROM proposal_receipts WHERE id=?",(pid,)).fetchone()
             if old:
                 previous=json.loads(old[0]); compared={**previous,"state":"pending"}; compared.pop("result",None)
                 compared["created_at"]=value["created_at"]
                 if compared!=value: raise ArtifactError("Proposal identity reused.",409)
                 return previous
-            if c.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]>=100: raise ArtifactError("Resolve old proposals first.",409)
+            if c.execute("SELECT COUNT(*) FROM proposals WHERE json_extract(data,'$.state')='pending'").fetchone()[0]>=100: raise ArtifactError("Pending proposal limit reached. Resolve pending proposals first.",409)
             c.execute("INSERT INTO proposals VALUES(?,?)",(pid,json.dumps(value)))
         return value
+
+    @staticmethod
+    def prune_proposals(c):
+        # Creation order is stable even when resolution is retried. Move terminal
+        # rows and their replay responses atomically; never evict pending work.
+        expired=c.execute("SELECT id,data FROM proposals WHERE json_extract(data,'$.state') IN ('applied','rejected') ORDER BY rowid DESC LIMIT -1 OFFSET 1000").fetchall()
+        for pid,data in reversed(expired):
+            c.execute("INSERT INTO proposal_receipts VALUES(?,?)",(pid,data))
+            c.execute("DELETE FROM proposals WHERE id=?",(pid,))
+        c.execute("DELETE FROM proposal_receipts WHERE rowid IN (SELECT rowid FROM proposal_receipts ORDER BY rowid DESC LIMIT -1 OFFSET 5000)")
 
     def resolve(self,body):
         with self.db() as c:
@@ -171,6 +184,7 @@ class PlanningStore:
             if value["state"]!="pending" and (value["state"]!=state or value.get("result")!=result): raise ArtifactError("Proposal already resolved.",409)
             value.update(state=state,result=result)
             c.execute("UPDATE proposals SET data=? WHERE id=?",(json.dumps(value),value["id"]))
+            self.prune_proposals(c)
             return value
 
 

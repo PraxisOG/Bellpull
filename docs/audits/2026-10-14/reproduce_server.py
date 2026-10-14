@@ -1,4 +1,4 @@
-"""Disposable audit probes: F01/F05 assert repairs; F02/F04 still assert defects."""
+"""Disposable audit probes: F01/F04/F05 assert repairs; F02 still asserts its defect."""
 from pathlib import Path
 import subprocess, tempfile, json, time, os
 from plugins.bellpull.planning import PlanningStore
@@ -19,8 +19,8 @@ with tempfile.TemporaryDirectory(prefix='bellpull-audit-planning-') as name:
     assert resolved==100 and pending==0
     try:
         store.propose({'operation_id':f'{100:032x}','device':device,'action':'create_event','title':'Audit fixture','start_ms':now+60000,'end_ms':now+120000})
-        results['proposal_limit']='unexpectedly accepted'
-    except ArtifactError as e: results['proposal_limit']={'resolved':resolved,'pending':pending,'error':str(e),'status':e.status}
+        results['proposal_limit']={'resolved':resolved,'pending':pending,'accepted':True}
+    except ArtifactError as e: results['proposal_limit']={'resolved':resolved,'pending':pending,'accepted':False,'error':str(e),'status':e.status}
     body['events']=[{'id':'1','start_ms':now+60000,'end_ms':now+120000,'all_day':False}]
     store.calendar(device,body); store.calendar(device,{'revoke':True})
     assert store.calendar(device) is None
@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix='bellpull-audit-hardlink-') as name:
         assert e.status==409 and 'Hard-linked files' in str(e)
         results['workspace_hardlink']={'links':outside.stat().st_nlink,'outside_content_in_preview':False,'error':str(e),'status':e.status}
 print(json.dumps(results,indent=2))
-assert results['proposal_limit']['status']==409
+assert results['proposal_limit']['accepted']
 assert results['late_upload_after_revoke']['restored']
 assert results['workspace_clean_filter_executed'] is False
 assert results['workspace_hardlink']['outside_content_in_preview'] is False
