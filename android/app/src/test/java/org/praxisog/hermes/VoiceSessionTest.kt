@@ -42,11 +42,12 @@ class VoiceSessionTest {
     @Volatile private var failure = false
     @Volatile private var unavailableRecognizer = false
     @Volatile private var transcriptions = 0
+    @Volatile private var recognitionWait: java.util.concurrent.CountDownLatch? = null
     private val voice = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(concise = false), output, capture,
         transcriber = {
             check(!unavailableRecognizer) { "Selected local weights are missing." }
             object : VoiceTranscriber {
-            override fun transcribe(wav: ByteArray): Result<String> { transcriptions++; return if (failure) Result.failure(IllegalStateException("Speech offline")) else Result.success(recognized) }
+            override fun transcribe(wav: ByteArray): Result<String> { transcriptions++; recognitionWait?.await(3, java.util.concurrent.TimeUnit.SECONDS); return if (failure) Result.failure(IllegalStateException("Speech offline")) else Result.success(recognized) }
             override fun close() {}
         } })
     private fun tick() { Snapshot.sendApplyNotifications(); Thread.sleep(15) }
@@ -279,11 +280,132 @@ class VoiceSessionTest {
         recognized = "Here are the wiring instructions"; utterance()
         assertEquals(1, target.sent.size); assertTrue(voice.queuedText.isBlank()); assertEquals(0, target.canceled)
     }
-    @Test fun resumeDoesNotReplayTheExistingRun() {
-        voice.start(); utterance(); output.complete(); voice.pause(); voice.resume()
+    @Test fun resumeRecoversReplyGeneratedWhilePausedWithoutResubmission() {
+        voice.start(); utterance(); output.complete(); voice.pause()
         target.value = VoiceRun("run-1", false, "Previously generated answer.", final = true)
+        tick(); assertEquals(listOf("Working."), output.said)
+        voice.resume(); await { output.said.size == 2 }
+        output.complete(); await { voice.state == VoiceState.LISTENING }
+        assertEquals(1, target.sent.size)
+    }
+    @Test fun rejectedNoiseRecoversPartialPhraseAndCompletedBackendRemainder() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", true, "Completed first. Interrupted second. Third")
+        await { output.said.size == 2 }; output.complete()
+        await { output.said.size == 3 }
+        recognized = ""; utterance()
+        await { output.said.size == 4 }
+        assertEquals("Interrupted second.", output.said.last())
+        target.value = target.value.copy(busy = false, text = "Completed first. Interrupted second. Third ends.", final = true)
+        output.complete(); await { output.said.last() == "Third ends." }
+        output.complete(); await { voice.state == VoiceState.LISTENING }
+        assertEquals(1, output.said.count { it == "Completed first." })
+        assertEquals(1, target.sent.size); assertEquals(0, target.canceled)
+    }
+    @Test fun toolBatchesAndReplayedSnapshotsNeverRepeatPublicProse() {
+        voice.start(); utterance(); output.complete()
+        val preamble = "Checking the public forecast."
+        target.value = target.value.copy(text = "$preamble ", activities = listOf(
+            VoiceActivity("tool:one", "Web search.", VoiceActivityKind.WEB_SEARCH),
+            VoiceActivity("tool:two", "Tool call. Read file.")))
+        await { output.said.size == 2 }
+        repeat(3) { output.complete() }
+        assertEquals(1, output.said.count { it == preamble })
+        target.value = target.value.copy(activities = target.value.activities + VoiceActivity("tool:three", "Tool call. Terminal."))
+        await { output.said.size == 5 }; output.complete()
+        target.value = target.value.copy(busy = false, final = true, text = "$preamble $preamble")
+        await { output.said.size == 6 }; output.complete()
+        assertEquals(2, output.said.count { it == preamble }) // A later genuine repetition stays eligible.
+        assertEquals(1, target.sent.size)
+    }
+    @Test fun searchAndOtherToolFlagsAreIndependentInEveryCombination() {
+        for (tools in listOf(false, true)) for (search in listOf(false, true)) {
+            output.said.clear()
+            val session = VoiceSession("chat", "profile", scope, target,
+                VoiceConfiguration(concise = false, announcements = VoiceAnnouncements(tools, search, false, false)),
+                output, capture, initialTranscript = "A new turn.")
+            try {
+                target.value = VoiceRun()
+                session.start(); session.sendTranscript()
+                target.value = target.value.copy(busy = false, final = true, text = "Answer.", activities = listOf(
+                    VoiceActivity("search", "Web search.", VoiceActivityKind.WEB_SEARCH),
+                    VoiceActivity("file", "Tool call. Read file.", VoiceActivityKind.TOOL)))
+                await { output.said.isNotEmpty() }
+                while (output.completion != null) output.complete()
+                assertEquals(if (tools) 1 else 0, output.said.count { it == "Tool call. Read file." })
+                assertEquals(if (search) 1 else 0, output.said.count { it == "Web search." })
+                assertEquals(1, output.said.count { it == "Answer." })
+            } finally { session.close() }
+        }
+    }
+    @Test fun backendCompletionDuringPendingEchoRecognitionRemainsRecoverable() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", true, "First sentence. More")
+        await { output.said.size == 2 }
+        recognized = "First sentence"; recognitionWait = java.util.concurrent.CountDownLatch(1)
+        repeat(25) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        repeat(90) { voice.frame(ShortArray(320), 320) }
+        await { voice.state == VoiceState.TRANSCRIBING }
+        target.value = target.value.copy(busy = false, text = "First sentence. More detail.", final = true)
+        tick(); assertEquals(2, output.said.size)
+        recognitionWait!!.countDown()
+        await { output.said.size == 3 }; output.complete()
+        await { output.said.size == 4 }; output.complete()
         await { voice.state == VoiceState.LISTENING }
-        assertEquals(listOf("Working."), output.said); assertEquals(1, target.sent.size)
+        assertEquals(1, target.sent.size); assertEquals(0, target.canceled)
+    }
+    @Test fun delayedOutputReadinessCannotReopenCaptureAfterPause() {
+        var ready: ((String) -> Unit)? = null
+        val delayed = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), object : VoiceOutput {
+            override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { ready = onReady }
+            override fun speak(text: String, started: () -> Unit, complete: () -> Unit) {}
+            override fun stop() {}
+            override fun close() {}
+        }, capture)
+        try {
+            delayed.start(); val old = ready!!
+            delayed.pause(); old("old"); assertEquals(VoiceState.PAUSED, delayed.state); assertFalse(capture.active)
+            delayed.resume(); old("stale"); assertFalse(capture.active)
+            ready!!("new"); assertTrue(capture.active)
+        } finally { delayed.close() }
+    }
+    @Test fun transientFocusPreservesSpeechAndGainNeverResumesAnExplicitPause() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", true, "First phrase. Next")
+        await { output.said.size == 2 }
+        val late = output.completion!!
+        voice.suspendForAudio(); assertFalse(capture.active); late()
+        target.value = target.value.copy(busy = false, text = "First phrase. Next phrase.", final = true)
+        tick(); assertEquals(2, output.said.size)
+        voice.recoverAudio(); await { output.said.size == 3 }
+        output.complete(); await { output.said.size == 4 }
+        voice.suspendForAudio(); voice.pause(); voice.recoverAudio()
+        assertEquals(VoiceState.PAUSED, voice.state); assertFalse(capture.active)
+        assertEquals(1, target.sent.size); assertEquals(0, target.canceled)
+    }
+    @Test fun answersLongerThan180WordsAreSpokenToTheLastWord() {
+        voice.start(); utterance(); output.complete()
+        val answer = (1..350).joinToString(" ") { "word$it" } + ". Final ending."
+        target.value = VoiceRun("run-1", false, answer, final = true)
+        await { output.said.size > 1 }
+        while (output.completion != null) output.complete()
+        await { voice.state == VoiceState.LISTENING }
+        assertEquals(answer, output.said.drop(1).joinToString(" "))
+        assertEquals(1, target.sent.size)
+    }
+    @Test fun allAnnouncementsOffStillAdmitsExactlyOnceAndSpeaksAnswers() {
+        val silent = VoiceSession("chat", "profile", scope, target,
+            VoiceConfiguration(concise = true, announcements = VoiceAnnouncements(false, false, false, false)),
+            output, capture, initialTranscript = "Tell me a detailed research answer.")
+        try {
+            silent.start(); silent.sendTranscript(); silent.sendTranscript()
+            assertEquals(1, target.sent.size); assertTrue(output.said.isEmpty())
+            target.value = target.value.copy(text = "The full answer.", final = true, busy = false,
+                activities = listOf(VoiceActivity("a", "Thinking.", VoiceActivityKind.THINKING),
+                    VoiceActivity("b", "Web search.", VoiceActivityKind.WEB_SEARCH)))
+            await { output.said.size == 1 }; output.complete()
+            assertEquals(listOf("The full answer."), output.said)
+        } finally { silent.close() }
     }
     @Test fun connectionLossPausesMicWithoutResubmittingTheAdmittedRun() {
         voice.start(); utterance(); output.complete()

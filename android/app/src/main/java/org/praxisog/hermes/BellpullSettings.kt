@@ -84,7 +84,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
     speechLab: (@Composable () -> Unit)? = null,
     voiceSettings: (@Composable () -> Unit)? = null,
-    voiceOutputSettings: (@Composable () -> Unit)? = null) {
+    voiceOutputSettings: (@Composable () -> Unit)? = null,
+    voiceAnnouncementSettings: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
@@ -177,7 +178,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
         }
         voiceOutputSettings?.let { SettingsSection("Voice output", "Local models, voices and playback") { it() } }
-        SettingsSection("About", "Installed app and server plugin versions") { AboutSettings(pluginVersions) }
+        voiceAnnouncementSettings?.let { SettingsSection("Voice announcements", "Tool, search, thinking and working speech") { it() } }
+        AboutSettings(pluginVersions)
     }
 }
 
@@ -204,13 +206,13 @@ internal fun SettingsSection(title: String, detail: String, initiallyExpanded: B
 }
 
 @Composable
-private fun PreferenceSwitch(title: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun PreferenceSwitch(title: String, detail: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(detail, style = MaterialTheme.typography.bodySmall)
         }
-        Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.semantics { contentDescription = title })
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled, modifier = Modifier.semantics { contentDescription = title })
     }
 }

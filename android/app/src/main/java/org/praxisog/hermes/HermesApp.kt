@@ -36,7 +36,7 @@ internal fun HermesApp(
     now: Double,
     onOpenSession: (String) -> Unit,
     onCloseSession: () -> Unit,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     onRetrySessions: () -> Unit,
     onRetryHistory: () -> Unit,
@@ -100,6 +100,7 @@ internal fun HermesApp(
     speechLab: (@Composable () -> Unit)? = null,
     voiceSettings: (@Composable () -> Unit)? = null,
     voiceOutputSettings: (@Composable () -> Unit)? = null,
+    voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
 ) {
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
@@ -213,7 +214,7 @@ internal fun HermesApp(
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
                                 unreadIds = projectUnread, completionRevision = completionRevision,
                                 runLabels = projectLabels,
-                                pinnedIds = if (projects?.selectedProject != null) projects.pinnedIds(projectSessions) else emptySet(),
+                                pinnedIds = projects?.pinnedIds(projectSessions).orEmpty(),
                                 recentOrder = projects?.selectedProject != null,
                                 projectFilters = projects?.let { workspace -> { closeFilters -> ProjectFilterItems(workspace, unreadIds, runningIds,
                                     { id -> closeFilters(); selectProjectScope(id) }, { closeFilters(); mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
@@ -248,7 +249,7 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,

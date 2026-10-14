@@ -61,22 +61,22 @@ support in their current language. Existing message read-aloud remains separate.
   completion; Finish speaking ends capture. The cap still applies while holding.
 - Review, push-to-talk and continuous hands-free modes share one conversation, including its
   project, history, tools and existing run permissions. Typed drafts and model
-  preferences remain independent. A visible voice-message preset asks for concise,
-  friendly answers of at most one paragraph/180 words, minimal reasoning and a brief
-  explanation before each tool/search. **Provider thinking controls remain unchanged**;
-  this is a visible prompt instruction. Spoken answer text has a separate 180-word
-  cap even if the provider ignores the prompt. Activity announcements are outside
-  that cap; full written output remains available if a provider ignores the limit.
-- An actual **“Working”** TTS preamble completes **before** the phone submits a run. Coherent
+  preferences remain independent. The optional Brief voice responses preset asks
+  for friendly, brief speech unless the user requests detail, research or long
+  narration. The full generated answer is played, with no app response-length cap.
+  Provider thinking controls remain unchanged.
+- When Working announcements are enabled, the **“Working”** cue completes before submission. With the preference off, submission follows the same checks immediately. Coherent
   answer sentences begin playback while generation continues; incomplete words,
   thinking and raw tool payloads are excluded. Code/link formatting is converted
   for speech. Status output can drop earlier tool commentary without corrupting
   the spoken final answer. Genuine live thinking/tool/search events generate short,
   deduplicated announcements, prioritized ahead of queued answer sentences. Thinking
   announces only its status, never its content; raw tool arguments/previews are never
-  spoken. The preceding public assistant commentary supplies the stated purpose;
-  otherwise a factual tool-role description says when no specific purpose was given.
-- Barge-in stops playback and clears stale queued speech. A contiguous-text echo
+  spoken. Public assistant prose is spoken only through the answer lane. Tool announcements
+  contain genuine tool labels and never repeat preceding explanations. Four independent
+  preferences in Settings → Voice announcements apply to the next session.
+- Tentative barge-in suspends playback and preserves unfinished phrases. Rejected
+  noise/echo recovers them; confirmed speech discards the interrupted reply. A contiguous-text echo
   guard prevents recognized playback phrases becoming another inference. A new
   utterance now requests the existing **chat Stop** after nonempty, non-echo recognition.
   The new utterance is saved as one replacement turn; it is not appended to the

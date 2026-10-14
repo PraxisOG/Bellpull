@@ -64,6 +64,23 @@ class ProjectWorkspaceTest {
         workspace.close(); client.close()
     }
 
+    @Test fun globalPinCapabilityControlsUnfiledWritesAndAllScopesSeeOnePinState() {
+        val pinned = server.copy(memberships = server.memberships + ProjectMembership("unfiled", pinned = true))
+        val requests = CopyOnWriteArrayList<String>()
+        val client = client { requests += it.method; 200 to wireJson.encodeToString(pinned) }
+        val workspace = ProjectWorkspace(scope, client, Cache(pinned), true)
+        try {
+            workspace.refresh(); waitUntil { workspace.fresh }
+            assertFalse(workspace.canPin("unfiled")); assertTrue(workspace.canPin("root"))
+            workspace.pin("unfiled", false); assertEquals(listOf("GET"), requests)
+            workspace.configure(true, true); assertTrue(workspace.canPin("unfiled"))
+            val all = listOf(Session("tip"), Session("unfiled"))
+            assertEquals(setOf("tip", "unfiled"), workspace.pinnedIds(all))
+            workspace.choose(UNFILED_PROJECT_CHATS)
+            assertEquals(setOf("unfiled"), workspace.pinnedIds(workspace.sessions(all)))
+            assertTrue(ProjectWorkspace(scope, client, Cache(null), false).pinnedIds(all).isEmpty())
+        } finally { workspace.close(); client.close() }
+    }
     @Test fun staleMutationRefreshesWithoutOptimisticallyMovingTheChatOrLosingScope() {
         val latest = server.copy(revision = 5)
         val client = client { request -> if (request.method == "POST") 409 to

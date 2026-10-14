@@ -93,47 +93,38 @@ internal fun speechText(value: String): String = value
     .replace(Regex("https?://\\S+"), "link")
     .replace(Regex("(?m)^\\s*[#>*-]+\\s*"), "")
     .replace("**", "").replace("`", "").trim()
-internal fun likelyEcho(transcript: String, spoken: String): Boolean {
-    fun words(text: String) = text.lowercase().replace(Regex("[^\\p{L}\\p{N} ]"), " ").split(Regex("\\s+")).filter { it.isNotBlank() }
+/** Short echoes require a recently audible whole phrase; common user commands stay usable. */
+internal fun likelyEcho(transcript: String, spoken: String, shortPhrases: List<String> = emptyList()): Boolean {
+    fun words(text: String) = text.lowercase().replace(Regex("[^\\p{L}\\p{N} ]"), " ")
+        .split(Regex("\\s+")).filter { it.isNotBlank() }
     val heard = words(transcript); val said = words(spoken)
     if (heard.isEmpty()) return true
-    return heard.size >= 3 && said.windowed(heard.size).any { it == heard }
+    if (heard.size >= 3) return said.windowed(heard.size).any { it == heard }
+    if (heard.joinToString(" ") in setOf("yes", "no", "stop", "cancel", "pause")) return false
+    return shortPhrases.any { words(it) == heard }
 }
 
-internal const val VOICE_PRESET = "[Bellpull voice turn: give at most one paragraph, no more than 180 words, in friendly spoken language. Keep reasoning minimal and spend as little time thinking as this request permits; still verify facts when needed. Before every tool call or web search, briefly tell the user what you are doing and why. Do not include lists, long explanations or hidden reasoning in the answer.]"
+internal const val VOICE_PRESET = "[Bellpull voice turn: use friendly spoken language. Prefer a brief answer unless the user requests detail, research or a long narration; honor their requested depth and length. Do not include hidden reasoning. The complete answer will be read aloud.]"
 
-/** Bound spoken answers even when a provider ignores the visible voice preset. Statuses are separate. */
-internal class VoiceSpeechBudget(private val limit: Int = 180) {
-    private var words = 0
-    fun take(text: String): String? {
-        val remaining = limit - words
-        if (remaining <= 0) return null
-        val tokens = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        words += tokens.size.coerceAtMost(remaining)
-        return tokens.take(remaining).joinToString(" ").takeIf { it.isNotBlank() }
+internal enum class VoiceActivityKind { TOOL, WEB_SEARCH, THINKING, WORKING }
+internal data class VoiceAnnouncements(val tools: Boolean = true, val webSearch: Boolean = true,
+    val thinking: Boolean = true, val working: Boolean = true) {
+    fun enabled(kind: VoiceActivityKind) = when (kind) {
+        VoiceActivityKind.TOOL -> tools
+        VoiceActivityKind.WEB_SEARCH -> webSearch
+        VoiceActivityKind.THINKING -> thinking
+        VoiceActivityKind.WORKING -> working
     }
-    fun reset() { words = 0 }
 }
-
-internal data class VoiceActivity(val id: String, val text: String)
-internal fun voiceActivities(parts: List<LivePart>): List<VoiceActivity> {
-    var commentary = ""
-    return buildList {
-        parts.forEach { part -> when (part) {
-            is LivePart.Prose -> if (part.thinking) add(VoiceActivity("thinking:${part.id}", "Thinking."))
-                else commentary = speechText(part.text).replace(Regex("\\s+"), " ").trim()
-                    .split(' ').take(35).joinToString(" ")
-            is LivePart.Tools -> part.rows.forEach { row ->
-                val purpose = commentary.takeIf { it.isNotBlank() } ?: when (row.name) {
-                    "web_search" -> "Searching the web for this request."
-                    "web_extract", "web_fetch" -> "Reading a webpage for this request."
-                    "read_file", "file_read" -> "Reading a file for this request."
-                    "terminal" -> "Running a command for this request."
-                    else -> "Using this tool for your request; no specific purpose was provided."
-                }
-                val label = if (row.name == "web_search") "Web search" else "Tool call. ${toolDisplayName(row.name)}"
-                add(VoiceActivity("tool:${row.id}", "$label. $purpose"))
-            }
-        } }
-    }
+internal data class VoiceActivity(val id: String, val text: String, val kind: VoiceActivityKind = VoiceActivityKind.TOOL)
+/** Prose belongs to the answer lane. Tool labels never borrow or repeat preceding prose. */
+internal fun voiceActivities(parts: List<LivePart>): List<VoiceActivity> = buildList {
+    parts.forEach { part -> when (part) {
+        is LivePart.Prose -> if (part.thinking) add(VoiceActivity("thinking:${part.id}", "Thinking.", VoiceActivityKind.THINKING))
+        is LivePart.Tools -> part.rows.forEach { row ->
+            val search = row.name == "web_search"
+            add(VoiceActivity("tool:${row.id}", if (search) "Web search." else "Tool call. ${toolDisplayName(row.name)}.",
+                if (search) VoiceActivityKind.WEB_SEARCH else VoiceActivityKind.TOOL))
+        }
+    } }
 }

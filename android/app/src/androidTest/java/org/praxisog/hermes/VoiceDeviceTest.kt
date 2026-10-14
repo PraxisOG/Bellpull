@@ -114,7 +114,7 @@ class VoiceDeviceTest {
                 await { var live = false; main { live = runtime.voice?.state == VoiceState.LISTENING }; live }
                 instrumentation.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                 Thread.sleep(1500)
-                main { assertNotNull(runtime.voice); assertNotEquals(VoiceState.STOPPED, runtime.voice?.state) }
+                main { assertNotNull(runtime.voice); assertEquals(VoiceState.LISTENING, runtime.voice?.state) }
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.PAUSE))
                 await { var paused = false; main { paused = runtime.voice?.state == VoiceState.PAUSED }; paused }
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.STOP))

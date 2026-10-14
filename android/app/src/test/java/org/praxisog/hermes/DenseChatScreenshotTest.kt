@@ -42,7 +42,7 @@ class DenseChatScreenshotTest {
         compose.setContent {
             back = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
             HermesApp(UiState.Ready(UiFixtures.sessions), UiState.Ready(history), TurnState.Idle,
-                UiFixtures.sessions[0].id, UiFixtures.sessions[0], UiFixtures.NOW, {}, {}, { sends++ }, {}, {}, {}, {},
+                UiFixtures.sessions[0].id, UiFixtures.sessions[0], UiFixtures.NOW, {}, {}, { sends++; true }, {}, {}, {}, {},
                 preferences = prefs.value, onPreferencesChange = { prefs.value = it },
                 onReadMessage = { read = it }, onBranchMessage = { branch = it }, branchingEnabled = true,
                 editingEnabled = true, onForkEdit = { message, text -> edit = message to text },
@@ -164,7 +164,7 @@ class DenseChatScreenshotTest {
     @Test fun pendingAndStreamingBubblesStayDenseAndCopyASnapshot() {
         var turn by mutableStateOf<TurnState>(TurnState.Streaming("First draft", canStop = true,
             parts = listOf(LivePart.Prose("p", "First draft"))))
-        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(emptyList()), turn, {}, {}, {},
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(emptyList()), turn, { false }, {}, {},
             pendingUserText = "Pending prompt", denseChatWindow = true) } }
         compose.onNodeWithText("You").assertDoesNotExist(); compose.onNodeWithText("Hermes").assertDoesNotExist()
         popup(Int.MIN_VALUE)

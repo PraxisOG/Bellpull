@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal interface VoiceOutput {
     fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit)
     fun speak(text: String, started: () -> Unit, complete: () -> Unit)
+    fun prefetch(text: String) {}
     fun stop()
     fun close()
     fun chime() {}

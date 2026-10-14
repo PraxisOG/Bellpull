@@ -42,7 +42,7 @@ class ConversationControlsScreenshotTest {
             HermesApp(sessions = UiState.Ready(listOf(session) + UiFixtures.sessions.drop(1)), history = UiState.Ready(history),
                 turn = TurnState.Idle, openSessionId = "api_1_alpha",
                 openSession = session, now = UiFixtures.NOW,
-                onOpenSession = {}, onCloseSession = {}, onSend = {}, onStop = {},
+                onOpenSession = {}, onCloseSession = {}, onSend = { false }, onStop = {},
                 onRetrySessions = {}, onRetryHistory = {}, onNewSession = {},
                 branchingSession = branching, branchError = branchError)
         }
@@ -107,7 +107,7 @@ class ConversationControlsScreenshotTest {
                 SessionDetailScreen(UiState.Ready(listOf(
                     Message(101, role = "user", content = "Tell me about this quiet corner."),
                     Message(102, role = "assistant", content = "A comfortable chair, soft light, and a small plant make a good start."),
-                )), TurnState.Idle, {}, {}, {}, readingMessageId = 102, branchingEnabled = true)
+                )), TurnState.Idle, { false }, {}, {}, readingMessageId = 102, branchingEnabled = true)
             }
         }
         compose.onNodeWithContentDescription("Stop reading").assertIsDisplayed()

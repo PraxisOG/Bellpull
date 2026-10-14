@@ -68,7 +68,7 @@ class ProjectTests(unittest.TestCase):
         self.assertTrue(self.member("root")["pinned"])
         move = self.change("move", session_id="root", project_id=self.two)
         self.store.mutate(move)  # Lost response, identical request.
-        self.assertFalse(self.member("root")["pinned"])
+        self.assertTrue(self.member("root")["pinned"])
         self.assertEqual(self.two, self.member("root")["project_id"])
         self.change("delete", project_id=self.two)
         self.assertIsNone(self.member("root")["project_id"])
@@ -86,6 +86,25 @@ class ProjectTests(unittest.TestCase):
                 "operation_id": uuid.uuid4().hex, "expected_revision": 0})
         self.assertEqual("project_revision_conflict", error.exception.code)
         self.assertEqual(1, len(self.store.snapshot()["projects"]))
+
+    def test_unfiled_pin_survives_move_delete_restart_and_profile_isolation(self):
+        self.change("pin", session_id="root", pinned=True)
+        self.assertIsNone(self.member("root")["project_id"])
+        self.assertTrue(self.member("root")["pinned"])
+        self.create()
+        self.change("move", session_id="root", project_id=self.one)
+        self.assertTrue(self.member("root")["pinned"])
+        self.change("move", session_id="root", project_id=None)
+        self.assertTrue(self.member("root")["pinned"])
+        self.change("move", session_id="root", project_id=self.one)
+        self.change("delete", project_id=self.one)
+        reopened = ProjectStore(self.home, "a" * 64, self.native).snapshot()
+        self.assertTrue(reopened["memberships"][0]["pinned"])
+        self.assertIsNone(reopened["memberships"][0]["project_id"])
+        self.assertEqual([], ProjectStore(self.home, "b" * 64, self.native).snapshot()["memberships"])
+        self.change("pin", session_id="root", pinned=False)
+        self.assertFalse(self.member("root")["pinned"])
+        self.assertEqual("Keep my history", self.native.get_messages("root")[0]["content"])
 
     def test_compaction_multiple_generations_preserve_membership_and_pins(self):
         self.create()

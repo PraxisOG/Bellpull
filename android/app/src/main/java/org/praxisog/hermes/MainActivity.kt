@@ -153,6 +153,11 @@ class MainActivity : ComponentActivity() {
                                 runtime.voiceStartError?.let { androidx.compose.material3.Text(it) }
                             }
                         },
+                        voiceAnnouncementSettings = {
+                            VoiceAnnouncementSettings(voiceConfig, savedVoiceSettings != null) {
+                                savedVoiceSettings?.save(it); voiceConfig = savedVoiceSettings?.read() ?: it
+                            }
+                        },
                         voiceOutputSettings = {
                             VoiceOutputSettings(voiceConfig, runtime.voiceOutputs, runtime.voice == null,
                                 canSave = savedVoiceSettings != null, beforeChange = { reader.stop() }) {
@@ -172,7 +177,7 @@ class MainActivity : ComponentActivity() {
                         now = System.currentTimeMillis() / 1000.0,
                         onOpenSession = { preview = null; if (current == null) exampleId = BellpullExample.ID else current.openSession(it) },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
-                        onSend = { text -> if (current != null) { if (files != null) files.send(current, text) else current.send(text) } }, onStop = { current?.stop() },
+                        onSend = { text -> current?.let { if (files != null) files.send(it, text) else it.send(text) } ?: false }, onStop = { current?.stop() },
                         onRetrySessions = { current?.loadSessions() }, onRetryHistory = { current?.refreshHistory() },
                         onNewSession = { preview = null; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },
                         creatingSession = current?.creatingSession ?: false,
@@ -197,7 +202,7 @@ class MainActivity : ComponentActivity() {
                         draft = current?.draft ?: exampleDraft,
                         onDraftChange = { if (current == null) exampleDraft = it else current.updateDraft(it) },
                         preferences = preferences.value, onPreferencesChange = preferences::update,
-                        onReadMessage = { runtime.voice?.pause("Voice paused for message read-aloud."); reader.read(it.id, it.content.orEmpty()) }, readingMessageId = reader.readingMessageId,
+                        onReadMessage = { reader.read(it.id, it.content.orEmpty()) }, readingMessageId = reader.readingMessageId,
                         onBranchMessage = { current?.branchMessage(it) },
                         branchingEnabled = current?.supportsMessageBranching ?: false,
                         editingEnabled = current?.supportsPromptEditing ?: false,

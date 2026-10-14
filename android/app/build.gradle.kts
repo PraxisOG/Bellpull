@@ -34,10 +34,14 @@ android {
             "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
-        externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_static" } }
+        externalNativeBuild { cmake {
+            arguments += "-DANDROID_STL=c++_static"
+            arguments += "-DBELLPULL_TTS_CANDIDATE_BENCHMARK=" +
+                if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
+        } }
         targetSdk = 37
-        versionCode = 20
-        versionName = "0.8.1-integration-preview"
+        versionCode = 21
+        versionName = "0.8.2-integration-preview"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

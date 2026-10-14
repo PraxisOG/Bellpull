@@ -37,7 +37,7 @@ class ConversationControlsTest {
         compose.setContent {
             HermesApp(sessions = UiState.Ready(UiFixtures.sessions), history = history,
                 turn = turn(), openSessionId = openId(), openSession = UiFixtures.sessions.first(), now = UiFixtures.NOW,
-                onOpenSession = {}, onCloseSession = {}, onSend = {}, onStop = {}, onRetrySessions = {},
+                onOpenSession = {}, onCloseSession = {}, onSend = { false }, onStop = {}, onRetrySessions = {},
                 onRetryHistory = {}, onNewSession = onNew, creatingSession = creating, createError = createError)
         }
     }
@@ -193,7 +193,7 @@ class ConversationControlsTest {
         var branch: Message? = null
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(listOf(reply)), TurnState.Idle, {}, {}, {},
+                SessionDetailScreen(UiState.Ready(listOf(reply)), TurnState.Idle, { false }, {}, {},
                     onReadMessage = { read = it }, onBranchMessage = { branch = it }, branchingEnabled = true)
             }
         }

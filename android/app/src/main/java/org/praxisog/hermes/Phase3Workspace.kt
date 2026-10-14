@@ -142,15 +142,16 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         if (persist(drafts.filterNot { it.id in ids })) ids.forEach { local(it).delete(); progress.remove(it) }
         refreshArtifacts()
     }
-    fun send(store: HermesStore, text: String) {
-        val id = store.openSessionId ?: return
-        if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true) return
+    fun send(store: HermesStore, text: String): Boolean {
+        val id = store.openSessionId ?: return false
+        if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true || text.isBlank() || store.branchingSession ||
+            store.turn is TurnState.Streaming || store.history !is UiState.Ready) return false
         val files = filesFor(id)
         if (files.isNotEmpty() && !runAttachmentsSupported) {
             errors[id] = "This server cannot receive chat attachments. Your draft and files are saved; nothing was sent."
-            return
+            return false
         }
-        if (!modelsSupported) { store.send(text); return }
+        if (!modelsSupported) return store.send(text)
         val revision = store.drafts.revision(id)
         val generation = (sendGenerations[id] ?: 0) + 1
         sendGenerations[id] = generation
@@ -187,6 +188,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                 store.send(text, BellpullRunOptions(selection = selected, artifactIds = files.map { it.id }))
             } finally { if (!closed && sendGenerations[id] == generation) sending[id] = false }
         }
+        return true
     }
     fun refreshArtifacts() {
         if (!filesSupported || closed) return

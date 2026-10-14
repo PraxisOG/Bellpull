@@ -87,7 +87,8 @@ internal class BellpullRuntime private constructor(context: Context) {
             override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
         } }, capabilities.features["bellpull_coding_activity"] == true)
         planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true) }
-        projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true) }
+        projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true,
+            capabilities.features["bellpull_conversation_pins"] == true) }
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
@@ -124,7 +125,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             capabilities = result.value
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
-            projects?.configure(result.value.features["bellpull_projects"] == true)
+            projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true

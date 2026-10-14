@@ -154,12 +154,37 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     }
     Text("Conversation", style = MaterialTheme.typography.titleMedium)
     Text("End-of-turn pause: ${"%.1f".format(pause / 1000f)} seconds"); Slider(pause.toFloat(), { pause = it.toInt() }, valueRange = 1000f..3500f)
-    Row { Checkbox(concise, { concise = it }); Text("Brief voice responses (one paragraph)") }
-    Text("Asks for at most 180 words, minimal reasoning, and a brief purpose before every tool or web search. Model thinking controls stay unchanged. Spoken answer text is capped at 180 words.", style = MaterialTheme.typography.bodySmall)
+    Row { Checkbox(concise, { concise = it }); Text("Brief voice responses") }
+    Text("Prefers brief spoken answers unless you ask for detail or a long narration. The complete generated answer is always played.", style = MaterialTheme.typography.bodySmall)
     Text("The preset is included visibly in voice messages. Typed messages and their model settings keep their existing behavior.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {
         onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition))
         if (recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
     }.onFailure { error = it.message ?: "Could not save voice settings." } }) { Text("Save voice settings") }
+}
+
+@Composable
+internal fun VoiceAnnouncementSettings(config: VoiceConfiguration, enabled: Boolean, onChange: (VoiceConfiguration) -> Unit) {
+    Text("Changes apply to the next voice session.", style = MaterialTheme.typography.bodySmall)
+    val flags = config.announcements
+    var error by remember { mutableStateOf<String?>(null) }
+    fun save(value: VoiceAnnouncements) {
+        runCatching { onChange(config.copy(announcements = value)) }
+            .onSuccess { error = null }
+            .onFailure { error = "Could not save voice announcements. Try again." }
+    }
+    PreferenceSwitch("Tool use announcements", "Speak status cues for tools other than web search.", flags.tools, enabled) {
+        save(flags.copy(tools = it))
+    }
+    PreferenceSwitch("Web search announcements", "Speak web search status cues independently of other tools.", flags.webSearch, enabled) {
+        save(flags.copy(webSearch = it))
+    }
+    PreferenceSwitch("Thinking announcements", "Speak the Thinking status cue.", flags.thinking, enabled) {
+        save(flags.copy(thinking = it))
+    }
+    PreferenceSwitch("Working announcements", "Speak Working before sending a voice turn.", flags.working, enabled) {
+        save(flags.copy(working = it))
+    }
+    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }

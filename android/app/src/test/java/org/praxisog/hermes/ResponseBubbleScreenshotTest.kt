@@ -41,7 +41,7 @@ class ResponseBubbleScreenshotTest {
         if (bottom) assertEquals(bubble.bottom, row.bottom, .5f)
     }
     private fun show() {
-        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history), TurnState.Idle, {}, {}, {},
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history), TurnState.Idle, { false }, {}, {},
             denseChatWindow = true, artifacts = listOf(artifact)) } }
         compose.onAllNodes(hasContentDescription("Hermes response")).assertCountEquals(1)
         listOf("Terminal", "Web search", "Read file", "reading-nook.png").forEach {
@@ -66,7 +66,7 @@ class ResponseBubbleScreenshotTest {
     }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun oneResponseUnfoldedDark() = show()
     private fun middleArtifactAndFinalTool() {
-        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history.dropLast(1)), TurnState.Idle, {}, {}, {},
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(history.dropLast(1)), TurnState.Idle, { false }, {}, {},
             denseChatWindow = true, artifacts = listOf(artifact.copy(messageId = 2))) } }
         edgeToEdge(5, "artifact-plan")
         edgeToEdge(5, "message-6", bottom = true)
@@ -79,7 +79,7 @@ class ResponseBubbleScreenshotTest {
     @Test fun searchCanRevealALateSegmentInsideATallResponse() {
         val long = history.map { if (it.id == 5) it.copy(content = "Room details.\n".repeat(100)) else it }
         var nav by androidx.compose.runtime.mutableStateOf<ChatNavigation?>(ChatNavigation.SEARCH)
-        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(long), TurnState.Idle, {}, {}, {},
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(long), TurnState.Idle, { false }, {}, {},
             navigation = nav, onDismissNavigation = { nav = null }, denseChatWindow = true) } }
         compose.onNodeWithTag("chat-search").performTextInput("trailing plant")
         compose.onNodeWithTag("jump-to-7").performClick()

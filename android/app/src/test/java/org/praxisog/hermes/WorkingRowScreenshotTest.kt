@@ -25,7 +25,7 @@ class WorkingRowScreenshotTest {
         var parts by mutableStateOf(listOf<LivePart>(LivePart.Prose("thinking", "Checking the room notes.", true)))
         compose.setContent { HermesTheme {
             SessionDetailScreen(UiState.Ready(listOf(Message(1, role = "user", content = "Check my reading nook plan."))),
-                TurnState.Streaming("", parts = parts, canStop = true, statusLabel = "Working…"), {}, {}, {},
+                TurnState.Streaming("", parts = parts, canStop = true, statusLabel = "Working…"), { false }, {}, {},
                 collapseThinking = false, denseChatWindow = true, reduceMotion = true)
         } }
         // The same selected chat grows as events arrive; no navigation or reload.

@@ -117,6 +117,12 @@ internal class LocalVoiceOutput(
 ) : VoiceOutput {
     private val generation = AtomicLong()
     private var task: Job? = null
+    private class PreparedSpeech(val text: String, val queue: Channel<FloatArray>, val producer: Deferred<Unit>) {
+        fun cancel() { producer.cancel(); queue.cancel() }
+    }
+    private var active: PreparedSpeech? = null
+    private var ahead: PreparedSpeech? = null
+    private var playbackSequence = 0L
     @Volatile private var audio: VoicePcmPlayer? = null
     private var closed = false
     private var failure: (String) -> Unit = {}
@@ -136,67 +142,88 @@ internal class LocalVoiceOutput(
             }
         }
     }
-    override fun speak(text: String, started: () -> Unit, complete: () -> Unit) {
-        stop()
-        if (closed || text.isBlank()) return
-        val token = generation.get()
-        task = scope.launch {
+    private fun synthesize(text: String, token: Long): PreparedSpeech {
+        val queue = Channel<FloatArray>(16) // At most 1.6 seconds of 24 kHz PCM per phrase.
+        val producer = scope.async(Dispatchers.IO) {
+            var problem: Throwable? = null
             try {
                 check(!severe()) { "Phone is too warm. $name paused; let it cool before resuming." }
-                coroutineScope {
-                    val queue = Channel<FloatArray>(16) // Bounded native chunks; producer waits for playback.
-                    var hot = false
-                    val consumer = async(Dispatchers.IO) {
-                        val sink = player(rate, config.volume)
-                        audio = sink
-                        try {
-                            var first = true
-                            for (samples in queue) {
-                                ensureActive()
-                                if (token != generation.get()) break
-                                sink.write(samples)
-                                if (first) { first = false; withContext(callbacks) {
-                                    if (!closed && token == generation.get()) started()
-                                } }
-                            }
-                            sink.drain()
-                        } finally { if (audio === sink) audio = null; sink.close() }
-                    }
-                    try {
-                        val status = withContext(Dispatchers.IO) {
-                            val job = currentCoroutineContext()[Job]!!
-                            runtime.withModel { engine, _, invalid ->
-                                engine.synthesize(text, config, object : LocalTtsSink {
-                                    override fun isCancelled(): Boolean {
-                                        hot = severe()
-                                        return !job.isActive || closed || token != generation.get() || invalid() || hot
-                                    }
-                                    override fun onChunk(samples: FloatArray): Boolean {
-                                        if (isCancelled()) return false
-                                        // Native transfers a fresh copy; queue never holds its short-lived pointer.
-                                        // Backpressure also handles a decoder faster than playback.
-                                        // Parent cancellation wakes this wait on interruption.
-                                        return runCatching { runBlocking(job) { queue.send(samples) } }.isSuccess
-                                    }
-                                })
-                            }
+                val job = currentCoroutineContext()[Job]!!
+                var hot = false
+                val status = runtime.withModel { engine, _, invalid ->
+                    engine.synthesize(text, config, object : LocalTtsSink {
+                        override fun isCancelled(): Boolean {
+                            hot = severe()
+                            return !job.isActive || closed || token != generation.get() || invalid() || hot
                         }
-                        check(!hot) { "Phone reached severe thermal status. $name stopped; let it cool." }
-                        check(status == 0) { "$name synthesis was interrupted. Try again when ready." }
-                    } catch (error: Exception) { audio?.stop(); throw error }
-                    finally { queue.close() }
-                    consumer.await()
+                        override fun onChunk(samples: FloatArray): Boolean {
+                            if (isCancelled()) return false
+                            // Limit bytes as well as chunk count; native engines emit varying chunk sizes.
+                            return runCatching { runBlocking(job) {
+                                var start = 0
+                                while (start < samples.size) {
+                                    ensureActive()
+                                    val end = minOf(start + 2400, samples.size)
+                                    queue.send(samples.copyOfRange(start, end)); start = end
+                                }
+                            } }.isSuccess
+                        }
+                    })
                 }
-                if (!closed && token == generation.get()) complete()
+                check(!hot) { "Phone reached severe thermal status. $name stopped; let it cool." }
+                check(status == 0) { "$name synthesis was interrupted. Try again when ready." }
+            } catch (error: Throwable) { problem = error; throw error }
+            finally { queue.close(problem) }
+        }
+        return PreparedSpeech(text, queue, producer)
+    }
+    override fun prefetch(text: String) {
+        if (closed || active == null || text.isBlank() || ahead?.text == text) return
+        ahead?.cancel()
+        ahead = synthesize(text, generation.get())
+    }
+    override fun speak(text: String, started: () -> Unit, complete: () -> Unit) {
+        if (closed || text.isBlank()) return
+        val cached = ahead?.takeIf { it.text == text }
+        if (cached != null) { ahead = null; active = cached }
+        else { stop(); active = synthesize(text, generation.get()) }
+        val phrase = checkNotNull(active)
+        val token = generation.get()
+        val sequence = ++playbackSequence
+        task = scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val sink = player(rate, config.volume)
+                    audio = sink
+                    try {
+                        var first = true
+                        for (samples in phrase.queue) {
+                            ensureActive()
+                            if (token != generation.get()) break
+                            sink.write(samples)
+                            if (first) { first = false; withContext(callbacks) {
+                                if (!closed && token == generation.get() && sequence == playbackSequence) started()
+                            } }
+                        }
+                        phrase.producer.await()
+                        sink.drain()
+                    } finally { if (audio === sink) audio = null; sink.close() }
+                }
+                if (!closed && token == generation.get() && sequence == playbackSequence) {
+                    active = null; complete()
+                }
             } catch (error: Exception) {
-                audio?.stop()
-                if (error !is CancellationException && !closed && token == generation.get())
+                if (token == generation.get() && sequence == playbackSequence) audio?.stop()
+                if (error !is CancellationException && !closed && token == generation.get() && sequence == playbackSequence)
                     failure(error.message ?: "$name speech failed. The written answer is available.")
             }
         }
     }
     override fun chime() = cue()
-    override fun stop() { generation.incrementAndGet(); task?.cancel(); task = null; audio?.stop() }
+    override fun stop() {
+        generation.incrementAndGet(); playbackSequence++; task?.cancel(); task = null; audio?.stop()
+        active?.cancel(); active = null; ahead?.cancel(); ahead = null
+    }
     override fun close() { closed = true; stop(); scope.cancel() }
 }
 

@@ -63,6 +63,16 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-13, all open experimental issues and phone install):**
+the user requested fixing all open GitHub issues, confirmed ADB availability,
+and requested installation when done. Work is on `repair/experimental-open-issues`
+from integration `4fa43d1`. Android 0.8.2/build21 and plugin 0.4.1 implement the
+repairs; see `docs/EXPERIMENTAL-ISSUE-REPAIRS.md` for evidence/remaining car checks.
+Signed build21 is installed over build20, with the same certificate, UID10260 and
+CE/DE inodes117766/116002. Prior APK backed up; personal app left stopped, no
+personal-server access/deployment. Source remains local; default branch unchanged.
+
+
 **Latest authority (2026-10-13, development deployment and GitHub):** the user
 requested updating the local development server, pushing the latest development
 release for their agent, including the phase roadmap, and improving the GitHub

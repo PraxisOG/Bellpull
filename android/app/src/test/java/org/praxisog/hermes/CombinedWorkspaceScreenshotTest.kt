@@ -82,7 +82,7 @@ class CombinedWorkspaceScreenshotTest {
             compose.setContent {
                 val state = runs.states["root"]!!
                 HermesApp(UiState.Ready(listOf(session)), UiState.Ready(emptyList()), state.turn,
-                    session.id,session,1791774000.0, {}, {}, {}, { runs.stop("root") }, {}, {}, {},
+                    session.id,session,1791774000.0, {}, {}, { false }, { runs.stop("root") }, {}, {}, {},
                     draft=drafts["root"],onDraftChange={ drafts.set("root",it) },
                     preferences=BellpullPreferences(reduceMotion=true), runPresentation=state,
                     runLabels=mapOf("root" to "Running"),coding=coding,

@@ -27,7 +27,7 @@ class RunRecoveryScreenshotTest {
                 else if (approval) null else "Connection lost. Hermes may still be working. Reconnecting…")
         compose.setContent {
             HermesApp(UiState.Ready(UiFixtures.sessions), UiState.Ready(UiFixtures.history), state.turn,
-                session.id, session, UiFixtures.NOW, {}, {}, {}, {}, {}, {}, {},
+                session.id, session, UiFixtures.NOW, {}, {}, { false }, {}, {}, {}, {},
                 runPresentation = state, runLabels = mapOf(session.id to if (approval) "Needs approval" else "Reconnecting"),
                 notificationsAvailable = true, preferences = BellpullPreferences(palette = Palette.MAROON, notifications = true))
         }

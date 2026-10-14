@@ -196,7 +196,7 @@ class ProjectStore:
             if not self.database.get_session(row["session_id"]):
                 continue  # Pending creation intents or removed native sessions.
             row["session_ids"] = compression_ids(self.database, row["session_id"])
-            row["pinned"] = bool(row["pinned"]) and row["project_id"] is not None
+            row["pinned"] = bool(row["pinned"])
             row.pop("updated_at", None)
             result.append(row)
         return {"version": 1, "revision": revision, "projects": projects, "memberships": result}
@@ -240,20 +240,17 @@ class ProjectStore:
                                  (*values, body["archived"], now, project_id))
             elif op == "delete":
                 self.project(conn, body.get("project_id"))
-                conn.execute("UPDATE memberships SET pinned=0 WHERE project_id=?", (body["project_id"],))
                 conn.execute("DELETE FROM projects WHERE id=?", (body["project_id"],))
             elif op == "move":
                 project_id = body.get("project_id")
                 if project_id is not None:
                     self.project(conn, project_id, writable=True)
-                conn.execute("INSERT INTO memberships VALUES (?, ?, 0, ?) ON CONFLICT(session_id) DO UPDATE SET project_id=excluded.project_id, pinned=0, updated_at=excluded.updated_at", (session, project_id, time.time()))
+                conn.execute("INSERT INTO memberships VALUES (?, ?, 0, ?) ON CONFLICT(session_id) DO UPDATE SET project_id=excluded.project_id, updated_at=excluded.updated_at", (session, project_id, time.time()))
             elif op == "pin":
                 if not isinstance(body.get("pinned"), bool):
                     raise ProjectError("Pinned must be a boolean.")
-                row = conn.execute("SELECT project_id FROM memberships WHERE session_id=?", (session,)).fetchone()
-                if not row or row[0] is None:
-                    raise ProjectError("Move this conversation into a project before pinning it.", 409)
-                conn.execute("UPDATE memberships SET pinned=?,updated_at=? WHERE session_id=?", (body["pinned"], time.time(), session))
+                conn.execute("INSERT INTO memberships VALUES (?, NULL, ?, ?) ON CONFLICT(session_id) DO UPDATE SET pinned=excluded.pinned, updated_at=excluded.updated_at",
+                             (session, body["pinned"], time.time()))
             self.bump(conn)
             conn.execute("INSERT INTO receipts VALUES (?, ?)", (operation_id, digest))
             conn.execute("DELETE FROM receipts WHERE rowid NOT IN (SELECT rowid FROM receipts ORDER BY rowid DESC LIMIT 1024)")

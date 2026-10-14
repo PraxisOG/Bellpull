@@ -9,7 +9,8 @@ internal enum class VoiceRecognition { LOCAL, PRIVATE_SERVER }
 internal data class VoiceConfiguration(val endpoint: String = "", val key: String = "", val model: String = "whisper-1",
     val rate: Float = 1.05f, val pauseMs: Int = 1600, val concise: Boolean = true,
     val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
-    val output: VoiceOutputConfiguration = VoiceOutputConfiguration()) {
+    val output: VoiceOutputConfiguration = VoiceOutputConfiguration(),
+    val announcements: VoiceAnnouncements = VoiceAnnouncements()) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
 
@@ -37,7 +38,9 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             temperature = prefs.getFloat("temperature", .9f), topP = prefs.getFloat("top_p", 1f), topK = prefs.getInt("top_k", 50),
             repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f),
             pocketSteps = prefs.getInt("pocket_steps", 5), pocketTemperature = prefs.getFloat("pocket_temperature", .7f),
-            pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)))
+            pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)),
+        VoiceAnnouncements(prefs.getBoolean("announce_tools", true), prefs.getBoolean("announce_web_search", true),
+            prefs.getBoolean("announce_thinking", true), prefs.getBoolean("announce_working", true)))
     fun save(value: VoiceConfiguration) {
         value.output.validated()
         if (value.recognition == VoiceRecognition.PRIVATE_SERVER) {
@@ -51,7 +54,9 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
             .putInt("pocket_chunk_frames", value.output.pocketChunkFrames)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))
-            .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise).commit())
+            .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise)
+            .putBoolean("announce_tools", value.announcements.tools).putBoolean("announce_web_search", value.announcements.webSearch)
+            .putBoolean("announce_thinking", value.announcements.thinking).putBoolean("announce_working", value.announcements.working).commit())
     }
     fun pending(sessionId: String): String = prefs.getString("pending_session", null)?.takeIf { it == sessionId }
         ?.let { prefs.getString("pending_text", "") }.orEmpty()

@@ -1,3 +1,24 @@
+# Latest: experimental issue repairs and installed update (2026-10-13)
+
+User authorized all open issue fixes, ADB acceptance and installation. Local
+branch `repair/experimental-open-issues`; Android 0.8.2-integration-preview/build21
+is installed over build20 with unchanged certificate, UID 10260 and CE/DE data
+identities 117766/116002. Prior APK backed up; personal app left stopped.
+
+Local checks: 563 Android tests (one expected skip), screenshot verification,
+lint and signed build passed. Plugin: 127 tests (one expected skip); stock
+projects: 14. Isolated phone: unfolded UI/voice 7, cover UI 3, Qwen 2, candidate
+benchmark 1, Pocket benchmark/gap comparison 1. Pocket gap fell 1,478.5 ms → 38.8 ms
+in the paired measurement. Candidate adapters are excluded from personal release.
+
+Global pins require supplied Bellpull plugin 0.4.1; no personal server deployment
+or access occurred. Physical wired Android Auto/headset/call acceptance and
+subjective candidate voice approval remain. Source is local; no GitHub issue
+closure or release publication. Detail: [repair record](EXPERIMENTAL-ISSUE-REPAIRS.md)
+and [native measurements](../benchmarks/voice-output/pixel-10-pro-fold-2026-10-13/README.md).
+
+---
+
 ## October 13: experimental release and phase roadmap
 
 The user authorized publishing the latest development preview, including the

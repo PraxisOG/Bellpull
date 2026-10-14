@@ -40,7 +40,7 @@ class PaneToggleTest {
                 now = UiFixtures.NOW,
                 onOpenSession = {},
                 onCloseSession = {},
-                onSend = {},
+                onSend = { false },
                 onStop = {},
                 onRetrySessions = {},
                 onRetryHistory = {},

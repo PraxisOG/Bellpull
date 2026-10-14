@@ -255,7 +255,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

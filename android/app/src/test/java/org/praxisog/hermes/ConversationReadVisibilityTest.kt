@@ -22,7 +22,7 @@ class ConversationReadVisibilityTest {
     private fun show() {
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, {}, {}, {},
+                SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, { false }, {}, {},
                     readEnabled = foreground, onReadThrough = { receipts.readThrough("chat", it) })
             }
         }

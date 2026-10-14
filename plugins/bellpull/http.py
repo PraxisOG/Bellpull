@@ -91,6 +91,7 @@ def wire(app, adapter):
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
+                "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,
                 "bellpull_routines": projects_ready and planning.cron_ready(),

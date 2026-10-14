@@ -51,6 +51,18 @@ class VoiceRecognitionSettingsTest {
         assertEquals("", two.read().key)
         assertEquals("one-key", one.read().key)
     }
+    @Test fun announcementFlagsPersistIndependentlyAndAbsentValuesStayOn() {
+        val one = VoiceSettings(context.getSharedPreferences("announcements-one", Context.MODE_PRIVATE))
+        val two = VoiceSettings(context.getSharedPreferences("announcements-two", Context.MODE_PRIVATE))
+        one.clear(); two.clear()
+        assertEquals(VoiceAnnouncements(), one.read().announcements)
+        for (mask in 0..15) {
+            val flags = VoiceAnnouncements(mask and 1 != 0, mask and 2 != 0, mask and 4 != 0, mask and 8 != 0)
+            one.save(VoiceConfiguration(announcements = flags))
+            assertEquals(flags, VoiceSettings(context.getSharedPreferences("announcements-one", Context.MODE_PRIVATE)).read().announcements)
+            assertEquals(VoiceAnnouncements(), two.read().announcements)
+        }
+    }
     @Test fun modelChoiceAndTuningSurviveRestartWithoutLeakingBetweenModels() {
         context.getSharedPreferences("speech-experiments", Context.MODE_PRIVATE).edit().clear().commit()
         val settings = SpeechExperimentSettings(context)

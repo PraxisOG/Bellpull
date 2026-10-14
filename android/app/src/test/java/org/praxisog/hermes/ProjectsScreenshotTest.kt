@@ -125,7 +125,7 @@ class ProjectsScreenshotTest {
         val workspace = workspace(project.id)
         compose.setContent {
             HermesApp(UiState.Ready(sessions), UiState.Ready(emptyList()), TurnState.Idle, null, null, UiFixtures.NOW,
-                {}, {}, {}, {}, {}, {}, {}, projects = workspace)
+                {}, {}, { false }, {}, {}, {}, {}, projects = workspace)
         }
         compose.waitUntil(5000) { workspace.fresh }
         compose.onNodeWithText(project.description).assertIsDisplayed()

@@ -47,7 +47,8 @@ the message draft. The active button pulses, and a brief chime signals microphon
 readiness. Settings → Voice → Using voice documents the controls; Debugging voice
 interface restores the previous panel. See [voice behavior and limits](PHASE-5-VOICE.md).
 No plugin update, new dependency or provider thinking-control change is required.
-Voice prompt text asks for minimal reasoning and one paragraph/180 words. Live activity
+The current experimental repair permits complete long narration; Brief voice responses
+is an optional style preference that honors explicit requests for detail. Live activity
 announcements use actual events, and recognized non-echo speech requests the normal
 chat Stop before one replacement admission. Completed runs still syncing history are
 allowed to reconcile without a redundant Stop. Failures/30-second timeout keep new

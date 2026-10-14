@@ -80,13 +80,14 @@ internal class DurableRuns(
         }
     }
 
-    fun send(sessionId: String, text: String, previousIds: Set<Int>, bellpull: BellpullRunOptions? = null) {
-        if (text.isBlank() || states[sessionId]?.busy == true || closed) return
+    fun send(sessionId: String, text: String, previousIds: Set<Int>, bellpull: BellpullRunOptions? = null): Boolean {
+        if (text.isBlank() || states[sessionId]?.busy == true || closed) return false
         val record = RunSubmission("bellpull-${UUID.randomUUID()}", sessionId, text, clock(), drafts.revision(sessionId), previousIds,
             interactiveApprovals = interactiveApprovals, bellpull = bellpull)
         states[sessionId] = RunPresentation(record, TurnState.Streaming("", statusLabel = "Sending…"))
         onChanged(sessionId)
         track(sessionId, fresh = true)
+        return true
     }
 
     fun retry(sessionId: String) {

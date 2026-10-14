@@ -212,9 +212,10 @@ internal fun ProjectChatDialog(workspace: ProjectWorkspace, session: Session, on
                 Text(session.title ?: "Untitled conversation", style = MaterialTheme.typography.titleSmall)
                 Text("Current project: ${current?.name ?: "Unfiled"}")
                 if (!workspace.canEdit) Text("Reconnect and refresh projects to make changes.", style = MaterialTheme.typography.bodySmall)
-                if (current != null) TextButton(onClick = { workspace.pin(session.id, membership?.pinned != true) }, enabled = workspace.canEdit) {
+                TextButton(onClick = { workspace.pin(session.id, membership?.pinned != true) }, enabled = workspace.canPin(session.id)) {
                     Text(if (membership?.pinned == true) "Unpin conversation" else "Pin conversation")
                 }
+                if (current == null && !workspace.globalPins) Text("Update the Bellpull server plugin to pin Unfiled conversations.", style = MaterialTheme.typography.bodySmall)
                 Text("Move to", style = MaterialTheme.typography.labelLarge)
                 LazyColumn(Modifier.weight(1f, fill = false)) {
                     item { TextButton(onClick = { workspace.move(session.id, null, onDismiss) }, enabled = workspace.canEdit && current != null) { Text("Unfiled") } }

@@ -1,5 +1,7 @@
 package org.praxisog.hermes
 
+import androidx.compose.ui.input.key.*
+
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
@@ -72,7 +74,7 @@ import kotlinx.coroutines.launch
 internal fun SessionDetailScreen(
     history: UiState<List<Message>>,
     turn: TurnState,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     onRetry: () -> Unit,
     prefill: String = "",
@@ -511,7 +513,7 @@ private fun Banner(text: String, color: androidx.compose.ui.graphics.Color) {
 @Composable
 private fun Composer(
     turn: TurnState,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     busy: Boolean,
     draft: TextFieldValue,
@@ -522,6 +524,14 @@ private fun Composer(
 ) {
     val streaming = turn as? TurnState.Streaming
     var focused by remember { mutableStateOf(false) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    fun submit() {
+        if (!busy && !sendBlocked && draft.text.isNotBlank() && onSend(draft.text)) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column {
@@ -540,6 +550,12 @@ private fun Composer(
                         maxLines = 5,
                         enabled = !busy,
                         modifier = Modifier.weight(1f).focusRequester(focusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                                    event.key == androidx.compose.ui.input.key.Key.Enter && event.isCtrlPressed) {
+                                    submit(); true
+                                } else false
+                            }
                             .onFocusChanged { focused = it.isFocused }
                             .semantics { contentDescription = "Message Hermes" }
                             .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.medium)
@@ -565,7 +581,7 @@ private fun Composer(
                         ) { Text("Stop") }
                     } else {
                         Button(
-                            onClick = { onSend(draft.text) },
+                            onClick = ::submit,
                             enabled = draft.text.isNotBlank() && !busy && !sendBlocked,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.heightIn(min = BottomControlHeight),

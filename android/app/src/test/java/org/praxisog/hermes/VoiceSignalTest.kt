@@ -6,18 +6,16 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class VoiceSignalTest {
-    @Test fun voicePresetRequestsShortAnswersAndReasoningWithoutProviderOptions() {
-        assertTrue(VOICE_PRESET.contains("at most one paragraph"))
-        assertTrue(VOICE_PRESET.contains("180 words"))
-        assertTrue(VOICE_PRESET.contains("reasoning minimal"))
-        assertTrue(VOICE_PRESET.contains("what you are doing and why"))
+    @Test fun voicePresetHonorsDetailedRequestsWithoutLengthLimits() {
+        assertTrue(VOICE_PRESET.contains("honor their requested depth and length"))
+        assertFalse(VOICE_PRESET.contains("180"))
+        assertFalse(VOICE_PRESET.contains("at most"))
     }
-    @Test fun spokenBudgetCapsNonCompliantRepliesAndResetsForTheNextTurn() {
-        val budget = VoiceSpeechBudget()
-        assertEquals(170, budget.take(List(170) { "word" }.joinToString(" "))!!.split(' ').size)
-        assertEquals(10, budget.take(List(80) { "extra" }.joinToString("\n"))!!.split(' ').size)
-        assertNull(budget.take("More words."))
-        budget.reset(); assertEquals("Next reply.", budget.take("Next reply."))
+    @Test fun shortEchoRequiresRecentWholePlaybackAndPreservesUserCommands() {
+        assertTrue(likelyEcho("thinking", "Thinking.", listOf("Thinking.")))
+        assertTrue(likelyEcho("web search", "Web search.", listOf("Web search.")))
+        assertFalse(likelyEcho("thinking", "Thinking."))
+        for (word in listOf("yes", "no", "stop")) assertFalse(likelyEcho(word, word, listOf(word)))
     }
     @Test fun activityAnnouncementsUseGenuineKindsAndCommentaryWithoutSpeakingThinkingOrArguments() {
         val parts = listOf(LivePart.Prose("a", "private reasoning", true),
@@ -25,8 +23,10 @@ class VoiceSignalTest {
             LivePart.Tools("c", listOf(LiveTool("search", "web_search", "RAW TOKEN SECRET"), LiveTool("file", "read_file", "PRIVATE PATH"))))
         val activities = voiceActivities(parts)
         assertEquals("Thinking.", activities[0].text)
-        assertEquals("Web search. Checking tomorrow's forecast for your walk.", activities[1].text)
+        assertEquals("Web search.", activities[1].text)
         assertTrue(activities[2].text.startsWith("Tool call. Read file."))
+        assertFalse(activities.joinToString().contains("forecast"))
+        assertEquals(VoiceActivityKind.WEB_SEARCH, activities[1].kind)
         assertFalse(activities.joinToString().contains("private reasoning"))
         assertFalse(activities.joinToString().contains("SECRET"))
         assertFalse(activities.joinToString().contains("PRIVATE PATH"))

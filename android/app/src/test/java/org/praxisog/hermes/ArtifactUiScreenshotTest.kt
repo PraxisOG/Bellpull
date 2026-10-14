@@ -51,7 +51,7 @@ class ArtifactUiScreenshotTest {
                     {}, {}, {}, {}, if (docked) null else { { docked = true } }, { preview = null })
             }
             HermesApp(UiState.Ready(listOf(session)), UiState.Ready(messages), TurnState.Idle,
-                session.id, session, UiFixtures.NOW, {}, {}, {}, {}, {}, {}, {},
+                session.id, session, UiFixtures.NOW, {}, {}, { false }, {}, {}, {}, {},
                 preferences = BellpullPreferences(palette = Palette.MAROON, reduceMotion = true),
                 artifacts = listOf(pdf, png), onViewArtifact = view,
                 previewPane = if (preview != null && docked) pane else null,
@@ -105,7 +105,7 @@ class ArtifactUiScreenshotTest {
             content = "Message $it", timestamp = it.toDouble()) }
         var read: Int? = null
         compose.setContent { HermesTheme {
-            SessionDetailScreen(UiState.Ready(longHistory), TurnState.Idle, {}, {}, {},
+            SessionDetailScreen(UiState.Ready(longHistory), TurnState.Idle, { false }, {}, {},
                 artifacts = listOf(pdf.copy(createdAt = 31.0)), onReadThrough = { read = it })
         } }
         compose.onNodeWithContentDescription("View studio-plan.pdf").assertIsDisplayed()
@@ -118,7 +118,7 @@ class ArtifactUiScreenshotTest {
     @Test fun artifactTailDoesNotPreventReadReceipts() {
         var read: Int? = null
         compose.setContent { HermesTheme {
-            SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, {}, {}, {},
+            SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, { false }, {}, {},
                 artifacts = (1..30).map { pdf.copy(id = "file-$it", createdAt = 3.0 + it) },
                 onReadThrough = { read = it })
         } }

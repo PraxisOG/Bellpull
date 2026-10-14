@@ -12,7 +12,10 @@ internal class ProjectWorkspace(
     private val client: HermesClient,
     private val cache: ProjectCache,
     supported: Boolean,
+    globalPins: Boolean = false,
 ) {
+    var globalPins by mutableStateOf(globalPins)
+        private set
     var supported by mutableStateOf(supported)
         private set
     var snapshot by mutableStateOf(cache.readProjects() ?: ProjectSnapshot())
@@ -40,7 +43,8 @@ internal class ProjectWorkspace(
     }
     val canEdit get() = supported && fresh && !refreshing && !mutating && !closed
 
-    fun configure(supported: Boolean) {
+    fun configure(supported: Boolean, globalPins: Boolean = false) {
+        this.globalPins = globalPins
         if (this.supported == supported) return
         this.supported = supported
         fresh = false
@@ -107,8 +111,11 @@ internal class ProjectWorkspace(
         ProjectMutation("delete", UUID.randomUUID().toString().replace("-", ""), snapshot.revision, projectId = projectId), onDone)
     fun move(sessionId: String, projectId: String?, onDone: () -> Unit) = change(
         ProjectMutation("move", UUID.randomUUID().toString().replace("-", ""), snapshot.revision, projectId = projectId, sessionId = sessionId), onDone)
-    fun pin(sessionId: String, value: Boolean) = change(
-        ProjectMutation("pin", UUID.randomUUID().toString().replace("-", ""), snapshot.revision, sessionId = sessionId, pinned = value))
+    fun canPin(sessionId: String) = canEdit && (globalPins || snapshot.projectFor(sessionId) != null)
+    fun pin(sessionId: String, value: Boolean) {
+        if (!canPin(sessionId)) return
+        change(ProjectMutation("pin", UUID.randomUUID().toString().replace("-", ""), snapshot.revision, sessionId = sessionId, pinned = value))
+    }
 
     private fun change(value: ProjectMutation, onDone: () -> Unit = {}) {
         if (!canEdit) return

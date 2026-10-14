@@ -406,16 +406,15 @@ internal class HermesStore(
      * that dropped first would never refetch, so the transcript kept tool previews with no
      * output. Tool results only exist in history anyway, since `tool.completed` carries none.
      */
-    fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null) {
-        val sessionId = openSessionId ?: return
-        if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return
+    fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null): Boolean {
+        val sessionId = openSessionId ?: return false
+        if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return false
 
         if (runs != null) {
             // Do not submit while the prior canonical history is unknown.
-            val saved = (history as? UiState.Ready)?.value ?: return
+            val saved = (history as? UiState.Ready)?.value ?: return false
             pendingPrompt = ""
-            runs.send(sessionId, text, saved.map { it.id }.toSet(), bellpull)
-            return
+            return runs.send(sessionId, text, saved.map { it.id }.toSet(), bellpull)
         }
 
         val revision = sessionRevision
@@ -523,6 +522,7 @@ internal class HermesStore(
                 recoverLegacyReply(sessionId, submitted, completedRun)
             }
         }
+        return true
     }
 
     /** A dropped legacy stream never resubmits the prompt. Keep checking the saved

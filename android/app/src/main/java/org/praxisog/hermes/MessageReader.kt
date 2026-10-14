@@ -28,6 +28,7 @@ internal class MessageReader(private val context: Context,
                 if (token != generation || closed) return
                 if (index >= parts.size) { stop(); return }
                 voice.speak(parts[index], {}, { if (token == generation) speak(index + 1) })
+                parts.getOrNull(index + 1)?.let(voice::prefetch)
             }
             voice.prepare({ if (token == generation) speak(0) }, { if (token == generation) fail(it) })
         } catch (error: Exception) { fail(error.message ?: "Read aloud is unavailable.") }

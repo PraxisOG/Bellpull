@@ -24,7 +24,7 @@ class DisconnectedWorkspaceTest {
         var draft by remember { mutableStateOf(TextFieldValue()) }
         HermesApp(UiState.Ready(listOf(BellpullExample.session)), UiState.Ready(BellpullExample.messages),
             TurnState.Idle, id, BellpullExample.session.takeIf { id != null }, 0.0,
-            { id = it }, { id = null }, { sends++ }, {}, {}, {}, { id = null },
+            { id = it }, { id = null }, { sends++; true }, {}, {}, {}, { id = null },
             draft = draft, onDraftChange = { draft = it }, disconnected = true,
             serverProfiles = { ServerProfilesPanel(emptyList(), null, "Explore Bellpull, or add your own server.", false,
                 { _, _, _ -> true }, {}, {}, {}, {}, { _, _ -> }) })

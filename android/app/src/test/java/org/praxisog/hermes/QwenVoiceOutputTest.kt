@@ -64,4 +64,34 @@ class QwenVoiceOutputTest {
         voice.prepare({ fail("Unexpected ready") }, { failure = it })
         assertNotNull(failure); assertFalse(loaded); voice.close()
     }
+    @Test fun nextPhraseSynthesizesDuringDrainAndStopCancelsBoundedPrefetch() {
+        val firstDrain = CompletableDeferred<Unit>()
+        val secondGenerated = CountDownLatch(1); val cancelled = CountDownLatch(1)
+        val received = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val ready = CountDownLatch(1)
+        val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
+                received += text
+                if (text == "First") return if (sink.onChunk(FloatArray(2400))) 0 else -5
+                secondGenerated.countDown()
+                // A large native chunk exceeds the bounded queue and must block/cancel.
+                assertFalse(sink.onChunk(FloatArray(2400 * 100)))
+                cancelled.countDown(); return -5
+            }
+            override fun close() {}
+        } }
+        val voice = LocalVoiceOutput(runtime, VoiceOutputConfiguration(), 1f, { false }, player = { _, _ -> object : VoicePcmPlayer {
+            override fun write(samples: FloatArray) { assertTrue(samples.size <= 2400) }
+            override suspend fun drain() { firstDrain.await() }
+            override fun stop() { firstDrain.complete(Unit) }
+            override fun close() {}
+        } }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), callbacks = Dispatchers.Unconfined)
+        try {
+            voice.prepare({ ready.countDown() }, { fail(it) }); await(ready)
+            voice.speak("First", {}, {})
+            voice.prefetch("Second"); await(secondGenerated)
+            assertEquals(listOf("First", "Second"), received)
+            voice.stop(); await(cancelled)
+        } finally { voice.close(); runtime.unload() }
+    }
 }

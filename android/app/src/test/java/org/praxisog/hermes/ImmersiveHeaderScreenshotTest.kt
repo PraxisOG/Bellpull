@@ -36,7 +36,7 @@ class ImmersiveHeaderScreenshotTest {
                 Box(Modifier.fillMaxSize()) {
                     HermesApp(UiState.Ready(UiFixtures.sessions), UiState.Ready(UiFixtures.history), TurnState.Idle,
                         session, UiFixtures.sessions.firstOrNull { it.id == session }, UiFixtures.NOW,
-                        {}, {}, {}, {}, {}, {}, {},
+                        {}, {}, { false }, {}, {}, {}, {},
                         preferences = BellpullPreferences(appearance = if (dark) Appearance.DARK else Appearance.LIGHT,
                             palette = Palette.MAROON, immersiveMode = true))
                     // A visible camera marker makes the reserved area reviewable in the fixture.

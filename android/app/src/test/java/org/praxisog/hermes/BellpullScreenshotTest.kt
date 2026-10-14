@@ -41,18 +41,18 @@ class BellpullScreenshotTest {
                 LivePart.Prose("r:1", "I will compare the dates.", thinking = true),
                 LivePart.Tools("r:2", listOf(LiveTool("r:2", "web_search", "Search references", false),
                     LiveTool("r:3", "web_extract", "Read source", true))),
-                LivePart.Prose("r:4", "\n\nThe first source agrees."))), {}, {}, {}, reduceMotion = true)
+                LivePart.Prose("r:4", "\n\nThe first source agrees."))), { false }, {}, {}, reduceMotion = true)
     }
     @Test @Config(qualifiers = "w393dp-h850dp-night") fun expandedThinkingDark() = capture {
         SessionDetailScreen(UiState.Ready(listOf(Message(1, role = "assistant", content = "The answer is 42.",
             reasoningContent = "Check the arithmetic from the supplied values."))),
-            TurnState.Idle, {}, {}, {}, collapseThinking = false)
+            TurnState.Idle, { false }, {}, {}, collapseThinking = false)
     }
     @Test @Config(qualifiers = "w393dp-h850dp") fun toolFirstWithWhitespaceCover() = capture {
         SessionDetailScreen(UiState.Ready(listOf(Message(2, role = "assistant", content = "\n\n"))),
             TurnState.Streaming("\n\n", canStop = true, parts = listOf(
                 LivePart.Prose("blank", "\n\n"),
                 LivePart.Tools("tools", listOf(LiveTool("search", "web_search", "Search references", true))))),
-            {}, {}, {}, pendingUserText = "Look up the reference.", reduceMotion = true)
+            { false }, {}, {}, pendingUserText = "Look up the reference.", reduceMotion = true)
     }
 }

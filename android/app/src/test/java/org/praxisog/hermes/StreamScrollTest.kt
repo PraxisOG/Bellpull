@@ -41,7 +41,7 @@ class StreamScrollTest {
             SessionDetailScreen(
                 history = UiState.Ready(longHistory),
                 turn = turn,
-                onSend = {},
+                onSend = { false },
                 onStop = {},
                 onRetry = {},
             )
@@ -62,7 +62,7 @@ class StreamScrollTest {
         var turn by mutableStateOf<TurnState>(TurnState.Streaming("", canStop = true))
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(longHistory), turn, {}, {}, {}, collapseThinking = false, reduceMotion = true)
+                SessionDetailScreen(UiState.Ready(longHistory), turn, { false }, {}, {}, collapseThinking = false, reduceMotion = true)
             }
         }
         compose.waitForIdle()
@@ -81,7 +81,7 @@ class StreamScrollTest {
             SessionDetailScreen(
                 history = UiState.Ready(longHistory),
                 turn = turn,
-                onSend = {},
+                onSend = { false },
                 onStop = {},
                 onRetry = {},
             )
@@ -112,7 +112,7 @@ class StreamScrollTest {
             content = "A saved paragraph that rewraps when the context panel slides into the window. ".repeat(3)) }
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(history), TurnState.Idle, {}, {}, {}, modifier = Modifier.width(width.dp))
+                SessionDetailScreen(UiState.Ready(history), TurnState.Idle, { false }, {}, {}, modifier = Modifier.width(width.dp))
             }
         }
         for (next in listOf(680, 570, 450, 380, 313)) {

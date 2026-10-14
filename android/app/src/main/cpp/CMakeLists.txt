@@ -82,6 +82,11 @@ add_library(bellpull_pocket SHARED pocket-jni.cpp
     "${POCKET_GENERATED}/pocket-generation.cc")
 target_include_directories(bellpull_pocket PRIVATE "${POCKET_GENERATED}" "${SHERPA}" "${pocket_json_SOURCE_DIR}/include" "${pocket_ort_SOURCE_DIR}/include")
 target_link_libraries(bellpull_pocket PRIVATE "-Wl,--start-group" ${POCKET_ORT_LIBS} "-Wl,--end-group" android log)
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/pocket-exports.map" "{ global: Java_org_praxisog_hermes_PocketNative_*; local: *; };\n")
+set(POCKET_EXPORTS "Java_org_praxisog_hermes_PocketNative_*;")
+if(BELLPULL_TTS_CANDIDATE_BENCHMARK)
+    target_sources(bellpull_pocket PRIVATE candidate-tts-benchmark.cpp)
+    string(APPEND POCKET_EXPORTS " Java_org_praxisog_hermes_CandidateTtsNative_*;")
+endif()
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/pocket-exports.map" "{ global: ${POCKET_EXPORTS} local: *; };\n")
 target_link_options(bellpull_pocket PRIVATE "-Wl,--exclude-libs,ALL" "-Wl,-z,max-page-size=16384"
     "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/pocket-exports.map")

@@ -249,8 +249,8 @@ Existing `/p/{profile}` middleware scopes all requests to that profile's actual 
 `create` supplies client-chosen project `project_id`, `name`, optional `description`,
 `color` and `icon`. `update` replaces those display fields and `archived` for an
 existing ID. `delete` removes only the folder, returning members to Unfiled.
-`move` supplies `session_id` and nullable `project_id`; moving resets its pin.
-`pin` supplies `session_id` and boolean `pinned`, requiring an existing project.
+`move` supplies `session_id` and nullable `project_id`; moving preserves its pin, including moves to Unfiled.
+`pin` supplies `session_id` and boolean `pinned`, for any owned chat, including Unfiled. Existing project pins use the same membership field without migration or a second pin store. Deleting a project returns its chats to Unfiled and preserves their pins. Forked chats start unpinned. These pin semantics require Bellpull plugin 0.4.1 or later, advertised by `bellpull_conversation_pins:true`. Older plugins keep existing project pin controls; Unfiled pinning stays disabled with an update notice.
 Names are 1–120 characters, descriptions at most 1000 characters, colors optional
 `#RRGGBB`, and icons optional `folder`, `code`, `home`, `craft`, `book`, or `star`.
 Archived projects cannot receive new/moved chats until restored. No operation

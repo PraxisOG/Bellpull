@@ -1,6 +1,6 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.4.0-integration-preview"
+VERSION = "0.4.1-integration-preview"
 
 
 def register(ctx):

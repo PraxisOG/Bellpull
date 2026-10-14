@@ -46,6 +46,32 @@ class SettingsOrganizationTest {
     }
     @Test fun experimentsCover() = experiments()
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun experimentsUnfoldedDark() = experiments()
+    @Test fun aboutOpensDirectlyAndAnnouncementSwitchesAreIndependent() {
+        var config by mutableStateOf(VoiceConfiguration())
+        compose.setContent { HermesTheme {
+            SettingsWorkspace(BellpullPreferences(), {}, voiceAnnouncementSettings = {
+                VoiceAnnouncementSettings(config, true) { config = it }
+            })
+        } }
+        compose.onNodeWithText("About").performScrollTo().performClick()
+        compose.onNodeWithText("About Bellpull").assertExists()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithText("Voice announcements").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Tool use announcements").performScrollTo().performClick()
+        compose.runOnIdle { assertFalse(config.announcements.tools); assertTrue(config.announcements.webSearch) }
+        compose.onNodeWithContentDescription("Web search announcements").performScrollTo().performClick()
+        compose.runOnIdle { assertFalse(config.announcements.webSearch); assertTrue(config.announcements.thinking); assertTrue(config.announcements.working) }
+    }
+    @Test fun announcementSaveFailureKeepsTheSwitchAndShowsRecovery() {
+        compose.setContent { HermesTheme {
+            androidx.compose.foundation.layout.Column {
+                VoiceAnnouncementSettings(VoiceConfiguration(), true) { error("Fixture storage failure") }
+            }
+        } }
+        compose.onNodeWithContentDescription("Tool use announcements").performClick()
+        compose.onNodeWithContentDescription("Tool use announcements").assertIsOn()
+        compose.onNodeWithText("Could not save voice announcements. Try again.").assertExists()
+    }
     @Test fun displayTogglesStaySeparateFromAppearanceAndPreserveOtherPreferences() {
         var result = BellpullPreferences(palette = Palette.BROWN)
         compose.setContent { HermesTheme { SettingsWorkspace(result, { result = it }) } }

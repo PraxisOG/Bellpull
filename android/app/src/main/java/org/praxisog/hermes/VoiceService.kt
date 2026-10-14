@@ -18,33 +18,37 @@ class VoiceService : Service() {
     private var media: MediaSession? = null
     private var started = false
     private var ownsAudio = false
+    private var audioCycle = 0L
+    private var acquiring = false
     private var oldMode = AudioManager.MODE_NORMAL
     private var requestedRoute: AudioDeviceInfo? = null
     @get:androidx.annotation.RequiresApi(31)
     private val routeChanged by lazy {
         AudioManager.OnCommunicationDeviceChangedListener {
-            if (Build.VERSION.SDK_INT >= 31 && started && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
+            if (Build.VERSION.SDK_INT >= 31 && started && ownsAudio && !acquiring && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
                 audio.communicationDevice?.id != requestedRoute?.id)
-                runtime.voice?.pause("The communication route changed. Check your route and resume voice.")
+                pauseAudio("route_changed", "The communication route changed. Check your route and resume voice.")
         }
     }
     @get:androidx.annotation.RequiresApi(31)
     private val modeChanged by lazy {
         AudioManager.OnModeChangedListener {
-            if (started && runtime.voice?.state != VoiceState.PAUSED && audio.mode != AudioManager.MODE_IN_COMMUNICATION)
-                runtime.voice?.pause("Another app or call changed the audio mode. Resume voice when ready.")
+            if (started && ownsAudio && !acquiring && runtime.voice?.state != VoiceState.PAUSED && audio.mode != AudioManager.MODE_IN_COMMUNICATION)
+                pauseAudio("mode_changed", "Another app or call changed the audio mode. Resume voice when ready.")
         }
     }
     private val routes = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
-            if (started) runtime.voice?.pause("Audio devices changed. Check your route and resume voice.")
+            // Android sends the initial device inventory through this same callback.
+            // Additions never imply loss of the selected communication route.
+            diagnose("devices_added:${addedDevices.size}")
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
-            if (started && removedDevices.any { it.id == requestedRoute?.id }) runtime.voice?.pause("Audio device disconnected. Check your route and resume voice.")
+            if (started && ownsAudio && removedDevices.any { it.id == requestedRoute?.id }) pauseAudio("device_removed", "Audio device disconnected. Check your route and resume voice.")
         }
     }
     private val noisy = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) { runtime.voice?.pause("Headphones disconnected. Resume after choosing an audio route.") }
+        override fun onReceive(context: Context?, intent: Intent?) { if (started && ownsAudio) pauseAudio("becoming_noisy", "Headphones disconnected. Resume after choosing an audio route.") }
     }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onCreate() {
@@ -94,12 +98,6 @@ class VoiceService : Service() {
             startForeground(2405, notification("Starting microphone and offline speech"), serviceTypes)
             oldMode = audio.mode
             check(oldMode == AudioManager.MODE_NORMAL)
-            focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                .setOnAudioFocusChangeListener { change ->
-                    if (change != AudioManager.AUDIOFOCUS_GAIN) runtime.voice?.pause("Another app or call needs audio. Resume voice when ready.")
-                }.build()
             check(acquireAudio())
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
@@ -150,21 +148,48 @@ class VoiceService : Service() {
     }
     /** Never reclaim a call's mode or restart capture without explicit Resume. */
     private fun acquireAudio(): Boolean {
-        if (audio.mode != AudioManager.MODE_NORMAL && !(ownsAudio && audio.mode == AudioManager.MODE_IN_COMMUNICATION)) return false
-        return runCatching {
-            check(focus?.let { audio.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED } == true)
+        if (ownsAudio) return audio.mode == AudioManager.MODE_IN_COMMUNICATION
+        if (audio.mode != AudioManager.MODE_NORMAL) return false
+        val cycle = ++audioCycle
+        acquiring = true
+        return try {
+            focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setWillPauseWhenDucked(true)
+                .setOnAudioFocusChangeListener({ change ->
+                    if (cycle != audioCycle || !ownsAudio || !started) return@setOnAudioFocusChangeListener
+                    diagnose("focus:$change")
+                    when (change) {
+                        AudioManager.AUDIOFOCUS_GAIN -> if (audio.mode == AudioManager.MODE_IN_COMMUNICATION) runtime.voice?.recoverAudio()
+                            else pauseAudio("focus_gain_mode", "A call changed the audio mode. Resume when ready.")
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> runtime.voice?.suspendForAudio()
+                        AudioManager.AUDIOFOCUS_LOSS -> pauseAudio("focus_loss", "Another app needs audio. Resume voice when ready.")
+                    }
+                }, Handler(Looper.getMainLooper())).build()
+            check(audio.requestAudioFocus(checkNotNull(focus)) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
             ownsAudio = true
             audio.mode = AudioManager.MODE_IN_COMMUNICATION
             check(selectRoute())
             true
-        }.getOrElse { releaseAudio(); false }
+        } catch (_: Exception) { releaseAudio(); false }
+        finally { acquiring = false }
     }
     private fun releaseAudio() {
-        focus?.let(audio::abandonAudioFocusRequest)
-        requestedRoute = null
-        if (ownsAudio && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
-        if (ownsAudio && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
-        ownsAudio = false
+        // Fence the old focus listener before abandoning focus or changing our own route.
+        audioCycle++
+        val owned = ownsAudio
+        ownsAudio = false; requestedRoute = null
+        focus?.let(audio::abandonAudioFocusRequest); focus = null
+        if (owned && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
+        if (owned && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
+    }
+    private fun pauseAudio(event: String, message: String) { diagnose(event); runtime.voice?.pause(message) }
+    private fun diagnose(event: String) {
+        val actual = if (Build.VERSION.SDK_INT >= 31) audio.communicationDevice else null
+        android.util.Log.i("BellpullVoiceAudio", "time=${SystemClock.elapsedRealtime()} event=$event cycle=$audioCycle " +
+            "selected=${requestedRoute?.type}:${requestedRoute?.id} actual=${actual?.type}:${actual?.id} " +
+            "mode=${audio.mode} owned=$ownsAudio ${runtime.voice?.playbackDiagnostics().orEmpty()}")
     }
     private fun selectRoute(): Boolean {
         if (Build.VERSION.SDK_INT >= 31) {

@@ -28,7 +28,7 @@ class ThemeScreenshotTest {
             HermesTheme(appearance, palette, preferences.customAccent) {
                 Surface {
                     if (settings) SettingsWorkspace(preferences, {})
-                    else SessionDetailScreen(UiState.Ready(UiFixtures.history), TurnState.Idle, {}, {}, {})
+                    else SessionDetailScreen(UiState.Ready(UiFixtures.history), TurnState.Idle, { false }, {}, {})
                 }
             }
         }

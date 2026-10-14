@@ -20,13 +20,14 @@ class BellpullInteractionTest {
     private val drafts = ChatDrafts()
     private var id by mutableStateOf(UiFixtures.sessions.first().id)
     private var preferences by mutableStateOf(BellpullPreferences())
+    private var accepts = true
     private var sends = 0
 
     private fun app(history: List<Message> = emptyList()) {
         compose.setContent {
             HermesApp(UiState.Ready(UiFixtures.sessions), UiState.Ready(history), TurnState.Idle,
                 id, UiFixtures.sessions.first { it.id == id }, UiFixtures.NOW,
-                onOpenSession = { id = it }, onCloseSession = {}, onSend = { sends++ }, onStop = {},
+                onOpenSession = { id = it }, onCloseSession = {}, onSend = { sends++; accepts }, onStop = {},
                 onRetrySessions = {}, onRetryHistory = {}, onNewSession = {},
                 draft = drafts[id], onDraftChange = { drafts.set(id, it) }, preferences = preferences,
                 onPreferencesChange = { preferences = it })
@@ -73,6 +74,19 @@ class BellpullInteractionTest {
         compose.onNodeWithText("Send").performClick()
         compose.onNodeWithText("Keep until accepted").assertIsDisplayed()
         assertEquals(1, sends)
+    }
+
+    @Test fun acceptedSendClearsFocusAndRejectedSendPreservesFocusAndDraft() {
+        app()
+        val field = compose.onNodeWithContentDescription("Message Hermes")
+        field.performClick().performTextInput("Keep until accepted")
+        field.assertIsFocused()
+        accepts = false
+        compose.onNodeWithText("Send").performClick()
+        field.assertIsFocused().assertTextContains("Keep until accepted", substring = true)
+        accepts = true
+        compose.onNodeWithText("Send").performClick()
+        field.assertIsNotFocused().assertTextContains("Keep until accepted", substring = true)
     }
 
     @Test fun thinkingDefaultsCollapsedAndLocalExpansionWorks() {
