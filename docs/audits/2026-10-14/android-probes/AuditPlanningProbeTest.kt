@@ -23,7 +23,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
-/** Audit probes assert the observed defect, not the desired fixed behavior. */
+/** Audit probes assert observed defects, except repaired findings such as F03. */
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class AuditPlanningProbeTest {
     private val app get()=RuntimeEnvironment.getApplication()
@@ -69,12 +69,14 @@ class AuditPlanningProbeTest {
             println("AUDIT: sharing=false, revokePending=false, server commit order=$commits")
         } finally { releaseUpload.countDown(); workspace.close(); client.close(); scope.cancel() }
     }
-    @Test fun publicHostnamePassesPrivateHttpValidation() {
+    @Test fun publicHostnameRejectedByPrivateHttpValidation() {
         val ordinary="http://example.invalid/v1/audio/transcriptions"
         val disguised="http://100.64.0.1.example.invalid/v1/audio/transcriptions"
         assertThrows(IllegalArgumentException::class.java) { PrivateTranscription.validateEndpoint(ordinary) }
-        assertEquals(disguised,PrivateTranscription.validateEndpoint(disguised))
-        println("AUDIT: ordinary public HTTP rejected; public hostname with numeric labels accepted")
+        assertThrows(IllegalArgumentException::class.java) { PrivateTranscription.validateEndpoint(disguised) }
+        for (url in listOf("http://100.64.0.1/v1/audio/transcriptions", "http://127.0.0.1:18647/transcriptions"))
+            assertEquals(url,PrivateTranscription.validateEndpoint(url))
+        println("AUDIT: public HTTP hostnames rejected; valid Tailscale and loopback HTTP accepted")
     }
     @Test fun whitespaceTitleCommitsThenReportsFailure() {
         val source=phone.sources().first()

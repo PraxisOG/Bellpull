@@ -61,4 +61,20 @@ class PrivateTranscriptionTest {
         for (url in listOf("https://speech.invalid/v1/audio/transcriptions", "http://speech.tailabc.ts.net/transcriptions", "http://127.0.0.1:18647/transcriptions"))
             assertEquals(url, PrivateTranscription.validateEndpoint(url))
     }
+    @Test fun privateHttpRequiresAnUnambiguousIpv4Literal() {
+        for (host in listOf("example.invalid", "100.64.0.1.example.invalid", "100.64.0.1.extra",
+            "100.64.0.1.2", "100.64.0.256", "100.64..1", "100.64.0.1.",
+            "100.064.0.1", "100.64.00.1", "100.63.0.1", "100.128.0.1")) {
+            val url = "http://$host/v1/audio/transcriptions"
+            assertTrue(url, runCatching { PrivateTranscription.validateEndpoint(url) }.exceptionOrNull() is IllegalArgumentException)
+        }
+        for (host in listOf("100.64.0.1", "100.64.255.255", "100.127.255.255", "127.0.0.1", "localhost", "speech.tailabc.ts.net")) {
+            val url = "http://$host:18647/v1/audio/transcriptions"
+            assertEquals(url, PrivateTranscription.validateEndpoint(url))
+        }
+        for (host in listOf("example.invalid", "100.64.0.1.example.invalid")) {
+            val url = "https://$host/v1/audio/transcriptions"
+            assertEquals(url, PrivateTranscription.validateEndpoint(url))
+        }
+    }
 }

@@ -61,7 +61,11 @@ class PrivateTranscription(private val endpoint: String, private val key: String
             val path = uri.rawPath.orEmpty()
             require(path.startsWith('/') && path.length > 1 && !path.contains('%') && !path.contains('\\') &&
                 path.split('/').none { it in setOf(".", "..") }) { "Enter the service's exact transcription path." }
-            val octets = host.split('.').mapNotNull { it.toIntOrNull() }
+            val labels = host.split('.')
+            val octets = if (labels.size == 4 && labels.all { label ->
+                label.length in 1..3 && label.all { it in '0'..'9' } &&
+                    (label.length == 1 || label[0] != '0')
+            }) labels.map { it.toInt() } else emptyList()
             val tailnet = host.endsWith(".ts.net") || (octets.size == 4 && octets.all { it in 0..255 } && octets[0] == 100 && octets[1] in 64..127)
             require(uri.scheme == "https" || host in setOf("localhost", "127.0.0.1") || tailnet) {
                 "Plain HTTP is allowed only over Tailscale or loopback."

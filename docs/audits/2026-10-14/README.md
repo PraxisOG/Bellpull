@@ -5,7 +5,7 @@ Companion to the [project audit](../../AUDIT-2026-10-14.md), covering source rev
 Run commands from the repository root with the build prerequisites in
 [BUILDING.md](../../BUILDING.md).
 
-The probes originally asserted the defects observed at this revision. F01 and F05
+The probes originally asserted the defects observed at this revision. F01, F03 and F05
 now assert the repaired behavior; the remaining probes still assert the original
 defects. They are opt-in evidence, with permanent workspace regressions in
 `plugins/bellpull/tests/test_coding.py`.
@@ -58,13 +58,17 @@ existing Robolectric calendar fixtures and an OkHttp interceptor. It confirms:
 - F02: the real workspace issues a revoke that completes before an older upload,
   while its saved policy is off and its pending-revoke flag is clear. The separate
   server probe establishes the persistence consequence of that ordering.
-- F03: the actual transcription validator accepts a public-shaped HTTP hostname
-  with numeric Tailscale-looking labels, while rejecting an ordinary public name.
+- F03: the actual transcription validator rejects a public-shaped HTTP hostname
+  with numeric Tailscale-looking labels and an ordinary public name, while accepting
+  valid Tailscale IPv4 and loopback HTTP endpoints. Permanent validator regressions
+  are in `android/core-hermes/src/test/kotlin/org/praxisog/hermes/core/PrivateTranscriptionTest.kt`.
 - F06: a title containing surrounding whitespace is committed in normalized form
   but the actual calendar adapter throws afterward.
 
-The three final probes passed. Their normalized result and stdout are in
-[validation-results.json](validation-results.json). The call ordering is controlled
+The three original audit probes passed. Their normalized result and stdout are in
+[validation-results.json](validation-results.json); these predate the F03 repair
+and do not validate the updated probe. The F03 repair received Python/source checks
+only; Gradle and Kotlin tests were not run. The call ordering is controlled
 by latches; the probe does not rely on a real network race. As with ordinary Gradle
 test runs, this invocation replaces the app's generated test reports with the
 selected tests. Full-suite counts in the audit refer to the earlier complete run.
