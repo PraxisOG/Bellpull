@@ -63,6 +63,15 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-14, experimental release):** the user requested verifying
+the installed app is 0.8.3 and publishing app 0.8.3 plus plugin 0.4.1 as experimental
+on GitHub. ADB confirms build22; its APK matches the previously signed artifact.
+Publish `android-v0.8.3-integration-preview.1` with that APK, the full plugin,
+complete source, roadmap, checksums and known audit findings. Update release-facing
+documentation/download links. Preserve the phone's current state and personal
+server boundary. No experimental runtime merge into the default branch is requested.
+See `docs/RELEASE-0.8.3-EXPERIMENTAL.md` for release evidence.
+
 **Latest authority (2026-10-14, project audit):** the user requested a full project
 audit and uploading the audit to GitHub. Audit revision `4fc426f` and publish the
 report plus synthetic reproductions on `repair/experimental-open-issues`, alongside

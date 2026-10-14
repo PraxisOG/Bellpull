@@ -1,9 +1,9 @@
-# Bellpull integration plugin 0.4.0-integration-preview
+# Bellpull integration plugin 0.4.1-integration-preview
 
 This single plugin includes OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.8.1-integration-preview** (build 20) from
-`integration/phase6-8-9`. The separate Phase 6/8/9 preview plugin directories are
+Pair it with Android **0.8.3-integration-preview** (build 22) from
+`repair/experimental-open-issues`. The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
 Install the entire `plugins/bellpull/` directory using the stock-plugin procedure
@@ -21,6 +21,14 @@ plugin and restart for rollback; stored chat/session schemas are unchanged.
 See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.md),
 [OpenCode scope](../../docs/PHASE-6-OPENCODE.md) and
 [planning scope](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).
+
+## Experimental release limits
+
+The [October 14 audit](../../docs/AUDIT-2026-10-14.md) records unresolved defects,
+including Git filters executing during workspace preview, a calendar revocation
+race, proposal retention and hard-link containment. This 0.4.1 publication includes
+the global-pin repair; it does not fix the subsequent audit findings. Read the
+[release record](../../docs/RELEASE-0.8.3-EXPERIMENTAL.md) before deployment.
 
 ## Existing stock features and installation
 
@@ -42,12 +50,12 @@ work through the native `register_platform_handler` plugin surface. They require
 Use Bellpull Android 0.3.7 or newer for the complete audit repair. The earlier Phase 4 pair was Android 0.4.0/plugin 0.3.0. This integration package
 includes those project and file features; use the matching integration checkout or
 plugin archive from the
-[0.8.1 development release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.1-integration-preview.3).
+[0.8.3 experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.3-integration-preview.1).
 Install on your server yourself:
 
 ```bash
 # From the matching unpacked integration plugin bundle or repository checkout:
-# Source branch: integration/phase6-8-9; use the complete matching release bundle.
+# Source branch: repair/experimental-open-issues; use the complete matching release bundle.
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
 HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu
@@ -118,7 +126,7 @@ stock installs.
 
 ## Conversation projects (Android 0.4.0)
 
-Authenticated discovery reports `plugin_version: "0.3.0"` and
+Authenticated discovery reports `plugin_version: "0.4.1-integration-preview"` and
 `bellpull_projects: true` when the native auth/session helpers are supported.
 Projects use the plugin's `/api/bellpull/projects` routes under the selected
 native profile prefix. No core patch, model tool, inference or native schema
@@ -127,7 +135,10 @@ last reported plugin version of each saved server; compatibility is compared
 with the app's minimum, not with the latest GitHub release.
 
 Each logical conversation belongs to at most one folder. Move/Unfiled changes
-organization without changing history. Pins stay within a folder. Archive hides
+organization without changing history. Plugin 0.4.1 advertises
+`bellpull_conversation_pins`: any conversation, including Unfiled, can be pinned.
+Its pin appears in All and applicable filters and survives moves/project deletion.
+Archive hides
 the folder from normal project navigation but retains its chats in All
 conversations and global search. Delete project returns its chats to Unfiled.
 A short manually edited description is display-only and is never added to model

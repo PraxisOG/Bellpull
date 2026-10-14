@@ -1,15 +1,15 @@
 # Build the experimental preview
 
-The preview source is on `integration/phase6-8-9`, with immutable development
+The preview source is on `repair/experimental-open-issues`, with immutable development
 release tags. The default branch has the earlier app code and an updated front
-page; it is not the source of the 0.8.1 APK.
+page; it is not the source of the 0.8.3 APK.
 
 ## Get all source files
 
 Use a recursive clone of the release tag:
 
 ```bash
-git clone --branch android-v0.8.1-integration-preview.3 --recurse-submodules \
+git clone --branch android-v0.8.3-integration-preview.1 --recurse-submodules \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
@@ -26,12 +26,12 @@ For an existing checkout, fetch the tag, check it out, then run
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
 **not** include submodule contents. Use the recursive clone above, or download the
-release's **Bellpull-source-0.8.1.tar.gz**, which includes tracked source and all
+release's **Bellpull-source-0.8.3.tar.gz**, which includes tracked source and all
 three native trees. That archive also contains `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.8.1.tar.gz
-cd Bellpull-0.8.1
+tar -xzf Bellpull-source-0.8.3.tar.gz
+cd Bellpull-0.8.3
 ```
 
 ## Toolchain
@@ -75,7 +75,10 @@ Tests run without a Hermes provider or personal phone. Keep live inference smoke
 tests opt-in. Instrumentation must use `-PbellpullDeviceFixture=true` and the
 disposable fixture package; some tests clear credentials.
 
-## Verification of the published source
+## Source verification
+
+Current release evidence is in [the 0.8.3 release record](RELEASE-0.8.3-EXPERIMENTAL.md).
+The historical source checks below describe the earlier integration release.
 
 A fresh GitHub clone of the first 0.8.1 tag successfully fetched every recursive
 submodule and built `assembleDebug lintDebug` with no local source files or signing

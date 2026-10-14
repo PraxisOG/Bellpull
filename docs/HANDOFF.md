@@ -1,4 +1,16 @@
-# Latest: full project audit (2026-10-14)
+# Latest: 0.8.3 / plugin 0.4.1 experimental publication (2026-10-14)
+
+The user requested checking the installed app and publishing this pair as
+experimental. ADB confirms app 0.8.3/build22; the installed APK and release artifact
+match byte-for-byte. Signature, version metadata and 16 KiB alignment passed.
+No reinstall or personal-server access was needed; the phone's state is unchanged.
+The release uses `android-v0.8.3-integration-preview.1`, includes the complete plugin
+and source trees, and explicitly carries the unresolved audit findings.
+See [the release record](RELEASE-0.8.3-EXPERIMENTAL.md) for assets, checks and CI evidence.
+
+---
+
+## Full project audit (2026-10-14)
 
 The user requested a full audit and publication to GitHub. The
 [audit report](AUDIT-2026-10-14.md) covers pushed revision `4fc426f` of

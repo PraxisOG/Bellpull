@@ -1,3 +1,13 @@
+## Current experimental release — 0.8.3 / build 22
+
+The user authorized publishing Android 0.8.3-integration-preview/build22 with
+plugin 0.4.1-integration-preview. ADB confirms the installed APK is exactly the
+signed release artifact; no reinstall was needed. See the
+[0.8.3 release record](RELEASE-0.8.3-EXPERIMENTAL.md) for checksums, installation,
+known unresolved audit findings and CI results. Source is on
+`repair/experimental-open-issues`; tag `android-v0.8.3-integration-preview.1`.
+Older version and deployment statements below are historical records.
+
 ## Local combined integration preview — 0.8.1 / build 20
 
 `integration/phase6-8-9` combines the independently tested OpenCode and planning
