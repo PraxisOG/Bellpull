@@ -102,6 +102,7 @@ internal fun HermesApp(
     voiceOutputSettings: (@Composable () -> Unit)? = null,
     voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
+    messageStats: Map<Int, MessageInfo> = emptyMap(),
 ) {
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
@@ -276,6 +277,7 @@ internal fun HermesApp(
                                         modifier = Modifier.weight(1f))
                                     else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
+                                            messageStats = messageStats,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,

@@ -735,6 +735,42 @@ Session objects in the list carry 26 fields (`id`, `source`, `model`, `title`, `
 `tool_calls`, `tool_name`, `timestamp`, `token_count`, `finish_reason`, `reasoning`,
 `reasoning_content`, `display_kind`.
 
+### Per-turn message info (issue #15, 2026-10-14)
+
+Source investigation: Bellpull `pagination.py` serializes saved messages with
+the adapter's `_message_response`; `http.py` adds no usage fields. The preserved
+Hermes gateway source (`server-patches/bellpull-phase3/original/gateway/platforms/`)
+whitelists the fields above. `token_count` is a single nullable message value,
+**not** a documented pair of provider input/output counts; do not relabel it as
+either. Session token counters are cumulative and must not be assigned to a reply.
+
+The gateway's `_finish_turn_result` and `api_server_runs._USAGE_FIELDS` expose
+`usage.input_tokens` / `usage.output_tokens` from the agent's
+`session_prompt_tokens` / `session_completion_tokens`. These are the agent's
+aggregate usage for the run, potentially covering multiple model completions and
+tools, not just the final prose completion. They are present on `run.completed`
+and terminal `GET /v1/runs/{run_id}` status. Only explicit nonnegative integer
+values are usable; missing/null/malformed values are unavailable, never zero-filled.
+An explicit server zero remains zero. These values are server-reported usage,
+not independent metering (the gateway itself defaults missing agent counters to zero).
+
+The phone retains terminal status usage in its existing local run journal and
+associates it only with the uniquely reconciled saved final assistant reply.
+`created_at` to terminal `updated_at` gives elapsed run time (including tools and
+approval waits), not pure model compute time. No new HTTP fields, routes or
+capabilities are introduced. The sheet uses existing message/run contracts, so
+does not require a Bellpull capability flag.
+
+**Exact historical gap:** message history has no run ID, persisted per-turn usage,
+or working start/end pair. Replies without locally retained, matched run evidence
+omit input/output stats. A final assistant row may show an **estimated** elapsed
+time from the nearest preceding user timestamp to its own timestamp, only with
+finite, positive, ordered timestamps, one user boundary and a final reply in that
+turn. This is a saved-message interval, not proof of active compute; copied/forked
+rows may share timestamps and then provide no estimate. Intermediate assistant
+rows omit the estimate. If no stats are available the sheet says so. No matching by
+text alone, cumulative-counter subtraction, or token estimation is permitted.
+
 ### Streaming
 
 `POST /api/sessions/{id}/chat/stream` emits SSE events:
