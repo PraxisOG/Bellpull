@@ -102,18 +102,19 @@ internal class PhoneCalendar(private val context: Context) {
         check(current.fingerprint==expected.fingerprint) { "Event changed. Refresh before editing." }
         draft?.validated()
         check(draft?.recurrence==null) { "Create recurrence as a new event." }
+        val newTitle=draft?.title?.trim().orEmpty()
         val uri=ContentUris.withAppendedId(events,current.id)
         val assert=ContentProviderOperation.newAssertQuery(uri).withExpectedCount(1).withValues(raw).build()
         val mutation=if (draft==null) ContentProviderOperation.newDelete(uri).withExpectedCount(1).build()
-            else ContentProviderOperation.newUpdate(uri).withValues(values(draft)).withExpectedCount(1).build()
+            else ContentProviderOperation.newUpdate(uri).withValues(values(draft,newTitle)).withExpectedCount(1).build()
         resolver.applyBatch(CalendarContract.AUTHORITY,arrayListOf(assert,mutation))
         val saved=event(current.id,source)
         if (draft==null) check(saved==null) { "Deletion could not be verified." }
-        else check(saved!=null && saved.title==draft.title && saved.start==draft.start && saved.end==draft.end) { "Calendar result differs. Refresh before another edit." }
+        else check(saved!=null && saved.title==newTitle && saved.start==draft.start && saved.end==draft.end) { "Calendar result differs. Refresh before another edit." }
         return if (draft==null) "Deleted from phone calendar; account sync is separate." else "Updated phone calendar; account sync is separate."
     }
-    private fun values(draft: CalendarDraft) = ContentValues().apply {
-        put("title",draft.title.trim()); put("dtstart",draft.start); put("eventTimezone",if (draft.allDay) "UTC" else draft.zone)
+    private fun values(draft: CalendarDraft, title: String = draft.title.trim()) = ContentValues().apply {
+        put("title",title); put("dtstart",draft.start); put("eventTimezone",if (draft.allDay) "UTC" else draft.zone)
         put("allDay",if (draft.allDay) 1 else 0)
         if (draft.recurrence==null) { put("dtend",draft.end); putNull("duration"); putNull("rrule") }
         else { putNull("dtend"); put("duration",if (draft.allDay) "P${(draft.end-draft.start)/86400000}D" else "PT${(draft.end-draft.start)/1000}S"); put("rrule",draft.recurrence) }

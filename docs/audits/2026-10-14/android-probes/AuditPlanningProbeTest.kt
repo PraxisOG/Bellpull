@@ -81,8 +81,9 @@ class AuditPlanningProbeTest {
         val policy=CalendarPolicy(setOf(source.key),writes=true,destination=source.key)
         val draft=CalendarDraft("Before",2000000000000,2000003600000)
         val old=phone.create("a".repeat(32),policy,source,draft)
-        val failure=assertThrows(IllegalStateException::class.java) { phone.change(policy,source,old,draft.copy(title=" After ")) }
+        val receipt=phone.change(policy,source,old,draft.copy(title=" After "))
+        assertTrue(receipt.contains("Updated phone calendar"))
         assertEquals("After",phone.event(old.id,source)!!.title)
-        println("AUDIT: title committed as After, exception=${failure.message}")
+        println("AUDIT: title committed as After, receipt=$receipt")
     }
 }
