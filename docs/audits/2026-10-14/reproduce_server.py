@@ -22,10 +22,14 @@ with tempfile.TemporaryDirectory(prefix='bellpull-audit-planning-') as name:
         results['proposal_limit']='unexpectedly accepted'
     except ArtifactError as e: results['proposal_limit']={'resolved':resolved,'pending':pending,'error':str(e),'status':e.status}
     body['events']=[{'id':'1','start_ms':now+60000,'end_ms':now+120000,'all_day':False}]
+    body['generation']=store.calendar(device)['generation']
     store.calendar(device,body); store.calendar(device,{'revoke':True})
     assert store.calendar(device) is None
-    store.calendar(device,body)
-    results['late_upload_after_revoke']={'restored':store.calendar(device) is not None,'events':len(store.calendar(device)['events'])}
+    try:
+        store.calendar(device,body)
+        late_accepted=True
+    except ArtifactError as e: late_accepted=False
+    results['late_upload_after_revoke']={'restored':store.calendar(device) is not None,'late_upload_accepted':late_accepted}
 with tempfile.TemporaryDirectory(prefix='bellpull-audit-git-') as name:
     root=Path(name)
     def git(*args): return subprocess.run(['git',*args],cwd=root,check=True,capture_output=True,text=True)
@@ -53,6 +57,6 @@ with tempfile.TemporaryDirectory(prefix='bellpull-audit-hardlink-') as name:
         results['workspace_hardlink']={'links':outside.stat().st_nlink,'outside_content_in_preview':False,'error':str(e),'status':e.status}
 print(json.dumps(results,indent=2))
 assert results['proposal_limit']['status']==409
-assert results['late_upload_after_revoke']['restored']
+assert results['late_upload_after_revoke']['restored'] is False and results['late_upload_after_revoke']['late_upload_accepted'] is False
 assert results['workspace_clean_filter_executed'] is False
 assert results['workspace_hardlink']['outside_content_in_preview'] is False

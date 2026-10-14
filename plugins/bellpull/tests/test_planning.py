@@ -60,6 +60,62 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(self.store.resolve(result),self.store.resolve(result))
         with patch("plugins.bellpull.planning.time.time",return_value=time.time()+90000):
             with self.assertRaises(ArtifactError): self.store.propose(dict(args,operation_id="b"*32))
+    def test_upload_after_revoke_rejects_old_and_legacy_generations(self):
+        device="d"*32
+        body=dict(read_at_ms=self.now,busy_only=True,events=[])
+        saved=self.store.calendar(device,body)
+        revoked=self.store.calendar(device,dict(revoke=True))
+        self.assertGreater(revoked["generation"],saved["generation"])
+        for upload in (body,dict(body,generation=saved["generation"])):
+            with self.assertRaises(ArtifactError) as error: self.store.calendar(device,upload)
+            self.assertEqual(409,error.exception.status)
+            self.assertIsNone(self.store.calendar(device))
+    def test_revoke_then_fresh_upload_with_acknowledged_generation(self):
+        device="d"*32
+        revoked=self.store.calendar(device,dict(revoke=True))
+        body=dict(read_at_ms=self.now,busy_only=True,events=[],generation=revoked["generation"])
+        saved=self.store.calendar(device,body)
+        self.assertEqual(revoked["generation"],saved["generation"])
+        self.assertEqual(saved,self.store.calendar(device,body))
+    def test_generation_and_revoke_tombstone_survive_restart(self):
+        device="d"*32
+        body=dict(read_at_ms=self.now,busy_only=True,events=[])
+        saved=self.store.calendar(device,body)
+        self.assertEqual(saved,PlanningStore(self.home).calendar(device))
+        revoked=PlanningStore(self.home).calendar(device,dict(revoke=True))
+        restarted=PlanningStore(self.home)
+        self.assertIsNone(restarted.calendar(device))
+        with self.assertRaises(ArtifactError) as error:
+            restarted.calendar(device,dict(body,generation=saved["generation"]))
+        self.assertEqual(409,error.exception.status)
+        self.assertEqual(revoked["generation"],restarted.calendar(device,dict(body,generation=revoked["generation"]))["generation"])
+        self.assertEqual(revoked["generation"]+1,PlanningStore(self.home).calendar(device,dict(revoke=True))["generation"])
+    def test_busy_only_policy_change_fences_detailed_upload(self):
+        device="d"*32
+        body=dict(read_at_ms=self.now,busy_only=False,events=[])
+        saved=self.store.calendar(device,body)
+        restricted=self.store.calendar(device,dict(body,busy_only=True,generation=saved["generation"]))
+        self.assertEqual(saved["generation"]+1,restricted["generation"])
+        with self.assertRaises(ArtifactError) as error:
+            self.store.calendar(device,dict(body,generation=saved["generation"]))
+        self.assertEqual(409,error.exception.status)
+        self.assertTrue(self.store.calendar(device)["busy_only"])
+    def test_legacy_upload_is_rejected_after_first_policy_acknowledgement(self):
+        body=dict(read_at_ms=self.now,busy_only=True,events=[])
+        self.assertEqual(1,self.store.calendar("d"*32,body)["generation"])
+        with self.assertRaises(ArtifactError) as error: self.store.calendar("d"*32,body)
+        self.assertEqual(409,error.exception.status)
+    def test_selection_narrowing_revoke_fences_broader_snapshot(self):
+        device="d"*32
+        event=lambda eid: dict(id=eid,start_ms=self.now,end_ms=self.now+60000)
+        body=dict(read_at_ms=self.now,busy_only=True,events=[event("12"),event("13")])
+        broad=self.store.calendar(device,body)
+        revoked=self.store.calendar(device,dict(revoke=True,generation=broad["generation"]))
+        narrowed=self.store.calendar(device,dict(body,events=[event("12")],generation=revoked["generation"]))
+        with self.assertRaises(ArtifactError) as error:
+            self.store.calendar(device,dict(body,generation=broad["generation"]))
+        self.assertEqual(409,error.exception.status)
+        self.assertEqual(narrowed,self.store.calendar(device))
     @unittest.skipUnless(cron_ready(),"Host lacks the verified per-profile native cron store context")
     def test_native_scheduler_create_pause_resume_edit_cancel_without_inference(self):
         from cron import jobs
@@ -122,7 +178,7 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
                 response=await client.put("/api/bellpull/calendar/"+device,headers=headers,json=dict(read_at_ms=int(time.time()*1000),busy_only=True,events=[]))
                 self.assertEqual(200,response.status,await response.text())
                 response=await client.put("/api/bellpull/calendar/"+device,headers=headers,json=dict(revoke=True))
-                self.assertEqual(dict(revoked=True),await response.json())
+                self.assertEqual(dict(revoked=True,generation=2),await response.json())
                 self.assertEqual([],PlanningStore(Path(home)/"separate-profile").snapshot()["reminders"])
             finally:
                 stop(); await client.close()

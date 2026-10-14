@@ -46,6 +46,8 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
     var day by mutableStateOf(LocalDate.now()); private set
     private var closed=false
     private var refreshJob: Job?=null
+    private var calendarTransport: HermesClient.CalendarTransport?=null
+    private val obsoleteRefreshes=mutableListOf<Job>()
     private var mutationJob: Job?=null
     private var active=false
     private var observed=false
@@ -95,31 +97,64 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
     fun savePolicy(value: CalendarPolicy) {
         if (closed || busy) return
         val previous=policy
-        policy=value; cache.writeCalendarPolicy(value)
-        if (previous.sharing && (previous.selected!=value.selected || previous.busyOnly!=value.busyOnly || !value.sharing)) {
+        if (previous.copy(generation=0)!=value.copy(generation=0)) {
             revokePending=true; cache.calendarRevokePending(true)
         }
+        policy=value.copy(generation=previous.generation); cache.writeCalendarPolicy(policy)
         calendar=PhoneCalendarSnapshot(); cache.writeCalendar(null)
-        refreshJob?.cancel(); refreshJob=null; refresh()
+        calendarTransport?.cancel()
+        refreshJob?.let { it.cancel(); obsoleteRefreshes.add(it) }
+        refreshJob=null; refresh()
+    }
+    private suspend fun shareCalendar(body: JsonObject): HermesResult<JsonObject> {
+        val transport=HermesClient.CalendarTransport()
+        calendarTransport=transport
+        return try { withContext(Dispatchers.IO) { client.shareCalendar(device,body,transport) } }
+        finally { if (calendarTransport===transport) calendarTransport=null }
+    }
+    private fun acknowledge(response: HermesResult.Ok<JsonObject>): Boolean {
+        val generation=response.value["generation"]?.jsonPrimitive?.longOrNull
+        if (generation==null || generation<policy.generation) {
+            calendarProblem="Hermes did not acknowledge the calendar policy generation. Update the server plugin and retry."
+            return false
+        }
+        policy=policy.copy(generation=generation); cache.writeCalendarPolicy(policy)
+        return true
     }
     private suspend fun syncCalendar() {
         if (!supported) return
         if (revokePending) {
-            val response=withContext(Dispatchers.IO) { client.shareCalendar(device,buildJsonObject { put("revoke",true) }) }
+            val response=shareCalendar(buildJsonObject { put("revoke",true); put("generation",policy.generation) })
             if (response is HermesResult.Err) { calendarProblem="Sharing is off locally; clearing the server cache is pending reconnection."; return }
+            if (response !is HermesResult.Ok || !acknowledge(response)) return
             revokePending=false; cache.calendarRevokePending(false)
         }
+        // Revoke first: cancellation cannot prevent an already-delivered request
+        // from committing. Join obsolete calls before admitting a fresh upload.
+        val obsolete=obsoleteRefreshes.toList()
+        obsolete.forEach { it.cancelAndJoin() }; obsoleteRefreshes.removeAll(obsolete.toSet())
         if (!policy.sharing || !phone.canRead() || calendarProblem!=null || calendar.readAt==0L) return
         val value=calendar; val selection=policy
-        val response=withContext(Dispatchers.IO) { client.shareCalendar(device,buildJsonObject {
+        val response=shareCalendar(buildJsonObject {
+            put("generation",selection.generation)
             put("read_at_ms",value.readAt); put("busy_only",selection.busyOnly)
             put("events",buildJsonArray { value.events.forEach { event -> add(buildJsonObject {
                 put("id",event.id.toString())
                 if (!selection.busyOnly) { put("title",event.title); put("fingerprint",event.fingerprint) }
                 put("start_ms",event.start); put("end_ms",event.end); put("all_day",event.allDay)
             }) } })
-        }) }
-        if (response is HermesResult.Err) calendarProblem="Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
+        })
+        if (closed || policy!=selection) return
+        when (response) {
+            is HermesResult.Ok -> acknowledge(response)
+            is HermesResult.Err -> {
+                val stale=when (val error=response.error) {
+                    is HermesError.ServerError -> error.status==409 && error.message=="Stale calendar policy generation."
+                    else -> false
+                }
+                if (!stale) calendarProblem="Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
+            }
+        }
     }
     fun action(kind: String, fields: JsonObject, operation: String=UUID.randomUUID().toString().replace("-","")) {
         if (!supported || busy || closed) return
@@ -189,5 +224,5 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
     fun rejectProposal(value: CalendarProposal) { if (!busy && value.device==device) {
         busy=true; mutationJob=scope.launch { try { reportProposal(value,"rejected","Rejected on phone."); refresh() } finally { busy=false } }
     } }
-    fun close() { closed=true; open(false); refreshJob?.cancel(); mutationJob?.cancel() }
+    fun close() { closed=true; open(false); calendarTransport?.cancel(); refreshJob?.cancel(); obsoleteRefreshes.forEach { it.cancel() }; mutationJob?.cancel() }
 }

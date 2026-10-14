@@ -24,11 +24,33 @@ availability is separately reported as `bellpull_routines`.
   stale fingerprints. Native APIs are feature-detected from inspected cron.jobs, requiring its explicit
   `use_cron_store` context for every operation; older unsupported hosts decline routines.
 - `PUT /api/bellpull/calendar/{device}`: device ID is stable per phone connection.
-  Send `read_at_ms`, `busy_only`, and at most 500 events: `id`, `start_ms`, `end_ms`,
+  Send `generation` (nonnegative integer), `read_at_ms`, `busy_only`, and at most 500 events: `id`, `start_ms`, `end_ms`,
   `all_day`; detailed sharing additionally sends `title` and `fingerprint`. Busy-only
   mode omits those details on the phone and strips any supplied details on the server.
-  Snapshot age must be within five minutes. `{revoke:true}` clears this device's
-  dedicated server cache and proposals. At most 16 devices per native profile.
+  Snapshot age must be within five minutes. Successful uploads return the stored
+  snapshot including the server-acknowledged `generation`. Upload generations must
+  equal the current device generation; mismatches return 409 with error message
+  `Stale calendar policy generation.` The phone quietly drops this obsolete upload;
+  other sharing failures remain visible. Missing upload generations mean 0: accepted
+  only before a device has established a generation, rejected after that. The first
+  upload establishes generation 1; subsequent same-policy uploads retain it. Changing
+  `busy_only` atomically advances it and acknowledges the new value.
+  `{revoke:true,generation:N}` clears this device's dedicated server cache and proposals
+  and atomically advances the **server's current** generation, returning
+  `{revoked:true,generation:M}`. Revoke always advances it, even with no cache row or
+  a missing/stale request generation; retries may therefore advance it again. A durable
+  per-device tombstone retains the generation across process restarts. It is never
+  removed with the snapshot. A fresh upload carrying the acknowledged M can resume
+  sharing; an older upload cannot restore the revoked data.
+  The phone saves the last acknowledged generation in its encrypted per-connection
+  policy. Every policy change (including selected-calendar narrowing and detailed to
+  busy-only) first clears local calendar data and persists revoke intent, then uses
+  this revoke barrier before any new-policy upload. Selected calendars are not sent
+  as a server policy field. Obsolete transport calls are canceled and joined after
+  revocation, before admitting fresh uploads; server fencing remains authoritative.
+  A server response without an acknowledged generation cannot confirm revocation.
+  At most 16 active calendar snapshots per native profile; generation tombstones are
+  retained independently of this snapshot limit.
 - `POST /api/bellpull/planning/proposals`: `id`, owning `device`, `state` applied/
   rejected, `result`. Same result is retry-safe. The phone reports applied only after
   verifying the CalendarContract write; this does not prove upstream account sync.

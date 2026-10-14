@@ -53,6 +53,7 @@ class PlanningStore:
             CREATE TABLE IF NOT EXISTS reminders(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,hash TEXT NOT NULL,result TEXT);
             CREATE TABLE IF NOT EXISTS calendars(device TEXT PRIMARY KEY,data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS calendar_policies(device TEXT PRIMARY KEY,generation INTEGER NOT NULL,busy_only INTEGER);
             CREATE TABLE IF NOT EXISTS proposals(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             """)
         self.path.chmod(0o600)
@@ -113,11 +114,20 @@ class PlanningStore:
         identity(device)
         with self.db() as c:
             if body is not None:
+                state=c.execute("SELECT generation,busy_only FROM calendar_policies WHERE device=?",(device,)).fetchone()
+                generation=state[0] if state else 0
                 if body.get("revoke") is True:
+                    generation+=1
+                    c.execute("INSERT INTO calendar_policies VALUES(?,?,NULL) ON CONFLICT(device) DO UPDATE SET generation=excluded.generation,busy_only=NULL",(device,generation))
                     c.execute("DELETE FROM calendars WHERE device=?",(device,))
                     for pid,data in c.execute("SELECT id,data FROM proposals").fetchall():
                         if json.loads(data).get("device")==device: c.execute("DELETE FROM proposals WHERE id=?",(pid,))
-                    return dict(revoked=True)
+                    return dict(revoked=True,generation=generation)
+                supplied=body.get("generation",0)
+                if type(supplied) is not int or not 0<=supplied<9223372036854775807:
+                    raise ArtifactError("Invalid calendar policy generation.",400)
+                if supplied!=generation:
+                    raise ArtifactError("Stale calendar policy generation.",409)
                 if type(body.get("read_at_ms")) is not int or abs(time.time()*1000-body["read_at_ms"])>300000:
                     raise ArtifactError("Calendar snapshot must be a fresh phone read.",409)
                 if type(body.get("busy_only")) is not bool or not isinstance(body.get("events"),list) or len(body["events"])>500:
@@ -128,7 +138,13 @@ class PlanningStore:
                     if e["end_ms"]<=e["start_ms"]: raise ArtifactError("Invalid event interval.",400)
                     if not body["busy_only"]: e.update(title=text(event.get("title"),300),fingerprint=text(event.get("fingerprint"),64))
                     events.append(e)
-                body=dict(device=device,read_at_ms=body["read_at_ms"],busy_only=body["busy_only"],events=events)
+                # Uploads carry busy-only policy but not the selected calendar set.
+                # Selection changes use an explicit revoke barrier on the phone.
+                old=c.execute("SELECT data FROM calendars WHERE device=?",(device,)).fetchone()
+                previous=state[1] if state else (json.loads(old[0])["busy_only"] if old else None)
+                if state is None or previous is not None and bool(previous)!=body["busy_only"]: generation+=1
+                c.execute("INSERT INTO calendar_policies VALUES(?,?,?) ON CONFLICT(device) DO UPDATE SET generation=excluded.generation,busy_only=excluded.busy_only",(device,generation,int(body["busy_only"])))
+                body=dict(device=device,generation=generation,read_at_ms=body["read_at_ms"],busy_only=body["busy_only"],events=events)
                 if c.execute("SELECT COUNT(*) FROM calendars").fetchone()[0]>=16 and not c.execute("SELECT 1 FROM calendars WHERE device=?",(device,)).fetchone(): raise ArtifactError("Too many calendar devices.",409)
                 c.execute("INSERT INTO calendars VALUES(?,?) ON CONFLICT(device) DO UPDATE SET data=excluded.data",(device,json.dumps(body)))
             row=c.execute("SELECT data FROM calendars WHERE device=?",(device,)).fetchone()

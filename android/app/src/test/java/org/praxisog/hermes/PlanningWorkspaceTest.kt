@@ -32,7 +32,7 @@ class PlanningWorkspaceTest {
         val client=HermesClient("https://fixture.invalid/p/work",{"fixture"},httpClient=HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
             val request=chain.request(); requests.add(request)
             if (request.method=="PUT" && fail) throw IOException("Offline")
-            val response=if (request.method=="GET") """{"version":1,"reminders":[],"observed_at":1}""" else "{}"
+            val response=if (request.method=="GET") """{"version":1,"reminders":[],"observed_at":1}""" else """{"revoked":true,"generation":1}"""
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture").body(response.toResponseBody("application/json".toMediaType())).build()
         }.build())
         val cache=PlanningCacheFixture().apply { policy=CalendarPolicy(sharing=true) }
@@ -45,9 +45,10 @@ class PlanningWorkspaceTest {
             first.close(); fail=false
             second=PlanningWorkspace(scope,client,cache,app,true); second.refresh()
             waitUntil { !cache.revoke && requests.count { it.method=="PUT" }>=2 }
+            assertEquals(1L,cache.policy.generation)
             assertTrue(requests.all { it.url.encodedPath.startsWith("/p/work/api/bellpull/") })
             requests.filter { it.method=="PUT" }.forEach { request ->
-                val buffer=Buffer(); request.body!!.writeTo(buffer); assertEquals("{\"revoke\":true}",buffer.readUtf8())
+                val buffer=Buffer(); request.body!!.writeTo(buffer); assertEquals("{\"revoke\":true,\"generation\":0}",buffer.readUtf8())
             }
         } finally { first?.close(); second?.close(); client.close(); scope.cancel() }
     }

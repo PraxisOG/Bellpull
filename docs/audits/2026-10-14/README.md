@@ -30,7 +30,9 @@ Git repositories. Its only filter command creates a harmless marker within its
 own temporary repository. It confirms:
 
 - F01: workspace listing does not execute a configured Git clean filter.
-- F02: a fresh upload arriving after revoke restores the server calendar cache.
+- F02: this server probe still asserts the original restoration defect and needs
+  to be flipped to expect 409 for a pre-revoke generation. The repaired server
+  rejects that upload; permanent coverage is in `plugins/bellpull/tests/test_planning.py`.
 - F04: 100 rejected proposals leave zero pending, yet proposal 101 returns 409.
 - F05: a hard-linked external fixture is rejected without appearing in the diff.
   All regular files with more than one link are excluded from previews, including
@@ -56,8 +58,11 @@ test sources without modifying the normal Android project configuration:
 existing Robolectric calendar fixtures and an OkHttp interceptor. It confirms:
 
 - F02: the real workspace issues a revoke that completes before an older upload,
-  while its saved policy is off and its pending-revoke flag is clear. The separate
-  server probe establishes the persistence consequence of that ordering.
+  while its saved policy is off, its acknowledged generation is persisted and its
+  pending-revoke flag is clear. Releasing the interceptor latch now simulates the
+  server generation check: the older upload receives 409 and cannot restore the
+  snapshot, even if cancellation did not prevent delivery. This updated probe has
+  not been rerun; the saved audit results below describe the original defect.
 - F03: the actual transcription validator accepts a public-shaped HTTP hostname
   with numeric Tailscale-looking labels, while rejecting an ordinary public name.
 - F06: a title containing surrounding whitespace is committed in normalized form
