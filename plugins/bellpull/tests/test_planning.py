@@ -60,6 +60,63 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(self.store.resolve(result),self.store.resolve(result))
         with patch("plugins.bellpull.planning.time.time",return_value=time.time()+90000):
             with self.assertRaises(ArtifactError): self.store.propose(dict(args,operation_id="b"*32))
+    def proposal_args(self,number,device="d"*32):
+        return dict(operation_id=f"{number:032x}",device=device,action="create_event",title="Calendar fixture",start_ms=self.now,end_ms=self.now+60000)
+    def test_over_100_create_resolve_cycles_and_evicted_retries_survive_restart(self):
+        for device in ("d"*32,"e"*32):
+            self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        for i in range(1002):
+            args=self.proposal_args(i,device=("d" if i%2==0 else "e")*32)
+            proposal=self.store.propose(args)
+            resolved=self.store.resolve(dict(id=proposal["id"],device=args["device"],state="applied" if i%2==0 else "rejected",result="Phone result"))
+            self.assertEqual(resolved,self.store.propose(args))
+            if i==0: first=resolved
+        restarted=PlanningStore(self.home)
+        self.assertEqual(first,restarted.propose(self.proposal_args(0)))
+        with self.assertRaisesRegex(ArtifactError,"Proposal identity reused"):
+            restarted.propose(dict(self.proposal_args(0),title="Different content"))
+        with restarted.db() as c:
+            self.assertIsNone(c.execute("SELECT 1 FROM proposals WHERE id=?",(first["id"],)).fetchone())
+            self.assertEqual(0,c.execute("SELECT COUNT(*) FROM proposals WHERE json_extract(data,'$.state')='pending'").fetchone()[0])
+            self.assertEqual(1000,c.execute("SELECT COUNT(*) FROM proposals").fetchone()[0])
+    def test_pending_limit_is_shared_across_devices_and_resolution_frees_capacity(self):
+        for device in ("d"*32,"e"*32):
+            self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        for i in range(100): self.store.propose(self.proposal_args(i))
+        self.assertEqual("pending",self.store.propose(self.proposal_args(0))["state"])
+        with self.assertRaisesRegex(ArtifactError,"Pending proposal limit reached") as error:
+            self.store.propose(self.proposal_args(100,device="e"*32))
+        self.assertEqual(409,error.exception.status)
+        self.store.resolve(dict(id=f"{0:032x}",device="d"*32,state="rejected",result="No thanks"))
+        self.assertEqual("pending",self.store.propose(self.proposal_args(100,device="e"*32))["state"])
+    def test_terminal_retention_evicts_oldest_creation_not_pending_rows(self):
+        self.store.calendar("d"*32,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        pending=self.store.propose(self.proposal_args(0))
+        oldest=self.store.propose(self.proposal_args(1))
+        # Seed existing terminal history to exercise migration as well as pruning.
+        with self.store.db() as c:
+            for i in range(2,1002):
+                value=dict(oldest,id=f"{i:032x}",state="rejected",result="No thanks")
+                c.execute("INSERT INTO proposals VALUES(?,?)",(value["id"],json.dumps(value)))
+        # The oldest-created row resolves last, but is still evicted first.
+        result=self.store.resolve(dict(id=oldest["id"],device="d"*32,state="applied",result="Verified"))
+        with self.store.db() as c:
+            ids=[pid for pid, in c.execute("SELECT id FROM proposals ORDER BY rowid")]
+            self.assertEqual([pending["id"]]+[f"{i:032x}" for i in range(2,1002)],ids)
+            self.assertEqual(result,json.loads(c.execute("SELECT data FROM proposal_receipts WHERE id=?",(oldest["id"],)).fetchone()[0]))
+    def test_existing_terminal_history_is_pruned_and_receipts_are_bounded(self):
+        with self.store.db() as c:
+            for i in range(5000):
+                value=dict(id=f"{i:032x}",state="applied")
+                c.execute("INSERT INTO proposal_receipts VALUES(?,?)",(value["id"],json.dumps(value)))
+            for i in range(5000,6002):
+                value=dict(id=f"{i:032x}",state="rejected")
+                c.execute("INSERT INTO proposals VALUES(?,?)",(value["id"],json.dumps(value)))
+        restarted=PlanningStore(self.home)
+        with restarted.db() as c:
+            self.assertEqual(1000,c.execute("SELECT COUNT(*) FROM proposals").fetchone()[0])
+            receipts=[pid for pid, in c.execute("SELECT id FROM proposal_receipts ORDER BY rowid")]
+            self.assertEqual([f"{i:032x}" for i in range(2,5002)],receipts)
     @unittest.skipUnless(cron_ready(),"Host lacks the verified per-profile native cron store context")
     def test_native_scheduler_create_pause_resume_edit_cancel_without_inference(self):
         from cron import jobs

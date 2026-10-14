@@ -5,10 +5,11 @@ Companion to the [project audit](../../AUDIT-2026-10-14.md), covering source rev
 Run commands from the repository root with the build prerequisites in
 [BUILDING.md](../../BUILDING.md).
 
-The probes originally asserted the defects observed at this revision. F01, F03 and F05
-now assert the repaired behavior; the remaining probes still assert the original
-defects. They are opt-in evidence, with permanent workspace regressions in
-`plugins/bellpull/tests/test_coding.py`.
+The probes originally asserted the defects observed at this revision. F01, F03,
+F04, F05 and F06 now assert the repaired behavior; the remaining probes still
+assert the original defects. They are opt-in evidence, with permanent workspace
+regressions in `plugins/bellpull/tests/test_coding.py` and planning regressions in
+`plugins/bellpull/tests/test_planning.py`.
 All fixture values are synthetic. No phone, personal server, API credential,
 provider account or model inference is required.
 
@@ -31,7 +32,9 @@ own temporary repository. It confirms:
 
 - F01: workspace listing does not execute a configured Git clean filter.
 - F02: a fresh upload arriving after revoke restores the server calendar cache.
-- F04: 100 rejected proposals leave zero pending, yet proposal 101 returns 409.
+- F04: after 100 rejected proposals leave zero pending, proposal 101 is accepted.
+  Pending admission is capped at 100; the newest 1,000 terminal proposals by creation
+  order are retained, with replay receipts for the newest 5,000 evictions.
 - F05: a hard-linked external fixture is rejected without appearing in the diff.
   All regular files with more than one link are excluded from previews, including
   intentional links entirely within the workspace, because containment cannot be
