@@ -5,9 +5,10 @@ Companion to the [project audit](../../AUDIT-2026-10-14.md), covering source rev
 Run commands from the repository root with the build prerequisites in
 [BUILDING.md](../../BUILDING.md).
 
-The probes intentionally assert the defects observed at this revision. A passing
-probe means the defect was reproduced. They are opt-in evidence, not permanent
-tests of the desired behavior; replace their assertions when implementing fixes.
+The probes originally asserted the defects observed at this revision. F01 and F05
+now assert the repaired behavior; the remaining probes still assert the original
+defects. They are opt-in evidence, with permanent workspace regressions in
+`plugins/bellpull/tests/test_coding.py`.
 All fixture values are synthetic. No phone, personal server, API credential,
 provider account or model inference is required.
 
@@ -28,12 +29,16 @@ docker run --rm -i --network none \
 Git repositories. Its only filter command creates a harmless marker within its
 own temporary repository. It confirms:
 
-- F01: the preview executes a configured Git clean filter.
+- F01: workspace listing does not execute a configured Git clean filter.
 - F02: a fresh upload arriving after revoke restores the server calendar cache.
 - F04: 100 rejected proposals leave zero pending, yet proposal 101 returns 409.
-- F05: a hard-linked external fixture appears in the workspace diff.
+- F05: a hard-linked external fixture is rejected without appearing in the diff.
+  All regular files with more than one link are excluded from previews, including
+  intentional links entirely within the workspace, because containment cannot be
+  proven. The listing note and preview error explain this compatibility restriction.
 
-The exact final run output is [server-results.json](server-results.json).
+The original audit run output is [server-results.json](server-results.json); it
+predates these repairs and is not validation of the updated probes.
 
 ## Android reproductions
 

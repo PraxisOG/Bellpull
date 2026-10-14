@@ -4,6 +4,7 @@ import hashlib
 import os
 from pathlib import Path
 import selectors
+import signal
 import stat
 import subprocess
 import time
@@ -16,10 +17,15 @@ MAX_FILES=200
 
 def git(root, *args, limit=MAX_BYTES):
     environment={k:v for k,v in os.environ.items() if not k.startswith("GIT_")}
-    environment.update(GIT_CONFIG_NOSYSTEM="1",GIT_CONFIG_GLOBAL=os.devnull,GIT_TERMINAL_PROMPT="0")
+    environment.update(GIT_CONFIG_NOSYSTEM="1",GIT_CONFIG_GLOBAL=os.devnull,GIT_TERMINAL_PROMPT="0",
+                       GIT_NO_LAZY_FETCH="1",GIT_NO_REPLACE_OBJECTS="1")
     command=["git","--no-optional-locks","-c","core.fsmonitor=false","-c",f"core.hooksPath={os.devnull}",
-             "-c",f"core.attributesFile={os.devnull}","-c","core.pager=cat","-c","diff.external=",*args]
-    proc=subprocess.Popen(command,cwd=root,env=environment,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+             "-c",f"core.attributesFile={os.devnull}","-c","core.pager=cat","-c","diff.external=",
+             "-c","submodule.recurse=false","-c","core.untrackedCache=false",
+             "-c","filter.process.diff=","-c","filter.process.clean=","-c","filter.process.process=",*args]
+    # The overrides are defense in depth, not a wildcard filter disable. Callers
+    # must only query metadata/raw objects: no refresh, worktree diff or textconv.
+    proc=subprocess.Popen(command,cwd=root,env=environment,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
     result=bytearray(); selector=selectors.DefaultSelector(); selector.register(proc.stdout,selectors.EVENT_READ)
     deadline=time.monotonic()+5
     try:
@@ -39,12 +45,14 @@ def git(root, *args, limit=MAX_BYTES):
         raise ArtifactError("Workspace inspection timed out.",503) from exc
     finally:
         selector.close(); proc.stdout.close()
-        if proc.poll() is None: proc.kill()
+        # Kill descendants too, even if Git exited while a child held stdout open.
+        try: os.killpg(proc.pid,signal.SIGKILL)
+        except ProcessLookupError: pass
         proc.wait()
 
 
 def owned_bytes(root, relative):
-    """Walk from an open directory FD; never follow swapped symlink components."""
+    """Descriptor-contained reads; exclude multi-link files whose containment is unprovable."""
     parts=Path(relative).parts
     if not parts or any(p in ("..",".") for p in parts) or Path(relative).is_absolute():
         raise ArtifactError("Unsafe workspace path.",400)
@@ -58,6 +66,7 @@ def owned_bytes(root, relative):
         with os.fdopen(child,"rb") as source:
             info=os.fstat(source.fileno())
             if not stat.S_ISREG(info.st_mode): raise ArtifactError("Only regular text files have previews.",409)
+            if info.st_nlink>1: raise ArtifactError("Hard-linked files have no preview: workspace containment cannot be proven.",409)
             if info.st_size>MAX_BYTES: raise ArtifactError("File exceeds the preview limit.",413)
             data=source.read(MAX_BYTES+1)
             if len(data)>MAX_BYTES: raise ArtifactError("File exceeds the preview limit.",413)
@@ -77,26 +86,34 @@ def inspect_workspace(directory, file_id=None):
     code,top=git(root,"rev-parse","--show-toplevel",limit=8192)
     if code or top.decode(errors="replace").strip()!=str(root):
         return dict(version=1,label="Workspace changes",files=[],note="Read-only changes require the recorded workspace to be a Git repository root.",truncated=False)
-    code,tracked=git(root,"diff","--no-ext-diff","--no-textconv","--no-renames","--name-only","-z","HEAD","--",limit=1048576)
+    # Cached diffs compare objects/index only. Do NOT refresh the index: refresh
+    # may hash worktree content through repository-configured clean/process filters.
+    code,tracked=git(root,"diff-index","--cached","--no-ext-diff","--no-textconv","--no-renames","--name-only","-z","HEAD","--",limit=1048576)
     if code:
         # An unborn repository has no HEAD; ls-files lists tracked paths directly.
         code,tracked=git(root,"ls-files","-z",limit=1048576)
+    if code: raise ArtifactError("Workspace changes could not be inspected.",503)
+    # ls-files checks stat metadata, never conversion filters. Conservatively
+    # include stat-dirty files even if their raw content has not actually changed.
+    code,modified=git(root,"ls-files","--modified","--deleted","-z",limit=1048576)
+    if code: raise ArtifactError("Workspace changes could not be inspected.",503)
     code,untracked=git(root,"ls-files","--others","--exclude-standard","-z",limit=1048576)
     if code: raise ArtifactError("Workspace changes could not be inspected.",503)
-    names=sorted(set(p for p in (tracked+untracked).split(b"\0") if p))
+    names=sorted(set(p for p in (tracked+modified+untracked).split(b"\0") if p))
     files=[]
     for raw in names[:MAX_FILES]:
         try: name=raw.decode("utf-8")
         except UnicodeDecodeError: continue
         if Path(name).is_absolute() or ".." in Path(name).parts: continue
         files.append(dict(id=hashlib.sha256(raw).hexdigest(),path=name))
-    result=dict(version=1,label="Workspace changes",files=files,note="Changes may include edits made outside this OpenCode task.",truncated=len(names)>MAX_FILES)
+    result=dict(version=1,label="Workspace changes",files=files,note="Changes may include edits made outside this OpenCode task or metadata-only changes. Multi-link files are excluded from previews because workspace containment cannot be proven.",truncated=len(names)>MAX_FILES)
     if file_id is None: return result
     entry=next((f for f in files if f["id"]==file_id),None)
     if entry is None: raise ArtifactError("Changed file not found. Refresh the workspace list.",404)
     try:
         after=owned_bytes(root,entry["path"])
-        code,before=git(root,"show",f"HEAD:{entry['path']}")
+        # cat-file returns raw blob bytes, without clean/smudge/textconv filters.
+        code,before=git(root,"cat-file","blob",f"HEAD:{entry['path']}")
         if code: before=b""
         if b"\0" in before or b"\0" in after: raise ArtifactError("Binary files have no text diff preview.",409)
         old,new=before.decode("utf-8"),after.decode("utf-8")

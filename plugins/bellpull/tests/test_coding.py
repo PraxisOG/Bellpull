@@ -1,15 +1,17 @@
 import json
 import os
 from pathlib import Path
+import shlex
+import signal
 import subprocess
 import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from plugins.bellpull.coding import CodingStore, Observer, cli_invocation, decode_line, launch_transport
-from plugins.bellpull.coding_workspace import inspect_workspace, owned_bytes
+from plugins.bellpull.coding_workspace import git as workspace_git, inspect_workspace, owned_bytes
 from plugins.bellpull.artifacts import ArtifactError
 from plugins.bellpull.lineage import compression_ids
 from hermes_state import SessionDB
@@ -214,3 +216,84 @@ class WorkspaceTest(unittest.TestCase):
         self.git("config","core.fsmonitor",f"touch {marker}")
         inspect_workspace(self.root)
         self.assertFalse(marker.exists())
+
+    def check_filter_is_inert(self, kind):
+        # Install filter config only after fixture writes/commits: any marker
+        # must come from listing/preview, never from test setup's git add.
+        (self.root/".gitattributes").write_text("hello.txt filter=fixture\n")
+        self.git("add",".gitattributes"); self.git("commit","-qm","Attributes")
+        clean=Path(self.temp.name)/"clean-executed"
+        process=Path(self.temp.name)/"process-executed"
+        smudge=Path(self.temp.name)/"smudge-executed"
+        self.git("config","filter.fixture.clean",f"touch {shlex.quote(str(clean))}; cat")
+        self.git("config","filter.fixture.smudge",f"touch {shlex.quote(str(smudge))}; cat")
+        if kind=="process":
+            # Exit immediately if launched; even a failed protocol handshake
+            # creates the marker and must fail this regression.
+            self.git("config","filter.fixture.process",f"touch {shlex.quote(str(process))}; exit 1")
+        self.git("config","filter.fixture.required","true")
+        (self.root/"hello.txt").write_bytes(b"After without conversion\r\n")
+        listing=inspect_workspace(self.root)
+        for marker in (clean,process,smudge): self.assertFalse(marker.exists(),str(marker))
+        entry=next(f for f in listing["files"] if f["path"]=="hello.txt")
+        preview=inspect_workspace(self.root,entry["id"])
+        self.assertIn("-Before\n",preview["diff"])
+        self.assertIn("+After without conversion\r\n",preview["diff"])
+        for marker in (clean,process,smudge): self.assertFalse(marker.exists(),str(marker))
+
+    def test_clean_and_smudge_filters_never_run_during_listing_or_preview(self):
+        self.check_filter_is_inert("clean")
+
+    def test_process_filter_never_runs_during_listing_or_preview(self):
+        self.check_filter_is_inert("process")
+
+    def test_hard_links_are_excluded_from_tracked_and_untracked_previews(self):
+        outside=Path(self.temp.name)/"outside.txt"
+        outside.write_text("PRIVATE_OUTSIDE_WORKSPACE\n")
+        (self.root/"hello.txt").unlink()
+        for name in ("hello.txt","linked.txt"): os.link(outside,self.root/name)
+        listing=inspect_workspace(self.root)
+        self.assertIn("containment cannot be proven",listing["note"])
+        for name in ("hello.txt","linked.txt"):
+            entry=next(f for f in listing["files"] if f["path"]==name)
+            with self.assertRaisesRegex(ArtifactError,"Hard-linked files"):
+                inspect_workspace(self.root,entry["id"])
+            with self.assertRaisesRegex(ArtifactError,"Hard-linked files"):
+                owned_bytes(self.root,name)
+
+    def test_staged_changes_and_deletions_compare_raw_head_to_worktree(self):
+        (self.root/"hello.txt").write_text("Staged version\n")
+        self.git("add","hello.txt")
+        entry=next(f for f in inspect_workspace(self.root)["files"] if f["path"]=="hello.txt")
+        self.assertIn("+Staged version",inspect_workspace(self.root,entry["id"])["diff"])
+        (self.root/"hello.txt").write_text("Worktree version\n")
+        preview=inspect_workspace(self.root,entry["id"])
+        self.assertIn("-Before",preview["diff"]); self.assertIn("+Worktree version",preview["diff"])
+        self.assertNotIn("Staged version",preview["diff"])
+        (self.root/"hello.txt").unlink()
+        preview=inspect_workspace(self.root,entry["id"])
+        self.assertIn("-Before",preview["diff"])
+
+    def test_unborn_head_keeps_tracked_file_preview(self):
+        root=Path(self.temp.name)/"unborn"; root.mkdir()
+        subprocess.run(["git","init","-q",str(root)],check=True)
+        (root/"new.txt").write_text("Unborn fixture\n")
+        subprocess.run(["git","-C",str(root),"add","new.txt"],check=True)
+        entry=inspect_workspace(root)["files"][0]
+        self.assertEqual("new.txt",entry["path"])
+        self.assertIn("+Unborn fixture",inspect_workspace(root,entry["id"])["diff"])
+
+    def test_git_timeout_kills_the_process_group(self):
+        proc=Mock(pid=12345)
+        proc.wait.side_effect=[subprocess.TimeoutExpired("git",5),0]
+        selector=Mock()
+        selector.select.return_value=[(None,None)]
+        with patch("plugins.bellpull.coding_workspace.subprocess.Popen",return_value=proc) as popen, \
+             patch("plugins.bellpull.coding_workspace.selectors.DefaultSelector",return_value=selector), \
+             patch("plugins.bellpull.coding_workspace.os.read",return_value=b""), \
+             patch("plugins.bellpull.coding_workspace.os.killpg") as killpg:
+            with self.assertRaisesRegex(ArtifactError,"timed out"):
+                workspace_git(self.root,"rev-parse","HEAD")
+        self.assertTrue(popen.call_args.kwargs["start_new_session"])
+        killpg.assert_called_once_with(proc.pid,signal.SIGKILL)
+        self.assertEqual(2,proc.wait.call_count)

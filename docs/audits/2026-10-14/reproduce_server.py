@@ -1,4 +1,4 @@
-"""Disposable audit probes. Assertions confirm defects at the audited revision."""
+"""Disposable audit probes: F01/F05 assert repairs; F02/F04 still assert defects."""
 from pathlib import Path
 import subprocess, tempfile, json, time, os
 from plugins.bellpull.planning import PlanningStore
@@ -45,10 +45,14 @@ with tempfile.TemporaryDirectory(prefix='bellpull-audit-hardlink-') as name:
     os.link(outside,root/'linked.txt')
     listing=inspect_workspace(str(root))
     entry=next(f for f in listing['files'] if f['path']=='linked.txt')
-    preview=inspect_workspace(str(root),entry['id'])
-    results['workspace_hardlink']={'links':outside.stat().st_nlink,'outside_content_in_preview':'AUDIT_OUTSIDE_WORKSPACE' in preview['diff']}
+    try:
+        preview=inspect_workspace(str(root),entry['id'])
+        results['workspace_hardlink']={'links':outside.stat().st_nlink,'outside_content_in_preview':'AUDIT_OUTSIDE_WORKSPACE' in preview['diff']}
+    except ArtifactError as e:
+        assert e.status==409 and 'Hard-linked files' in str(e)
+        results['workspace_hardlink']={'links':outside.stat().st_nlink,'outside_content_in_preview':False,'error':str(e),'status':e.status}
+print(json.dumps(results,indent=2))
 assert results['proposal_limit']['status']==409
 assert results['late_upload_after_revoke']['restored']
-assert results['workspace_clean_filter_executed']
-assert results['workspace_hardlink']['outside_content_in_preview']
-print(json.dumps(results,indent=2))
+assert results['workspace_clean_filter_executed'] is False
+assert results['workspace_hardlink']['outside_content_in_preview'] is False
