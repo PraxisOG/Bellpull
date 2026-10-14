@@ -292,9 +292,6 @@ internal fun SessionDetailScreen(
                                                     }
                                                 }
                                                 Box(Modifier.testTag("message-${message.id}")
-                                                    .then(if (message.role == "assistant") Modifier.combinedClickable(
-                                                        onClick = {}, onLongClickLabel = "Message info",
-                                                        onLongClick = { infoMessage = message }) else Modifier)
                                                     .then(if (block.assistant) Modifier.semantics(mergeDescendants = true) {} else Modifier)
                                                     .bringIntoViewRequester(target).then(
                                                     if (highlightedId == message.id) Modifier.border(2.dp,

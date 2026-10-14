@@ -50,8 +50,8 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             shape = if (user) RoundedCornerShape(18.dp) else ResponseBubbleShape,
             border = if (user) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {},
-                onLongClickLabel = if (onInfo != null) "Message info" else "Message actions",
-                onLongClick = { if (onInfo != null) onInfo(message) else selected = message })
+                onLongClickLabel = "Message actions",
+                onLongClick = { selected = message })
                 .semantics { contentDescription = if (user) "Your message" else "Hermes response" }) {
             if (!user && content != null) CompositionLocalProvider(LocalInResponseBubble provides true) {
                 content()
@@ -73,7 +73,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             selected?.let { target ->
                 if (user) UserMessageActions(target, onSelectText, onFollowUp, onEdit, canEdit, { selected = null })
                 else MessageActions(target, reading, onRead, onBranch, canBranch, onFollowUp,
-                    onSelectText, onAction = { selected = null })
+                    onSelectText, onInfo = onInfo?.let { info -> { info(target) } }, onAction = { selected = null })
             }
         }
     }

@@ -44,6 +44,7 @@ internal fun MessageActions(
     canBranch: Boolean,
     onFollowUp: ((Message) -> Unit)? = null,
     onSelectText: ((Message) -> Unit)? = null,
+    onInfo: (() -> Unit)? = null,
     onAction: () -> Unit = {},
 ) {
     val copy = rememberMessageCopy()
@@ -57,6 +58,7 @@ internal fun MessageActions(
                     onClick = { onAction(); onRead(message) })
                 MessageAction("Branch into new chat", "branch", enabled = canBranch, onClick = { onAction(); onBranch(message) })
                 if (onFollowUp != null) MessageAction("Follow up", "follow", onClick = { onAction(); onFollowUp(message) })
+                if (onInfo != null) MessageAction("Message info", "info", onClick = { onAction(); onInfo() })
                 MessageAction("Share message", "share", onClick = { onAction(); ArtifactSharing.text(context, message.content.orEmpty()) })
             }
         }
