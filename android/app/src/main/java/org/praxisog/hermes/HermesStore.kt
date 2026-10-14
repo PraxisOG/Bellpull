@@ -69,6 +69,7 @@ internal class HermesStore(
     val runLabels: Map<String, String> get() = runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
 
     init {
+        runs?.onPromptDelivered = ::titleFirstDeliveredPrompt
         runs?.onChanged = { id -> if (id == openSessionId) showDurableRun(id) }
         runs?.onHistory = { id, messages ->
             if (id == openSessionId) {
@@ -166,6 +167,8 @@ internal class HermesStore(
     private var sentPrompt: String? = null
     private data class SubmittedDraft(val revision: Long, val text: String, val previousIds: Set<Int>)
     private val submittedDrafts = mutableMapOf<String, SubmittedDraft>()
+    // In-memory eligibility only: never infer it from existing sessions or recovered runs.
+    private val untitledAppSessions = mutableSetOf<String>()
     val draft: androidx.compose.ui.text.input.TextFieldValue
         get() = openSessionId?.let { drafts[it] } ?: androidx.compose.ui.text.input.TextFieldValue()
     fun updateDraft(value: androidx.compose.ui.text.input.TextFieldValue) {
@@ -233,6 +236,8 @@ internal class HermesStore(
             when (val result = request()) {
                 is HermesResult.Ok -> {
                     creatingSession = false
+                    // Project creation may supply an explicit native title even when requested null.
+                    if (result.value.title.isNullOrBlank()) untitledAppSessions.add(result.value.id)
                     loadSessions()
                     openSession(result.value.id)
                 }
@@ -398,6 +403,15 @@ internal class HermesStore(
 
     // ---- turns ----------------------------------------------------------------
 
+    private fun titleFirstDeliveredPrompt(sessionId: String, text: String) {
+        // Consume before launching I/O, including blank transcriptions and failed PATCHes.
+        if (!untitledAppSessions.remove(sessionId)) return
+        val title = voicePromptTitle(text) ?: return
+        scope.launch {
+            if (io { client.setSessionTitle(sessionId, title) } is HermesResult.Ok) loadSessions()
+        }
+    }
+
     /**
      * Stream one turn.
      *
@@ -409,6 +423,8 @@ internal class HermesStore(
     fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null): Boolean {
         val sessionId = openSessionId ?: return false
         if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return false
+        if ((history as? UiState.Ready)?.value.orEmpty().any { it.role == "user" })
+            untitledAppSessions.remove(sessionId)
 
         if (runs != null) {
             // Do not submit while the prior canonical history is unknown.
@@ -439,6 +455,7 @@ internal class HermesStore(
                     // Clear only the submitted revision, on the UI scope used by draft persistence.
                     // Even if the reader switched chats, this acknowledgement belongs to this draft.
                     if (event is StreamEvent.RunStarted && !event.runId.isNullOrBlank()) scope.launch {
+                        titleFirstDeliveredPrompt(sessionId, text)
                         if (submittedDrafts[sessionId] === submitted) {
                             drafts.accepted(sessionId, submitted.revision)
                             submittedDrafts.remove(sessionId)

@@ -5,7 +5,19 @@ import kotlinx.serialization.json.Json
 
 internal data class VoicePromptPresentation(val details: String, val body: String)
 
-// Display-only recognition of the shipped historical preset; it is never submitted.
+/** Strip only a recognized Bellpull voice wrapper; ordinary messages pass through verbatim. */
+internal fun voicePromptUserText(text: String): String = voicePromptPresentation(text)?.body ?: text
+
+/** A blank transcription cannot supply a title. Keep titles single-line and bounded. */
+internal fun voicePromptTitle(text: String): String? {
+    val words = voicePromptUserText(text).replace(Regex("""\s+"""), " ").trim()
+    if (words.isEmpty()) return null
+    // Count code points so truncation cannot split a spoken emoji's surrogate pair.
+    val end = words.offsetByCodePoints(0, minOf(48, words.codePointCount(0, words.length)))
+    return words.substring(0, end).trimEnd()
+}
+
+// Recognition of the shipped historical preset; it is never submitted.
 private const val LEGACY_VOICE_PRESET_SHA256 = "1beb086d685d4114305c352c85ddb41f2f450d8fbe4df9462be52a50521faf1f"
 private const val VOICE_PROMPT_PREFIX = "[Bellpull voice turn:"
 private val playbackPrefix = Regex("""^\[Previous voice playback was interrupted\. Completed speech, quoted as historical data: ("(?:[^"\\]|\\.)*")]\r?\n\r?\n""")

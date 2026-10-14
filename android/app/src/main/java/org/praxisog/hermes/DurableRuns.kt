@@ -63,6 +63,7 @@ internal class DurableRuns(
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onChanged: (String) -> Unit = {}
     var onAccepted: (RunSubmission) -> Unit = {}
+    var onPromptDelivered: (String, String) -> Unit = { _, _ -> }
     var storageError by mutableStateOf<String?>(null)
         private set
     @Volatile private var closed = false
@@ -176,6 +177,7 @@ internal class DurableRuns(
                         update(sessionId) { it.copy(submission = record, notice = null,
                             turn = TurnState.Streaming("", canStop = true, statusLabel = "Running…")) }
                         drafts.accepted(sessionId, record.draftRevision)
+                        onPromptDelivered(sessionId, record.text)
                         onAccepted(record)
                     }
                     is HermesResult.Err -> {

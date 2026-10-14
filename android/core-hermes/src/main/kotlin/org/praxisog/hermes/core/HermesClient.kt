@@ -337,6 +337,13 @@ class HermesClient(
         }
     }
 
+    /** `PATCH /api/sessions/{id}`. A title write has user provenance on Hermes. */
+    fun setSessionTitle(sessionId: String, title: String): HermesResult<Unit> {
+        val payload = buildJsonObject { put("title", title) }.toString()
+        return execute(authed("/api/sessions/${urlPart(sessionId)}")
+            .patch(payload.toRequestBody(JSON_MEDIA)).build(), sessionId) { Unit }
+    }
+
     /** Requires the explicitly advertised session_fork_at_message server extension. */
     fun branchSession(sessionId: String, throughMessageId: Int): HermesResult<Session> {
         require(throughMessageId > 0)
