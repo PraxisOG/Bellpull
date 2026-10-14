@@ -1,4 +1,21 @@
-# Latest: experimental issue repairs and installed update (2026-10-13)
+# Latest: compact voice prompt and installed update (2026-10-14)
+
+The user requested a tappable disclosure for the `[Bellpull voice turn: …]`
+preset. Saved and pending voice messages now show **Bellpull voice enabled ▾**
+above the spoken words. Tap to expand/collapse the original instructions.
+Original submitted/stored/action content is preserved, including copy and edit.
+
+Signed 0.8.3-integration-preview/build22 is installed over build21. Certificate,
+UID 10260 and CE/DE identities 117766/116002 are unchanged; personal app left stopped.
+App suite511, screenshot verification172, lint/build/signature/alignment passed.
+Two real-touch fixture tests passed at each of unfolded and simulated cover
+widths. Fixture packages/size override removed; original density440 retained.
+No personal-server access or plugin change. Source remains local on
+`repair/experimental-open-issues`. See [disclosure evidence](VOICE-PROMPT-DISCLOSURE.md).
+
+---
+
+## Experimental issue repairs and installed update (2026-10-13)
 
 User authorized all open issue fixes, ADB acceptance and installation. Local
 branch `repair/experimental-open-issues`; Android 0.8.2-integration-preview/build21

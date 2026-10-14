@@ -63,6 +63,15 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-14, compact voice prompt):** the user requested hiding
+the Bellpull voice preset behind a tappable disclosure while retaining a visible
+voice-enabled indicator. Existing ADB/install authorization carries forward.
+Build22/0.8.3-integration-preview is installed over build21 with unchanged signer,
+UID 10260 and CE/DE identities 117766/116002; personal app left stopped. Saved and
+pending user messages start collapsed, with original submitted/stored/action
+content preserved. No personal-server access, plugin change, push or publication.
+See `docs/VOICE-PROMPT-DISCLOSURE.md` for checks and artifact evidence.
+
 **Latest authority (2026-10-13, all open experimental issues and phone install):**
 the user requested fixing all open GitHub issues, confirmed ADB availability,
 and requested installation when done. Work is on `repair/experimental-open-issues`

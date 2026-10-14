@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.draw.alpha
 import androidx.compose.animation.core.*
 import org.praxisog.hermes.model.Message
@@ -57,11 +59,36 @@ internal fun WorkingRow(label: String, reduceMotion: Boolean) {
 }
 
 @Composable
-private fun CompactDisclosure(label: String, onClick: () -> Unit) {
-    Box(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
         .heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** The original message remains the source for copy, selection, quotes and edits. */
+@Composable
+internal fun UserMessageText(text: String) {
+    val voice = remember(text) { voicePromptPresentation(text) }
+    if (voice == null) Text(text, style = MaterialTheme.typography.bodyLarge)
+    else {
+        var expanded by rememberSaveable(voice.details) { mutableStateOf(false) }
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface, shape = MaterialTheme.shapes.small) {
+            Column(Modifier.fillMaxWidth()) {
+                CompactDisclosure(if (expanded) "Bellpull voice enabled ▴" else "Bellpull voice enabled ▾",
+                    Modifier.testTag("voice-preset-toggle").semantics {
+                        contentDescription = "Bellpull voice enabled"
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                    }) { expanded = !expanded }
+                if (expanded) SelectionContainer {
+                    Text(voice.details, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
+                }
+            }
+        }
+        if (voice.body.isNotEmpty()) Text(voice.body, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

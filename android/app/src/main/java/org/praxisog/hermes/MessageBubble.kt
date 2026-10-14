@@ -57,9 +57,9 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (user && !dense) Text("You", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary)
-                if (content != null) content() else Text(
-                    if (user) message.content.orEmpty() else transcriptText(message.content.orEmpty()),
-                    style = MaterialTheme.typography.bodyLarge)
+                if (content != null) content()
+                else if (user) UserMessageText(message.content.orEmpty())
+                else Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge)
                 if (user && !dense && onFollowUp != null) Row {
                     TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
                     if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
