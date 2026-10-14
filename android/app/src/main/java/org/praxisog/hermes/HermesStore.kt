@@ -115,6 +115,9 @@ internal class HermesStore(
         private set
     var history by mutableStateOf<UiState<List<Message>>>(UiState.Loading)
         private set
+    val messageStats: Map<Int, MessageInfo>
+        get() = messageRunInfo((history as? UiState.Ready)?.value.orEmpty(),
+            runs?.statsRecords?.values?.filter { it.sessionId == openSessionId }.orEmpty())
     var turn by mutableStateOf<TurnState>(TurnState.Idle)
         private set
     var openSessionId by mutableStateOf<String?>(null)

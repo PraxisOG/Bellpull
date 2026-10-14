@@ -56,6 +56,7 @@ internal class DurableRuns(
 ) {
     var interactiveApprovals = false
     val states = mutableStateMapOf<String, RunPresentation>()
+    val statsRecords = mutableStateMapOf<String, RunSubmission>()
     private val jobs = mutableMapOf<String, Job>()
     private val streams = java.util.concurrent.ConcurrentHashMap<String, HermesClient.Streaming>()
     var onHistory: (String, List<Message>) -> Unit = { _, _ -> }
@@ -70,6 +71,7 @@ internal class DurableRuns(
     fun restore() {
         journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
         journal.readRuns().sortedBy { it.createdAt }.forEach { record ->
+            statsRecords[record.requestId] = record
             states[record.sessionId] = RunPresentation(record, terminalTurn(record),
                 notice = if (record.historyNeedsReview) historyReviewNotice else null)
         }
@@ -236,6 +238,11 @@ internal class DurableRuns(
                             if (seq == null) consumedUnsequenced = true
                             reconnectAttempt = 0
                             live.accept(event)
+                            if (event is StreamEvent.RunCompleted) {
+                                val usage = event.raw["usage"] as? kotlinx.serialization.json.JsonObject
+                                if (usage != null) update(sessionId) { it.copy(
+                                    submission = it.submission.copy(completionUsage = usage)) }
+                            }
                             if (event is StreamEvent.AssistantDelta && event.delta.isNotEmpty()) {
                                 if (commentaryBoundary && prose.isNotEmpty()) prose.append("\n\n")
                                 commentaryBoundary = false
@@ -274,7 +281,9 @@ internal class DurableRuns(
                         val current = states[sessionId]?.submission ?: return@launch
                         record = current.copy(status = status.status, error = status.error,
                             completionOutput = status.output ?: current.completionOutput,
-                            serverCreatedAt = status.createdAt ?: current.serverCreatedAt)
+                            serverCreatedAt = status.createdAt ?: current.serverCreatedAt,
+                            completionUsage = if (status.isTerminal) status.usage ?: current.completionUsage else current.completionUsage,
+                            serverCompletedAt = if (status.isTerminal) status.updatedAt ?: current.serverCompletedAt else current.serverCompletedAt)
                         if (current != record) save(record)
                         val oldApproval = states[sessionId]?.approval?.requestId
                         update(sessionId) { it.copy(submission = record,
@@ -364,6 +373,7 @@ internal class DurableRuns(
         }
         val messages = result.value.data
         val reply = matchedCompletion(record, messages)
+        statsRecords[record.requestId] = record
         if (reply != null) drafts.accepted(sessionId, record.draftRevision)
         onHistory(sessionId, messages)
         // Completion status can become visible before the transcript transaction.
@@ -377,6 +387,7 @@ internal class DurableRuns(
             if (!save(synced)) return false
             onCompleted(sessionId, reply)
             journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
+            statsRecords.keys.retainAll(journal.readRuns().map { it.requestId }.toSet())
             update(sessionId) { it.copy(submission = synced, notice = null,
                 turn = if (record.status == "completed" && reply != null)
                     if (record.stopRequested) TurnState.StoppedByUser("") else TurnState.Idle

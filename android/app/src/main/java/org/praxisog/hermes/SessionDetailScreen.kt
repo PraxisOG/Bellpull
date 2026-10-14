@@ -5,6 +5,7 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +71,7 @@ import kotlinx.coroutines.launch
  * Takes data and callbacks only — no client — so every state below is reachable in a
  * screenshot test without a network.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionDetailScreen(
     history: UiState<List<Message>>,
@@ -102,6 +104,7 @@ internal fun SessionDetailScreen(
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    messageStats: Map<Int, MessageInfo> = emptyMap(),
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
     val composerDraft = draft ?: localDraft
@@ -123,6 +126,14 @@ internal fun SessionDetailScreen(
                 onClick = { onForkEdit(editingMessage, editedText) }) { Text(if (branchingSession) "Creating branch…" else "Create edited branch") }
         }, dismissButton = { TextButton(enabled = !branchingSession, onClick = { editingMessageId = null }) { Text("Cancel") } })
     var selectingMessage by remember { mutableStateOf<Message?>(null) }
+    var infoMessage by remember { mutableStateOf<Message?>(null) }
+    infoMessage?.let { message ->
+        val stats = messageInfo(message, (history as? UiState.Ready)?.value.orEmpty(), messageStats)
+        androidx.compose.material3.ModalBottomSheet(onDismissRequest = { infoMessage = null },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            MessageInfoContent(stats) { infoMessage = null }
+        }
+    }
     selectingMessage?.let { SelectMessageTextDialog(it) { selectingMessage = null } }
     var quoteMessage by remember { mutableStateOf<Message?>(null) }
     quoteMessage?.let { source ->
@@ -180,7 +191,7 @@ internal fun SessionDetailScreen(
     val entries = remember(groups, artifacts) { responseBlocks(artifactTranscript(groups, artifacts)) }
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
-    val mayRead = readEnabled && navigation == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
+    val mayRead = readEnabled && navigation == null && infoMessage == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
     LaunchedEffect(listState, latestReply?.id, mayRead, entries) {
         if (mayRead && latestReply != null) {
             val replyIndex = entries.indexOfFirst { entry -> entry.messages.any { it.id == latestReply.id } }
@@ -281,6 +292,9 @@ internal fun SessionDetailScreen(
                                                     }
                                                 }
                                                 Box(Modifier.testTag("message-${message.id}")
+                                                    .then(if (message.role == "assistant") Modifier.combinedClickable(
+                                                        onClick = {}, onLongClickLabel = "Message info",
+                                                        onLongClick = { infoMessage = message }) else Modifier)
                                                     .then(if (block.assistant) Modifier.semantics(mergeDescendants = true) {} else Modifier)
                                                     .bringIntoViewRequester(target).then(
                                                     if (highlightedId == message.id) Modifier.border(2.dp,
@@ -311,6 +325,7 @@ internal fun SessionDetailScreen(
                                             MessageBubble(message, denseChatWindow, { selectingMessage = it },
                                                 reading = readingMessageId == message.id, onRead = onReadMessage,
                                                 onBranch = onBranchMessage, canBranch = canBranch,
+                                                onInfo = { infoMessage = it },
                                                 onFollowUp = { quoteMessage = it }) {
                                                 Column {
                                                     block.entries.forEach { entry ->

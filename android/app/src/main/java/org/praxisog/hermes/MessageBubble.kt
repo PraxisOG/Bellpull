@@ -39,6 +39,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
     reading: Boolean = false, onRead: (Message) -> Unit = {}, onBranch: (Message) -> Unit = {},
     canBranch: Boolean = false, onFollowUp: ((Message) -> Unit)? = null,
     canEdit: Boolean = false, onEdit: (Message) -> Unit = {},
+    onInfo: ((Message) -> Unit)? = null,
     content: (@Composable () -> Unit)? = null) {
     val user = message.role == "user"
     // Freeze the selected text while streaming continues behind the menu.
@@ -49,7 +50,8 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             shape = if (user) RoundedCornerShape(18.dp) else ResponseBubbleShape,
             border = if (user) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {},
-                onLongClickLabel = "Message actions", onLongClick = { selected = message })
+                onLongClickLabel = if (onInfo != null) "Message info" else "Message actions",
+                onLongClick = { if (onInfo != null) onInfo(message) else selected = message })
                 .semantics { contentDescription = if (user) "Your message" else "Hermes response" }) {
             if (!user && content != null) CompositionLocalProvider(LocalInResponseBubble provides true) {
                 content()

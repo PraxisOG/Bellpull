@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity() {
                         sessions = current?.sessions ?: UiState.Ready(listOf(BellpullExample.session)),
                         history = current?.history ?: UiState.Ready(if (exampleId == null) emptyList() else BellpullExample.messages),
                         turn = current?.turn ?: TurnState.Idle,
+                        messageStats = current?.messageStats.orEmpty(),
                         openSessionId = current?.openSessionId ?: exampleId.takeIf { current == null },
                         openSession = current?.openSession ?: BellpullExample.session.takeIf { current == null && exampleId != null },
                         now = System.currentTimeMillis() / 1000.0,
