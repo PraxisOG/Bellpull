@@ -10,8 +10,10 @@ UID 10260 and CE/DE identities 117766/116002 are unchanged; personal app left st
 App suite511, screenshot verification172, lint/build/signature/alignment passed.
 Two real-touch fixture tests passed at each of unfolded and simulated cover
 widths. Fixture packages/size override removed; original density440 retained.
-No personal-server access or plugin change. Source remains local on
-`repair/experimental-open-issues`. See [disclosure evidence](VOICE-PROMPT-DISCLOSURE.md).
+No personal-server access or plugin change. The user subsequently requested
+pushing `repair/experimental-open-issues` to GitHub, including all issue repairs
+and this UI change. No default-branch merge or release publication is requested.
+See [disclosure evidence](VOICE-PROMPT-DISCLOSURE.md).
 
 ---
 

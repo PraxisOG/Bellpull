@@ -63,6 +63,12 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-14, GitHub push):** the user requested pushing the
+completed work to GitHub. Push `repair/experimental-open-issues`, including all
+issue repairs and the compact voice prompt, to `PraxisOG/Bellpull`. This supersedes
+earlier no-push instructions for this branch. No default-branch merge, release
+publication or personal-server access is requested.
+
 **Latest authority (2026-10-14, compact voice prompt):** the user requested hiding
 the Bellpull voice preset behind a tappable disclosure while retaining a visible
 voice-enabled indicator. Existing ADB/install authorization carries forward.

@@ -49,4 +49,6 @@ It contains the prior installed APK, the signed/installed build22 APKs, package
 identity evidence, test/build logs and four phone screenshots. Build22 SHA-256:
 `6e34b41c29926b4aae5db08857d5c5941617deaed94e52472e04e43f38832257`.
 
-Source stays on `repair/experimental-open-issues`; no push or publication.
+Source stays on `repair/experimental-open-issues`. The user subsequently
+authorized pushing this branch to GitHub; no default-branch merge or release
+publication is requested.
