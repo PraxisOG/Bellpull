@@ -31,7 +31,10 @@ Git repositories. Its only filter command creates a harmless marker within its
 own temporary repository. It confirms:
 
 - F01: workspace listing does not execute a configured Git clean filter.
-- F02: a fresh upload arriving after revoke restores the server calendar cache.
+- F02: an upload carrying the pre-revoke generation is rejected with 409 after a
+  confirmed revoke, and cannot restore the server calendar cache. Generation
+  fencing and tombstones are permanent in `plugins/bellpull/planning.py` with
+  coverage in `plugins/bellpull/tests/test_planning.py`.
 - F04: after 100 rejected proposals leave zero pending, proposal 101 is accepted.
   Pending admission is capped at 100; the newest 1,000 terminal proposals by creation
   order are retained, with replay receipts for the newest 5,000 evictions.
@@ -59,8 +62,12 @@ test sources without modifying the normal Android project configuration:
 existing Robolectric calendar fixtures and an OkHttp interceptor. It confirms:
 
 - F02: the real workspace issues a revoke that completes before an older upload,
-  while its saved policy is off and its pending-revoke flag is clear. The separate
-  server probe establishes the persistence consequence of that ordering.
+- F02: the real workspace issues a revoke that completes before an older upload,
+  while its saved policy is off, its acknowledged generation is persisted and its
+  pending-revoke flag is clear. Releasing the interceptor latch now simulates the
+  server generation check: the older upload receives 409 and cannot restore the
+  snapshot, even if cancellation did not prevent delivery. This updated probe has
+  not been rerun; the saved audit results below describe the original defect.
 - F03: the actual transcription validator rejects a public-shaped HTTP hostname
   with numeric Tailscale-looking labels and an ordinary public name, while accepting
   valid Tailscale IPv4 and loopback HTTP endpoints. Permanent validator regressions

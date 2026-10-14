@@ -41,7 +41,8 @@ import java.security.MessageDigest
     override fun toString() = "PhoneCalendarEvent(details=redacted)"
 }
 @Serializable data class CalendarPolicy(val selected: Set<String> = emptySet(), val sharing: Boolean = false,
-    val busyOnly: Boolean = true, val writes: Boolean = false, val destination: String? = null)
+    val busyOnly: Boolean = true, val writes: Boolean = false, val destination: String? = null,
+    val generation: Long = 0)
 @Serializable data class PhoneCalendarSnapshot(val events: List<PhoneCalendarEvent> = emptyList(), val readAt: Long = 0,
     val truncated: Boolean = false)
 

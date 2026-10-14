@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.ProviderInfo
 import android.provider.CalendarContract
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -47,15 +48,36 @@ class AuditPlanningProbeTest {
         phone.create("a".repeat(32),cache.policy,source,CalendarDraft("Audit fixture",now+60000,now+120000))
         val uploadStarted=CountDownLatch(1); val releaseUpload=CountDownLatch(1)
         val commits=CopyOnWriteArrayList<String>()
+        var serverGeneration=0L
+        var serverSnapshot=false
         val client=HermesClient("https://fixture.invalid",{"fixture"},httpClient=HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
             val request=chain.request()
+            var code=200
+            var response=if (request.method=="GET") """{"version":1,"reminders":[],"observed_at":1}""" else "{}"
             if (request.method=="PUT") {
                 val buffer=Buffer(); request.body!!.writeTo(buffer)
-                if (buffer.readUtf8().contains("\"revoke\":true")) commits.add("revoke")
-                else { uploadStarted.countDown(); check(releaseUpload.await(8,TimeUnit.SECONDS)); commits.add("upload") }
+                val body=Json.parseToJsonElement(buffer.readUtf8()).jsonObject
+                if (body["revoke"]?.jsonPrimitive?.booleanOrNull==true) synchronized(commits) {
+                    serverGeneration++; serverSnapshot=false
+                    response="""{"revoked":true,"generation":$serverGeneration}"""
+                    commits.add("revoke")
+                } else {
+                    uploadStarted.countDown(); check(releaseUpload.await(8,TimeUnit.SECONDS))
+                    // Simulate a delivered request even when OkHttp was canceled:
+                    // only the durable server generation prevents its late commit.
+                    synchronized(commits) {
+                        if ((body["generation"]?.jsonPrimitive?.longOrNull ?: 0L)!=serverGeneration) {
+                            code=409; response="""{"error":{"message":"Stale calendar policy generation."}}"""
+                            commits.add("upload-rejected-409")
+                        } else {
+                            serverSnapshot=true
+                            response="""{"generation":$serverGeneration}"""
+                            commits.add("upload")
+                        }
+                    }
+                }
             }
-            val response=if (request.method=="GET") """{"version":1,"reminders":[],"observed_at":1}""" else "{}"
-            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture").body(response.toResponseBody("application/json".toMediaType())).build()
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture").body(response.toResponseBody("application/json".toMediaType())).build()
         }.build())
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
         val workspace=PlanningWorkspace(scope,client,cache,app,true)
@@ -64,9 +86,12 @@ class AuditPlanningProbeTest {
             workspace.savePolicy(cache.policy.copy(sharing=false))
             waitUntil { commits.contains("revoke") && !workspace.revokePending }
             assertFalse(cache.policy.sharing)
-            releaseUpload.countDown(); waitUntil { commits.contains("upload") }
-            assertEquals(listOf("revoke","upload"),commits.toList())
-            println("AUDIT: sharing=false, revokePending=false, server commit order=$commits")
+            assertEquals(1L,cache.policy.generation)
+            releaseUpload.countDown(); waitUntil { commits.contains("upload-rejected-409") }
+            assertEquals(listOf("revoke","upload-rejected-409"),commits.toList())
+            synchronized(commits) { assertFalse(serverSnapshot) }
+            assertNull(workspace.calendarProblem)
+            println("AUDIT: sharing=false, revokePending=false, stale upload rejected 409, snapshot absent; order=$commits")
         } finally { releaseUpload.countDown(); workspace.close(); client.close(); scope.cancel() }
     }
     @Test fun publicHostnameRejectedByPrivateHttpValidation() {

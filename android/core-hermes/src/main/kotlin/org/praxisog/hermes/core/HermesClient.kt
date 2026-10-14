@@ -118,9 +118,16 @@ class HermesClient(
         require(kind in setOf("reminders","routines","proposals"))
         return post("/api/bellpull/planning/$kind",body.toString()) { json.parseToJsonElement(it).jsonObject }
     }
-    fun shareCalendar(device: String, body: JsonObject): HermesResult<JsonObject> {
+    /** Cancellation is latched even if it precedes creation of the HTTP call. */
+    class CalendarTransport {
+        private var cancelled = false
+        private var call: Call? = null
+        @Synchronized fun cancel() { cancelled = true; call?.cancel() }
+        @Synchronized internal fun attach(value: Call) { call = value; if (cancelled) value.cancel() }
+    }
+    fun shareCalendar(device: String, body: JsonObject, transport: CalendarTransport? = null): HermesResult<JsonObject> {
         require(device.matches(Regex("[a-f0-9]{32}")))
-        return execute(authed("/api/bellpull/calendar/$device").put(body.toString().toRequestBody(JSON_MEDIA)).build(),null) { json.parseToJsonElement(it).jsonObject }
+        return execute(authed("/api/bellpull/calendar/$device").put(body.toString().toRequestBody(JSON_MEDIA)).build(),null,transport) { json.parseToJsonElement(it).jsonObject }
     }
     private fun projectSnapshot(body: String): ProjectSnapshot {
         val raw = json.parseToJsonElement(body).jsonObject
@@ -595,20 +602,21 @@ class HermesClient(
     }
 
     private fun <T> get(path: String, sessionId: String? = null, decode: (String) -> T): HermesResult<T> =
-        execute(authed(path).get().build(), sessionId, decode)
+        execute(authed(path).get().build(), sessionId, decode = decode)
 
     private fun <T> post(path: String, body: String, sessionId: String? = null, decode: (String) -> T): HermesResult<T> =
-        execute(authed(path).post(body.toRequestBody(JSON_MEDIA)).build(), sessionId, decode)
+        execute(authed(path).post(body.toRequestBody(JSON_MEDIA)).build(), sessionId, decode = decode)
 
     /**
      * Run a request, retrying a 429 up to [MAX_RATE_LIMIT_RETRIES] times. The delay comes from
      * the server's `Retry-After` header when present — no invented backoff curve — and the
      * final 429 is returned as a typed error rather than retried forever.
      */
-    private fun <T> execute(request: Request, sessionId: String?, decode: (String) -> T): HermesResult<T> {
+    private fun <T> execute(request: Request, sessionId: String?, transport: CalendarTransport? = null, decode: (String) -> T): HermesResult<T> {
         var attempt = 0
         while (true) {
             val call = trackedCall(httpClient, request)
+            transport?.attach(call)
             val result = try {
                 call.execute().use { response ->
                     if (response.isSuccessful) {
