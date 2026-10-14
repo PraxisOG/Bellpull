@@ -99,6 +99,11 @@ core-overlay installations need the documented migration rather than an overlay.
 
 ## Verification and scope
 
+[The October 14 project audit](docs/AUDIT-2026-10-14.md) covers the newer
+`repair/experimental-open-issues` source (app 0.8.3/build22 and plugin 0.4.1),
+including six reproduced defects, dependency findings and a prioritized repair
+list. The release checks below describe the published 0.8.1 pair.
+
 The combined build passed **548 JVM tests**, **170 screenshot baselines**, Android
 build/lint, and **11 final fixture-phone test executions** across unfolded and
 simulated narrow widths, including the actual calendar permission flow. One live

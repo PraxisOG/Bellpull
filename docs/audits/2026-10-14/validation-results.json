@@ -1,0 +1,80 @@
+{
+  "audit_date": "2026-10-14",
+  "audited_revision": "4fc426f22379babed067120b54705bcb23fb6d47",
+  "branch": "repair/experimental-open-issues",
+  "regression_checks": [
+    {
+      "name": "Android full tests/build/debug lint and screenshot verification",
+      "passed": true,
+      "tests": 575,
+      "passed_tests": 574,
+      "skipped_tests": 1,
+      "app_tests": 511,
+      "core_hermes_tests": 43,
+      "core_model_tests": 21,
+      "screenshots": 172,
+      "lint_errors": 0,
+      "lint_warnings": 61,
+      "lint_hints": 4
+    },
+    {
+      "name": "Android release build and lint",
+      "passed": true
+    },
+    {
+      "name": "Full plugin in legacy overlay fixture",
+      "tests": 127,
+      "passed_tests": 126,
+      "skipped_tests": 1
+    },
+    {
+      "name": "Stock legacy portable",
+      "tests": 3,
+      "passed_tests": 3
+    },
+    {
+      "name": "Stock legacy projects",
+      "tests": 14,
+      "passed_tests": 14
+    },
+    {
+      "name": "Stock legacy planning",
+      "tests": 9,
+      "passed_tests": 9
+    },
+    {
+      "name": "Stock modern coding",
+      "tests": 19,
+      "passed_tests": 18,
+      "skipped_tests": 1
+    },
+    {
+      "name": "Desktop launcher",
+      "tests": 8,
+      "passed_tests": 8
+    },
+    {
+      "name": "Thermal helper",
+      "tests": 2,
+      "passed_tests": 2
+    }
+  ],
+  "android_audit_probes": {
+    "semantics": "Passing assertions confirm the observed defects, not desired fixed behavior.",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "stdout": [
+      "AUDIT: ordinary public HTTP rejected; public hostname with numeric labels accepted",
+      "AUDIT: title committed as After, exception=Calendar result differs. Refresh before another edit.",
+      "AUDIT: sharing=false, revokePending=false, server commit order=[revoke, upload]"
+    ]
+  },
+  "ci": {
+    "url": "https://github.com/PraxisOG/Bellpull/actions/runs/38533375295",
+    "android": "success",
+    "plugin": "success"
+  },
+  "physical_device_tests_during_this_audit": false
+}

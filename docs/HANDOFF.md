@@ -1,4 +1,23 @@
-# Latest: compact voice prompt and installed update (2026-10-14)
+# Latest: full project audit (2026-10-14)
+
+The user requested a full audit and publication to GitHub. The
+[audit report](AUDIT-2026-10-14.md) covers pushed revision `4fc426f` of
+`repair/experimental-open-issues`, app 0.8.3/build22 and plugin 0.4.1. It records six
+reproduced defects: two high, three medium and one low. Highest priorities are Git
+filter execution during workspace preview and an upload/revocation race that can
+restore calendar sharing. Dependency matches, hardening work and acceptance gaps
+are separated from reproduced defects. Synthetic probes and inventories are in
+[the evidence bundle](audits/2026-10-14/README.md).
+
+Fresh Android validation: 575 discovered, 574 passed, one expected skip; 172
+screenshots; debug/release build and lint passed. Full plugin: 127 run, 126 passed,
+one skip; stock-host suites and desktop/helper tests also passed. Findings remain
+unfixed; no personal-server access, phone update, default-branch merge, issue
+closure or new release occurred. The audit is authorized for the same repair branch.
+
+---
+
+## Compact voice prompt and installed update (2026-10-14)
 
 The user requested a tappable disclosure for the `[Bellpull voice turn: …]`
 preset. Saved and pending voice messages now show **Bellpull voice enabled ▾**

@@ -1,0 +1,17 @@
+{
+  "proposal_limit": {
+    "resolved": 100,
+    "pending": 0,
+    "error": "Resolve old proposals first.",
+    "status": 409
+  },
+  "late_upload_after_revoke": {
+    "restored": true,
+    "events": 1
+  },
+  "workspace_clean_filter_executed": true,
+  "workspace_hardlink": {
+    "links": 2,
+    "outside_content_in_preview": true
+  }
+}

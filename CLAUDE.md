@@ -63,6 +63,13 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-14, project audit):** the user requested a full project
+audit and uploading the audit to GitHub. Audit revision `4fc426f` and publish the
+report plus synthetic reproductions on `repair/experimental-open-issues`, alongside
+the already pushed app/plugin source. See `docs/AUDIT-2026-10-14.md`. This audit
+does not implement its findings, deploy the personal server, merge the default
+branch, publish a release or change the installed phone app.
+
 **Latest authority (2026-10-14, GitHub push):** the user requested pushing the
 completed work to GitHub. Push `repair/experimental-open-issues`, including all
 issue repairs and the compact voice prompt, to `PraxisOG/Bellpull`. This supersedes

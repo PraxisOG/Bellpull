@@ -1,0 +1,9 @@
+// Opt-in audit harness: these tests reproduce defects, not desired behavior.
+gradle.beforeProject { p ->
+    if (p.name == 'app') {
+        p.pluginManager.withPlugin('com.android.application') {
+            p.android.sourceSets.getByName('test').kotlin.srcDir(
+                p.rootProject.file('../docs/audits/2026-10-14/android-probes'))
+        }
+    }
+}
