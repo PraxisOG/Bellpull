@@ -77,11 +77,13 @@ class DenseChatScreenshotTest {
     }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun botActionRowUnfolded() {
         app(); popup(2)
-        listOf("Copy message", "Select text", "Read message", "Branch into new chat", "Follow up", "Share message")
+        listOf("Copy message", "Select text", "Read message", "Branch into new chat", "Follow up", "Message info", "Share message")
             .forEach { compose.onNodeWithContentDescription(it).assertIsDisplayed() }
         capture()
         action("Read message"); assertEquals(bot, read)
         popup(2); action("Branch into new chat"); assertEquals(bot, branch)
+        popup(2); action("Message info")
+        compose.onNodeWithTag("message-info").assertIsDisplayed()
     }
     @Test fun selectionCopiesOnlyTheChosenRangeAndCannotEdit() {
         app(); popup(2); action("Select text")
