@@ -170,8 +170,12 @@ internal class HermesStore(
     private var sentPrompt: String? = null
     private data class SubmittedDraft(val revision: Long, val text: String, val previousIds: Set<Int>)
     private val submittedDrafts = mutableMapOf<String, SubmittedDraft>()
-    // In-memory eligibility only: never infer it from existing sessions or recovered runs.
-    private val untitledAppSessions = mutableSetOf<String>()
+    // Chats this phone created untitled; the first delivered prompt may name them. Durable
+    // through the cache: an app restart between creating the chat and speaking its first
+    // voice turn must not lose the title, and a failed PATCH retries on the next sync.
+    private val untitledAppSessions = (cache?.readUntitled() ?: emptySet()).toMutableSet()
+    private val pendingTitles = LinkedHashMap(cache?.readPendingTitles() ?: emptyMap())
+    private val titleAttempts = mutableSetOf<String>()
     val draft: androidx.compose.ui.text.input.TextFieldValue
         get() = openSessionId?.let { drafts[it] } ?: androidx.compose.ui.text.input.TextFieldValue()
     fun updateDraft(value: androidx.compose.ui.text.input.TextFieldValue) {
@@ -206,6 +210,7 @@ internal class HermesStore(
                     offline = null
                     sessions = UiState.Ready(result.value.data)
                     cache?.write(result.value.data, clock())
+                    recoverSessionTitles(result.value.data)
                     onSessions(result.value.data)
                 }
                 is HermesResult.Err -> {
@@ -240,7 +245,7 @@ internal class HermesStore(
                 is HermesResult.Ok -> {
                     creatingSession = false
                     // Project creation may supply an explicit native title even when requested null.
-                    if (result.value.title.isNullOrBlank()) untitledAppSessions.add(result.value.id)
+                    if (result.value.title.isNullOrBlank()) { untitledAppSessions.add(result.value.id); persistUntitled() }
                     loadSessions()
                     openSession(result.value.id)
                 }
@@ -407,11 +412,43 @@ internal class HermesStore(
     // ---- turns ----------------------------------------------------------------
 
     private fun titleFirstDeliveredPrompt(sessionId: String, text: String) {
-        // Consume before launching I/O, including blank transcriptions and failed PATCHes.
-        if (!untitledAppSessions.remove(sessionId)) return
+        // Eligibility is consumed before I/O, but a derived title stays durable (pending
+        // receipt) until the PATCH is confirmed, so restarts and failed PATCHes recover.
+        if (sessionId !in untitledAppSessions) return
+        untitledAppSessions.remove(sessionId)
+        persistUntitled()
         val title = voicePromptTitle(text) ?: return
+        pendingTitles[sessionId] = title
+        cache?.writePendingTitle(sessionId, title)
+        deliverSessionTitle(sessionId, title)
+    }
+
+    private fun persistUntitled() { cache?.writeUntitled(untitledAppSessions.toSet()) }
+
+    /** Drop receipts the server no longer needs, and resend the rest. */
+    private fun recoverSessionTitles(sessions: List<Session>) {
+        if (pendingTitles.isEmpty()) return
+        pendingTitles.keys.toList().forEach { id ->
+            // A blank server title means our PATCH never landed (or died mid-flight); any
+            // non-blank title is either our applied title or a manual rename, which wins.
+            val current = sessions.firstOrNull { it.id == id }?.title.orEmpty()
+            if (current.isNotBlank()) { pendingTitles.remove(id); cache?.clearPendingTitle(id) }
+            else deliverSessionTitle(id, pendingTitles.getValue(id))
+        }
+    }
+
+    private fun deliverSessionTitle(sessionId: String, title: String) {
+        // One in-flight PATCH per chat; failures leave the pending receipt for the next sync.
+        if (sessionId in titleAttempts) return
+        titleAttempts.add(sessionId)
         scope.launch {
-            if (io { client.setSessionTitle(sessionId, title) } is HermesResult.Ok) loadSessions()
+            val delivered = io { client.setSessionTitle(sessionId, title) } is HermesResult.Ok
+            titleAttempts.remove(sessionId)
+            if (delivered) {
+                pendingTitles.remove(sessionId)
+                cache?.clearPendingTitle(sessionId)
+                loadSessions()
+            }
         }
     }
 
@@ -427,7 +464,7 @@ internal class HermesStore(
         val sessionId = openSessionId ?: return false
         if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return false
         if ((history as? UiState.Ready)?.value.orEmpty().any { it.role == "user" })
-            untitledAppSessions.remove(sessionId)
+            if (untitledAppSessions.remove(sessionId)) persistUntitled()
 
         if (runs != null) {
             // Do not submit while the prior canonical history is unknown.

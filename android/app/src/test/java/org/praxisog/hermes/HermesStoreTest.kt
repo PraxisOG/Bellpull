@@ -125,12 +125,19 @@ class HermesStoreTest {
     /** In-memory stand-in; SessionCache itself needs a real AndroidKeyStore. */
     private class FakeSnapshots(var snapshot: SessionSnapshots.Snapshot? = null) : SessionSnapshots {
         var writes = 0
+        var untitled: Set<String> = emptySet()
+        val pendingTitles = LinkedHashMap<String, String>()
         override fun read() = snapshot
         override fun write(sessions: List<org.praxisog.hermes.model.Session>, atEpochSeconds: Double) {
             writes++
             snapshot = SessionSnapshots.Snapshot(sessions, atEpochSeconds)
         }
         override fun clear() { snapshot = null }
+        override fun readUntitled() = untitled
+        override fun writeUntitled(ids: Set<String>) { untitled = ids }
+        override fun readPendingTitles() = pendingTitles.toMap()
+        override fun writePendingTitle(id: String, title: String) { pendingTitles[id] = title }
+        override fun clearPendingTitle(id: String) { pendingTitles.remove(id) }
     }
 
     private fun faulting(fault: String): OkHttpClient =

@@ -35,6 +35,25 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    override fun readUntitled(): Set<String> =
+        preferences.getString("untitled-app-sessions", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    override fun writeUntitled(ids: Set<String>) { if (!closed) preferences.edit().putString("untitled-app-sessions", ids.joinToString(",")).apply() }
+    override fun readPendingTitles(): Map<String, String> = runCatching {
+        preferences.getString("pending-titles", null)?.let { raw ->
+            json.decodeFromString<Map<String, String>>(raw).filterKeys { it.matches(Regex("[a-zA-Z0-9_-]+")) }
+                .filterValues { it.isNotBlank() && it.length <= 200 }
+        }.orEmpty()
+    }.getOrDefault(emptyMap())
+    override fun writePendingTitle(id: String, title: String) {
+        if (closed) return
+        val current = readPendingTitles() + (id to title.take(200))
+        check(preferences.edit().putString("pending-titles", json.encodeToString(current)).commit())
+    }
+    override fun clearPendingTitle(id: String) {
+        if (closed) return
+        val current = readPendingTitles() - id
+        check(preferences.edit().putString("pending-titles", if (current.isEmpty()) null else json.encodeToString(current)).commit())
+    }
     override fun readPlanning(): org.praxisog.hermes.model.PlanningSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PlanningSnapshot>(preferences.getString("planning",null)!!).validated() }.getOrNull()
     override fun writePlanning(value: org.praxisog.hermes.model.PlanningSnapshot) { if (!closed) preferences.edit().putString("planning",json.encodeToString(value)).apply() }
     override fun readCalendar(): org.praxisog.hermes.model.PhoneCalendarSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PhoneCalendarSnapshot>(preferences.getString("calendar",null)!!) }.getOrNull()
