@@ -79,6 +79,27 @@ class PlanningTest(unittest.TestCase):
             self.assertIsNone(c.execute("SELECT 1 FROM proposals WHERE id=?",(first["id"],)).fetchone())
             self.assertEqual(0,c.execute("SELECT COUNT(*) FROM proposals WHERE json_extract(data,'$.state')='pending'").fetchone()[0])
             self.assertEqual(1000,c.execute("SELECT COUNT(*) FROM proposals").fetchone()[0])
+    def test_pending_proposals_never_hide_behind_newer_resolved_history(self):
+        # F04 follow-up: retention must not crowd admitted pending work out of the
+        # visible snapshot page (API contract: every pending proposal is reachable).
+        self.store.calendar("d"*32,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        pending=self.store.propose(self.proposal_args(0))
+        for i in range(1,101):
+            proposal=self.store.propose(self.proposal_args(i))
+            self.store.resolve(dict(id=proposal["id"],device="d"*32,state="rejected",result="No thanks"))
+        self.assertIn(pending["id"],[item["id"] for item in self.store.snapshot()["proposals"]])
+        restarted=PlanningStore(self.home)
+        self.assertIn(pending["id"],[item["id"] for item in restarted.snapshot()["proposals"]])
+        # A retried rejected proposal still replays from receipts, unchanged.
+        replayed=restarted.propose(self.proposal_args(100))
+        self.assertEqual("rejected",replayed["state"])
+        # Fill the pending cap; every one stays visible.
+        for i in range(101,200): self.store.propose(self.proposal_args(i))
+        visible={item["id"] for item in PlanningStore(self.home).snapshot()["proposals"]}
+        with self.store.db() as c:
+            pending_ids={pid for pid, in c.execute("SELECT id FROM proposals WHERE json_extract(data,'$.state')='pending'")}
+        self.assertEqual(pending_ids,visible & pending_ids)
+        self.assertEqual(100,len(pending_ids))
     def test_pending_limit_is_shared_across_devices_and_resolution_frees_capacity(self):
         for device in ("d"*32,"e"*32):
             self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))

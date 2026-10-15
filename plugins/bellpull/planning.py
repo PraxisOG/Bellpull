@@ -72,7 +72,12 @@ class PlanningStore:
     def snapshot(self):
         with self.db() as c:
             reminders=[json.loads(v) for v, in c.execute("SELECT data FROM reminders ORDER BY rowid DESC LIMIT 1000")]
-            proposals=[json.loads(v) for v, in c.execute("SELECT data FROM proposals ORDER BY rowid DESC LIMIT 100")]
+            # Pending work must never be crowded out of the visible window by resolved
+            # history. Admission caps pending at 100, so pending-first ordering inside the
+            # same bounded page keeps every admitted pending proposal reachable while
+            # terminal history stays newest-first.
+            proposals=[json.loads(v) for v, in c.execute(
+                "SELECT data FROM proposals ORDER BY json_extract(data,'$.state')!='pending', rowid DESC LIMIT 100")]
         return dict(version=1,reminders=reminders,proposals=proposals,observed_at=time.time())
 
     def reminder(self,body):
