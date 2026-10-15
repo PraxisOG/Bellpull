@@ -1,6 +1,7 @@
 package org.praxisog.hermes
 
 import android.Manifest
+import android.provider.CalendarContract
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,6 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowContentResolver
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -51,6 +53,49 @@ class PlanningWorkspaceTest {
                 val buffer=Buffer(); request.body!!.writeTo(buffer); assertEquals("{\"revoke\":true,\"generation\":0}",buffer.readUtf8())
             }
         } finally { first?.close(); second?.close(); client.close(); scope.cancel() }
+    }
+    @Test fun staleGenerationOnCurrentUploadReArmsTheRevokeBarrierInsteadOfStallingForever() {
+        shadowOf(app).grantPermissions(Manifest.permission.READ_CALENDAR)
+        val provider=CalendarProviderFixture(); provider.attachInfo(app,android.content.pm.ProviderInfo().apply { authority=CalendarContract.AUTHORITY })
+        ShadowContentResolver.registerProviderInternal(CalendarContract.AUTHORITY,provider)
+        val requests=CopyOnWriteArrayList<Request>()
+        var serverDroppedOurGeneration=true
+        val client=HermesClient("https://fixture.invalid",{"fixture"},httpClient=HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request=chain.request(); requests.add(request)
+            val (code,body)=when {
+                request.method=="GET" -> 200 to """{"version":1,"reminders":[],"observed_at":1}"""
+                else -> {
+                    val payload=Buffer().also { request.body!!.writeTo(it) }.readUtf8()
+                    when {
+                        payload.contains("\"revoke\"") -> { serverDroppedOurGeneration=false; 200 to """{"revoked":true,"generation":8}""" }
+                        serverDroppedOurGeneration -> 409 to """{"error":{"message":"Stale calendar policy generation.","code":"bellpull_rejected"}}"""
+                        else -> 200 to """{"generation":8,"read_at_ms":1,"busy_only":true,"events":[]}"""
+                    }
+                }
+            }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build())
+        // The phone believes generation 5 was acknowledged; the server has moved past it.
+        val cache=PlanningCacheFixture().apply { policy=CalendarPolicy(sharing=true,generation=5) }
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val workspace=PlanningWorkspace(scope,client,cache,app,true)
+        try {
+            workspace.refresh()
+            waitUntil { requests.any { it.method=="PUT" } && !workspace.loading }
+            assertNotNull("the rejected current upload must be visible, not silent", workspace.calendarProblem)
+            assertTrue("the recovery must name the cause", workspace.calendarProblem!!.contains("generation"))
+            assertTrue("sharing re-arms through the durable revoke barrier", cache.revoke)
+            // Next sync: the revoke re-establishes a server-acknowledged generation and
+            // the fresh upload is accepted without user intervention.
+            val putCount=requests.count { it.method=="PUT" }
+            workspace.refresh()
+            waitUntil { requests.count { it.method=="PUT" } >= putCount+2 && !workspace.loading }
+            assertFalse(cache.revoke)
+            assertEquals(8L,cache.policy.generation)
+            assertNull(workspace.calendarProblem)
+            assertTrue(requests.any { it.method=="PUT" && Buffer().also { b -> it.body!!.writeTo(b) }.readUtf8().contains("\"revoke\"") })
+        } finally { workspace.close(); client.close(); scope.cancel() }
     }
     @Test fun verifiedProposalReceiptRetriesReportingWithoutRepeatingPhoneWrite() {
         val requests=CopyOnWriteArrayList<Request>()

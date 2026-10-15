@@ -148,11 +148,20 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         when (response) {
             is HermesResult.Ok -> acknowledge(response)
             is HermesResult.Err -> {
+                // (Uploads superseded by a local policy change already returned above.)
                 val stale=when (val error=response.error) {
                     is HermesError.ServerError -> error.status==409 && error.message=="Stale calendar policy generation."
                     else -> false
                 }
-                if (!stale) calendarProblem="Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
+                if (stale) {
+                    // A stale 409 on the CURRENT policy means the server revoked out from
+                    // under our acknowledged generation (e.g. the acknowledge was lost).
+                    // Silence would strand sharing forever: re-arm the durable revoke
+                    // barrier so the next sync re-establishes a server-acknowledged
+                    // generation, and state what the user can do.
+                    revokePending=true; cache.calendarRevokePending(true)
+                    calendarProblem="Hermes no longer recognizes this phone's calendar generation. Sharing re-arms through a fresh revoke on the next connection; events re-upload after that."
+                } else calendarProblem="Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
             }
         }
     }

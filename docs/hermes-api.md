@@ -30,9 +30,14 @@ availability is separately reported as `bellpull_routines`.
   Snapshot age must be within five minutes. Successful uploads return the stored
   snapshot including the server-acknowledged `generation`. Upload generations must
   equal the current device generation; mismatches return 409 with error message
-  `Stale calendar policy generation.` The phone quietly drops this obsolete upload;
-  other sharing failures remain visible. Missing upload generations mean 0: accepted
-  only before a device has established a generation, rejected after that. The first
+  `Stale calendar policy generation.` A current-policy upload rejected this way means
+  the server revoked out from under the phone's acknowledged generation (e.g. a lost
+  acknowledge): the phone surfaces the problem and re-arms its durable revoke barrier so
+  the next sync re-establishes an acknowledged generation; only an upload already
+  superseded by a newer local policy is dropped quietly. An upload with no `generation`
+  is accepted only before a device has established a generation; after that it is
+  rejected 409 with `This Bellpull app is too old to re-share calendars after a revoke.
+  Update the app.` The first
   upload establishes generation 1; subsequent same-policy uploads retain it. Changing
   `busy_only` atomically advances it and acknowledges the new value.
   `{revoke:true,generation:N}` clears this device's dedicated server cache and proposals

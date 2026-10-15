@@ -148,6 +148,16 @@ class PlanningTest(unittest.TestCase):
             with self.assertRaises(ArtifactError) as error: self.store.calendar(device,upload)
             self.assertEqual(409,error.exception.status)
             self.assertIsNone(self.store.calendar(device))
+    def test_legacy_client_pairs_until_a_revoke_then_gets_actionable_error(self):
+        device="d"*32
+        body=dict(read_at_ms=self.now,busy_only=True,events=[])
+        saved=self.store.calendar(device,body)  # the first-ever upload establishes generation 1
+        self.assertEqual(1,saved["generation"])
+        self.store.calendar(device,dict(revoke=True))
+        with self.assertRaises(ArtifactError) as error: self.store.calendar(device,body)
+        self.assertEqual(409,error.exception.status)
+        self.assertIn("too old",str(error.exception))
+        self.assertIsNone(self.store.calendar(device))
     def test_revoke_then_fresh_upload_with_acknowledged_generation(self):
         device="d"*32
         revoked=self.store.calendar(device,dict(revoke=True))

@@ -130,7 +130,15 @@ class PlanningStore:
                     for pid,data in c.execute("SELECT id,data FROM proposals").fetchall():
                         if json.loads(data).get("device")==device: c.execute("DELETE FROM proposals WHERE id=?",(pid,))
                     return dict(revoked=True,generation=generation)
-                supplied=body.get("generation",0)
+                supplied=body.get("generation")
+                if supplied is None:
+                    # Pre-F02 Bellpull cannot acknowledge a generation. It may still upload
+                    # only while nothing was ever revoked for this device (generation 0);
+                    # afterwards its unfenceable uploads get an actionable message the old
+                    # client surfaces, instead of stale-silently forever.
+                    if generation:
+                        raise ArtifactError("This Bellpull app is too old to re-share calendars after a revoke. Update the app.",409)
+                    supplied=0
                 if type(supplied) is not int or not 0<=supplied<9223372036854775807:
                     raise ArtifactError("Invalid calendar policy generation.",400)
                 if supplied!=generation:
