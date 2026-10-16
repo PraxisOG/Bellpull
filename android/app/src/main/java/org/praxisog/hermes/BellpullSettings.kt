@@ -177,7 +177,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             voiceSettings?.invoke()
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
         }
-        voiceOutputSettings?.let { SettingsSection("Voice output", "Local models, voices and playback") { it() } }
+        voiceOutputSettings?.let { SettingsSection("Voice output", "Models, server offload and playback") { it() } }
         voiceAnnouncementSettings?.let { SettingsSection("Voice announcements", "Tool, search, thinking and working speech") { it() } }
         AboutSettings(pluginVersions)
     }

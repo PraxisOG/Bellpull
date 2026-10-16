@@ -64,6 +64,12 @@ internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> Local
         val thermals = SpeechThermals(app)
         return LocalVoiceTranscriber(runtime, selected) { thermals.severe }
     }
+    fun fallbackTranscriber(): VoiceTranscriber? {
+        if (busy) return null
+        val model = selected.takeIf(files::installed) ?: models.firstOrNull(files::installed) ?: return null
+        val thermals = SpeechThermals(app)
+        return LocalVoiceTranscriber(runtime, model) { thermals.severe }
+    }
     fun download(model: SpeechModel) = perform("Downloading ${model.label}") {
         files.download(model) { downloaded, total -> scope.launch { progress = downloaded.toFloat() / total } }
         refreshInstalled()

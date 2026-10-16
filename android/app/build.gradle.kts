@@ -156,7 +156,7 @@ dependencies {
     // Test-only. core-hermes keeps OkHttp as `implementation` so the app's production code
     // cannot see it; HermesStoreTest needs the type to inject mock-hermes' X-Mock-Fail header
     // without the production client exposing any way to request a failure.
-    testImplementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.63.0")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.63.0")

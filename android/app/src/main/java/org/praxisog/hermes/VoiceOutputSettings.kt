@@ -17,12 +17,16 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
     val validSeed = seed.toLongOrNull()?.takeIf { it >= -1 }
     val editable = enabled && !lab.busy
     Text("Speech synthesis", style = MaterialTheme.typography.titleMedium)
-    Text("Spoken answers and Read aloud use the selection saved for this server profile. All choices run on this device. Qwen and MOSS need a one-time model download.", style = MaterialTheme.typography.bodySmall)
+    Text("Spoken answers and Read aloud use the selection saved for this server profile. On-device Qwen and MOSS need a one-time model download; server offload uses your existing connection.", style = MaterialTheme.typography.bodySmall)
     VoiceOutputEngine.entries.forEach { engine ->
         FilterChip(output.engine == engine, { output = output.copy(engine = engine) }, enabled = editable,
             label = { Text(engine.label) })
     }
     Text("Playback speed: ${"%.2f".format(Locale.ROOT, rate)}×")
+    if (output.engine == VoiceOutputEngine.SERVER_MOSS) {
+        Text("The phone sends reply text to the Bellpull server over the existing profile connection. No model download or separate key is needed.",
+            style = MaterialTheme.typography.bodySmall)
+    }
     Slider(rate, { rate = it }, enabled = editable, valueRange = .7f..1.5f)
     if (output.engine == VoiceOutputEngine.MOSS) {
         Text("Backend: CPU · ONNX Runtime · 2 threads", style = MaterialTheme.typography.labelLarge)
@@ -70,6 +74,7 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
     }
     if (!canSave) Text("Select a server profile to save a voice selection.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    if (output.engine == VoiceOutputEngine.SERVER_MOSS) return
     SettingsSection("Qwen model", "859.85 MB · ${if (lab.installed) "Installed" else if (lab.partial) "Partial download" else "Not installed"}") {
         Text(QwenModel.label, style = MaterialTheme.typography.titleSmall)
         Text("${QwenModel.checkpoint} · Q4_K_M\nTalker 604.88 MB + shared audio tokenizer 254.97 MB. Apache 2.0 weights; SHA-256 verified. ${QwenModel.runtime}.", style = MaterialTheme.typography.bodySmall)

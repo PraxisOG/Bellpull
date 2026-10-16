@@ -10,10 +10,12 @@ import java.net.URI
 import java.security.MessageDigest
 
 internal enum class VoiceOutputEngine(val id: String, val label: String) {
-    SYSTEM("system", "Default Android voice"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device");
+    SYSTEM("system", "Default Android voice"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device"),
+    SERVER_MOSS("server-moss", "MOSS · server offload");
     companion object {
         fun decode(id: String?): VoiceOutputEngine = when (id?.lowercase(java.util.Locale.ROOT)) {
             "qwen" -> QWEN
+            "server-moss" -> SERVER_MOSS
             "moss", "pocket" -> MOSS // Upgrade the former selectable engine; weights still need downloading.
             else -> SYSTEM
         }

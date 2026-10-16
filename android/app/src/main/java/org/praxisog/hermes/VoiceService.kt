@@ -95,20 +95,22 @@ class VoiceService : Service() {
         try {
             val serviceTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
                 if (Build.VERSION.SDK_INT >= 30) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
-            startForeground(2405, notification("Starting microphone and offline speech"), serviceTypes)
+            startForeground(2405, notification("Starting microphone and speech"), serviceTypes)
             oldMode = audio.mode
             check(oldMode == AudioManager.MODE_NORMAL)
             check(acquireAudio())
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
                 runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
-                    if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
-                    else HttpVoiceTranscriber(config)
+                    if (config.transcribeViaServer) ServerVoiceTranscriber(ProfileSpeechTransport(runtime.speechConnection())) {
+                        runtime.speechLab.fallbackTranscriber()
+                    }
+                    else runtime.speechLab.voiceTranscriber()
                 }, onClosed = { stopSelf() }, beforeResume = {
                     acquireAudio()
                 }, onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
-                onTranscript = { savedVoice.saveTranscript(id, it); if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
+                onTranscript = { savedVoice.saveTranscript(id, it); if (config.transcribeViaServer || config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
                 initialTranscript = savedVoice.pending(id),
                 onSubmission = savedVoice::saveRequest, priorRequestId = savedVoice.pendingRequest(id),
                 onDictation = { text ->

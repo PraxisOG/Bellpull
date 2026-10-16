@@ -10,16 +10,16 @@ internal data class VoiceConfiguration(val endpoint: String = "", val key: Strin
     val rate: Float = 1.05f, val pauseMs: Int = 1600, val concise: Boolean = true,
     val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
     val output: VoiceOutputConfiguration = VoiceOutputConfiguration(),
-    val announcements: VoiceAnnouncements = VoiceAnnouncements()) {
+    val announcements: VoiceAnnouncements = VoiceAnnouncements(),
+    val transcribeViaServer: Boolean = false) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
 
 /** Recheck at each permission/service boundary; a model can be deleted while a dialog is open. */
 internal fun VoiceConfiguration.startProblem(localProblem: () -> String?): String? =
-    when (recognition) {
+    if (transcribeViaServer) null else when (recognition) {
         VoiceRecognition.LOCAL -> localProblem()
-        VoiceRecognition.PRIVATE_SERVER -> if (endpoint.isBlank())
-            "Configure your selected private transcription service first." else null
+        VoiceRecognition.PRIVATE_SERVER -> "Choose Transcribe on server or on-device recognition in Voice input settings."
     }
 
 @Suppress("DEPRECATION")
@@ -40,10 +40,11 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             pocketSteps = prefs.getInt("pocket_steps", 5), pocketTemperature = prefs.getFloat("pocket_temperature", .7f),
             pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)),
         VoiceAnnouncements(prefs.getBoolean("announce_tools", true), prefs.getBoolean("announce_web_search", true),
-            prefs.getBoolean("announce_thinking", true), prefs.getBoolean("announce_working", true)))
+            prefs.getBoolean("announce_thinking", true), prefs.getBoolean("announce_working", true)),
+        prefs.getBoolean("stt_server", false))
     fun save(value: VoiceConfiguration) {
         value.output.validated()
-        if (value.recognition == VoiceRecognition.PRIVATE_SERVER) {
+        if (!value.transcribeViaServer && value.recognition == VoiceRecognition.PRIVATE_SERVER) {
             org.praxisog.hermes.core.PrivateTranscription.validateEndpoint(value.endpoint)
             require(value.model.isNotBlank() && value.model.length <= 200)
         }
@@ -53,6 +54,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)
             .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
             .putInt("pocket_chunk_frames", value.output.pocketChunkFrames)
+            .putBoolean("stt_server", value.transcribeViaServer)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))
             .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise)
             .putBoolean("announce_tools", value.announcements.tools).putBoolean("announce_web_search", value.announcements.webSearch)

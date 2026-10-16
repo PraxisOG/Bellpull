@@ -1,0 +1,9 @@
+Correction task on the current branch (speech proxy work). Three defects to fix, keep everything else:
+
+1. RESTORE the Private server recognition feature you removed. The brief said ADD a "Transcribe on server" switch, not replace VoiceRecognition.PRIVATE_SERVER. Bring back: the On device / Private server chips and the private-transcription editor (endpoint/key/model fields) in the Voice input settings editor, HttpVoiceTranscriber usage for PRIVATE_SERVER in VoiceService, the editing-state condition in VoicePanel, and startProblem handling for PRIVATE_SERVER ("Configure your selected private transcription service first." when endpoint blank). The new server switch composes with these: transcribeViaServer=true takes precedence in the transcriber selection; when false, behavior must be EXACTLY the pre-branch logic (LOCAL -> local transcriber, PRIVATE_SERVER -> HttpVoiceTranscriber). Do not touch VoiceStartGuardTest's server-mode test you renamed; restore the old private-mode assertions alongside it.
+
+2. Fix MossVoiceOutputTest.mossReplacesPocketInSelectableEnginesAndDecodesLegacyIds: the enum legitimately gains SERVER_MOSS now; update the expected engine id list to [system, qwen, moss, server-moss] and keep the legacy pocket-decodes-to-MOSS assertion.
+
+3. Make SettingsOrganizationTest pass again by feature restoration (its assertions about "Private server" chips and Start voice enabling with a private endpoint configured must hold unchanged; do NOT edit that test).
+
+Then run nothing; report files changed. No gradle, no network.
