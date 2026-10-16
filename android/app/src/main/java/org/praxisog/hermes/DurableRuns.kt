@@ -28,6 +28,7 @@ internal data class RunPresentation(
     val approval: RunApproval? = null,
     val notice: String? = null,
     val checking: Boolean = false,
+    val stopError: String? = null,
 ) {
     val busy: Boolean get() = !submission.terminal ||
         (submission.runId != null && !submission.historySynced && !submission.trackingDismissed)
@@ -290,7 +291,9 @@ internal class DurableRuns(
                         val oldApproval = states[sessionId]?.approval?.requestId
                         update(sessionId) { it.copy(submission = record,
                             approval = status.approval?.takeIf { approval -> approval.requestId.isNotBlank() },
-                            notice = if (streamGap && !status.isTerminal && status.approval == null)
+                            stopError = it.stopError.takeUnless { status.isTerminal },
+                            notice = if (!status.isTerminal && it.stopError != null) it.stopError
+                                else if (streamGap && !status.isTerminal && status.approval == null)
                                 "Hermes is working. Live text is unavailable; the saved reply will appear when ready." else null,
                             turn = if (status.isTerminal) terminalTurn(record, status.output.orEmpty())
                                 else (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
@@ -402,7 +405,7 @@ internal class DurableRuns(
         val state = states[sessionId] ?: return
         val runId = state.submission.runId ?: return
         if (!state.busy || state.checking) return
-        update(sessionId) { it.copy(checking = true) }
+        update(sessionId) { it.copy(checking = true, stopError = null) }
         scope.launch {
             when (val result = io { client.stopRun(runId) }) {
                 is HermesResult.Ok -> {
@@ -412,8 +415,10 @@ internal class DurableRuns(
                     update(sessionId) { it.copy(submission = next, checking = false,
                         turn = (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(stopRequested = true), notice = null) }
                 }
-                is HermesResult.Err -> update(sessionId) { it.copy(checking = false,
-                    notice = "Stop was not confirmed. ${result.error.toUserMessage()}") }
+                is HermesResult.Err -> update(sessionId) {
+                    val problem = "Stop was not confirmed. ${result.error.toUserMessage()}"
+                    it.copy(checking = false, stopError = problem, notice = problem)
+                }
             }
         }
     }

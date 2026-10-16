@@ -368,6 +368,23 @@ class DurableRunsTest {
         await { manager.states["one"]?.notice?.startsWith("Stop was not confirmed") == true }
         assertFalse(manager.states["one"]!!.submission.stopRequested)
     }
+    @Test fun rejectedStopRemainsVisibleAcrossLaterSuccessfulStatusPolls() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
+        rejectStop = true
+        val manager = manager()
+        manager.restore()
+        manager.stop("one")
+        await { calls.any { it.url.encodedPath.endsWith("/stop") } && manager.states["one"]?.checking == false }
+        val polls = calls.count { it.url.encodedPath == "/v1/runs/run_same" }
+        await { calls.count { it.url.encodedPath == "/v1/runs/run_same" } >= polls + 3 }
+        assertTrue(manager.states["one"]!!.notice.orEmpty().startsWith("Stop was not confirmed"))
+        assertTrue(manager.states["one"]!!.busy)
+        assertFalse(manager.states["one"]!!.submission.stopRequested)
+        rejectStop = false
+        manager.stop("one")
+        await { manager.states["one"]?.submission?.stopRequested == true }
+        assertFalse(manager.states["one"]!!.notice.orEmpty().startsWith("Stop was not confirmed"))
+    }
     @Test fun duplicateSendInSameChatIsPrevented() {
         val manager = manager()
         manager.send("one", "hello", emptySet())
