@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
@@ -35,6 +35,45 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    override fun readUntitled(): Set<String> =
+        preferences.getString("untitled-app-sessions", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    override fun writeUntitled(ids: Set<String>) { if (!closed) preferences.edit().putString("untitled-app-sessions", ids.joinToString(",")).apply() }
+    override fun readPendingTitles(): Map<String, String> = runCatching {
+        preferences.getString("pending-titles", null)?.let { raw ->
+            json.decodeFromString<Map<String, String>>(raw).filterKeys { it.matches(Regex("[a-zA-Z0-9_-]+")) }
+                .filterValues { it.isNotBlank() && it.length <= 200 }
+        }.orEmpty()
+    }.getOrDefault(emptyMap())
+    override fun writePendingTitle(id: String, title: String) {
+        if (closed) return
+        val current = readPendingTitles() + (id to title.take(200))
+        check(preferences.edit().putString("pending-titles", json.encodeToString(current)).commit())
+    }
+    override fun clearPendingTitle(id: String) {
+        if (closed) return
+        val current = readPendingTitles() - id
+        check(preferences.edit().putString("pending-titles", if (current.isEmpty()) null else json.encodeToString(current)).commit())
+    }
+    override fun readPlanning(): org.praxisog.hermes.model.PlanningSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PlanningSnapshot>(preferences.getString("planning",null)!!).validated() }.getOrNull()
+    override fun writePlanning(value: org.praxisog.hermes.model.PlanningSnapshot) { if (!closed) preferences.edit().putString("planning",json.encodeToString(value)).apply() }
+    override fun readCalendar(): org.praxisog.hermes.model.PhoneCalendarSnapshot? = runCatching { json.decodeFromString<org.praxisog.hermes.model.PhoneCalendarSnapshot>(preferences.getString("calendar",null)!!) }.getOrNull()
+    override fun writeCalendar(value: org.praxisog.hermes.model.PhoneCalendarSnapshot?) { if (!closed) preferences.edit().putString("calendar",value?.let { json.encodeToString(it) }).apply() }
+    override fun readCalendarPolicy(): org.praxisog.hermes.model.CalendarPolicy = runCatching { json.decodeFromString<org.praxisog.hermes.model.CalendarPolicy>(preferences.getString("calendar-policy",null)!!) }.getOrDefault(org.praxisog.hermes.model.CalendarPolicy())
+    override fun writeCalendarPolicy(value: org.praxisog.hermes.model.CalendarPolicy) { check(!closed && preferences.edit().putString("calendar-policy",json.encodeToString(value)).commit()) }
+    override fun calendarDevice(): String = preferences.getString("calendar-device",null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { check(preferences.edit().putString("calendar-device",it).commit()) }
+    override fun calendarRevokePending() = preferences.getBoolean("calendar-revoke",false)
+    override fun calendarRevokePending(value: Boolean) { check(!closed && preferences.edit().putBoolean("calendar-revoke",value).commit()) }
+    override fun calendarReceipt(id: String): String? = preferences.getString("calendar-op:$id",null)
+    override fun calendarReceipt(id: String, result: String) {
+        val entries=preferences.all.filterKeys { it.startsWith("calendar-op:") }
+        val edit=preferences.edit()
+        if (entries.size>=2000 && "calendar-op:$id" !in entries) {
+            val oldest=entries.filterValues { it!="pending" }.keys.minByOrNull { preferences.getLong("calendar-op-at:${it.removePrefix("calendar-op:")}",0) }
+            check(oldest!=null) { "Too many uncertain calendar operations. Review them before another write." }
+            edit.remove(oldest).remove("calendar-op-at:${oldest.removePrefix("calendar-op:")}")
+        }
+        check(!closed && edit.putString("calendar-op:$id",result).putLong("calendar-op-at:$id",System.currentTimeMillis()).commit())
+    }
 
     /** Sessions and the wall-clock time they were fetched, or null if nothing is cached. */
     override fun read(): SessionSnapshots.Snapshot? {
@@ -82,6 +121,16 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     }
 
     fun lastSession(): String? = preferences.getString("last_session", null)
+    fun sessionSource(): String? {
+        // Retire the old API-only default once, including profiles created before 0.3.5.
+        // Explicit filters chosen in this version still survive restarts per profile.
+        if (!preferences.contains("session_source_v2")) {
+            val old = preferences.getString("session_source", null)
+            preferences.edit().putString("session_source_v2", old?.takeUnless { it == "api_server" } ?: "*").commit()
+        }
+        return preferences.getString("session_source_v2", "*").takeUnless { it == "*" }
+    }
+    fun rememberSessionSource(source: String?) { if (!closed) preferences.edit().putString("session_source_v2", source ?: "*").apply() }
     fun rememberSession(id: String?) { if (!closed) preferences.edit().putString("last_session", id).apply() }
 
     fun readReceipts(): Map<String, ConversationReceipt> = runCatching {
@@ -103,7 +152,32 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
         .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
-    fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw).apply() }
+    fun readCoding(id: String): org.praxisog.hermes.model.CodingSnapshot? = runCatching {
+        preferences.getString("coding:$id", null)?.let { json.decodeFromString<org.praxisog.hermes.model.CodingSnapshot>(it).validated(id) }
+    }.getOrNull()
+    fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) {
+        if (closed) return
+        // Cache a bounded tail; the plugin remains authoritative after reconnect.
+        val tail = value.copy(rows = value.rows.takeLast(40), gap = value.gap || value.rows.size > 40)
+        val edit = preferences.edit().putString("coding:${value.sessionId}", json.encodeToString(tail))
+        preferences.all.keys.filter { it.startsWith("coding:") && it != "coding:${value.sessionId}" }.drop(9).forEach(edit::remove)
+        edit.apply()
+    }
+    fun writeCapabilities(raw: String) { if (!closed) preferences.edit().putString("capabilities", raw)
+        .putLong("capabilities_checked_at", System.currentTimeMillis()).apply() }
+    fun capabilitiesCheckedAt(): Double? = preferences.getLong("capabilities_checked_at", 0).takeIf { it > 0 }?.div(1000.0)
+    override fun readProjects(): org.praxisog.hermes.model.ProjectSnapshot? = preferences.getString("projects", null)?.let {
+        runCatching { json.decodeFromString<org.praxisog.hermes.model.ProjectSnapshot>(it) }.getOrNull()?.takeIf { it.version == 1 }
+    }
+    override fun writeProjects(value: org.praxisog.hermes.model.ProjectSnapshot): Boolean = !closed && preferences.edit()
+        .putString("projects", json.encodeToString(value)).commit()
+    override fun projectScope(): String = preferences.getString("project_scope", ALL_PROJECT_CHATS) ?: ALL_PROJECT_CHATS
+    override fun rememberProjectScope(value: String) { if (!closed) preferences.edit().putString("project_scope", value).apply() }
+    override fun pendingProjectChat(): org.praxisog.hermes.model.PendingProjectChat? = preferences.getString("project_chat", null)?.let {
+        runCatching { json.decodeFromString<org.praxisog.hermes.model.PendingProjectChat>(it) }.getOrNull()
+    }
+    override fun writePendingProjectChat(value: org.praxisog.hermes.model.PendingProjectChat?): Boolean = !closed && preferences.edit()
+        .putString("project_chat", value?.let { json.encodeToString(it) }).commit()
 
     fun defaultModel(): org.praxisog.hermes.model.ModelSelection? = preferences.getString("default_model", null)?.let {
         runCatching { json.decodeFromString<org.praxisog.hermes.model.ModelSelection>(it) }.getOrNull()
@@ -123,6 +197,15 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
 
     @Synchronized override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = !closed && preferences.edit()
         .putString("run:${value.requestId}", json.encodeToString(value)).commit()
+
+    @Synchronized override fun pruneRuns(beforeEpochSeconds: Double) {
+        if (closed) return
+        val expired = readRuns().filter { canPruneRun(it, beforeEpochSeconds) }
+        if (expired.isEmpty()) return
+        val edit = preferences.edit()
+        expired.forEach { edit.remove("run:${it.requestId}") }
+        edit.commit()
+    }
 
     override fun readCursor(id: String): ReplyCursor? = preferences.getString("reply_cursor:$id", null)?.let { raw ->
         runCatching { org.json.JSONObject(raw).let { ReplyCursor(it.getDouble("activity"), it.getInt("count"), it.getInt("replyId")) } }.getOrNull()

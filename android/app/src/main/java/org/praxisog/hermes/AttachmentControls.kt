@@ -18,6 +18,33 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.*
 
 @Composable
+internal fun FileSharingStatus(filesSupported: Boolean, inputsSupported: Boolean, onRefresh: () -> Unit) {
+    if (filesSupported && inputsSupported) return
+    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+        Text(if (filesSupported) "File sharing available" else "Server cannot share files", style = MaterialTheme.typography.titleSmall)
+        Text(if (filesSupported)
+            "Generated files are available here. This server does not support attaching files to chat messages."
+        else "The Bellpull plugin is missing or unavailable on this server. Generated files cannot appear here until file sharing is enabled.",
+            style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = onRefresh) { Text("Check server again") }
+    }
+}
+
+@Composable
+internal fun UnavailableAttachmentsButton(filesSupported: Boolean) {
+    var explain by remember { mutableStateOf(false) }
+    TextButton(onClick = { explain = true }, modifier = Modifier.semantics {
+        contentDescription = "Chat attachments unavailable"
+    }) { Text("＋") }
+    if (explain) AlertDialog(onDismissRequest = { explain = false },
+        title = { Text("Chat attachments unavailable") },
+        text = { Text(if (filesSupported)
+            "You can download generated files from Tools. This server does not support attaching files to a chat message."
+        else "This server cannot share files. Install or enable the Bellpull plugin on the server, then check the connection again.") },
+        confirmButton = { TextButton(onClick = { explain = false }) { Text("OK") } })
+}
+
+@Composable
 internal fun AttachButton(workspace: Phase3Workspace, sessionId: String, onAttached: (String) -> Unit) {
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
@@ -76,17 +103,27 @@ internal fun AttachmentStrip(workspace: Phase3Workspace, sessionId: String) {
 
 @Composable
 internal fun AttachmentBrowser(items: List<Artifact>, sessions: List<Session>, error: String?,
-    onRefresh: () -> Unit, onPreview: (Artifact) -> Unit, onSource: (String) -> Unit) {
+    onRefresh: () -> Unit, onPreview: (Artifact) -> Unit, onSource: (String) -> Unit,
+    storage: ArtifactStorage? = null, warnings: List<ArtifactWarning> = emptyList(), onDelete: ((Artifact) -> Unit)? = null) {
     var order by rememberSaveable { mutableStateOf("Date") }
     var selectedSession by rememberSaveable { mutableStateOf<String?>(null) }
     var filterMenu by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf<Artifact?>(null) }
     Text("Attachments", style = MaterialTheme.typography.titleMedium)
+    storage?.let { Text("${it.usedBytes / (1024 * 1024)} of ${it.quotaBytes / (1024 * 1024)} MiB used · Files kept until deleted",
+        style = MaterialTheme.typography.bodySmall) }
+    warnings.take(5).forEach { Text("${it.name}: ${it.message}", style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error) }
+    deleting?.let { item -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete file?") },
+        text = { Text("Delete ${item.name} from the server? This removes its content from all conversations and branches. The history keeps an unavailable-file reference.") },
+        confirmButton = { TextButton(onClick = { onDelete?.invoke(item); deleting = null }) { Text("Delete") } },
+        dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } }) }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box {
             TextButton(onClick = { filterMenu = true }) { Text(if (selectedSession == null) "All conversations ▾" else "Conversation ▾") }
             DropdownMenu(filterMenu, { filterMenu = false }) {
                 DropdownMenuItem(text = { Text("All conversations") }, onClick = { selectedSession = null; filterMenu = false })
-                items.map { it.sessionId }.distinct().forEach { id -> DropdownMenuItem(
+                items.flatMap { listOf(it.sessionId) + it.sessionIds }.distinct().forEach { id -> DropdownMenuItem(
                     text = { Text(sessions.find { it.id == id }?.title ?: id, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     onClick = { selectedSession = id; filterMenu = false }) }
             }
@@ -97,7 +134,7 @@ internal fun AttachmentBrowser(items: List<Artifact>, sessions: List<Session>, e
         listOf("Date", "Name", "Type", "Size").forEach { label -> FilterChip(order == label, { order = label }, label = { Text(label) }) }
     }
     error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-    val visible = items.filter { selectedSession == null || it.sessionId == selectedSession }.let { values -> when (order) {
+    val visible = items.mapNotNull { item -> selectedSession?.let(item::forSession) ?: item.takeIf { selectedSession == null } }.let { values -> when (order) {
         "Name" -> values.sortedBy { it.name.lowercase() }; "Type" -> values.sortedBy { it.mime }
         "Size" -> values.sortedByDescending { it.size }; else -> values.sortedByDescending { it.createdAt }
     } }
@@ -106,10 +143,11 @@ internal fun AttachmentBrowser(items: List<Artifact>, sessions: List<Session>, e
         Column(Modifier.padding(10.dp)) {
             Text(item.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${item.mime.substringAfterLast('/')} · ${(item.size + 1023) / 1024} KB · ${if (item.source == "agent") "Generated" else "Uploaded"}" +
-                if (item.available) "" else " · Unavailable", style = MaterialTheme.typography.labelSmall)
+                if (item.deleted) " · Deleted" else if (item.available) "" else " · Unavailable", style = MaterialTheme.typography.labelSmall)
             TextButton(onClick = { onSource(item.sessionId) }, contentPadding = PaddingValues(0.dp)) {
                 Text(sessions.find { it.id == item.sessionId }?.title ?: "Open source conversation", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            if (onDelete != null && !item.deleted) TextButton(onClick = { deleting = item }, contentPadding = PaddingValues(0.dp)) { Text("Delete file") }
         }
     } }
 }

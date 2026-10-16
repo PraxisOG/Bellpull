@@ -19,7 +19,7 @@ class ConversationUnreadScreenshotTest {
         val sessions = UiFixtures.sessions.map { if (it.id == "api_2_beta") it.copy(messageCount = 128, toolCallCount = 17) else it }
         compose.setContent {
             HermesApp(UiState.Ready(sessions), UiState.Ready(UiFixtures.history), TurnState.Idle,
-                open, sessions.firstOrNull { it.id == open }, UiFixtures.NOW, {}, {}, {}, {}, {}, {}, {},
+                open, sessions.firstOrNull { it.id == open }, UiFixtures.NOW, {}, {}, { false }, {}, {}, {}, {},
                 unreadIds = setOf("api_2_beta"), preferences = BellpullPreferences(palette = Palette.MAROON))
         }
         compose.waitForIdle()

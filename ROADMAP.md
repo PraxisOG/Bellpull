@@ -1,8 +1,19 @@
 > **Current phases:** see [docs/ROADMAP.md](docs/ROADMAP.md), updated October 13.
-> The notes below describe the earlier implementation. Preview source is on
-> `integration/phase6-8-9`; Phase 7 now means Hermes prompt optimization.
+> The implementation notes below are historical; Phase 7 is now Hermes prompt
+> optimization rather than a Quick Chat app feature.
 
 ## Bellpull implementation — 2026-10-10
+
+**2026-10-11 Phase 5:** conversational voice and compact drawer/filter work are
+active on `feature/phase5-voice`; see [scope and acceptance](docs/PHASE-5-VOICE.md).
+The revised roadmap keeps projects in Phase 4, active work in phases 4–12, local
+inference/offline conversation/assistant replacement/Auto deferred to 13–16 and
+widgets/release polish in 17. Notification context (12) is the next phase to audit,
+not a prerequisite for implementing the explicitly authorized voice work.
+
+**2026-10-11 scope update:** Phase 4 is now conversation projects only, as specified
+in [docs/PHASE-4-PROJECTS.md](docs/PHASE-4-PROJECTS.md). Saved answers, expanded
+retrieval, memory editing and history imports are outside this implementation.
 
 The selected scope is `Bellpull-Implementation-Prompt.txt` (v1.0). Its phases supersede
 older tier deferrals below; existing behavior and installed identity remain protected.
@@ -37,7 +48,9 @@ authorized Phase 3 and requested testing and installation of its working build.
   Android sharing and local GPU telemetry plugin. See the handoff for final acceptance
   status and real hardware limitations. The user clarified no Moe/SSH access is needed:
   the plugin calls amd-smi/nvidia-smi on its own Hermes host.
-- Phases 4–7 remain pending. Projects/Today placeholders do not imply completion.
+- Phase 4 projects are implemented and device-validated. Phase 5 is a voice preview
+  with explicit acoustic/provider acceptance outstanding. Phases 6–12 remain
+  separate work; Today is still a placeholder.
 - Desktop emulator packaging is parked until the Android phases are done. An isolated
   emulator may still be used for Android acceptance tests.
 

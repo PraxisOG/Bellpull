@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "sample_rate": 16000,
+  "appended_silence_ms": 2000,
+  "timing_annotation": "Dataset forced-alignment estimate; not manually verified word boundaries",
+  "fixtures": [
+    {
+      "id": "clean",
+      "file": "clean.wav",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "reference": "THE DULL LIGHT FELL MORE FAINTLY UPON THE PAGE WHEREON ANOTHER EQUATION BEGAN TO UNFOLD ITSELF SLOWLY AND TO SPREAD ABROAD ITS WIDENING TAIL",
+      "source_id": "1089-134686-0006",
+      "source_dataset": "openslr/librispeech_asr:test-clean",
+      "source_sha256": "cd6c37cf12d5a9394fe1e997c2a068aa598a431a489d40279e2bbddbfc2436f5",
+      "alignment_dataset": "gilkeyio/librispeech-alignments:test_clean",
+      "last_word_end_ms": 10090.0,
+      "largest_internal_pause_ms": 430.0000000000006,
+      "license": "CC-BY-4.0",
+      "modifications": "Lossless PCM16 decode; append 2 seconds silence"
+    },
+    {
+      "id": "numbers-measurements",
+      "file": "numbers-measurements.wav",
+      "sha256": "2686ad71ab8015a99b22d42e6ae893f07e3384ff07c077fbd500714d1eae6d4a",
+      "audio_seconds": 6.74,
+      "reference": "FAIRVIEW WAS TWELVE MILES AWAY BUT BY TEN O'CLOCK THEY DREW UP AT THE COUNTY JAIL",
+      "source_id": "6829-68769-0008",
+      "source_dataset": "openslr/librispeech_asr:test-clean",
+      "source_sha256": "f542494a8d4c891e11911151b2e4291b60dbd3f7da0abc9d6bf30252e9979d30",
+      "alignment_dataset": "gilkeyio/librispeech-alignments:test_clean",
+      "last_word_end_ms": 4330.0,
+      "largest_internal_pause_ms": 140.0000000000001,
+      "license": "CC-BY-4.0",
+      "modifications": "Lossless PCM16 decode; append 2 seconds silence"
+    },
+    {
+      "id": "natural-pauses",
+      "file": "natural-pauses.wav",
+      "sha256": "a4ddd06c78a1c045b168e7a94d35b0af79f46e5b281723c0952c0d68601c8f3c",
+      "audio_seconds": 16.65,
+      "reference": "IT MAY BE THAT A GREAT COLORIST WILL USE HIS UTMOST FORCE OF COLOR AS A SINGER HIS FULL POWER OF VOICE BUT LOUD OR LOW THE VIRTUE IS IN BOTH CASES ALWAYS IN REFINEMENT NEVER IN LOUDNESS",
+      "source_id": "1188-133604-0012",
+      "source_dataset": "openslr/librispeech_asr:test-clean",
+      "source_sha256": "f5d17436f62f00084d2ece7fbc41dee68a5de114ffa2892777c789dafb6e8f3a",
+      "alignment_dataset": "gilkeyio/librispeech-alignments:test_clean",
+      "last_word_end_ms": 14140.0,
+      "largest_internal_pause_ms": 879.9999999999999,
+      "license": "CC-BY-4.0",
+      "modifications": "Lossless PCM16 decode; append 2 seconds silence"
+    },
+    {
+      "id": "road-noise",
+      "file": "road-noise.wav",
+      "sha256": "cf4949a15422c7d60ba16b49a62c197e9d1fa793c03880f4483a0d674c1c96f2",
+      "audio_seconds": 12.555,
+      "reference": "THE DULL LIGHT FELL MORE FAINTLY UPON THE PAGE WHEREON ANOTHER EQUATION BEGAN TO UNFOLD ITSELF SLOWLY AND TO SPREAD ABROAD ITS WIDENING TAIL",
+      "source_id": "1089-134686-0006",
+      "source_dataset": "openslr/librispeech_asr:test-clean",
+      "source_sha256": "cd6c37cf12d5a9394fe1e997c2a068aa598a431a489d40279e2bbddbfc2436f5",
+      "alignment_dataset": "gilkeyio/librispeech-alignments:test_clean",
+      "last_word_end_ms": 10090.0,
+      "largest_internal_pause_ms": 430.0000000000006,
+      "license": "Speech CC-BY-4.0; noise and mixed derivative CC-BY-SA-3.0",
+      "modifications": "Recorded traffic mixed at 10 dB SNR, global attenuation to avoid clipping, append 2 seconds silence",
+      "noise_source": "DEMAND STRAFFIC/ch01.wav, busy traffic intersection, offset 30 seconds",
+      "noise_sha256": "8fa49dcf3996af655a3ecef8d06f0d9ef217c35410e3adce3d461da797987dbb",
+      "snr_db": 10,
+      "snr_definition": "Whole source clip RMS, including its existing pauses"
+    }
+  ]
+}

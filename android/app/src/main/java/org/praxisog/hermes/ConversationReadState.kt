@@ -23,6 +23,11 @@ internal class ConversationReadState(initial: Map<String, ConversationReceipt> =
         update(sessionId, current.copy(readThrough = maxOf(current.readThrough, messageId)))
     }
 
+    /** Native message IDs are database-wide; reading a continuation also reads older aliases. */
+    fun readThroughAliases(sessionIds: Set<String>, messageId: Int) {
+        sessionIds.forEach { readThrough(it, messageId) }
+    }
+
     fun snapshot(): Map<String, ConversationReceipt> = receipts.toMap()
 
     private fun update(id: String, next: ConversationReceipt) {

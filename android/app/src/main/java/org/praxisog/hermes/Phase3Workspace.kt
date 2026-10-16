@@ -13,13 +13,16 @@ import java.util.UUID
 /** Owned by one connected profile. Every asynchronous operation captures its conversation. */
 internal class Phase3Workspace(private val context: Context, val profileId: String,
     private val scope: CoroutineScope, private val client: HermesClient, private val cache: SessionCache,
-    val filesSupported: Boolean, val modelsSupported: Boolean) {
+    val filesSupported: Boolean, val modelsSupported: Boolean, val lifecycleSupported: Boolean = false,
+    val runAttachmentsSupported: Boolean = filesSupported && modelsSupported) {
     val root = File(context.filesDir, "bellpull-files/$profileId").apply { mkdirs() }
     var catalog by mutableStateOf<ModelCatalog?>(null); private set
     val selections = mutableStateMapOf<String, ModelSelection>()
     var defaultSelection by mutableStateOf(cache.defaultModel()); private set
     var drafts by mutableStateOf(cache.draftFiles()); private set
     var artifacts by mutableStateOf<List<Artifact>>(emptyList()); private set
+    var storage by mutableStateOf<ArtifactStorage?>(null); private set
+    var warnings by mutableStateOf<List<ArtifactWarning>>(emptyList()); private set
     val errors = mutableStateMapOf<String, String>()
     val progress = mutableStateMapOf<String, Float>()
     val sending = mutableStateMapOf<String, Boolean>()
@@ -29,7 +32,11 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     private val imports = kotlinx.coroutines.sync.Mutex()
     @Volatile private var closed = false
 
-    init { if (modelsSupported) scope.launch { refreshCatalog() } }
+    init {
+        cleanPrivateFiles(root, File(context.cacheDir, "bellpull-shared/$profileId"), drafts.map { it.id }.toSet())
+        if (modelsSupported) scope.launch { refreshCatalog() }
+        if (filesSupported) refreshArtifacts()
+    }
     private fun fail(id: String, result: HermesError) { if (!closed) errors[id] = result.toUserMessage() }
     private fun persist(values: List<DraftFile>): Boolean {
         if (closed || !cache.writeDraftFiles(values)) return false
@@ -74,7 +81,11 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     fun applyDefaultToNewSession(id: String) { defaultSelection?.let { choose(id, it) {} } }
 
     fun addUris(sessionId: String, uris: List<Uri>) {
-        if (!filesSupported || closed) return
+        if (closed) return
+        if (!runAttachmentsSupported) {
+            errors[sessionId] = "This server cannot receive chat attachments. Your draft is saved."
+            return
+        }
         importing[sessionId] = (importing[sessionId] ?: 0) + 1
         scope.launch {
             imports.lock()
@@ -131,11 +142,16 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         if (persist(drafts.filterNot { it.id in ids })) ids.forEach { local(it).delete(); progress.remove(it) }
         refreshArtifacts()
     }
-    fun send(store: HermesStore, text: String) {
-        val id = store.openSessionId ?: return
-        if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true) return
+    fun send(store: HermesStore, text: String): Boolean {
+        val id = store.openSessionId ?: return false
+        if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true || text.isBlank() || store.branchingSession ||
+            store.turn is TurnState.Streaming || store.history !is UiState.Ready) return false
         val files = filesFor(id)
-        if (!modelsSupported) { store.send(text); return }
+        if (files.isNotEmpty() && !runAttachmentsSupported) {
+            errors[id] = "This server cannot receive chat attachments. Your draft and files are saved; nothing was sent."
+            return false
+        }
+        if (!modelsSupported) return store.send(text)
         val revision = store.drafts.revision(id)
         val generation = (sendGenerations[id] ?: 0) + 1
         sendGenerations[id] = generation
@@ -172,12 +188,25 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                 store.send(text, BellpullRunOptions(selection = selected, artifactIds = files.map { it.id }))
             } finally { if (!closed && sendGenerations[id] == generation) sending[id] = false }
         }
+        return true
     }
     fun refreshArtifacts() {
         if (!filesSupported || closed) return
         scope.launch {
             when (val result = withContext(Dispatchers.IO) { client.artifacts() }) {
-                is HermesResult.Ok -> if (!closed) { artifacts = result.value.data; errors.remove("artifacts") }
+                is HermesResult.Ok -> if (!closed) {
+                    artifacts = result.value.data; storage = result.value.storage
+                    warnings = result.value.warnings; errors.remove("artifacts")
+                }
+                is HermesResult.Err -> fail("artifacts", result.error)
+            }
+        }
+    }
+    fun deleteArtifact(item: Artifact) {
+        if (!lifecycleSupported || closed) return
+        scope.launch {
+            when (val result = withContext(Dispatchers.IO) { client.deleteArtifact(item.id) }) {
+                is HermesResult.Ok -> if (!closed) { File(root, "download-${item.id}").delete(); refreshArtifacts() }
                 is HermesResult.Err -> fail("artifacts", result.error)
             }
         }

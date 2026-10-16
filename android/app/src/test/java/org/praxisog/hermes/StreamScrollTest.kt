@@ -41,7 +41,7 @@ class StreamScrollTest {
             SessionDetailScreen(
                 history = UiState.Ready(longHistory),
                 turn = turn,
-                onSend = {},
+                onSend = { false },
                 onStop = {},
                 onRetry = {},
             )
@@ -62,7 +62,7 @@ class StreamScrollTest {
         var turn by mutableStateOf<TurnState>(TurnState.Streaming("", canStop = true))
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(longHistory), turn, {}, {}, {}, collapseThinking = false, reduceMotion = true)
+                SessionDetailScreen(UiState.Ready(longHistory), turn, { false }, {}, {}, collapseThinking = false, reduceMotion = true)
             }
         }
         compose.waitForIdle()
@@ -81,7 +81,7 @@ class StreamScrollTest {
             SessionDetailScreen(
                 history = UiState.Ready(longHistory),
                 turn = turn,
-                onSend = {},
+                onSend = { false },
                 onStop = {},
                 onRetry = {},
             )
@@ -106,13 +106,35 @@ class StreamScrollTest {
         compose.onNodeWithTag("stream-tail").assertIsDisplayed()
     }
 
+    @Test fun manuallyReturningToBottomAndDraggingPastItResumesFollowing() {
+        var turn by mutableStateOf<TurnState>(TurnState.Streaming("start", canStop = true))
+        compose.setContent {
+            SessionDetailScreen(UiState.Ready(longHistory), turn, { false }, {}, {})
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("transcript").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsNotDisplayed()
+        // Reaching the end often leaves part of the gesture unconsumed (overscroll).
+        repeat(4) {
+            compose.onNodeWithTag("transcript").performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+        compose.runOnIdle {
+            turn = TurnState.Streaming((1..75).joinToString("\n") { "New line $it" }, canStop = true)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+    }
+
     @Test @Config(qualifiers = "w840dp-h900dp") fun shrinkingPaneKeepsLatestReplyVisibleWithoutNewTokens() {
         var width by mutableStateOf(754)
         val history = (1..12).map { Message(it, role = if (it % 2 == 0) "assistant" else "user",
             content = "A saved paragraph that rewraps when the context panel slides into the window. ".repeat(3)) }
         compose.setContent {
             HermesTheme {
-                SessionDetailScreen(UiState.Ready(history), TurnState.Idle, {}, {}, {}, modifier = Modifier.width(width.dp))
+                SessionDetailScreen(UiState.Ready(history), TurnState.Idle, { false }, {}, {}, modifier = Modifier.width(width.dp))
             }
         }
         for (next in listOf(680, 570, 450, 380, 313)) {

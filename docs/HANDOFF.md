@@ -1,4 +1,738 @@
+# Current development: master — app 0.8.4 / plugin 0.4.2
+
+The owner requested one clear default and a clean GitHub repository. `master`
+contains the current app and plugin; historical releases remain available, and
+merged development branches are retired with their exact tips recorded in
+[audit metadata](audits/2026-10-15-branch-cleanup.json).
+
+The [October 15 audit](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit) records ten
+closed issues and six open ones, including the new car Read aloud route report.
+Pocket/Loona was explicitly selected for the active phone profile after pinned-file
+verification and successful local synthesis. Other settings stayed unchanged.
+The local Docker test server runs plugin 0.4.2; no personal server was accessed.
+
+Use [release evidence](release.md) for the current download and validation.
+The entries below are historical records, not the current branch/version policy.
+
+---
+
+# Latest: 0.8.3 / plugin 0.4.1 experimental publication (2026-10-14)
+
+The user requested checking the installed app and publishing this pair as
+experimental. ADB confirms app 0.8.3/build22; the installed APK and release artifact
+match byte-for-byte. Signature, version metadata and 16 KiB alignment passed.
+No reinstall or personal-server access was needed; the phone's state is unchanged.
+The release uses `android-v0.8.3-integration-preview.1`, includes the complete plugin
+and source trees, and explicitly carries the unresolved audit findings.
+See [the release record](RELEASE-0.8.3-EXPERIMENTAL.md) for assets, checks and CI evidence.
+
+---
+
+## Full project audit (2026-10-14)
+
+The user requested a full audit and publication to GitHub. The
+[audit report](AUDIT-2026-10-14.md) covers pushed revision `4fc426f` of
+`repair/experimental-open-issues`, app 0.8.3/build22 and plugin 0.4.1. It records six
+reproduced defects: two high, three medium and one low. Highest priorities are Git
+filter execution during workspace preview and an upload/revocation race that can
+restore calendar sharing. Dependency matches, hardening work and acceptance gaps
+are separated from reproduced defects. Synthetic probes and inventories are in
+[the evidence bundle](audits/2026-10-14/README.md).
+
+Fresh Android validation: 575 discovered, 574 passed, one expected skip; 172
+screenshots; debug/release build and lint passed. Full plugin: 127 run, 126 passed,
+one skip; stock-host suites and desktop/helper tests also passed. Findings remain
+unfixed; no personal-server access, phone update, default-branch merge, issue
+closure or new release occurred. The audit is authorized for the same repair branch.
+
+---
+
+## Compact voice prompt and installed update (2026-10-14)
+
+The user requested a tappable disclosure for the `[Bellpull voice turn: …]`
+preset. Saved and pending voice messages now show **Bellpull voice enabled ▾**
+above the spoken words. Tap to expand/collapse the original instructions.
+Original submitted/stored/action content is preserved, including copy and edit.
+
+Signed 0.8.3-integration-preview/build22 is installed over build21. Certificate,
+UID 10260 and CE/DE identities 117766/116002 are unchanged; personal app left stopped.
+App suite511, screenshot verification172, lint/build/signature/alignment passed.
+Two real-touch fixture tests passed at each of unfolded and simulated cover
+widths. Fixture packages/size override removed; original density440 retained.
+No personal-server access or plugin change. The user subsequently requested
+pushing `repair/experimental-open-issues` to GitHub, including all issue repairs
+and this UI change. No default-branch merge or release publication is requested.
+See [disclosure evidence](VOICE-PROMPT-DISCLOSURE.md).
+
+---
+
+## Experimental issue repairs and installed update (2026-10-13)
+
+User authorized all open issue fixes, ADB acceptance and installation. Local
+branch `repair/experimental-open-issues`; Android 0.8.2-integration-preview/build21
+is installed over build20 with unchanged certificate, UID 10260 and CE/DE data
+identities 117766/116002. Prior APK backed up; personal app left stopped.
+
+Local checks: 563 Android tests (one expected skip), screenshot verification,
+lint and signed build passed. Plugin: 127 tests (one expected skip); stock
+projects: 14. Isolated phone: unfolded UI/voice 7, cover UI 3, Qwen 2, candidate
+benchmark 1, Pocket benchmark/gap comparison 1. Pocket gap fell 1,478.5 ms → 38.8 ms
+in the paired measurement. Candidate adapters are excluded from personal release.
+
+Global pins require supplied Bellpull plugin 0.4.1; no personal server deployment
+or access occurred. Physical wired Android Auto/headset/call acceptance and
+subjective candidate voice approval remain. Source is local; no GitHub issue
+closure or release publication. Detail: [repair record](EXPERIMENTAL-ISSUE-REPAIRS.md)
+and [native measurements](../benchmarks/voice-output/pixel-10-pro-fold-2026-10-13/README.md).
+
+---
+
+## October 13: experimental release and phase roadmap
+
+The user authorized publishing the latest development preview, including the
+phase roadmap and a refreshed GitHub front page, and prioritized publication
+before completing the dev-server migration. Source is `integration/phase6-8-9`;
+release tag is `android-v0.8.1-integration-preview.3`. App 0.8.1/build20 and plugin
+0.4.0-integration-preview are paired. `docs/ROADMAP.md` incorporates the later
+Phase 7 decision: Hermes prompt optimization only, no Quick Chat app feature.
+The original October 11 roadmap is included unchanged. Default-branch changes
+are documentation/gallery only; preview app code is not merged into master.
+
+For the separately requested local dev-server migration, the old host is still
+the legacy four-overlay gateway. A replacement official unmodified Hermes
+v2026.9.24/internal0.21.5 image passed 43 focused tests (coding18/planning9/
+projects13/portable3). Its digest and limitations are in the integration guide.
+Cutover completed after publication: gateway and dashboard now use that clean
+stock image and the single plugin. The idle check passed before stopping both
+writers. A full private data-home backup and stopped original containers remain
+for rollback. Exactly 58 sessions/562 messages were retained; all three migrated
+artifact downloads matched their stored size/SHA-256. Auth rejection, unserved
+profile rejection, coding/planning/projects reads and all six feature flags passed.
+Only plugin allow/deny lists and the native config schema marker (41→46) changed;
+provider/model settings stayed exact. No inference request was submitted. The first
+attempt rolled back when a conservative config check caught that schema marker;
+the reviewed retry passed. Legacy branch/input/model/notification extensions are
+gated off on the new stock host. OpenCode itself is not installed there yet. Personal server remains
+off limits. The device update and combined test evidence follow below.
+
+Source verification: a fresh recursive GitHub clone of tag `.1` built debug/lint
+successfully with no local source/signing files. Test-only fixes pin screenshot
+fixture timezones and distinguish unsupported legacy coding from the modern
+positive integration. Full Android checks under UTC passed (548 + one live-smoke
+skip, 170 baselines). Exact pinned optional legacy Docker: 126 discovered, 125
+passed, one modern-only skip; modern coding: 18 passed, one older-only skip. This
+new exact-image result does not erase the earlier mixed-fixture failures. Preview
+`.2` added build instructions and a source archive including all submodules. The
+signed APK and production app/plugin behavior are unchanged. GitHub's follow-up
+plugin job passed; Android exposed a project screenshot's stale rendered-state
+race. `.3` additionally waits for the cached banner to leave the semantics tree
+before capture, without changing its baseline or production behavior.
+
+## October 13: combined integration passed isolated phone acceptance
+
+The user authorized merging the two feature branches, then asking for ADB and
+running combined phone acceptance. Integration is on `integration/phase6-8-9`;
+original feature branches are retained. App 0.8.1-integration-preview/build20,
+one plugin 0.4.0-integration-preview. User returned ADB with “send it.”
+
+Full Android checks passed: 548 JVM tests, one live smoke skip, 170 baselines,
+build/lint. Combined coding/planning Python checks: 27 passed; real native run
+observation and reminder mutation coexist with one admission. Full legacy fixture:
+122/125 pass, the same three baseline approval failures. Newer stock full suite:
+125 tests, 29 failures/4 errors in unsupported legacy/host routes; not a passing check.
+Combined fixture acceptance now passed **11 final device-test executions**:
+coding/startup and planning/startup at unfolded and simulated narrow widths, plus
+actual Android calendar permission denial/grant. Today/reminder navigation preserved
+the same coding run/draft with one admission. Actual LOCAL CalendarContract CRUD,
+recurrence, proposal retry, sharing revocation and exact fixture cleanup passed;
+planning admitted no inference. Initial diff-close navigation timing failed in the
+harness; explicit navigation waiting fixed it, with both widths passing afterward.
+No product code/APK bytes changed during acceptance.
+
+Fixture packages/captures, reverse ports and temporary size override are removed;
+the original density override is preserved. The user then requested the latest
+personal app: signed 0.8.1-integration-preview/build20 was installed over 0.5.5,
+preserving the signer, UID10260 and CE/DE inodes 117766/116002. Previous APK backed
+up; personal app left stopped for the user to open. No personal-server access,
+personal plugin deployment, push or publication. Real OpenCode/provider, scheduled
+inference, cloud calendar sync, physical hinge transitions and exact Docker CI
+remain unverified. Signed APK and
+updated plugin bundle are under build/releases/0.8.1-integration-preview/.
+See [combined evidence, compatibility and acceptance](INTEGRATION-6-8-9.md).
+
+The feature-branch evidence below is historical, not proof about this combined APK.
+
+## October 12: Phase 6 isolated phone acceptance
+
+User returned ADB and requested Phase 6 tests first, then planning after clean
+Phase 6 acceptance. Two tests passed at both unfolded and simulated narrow
+viewports; all 18 focused coding Python tests reran successfully. Real native
+Hermes admission/hooks/process registry, deterministic child CLI output, actual
+Android Activity/runtime/cache and read-only diffs were exercised end to end.
+Exactly one admission, live updates/reconnects, drafts, child/coordinator completion,
+compression/fork isolation and missing-model startup passed. UI harness clipping
+was repaired; no Phase 6 product change required. Real OpenCode/provider/personal
+host behavior and exact Docker CI remain unverified. Personal 0.5.5 untouched.
+See PHASE-6-OPENCODE.md for reproduction and evidence. The independent planning
+branch subsequently passed three phone tests at both widths, the actual permission
+flow and nine focused Python tests; evidence is committed at `3deab54`. All fixture
+packages, test forwarding/captures and temporary display overrides were cleaned up.
+Personal app remains 0.5.5; neither branch was pushed or merged.
+
+## Phase 6 local implementation — October 12
+
+Independent corrected-0.5.5 branch `feature/phase6-opencode-activity` now has a
+read-only OpenCode activity journal, Android timeline/recovery and workspace diffs.
+APK preview version `0.6.0-preview`/18; plugin `0.4.0-phase6`. Not installed or pushed.
+[Implementation, actual checks, limitations and acceptance](PHASE-6-OPENCODE.md).
+The separate combined planning branch is at `/home/praxisog/Bellpull-phase8-9`.
+No personal server access or additional ADB use after the launch repair.
+Signed local preview APK/plugin archive are in `build/releases/phase6-0.6.0-preview/`.
+Release build, signature and ZIP alignment checks passed; APK SHA-256
+`3279e8bd617050bccd6b5f59934f167946785c394e132b9d6dd505a27653a62e`.
+These are local artifacts, not an installed or published update.
+Full Android checks passed. All 18 focused coding Python tests passed on stock.
+The local legacy compatibility fixture had 113/116 passing, with three approval
+failures also reproduced on the unchanged 0.5.5 plugin; exact Docker CI is unrun.
+## October 12: isolated phone acceptance after Phase 6
+
+The user returned ADB for Phase 6 first, then planning after it passed. Phase 6
+passed two tests at unfolded and simulated narrow widths plus 18 focused Python
+tests, recorded on its independent branch at `37bbb85`.
+
+This branch passed three device tests at both widths (two planning scenarios and
+startup), a separate real permission-prompt check, all nine focused Python planning
+tests, fixture compilation and lint. Actual native Hermes routine storage, Android
+CalendarContract LOCAL-calendar CRUD/recurrence/marker retry, busy-only sharing,
+dropped result recovery without duplicate insertion, offline revocation, drafts and
+encrypted cache were exercised. Zero inference admissions; exact disposable calendar
+cleaned, including a final removal assertion. Product code/APK bytes unchanged.
+Harness fixes cover clipping, cover navigation, UI settling and permission prompts.
+
+Personal app remains corrected 0.5.5/code17/UID10260; no personal-server access,
+push, merge or release. Account/cloud sync, calendar-app handoff, actual scheduled
+inference, real OpenCode/provider behavior and exact Docker CI remain unverified.
+Older three approval-fixture failures remain baseline limitations; no checks weakened.
+See PHASE-8-9-REMINDERS-CALENDAR.md for reproduction/evidence and scope limitations.
+
+## Phase 8/9 local planning preview — 2026-10-12
+
+Independent branch `feature/phase8-9-reminders-calendar`, from corrected 0.5.5.
+App `0.8.0-planning-preview`/19, plugin `0.4.0-phase8-9`. Reminders, native routine
+controls, opted-in CalendarContract management and day/week blocks are implemented.
+Scope, compatibility and a concrete stock-host/phone acceptance checklist are in
+[PHASE-8-9-REMINDERS-CALENDAR.md](PHASE-8-9-REMINDERS-CALENDAR.md).
+
+Checks actually run:
+
+- Android: **537 discovered JVM tests, 536 passed, one opt-in live smoke skip**;
+  **165 screenshot baselines** verified; debug APK and lint passed. Includes five
+  CalendarContract fixture tests, two controller recovery tests, model/HTTP contracts
+  and both-width calendar/Today screenshots. Dialog opening/cancellation passed at
+  cover and unfolded widths; provider tests do not establish real account behavior.
+- Python: **nine focused planning tests passed** on unmodified disposable Hermes
+  `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`, including actual native cron storage,
+  authenticated HTTP, two-profile scheduler isolation and interrupted creation.
+- Full plugin attempt on the local legacy compatibility fixture: **107 tests,
+  104 passed, three legacy approval failures**. That fixture combines current source/
+  plugin loader with hash-pinned archived legacy adapter/approval modules, host v1
+  overlay and a synthetic 0.21.1 install stamp. The same failures reproduce with the
+  unchanged 0.5.5 plugin (10 approval tests, three failures); no exact Docker CI pass
+  is claimed. CI now includes focused planning tests with pinned action revisions.
+- Logs under `build/planning/`: `android-final.log`, `python-final.log`,
+  `plugin-legacy-fixture.log`; the baseline comparison is in the Phase 6 worktree,
+  `build/phase6/legacy-approval-baseline.log`.
+
+Signed local preview APK/plugin archive: `build/releases/phase8-9-0.8.0-preview/`.
+Release build, signature and ZIP alignment checks passed; APK SHA-256
+`86c7dfe0649940dc31e158f761d4bdeec0476ee6e989d16a8e27fbd577ce5164`.
+Local artifacts only; no device upgrade check was performed.
+
+No personal server access, ADB, preview installation, push, merge or publication.
+Reminder background/offline alerts, routine output bodies, automatic phone transport,
+real provider/sync adapter behavior and device acceptance remain open. The personal
+phone has corrected 0.5.5; its installation evidence is in [release.md](release.md).
+
 # Bellpull / Hermes app handoff
+
+## 2026-10-12: immediate 0.5.5 launch repair
+
+The first 0.5.5 candidate crashed when chat composition initialized VoiceOutputLab:
+the new folder-ID validator rejected the shipped `qwen-0.6b` ID. Fixed at
+`c913243` on `feature/local-voice-models`, preserving existing model paths and
+still rejecting traversal/unsafe prefixes. Eight focused JVM tests passed, and a
+new fixture-only phone startup/preflight/Activity test passed. Corrected signed
+0.5.5/code 17 installed in place; signer, UID and both data-directory inodes
+preserved. No personal server access; personal app left stopped. Fixture packages
+removed after the check. Pocket synthesis and the other pending acceptance were
+not tested by this regression.
+
+Corrected APK SHA-256:
+`1e7121c0a32658ded36fcb02122b7b581f8c5dd0a8993646b0f25f28f20415d5`.
+Evidence: ignored `build/launch-crash-*` logs and
+`build/releases/0.5.5/launch-crash/`. Both independent development branches now
+include the repair: `feature/phase6-opencode-activity` and
+`feature/phase8-9-reminders-calendar` (worktree `/home/praxisog/Bellpull-phase8-9`).
+The user authorized building both while away; no further phone access or push.
+
+## 2026-10-12: 0.5.5 installed on request
+
+Built and signed Phase 5 commit `c5dceec` from `feature/local-voice-models` and
+installed **0.5.5/code 17** over personal 0.5.3 with `adb install -r`. The Phase 6
+prototype is excluded. Signature and 16-KiB ZIP alignment passed. Android UID
+**10260**, credential-encrypted data inode **117766** and device-encrypted data
+inode **116002** are unchanged. The personal app was left stopped; no personal
+server access or app-data clearing. Removed only the fixture app/test packages,
+including their test weights. No new functional tests, screenshots or benchmarks
+were run; Pocket and recovery acceptance remains pending.
+
+APK: `build/releases/0.5.5/Bellpull.apk`; SHA-256
+`42c5d4ff4c943bdef7f36bcd064491b374602c9d5fa77143d54e4762a7c847cb`.
+Ignored package/install evidence is under `build/releases/0.5.5/personal-upgrade/`.
+Neither branch pushed. Returned to `feature/phase6-opencode-activity` afterward.
+
+## 2026-10-11 overnight: Phase 5 offline and Phase 6 prelim
+
+- Phase 5: `feature/local-voice-models`, commit `c5dceec`, 0.5.5/code 17.
+  Pocket CPU download/selection/tuning, exclusive model ownership and explicit
+  audio/startup recovery implemented. Compiles ARM64/x86_64. **Further tests,
+  screenshots/lint and device acceptance deferred at user request.**
+- Phase 6: `feature/phase6-opencode-activity`, based on that Phase 5 commit.
+  Source audit and unconnected bounded CLI timeline prototype for OpenCode
+  started by Hermes. No live adapter, network route, runner or plugin update.
+  Pure model and APK compilation passed; regressions remain pending.
+- **Personal phone still 0.5.3/code 15**, stopped. ADB disconnected before
+  the signed 0.5.4 update. Tested signed 0.5.4 APK is retained unchanged locally;
+  it does not contain the newer Pocket implementation. Fixture app/test package
+  and Qwen weights remain pending cleanup when ADB returns.
+- Neither branch pushed. No personal server access, additional phone access,
+  merge or release publication. Push remains gated on the user's green light.
+
+Details: [voice output/evidence and remaining Phase 5 acceptance](VOICE-OUTPUT.md),
+[Phase 5 scope](PHASE-5-VOICE.md), [Phase 6 contracts and acceptance](PHASE-6-OPENCODE.md).
+Actual pre-tool playback ordering still needs a verified host coordination
+mechanism; observed tool announcements cannot provide that guarantee.
+
+
+## 0.5.0 conversational voice preview — 2026-10-11
+
+Branch **`feature/phase5-voice`**, based on Phase 4 commit `a8d49cc`. Android
+**0.5.0/code 12** adds private transcription, installed offline TTS, a
+service-owned conversational loop, reviewed dictation and push-to-talk. It reuses
+the existing conversation, durable admission/recovery, tools and approvals.
+There is no plugin change; projects still require Bellpull plugin 0.3.0.
+See [setup, behavior, limits and manual acceptance](PHASE-5-VOICE.md).
+
+The drawer puts projects and API/CLI/TUI source choices in one filter menu
+immediately left of Search. Compact titles occupy two lines in the existing row
+height, source badges are removed and chat actions sit nearer the right edge.
+Selection, unread/running state, projects, drafts and ongoing runs are retained.
+
+Actual local Android checks: **444 JVM tests passed, one opt-in live smoke
+skipped; 150 screenshot baselines verified; debug/release builds and lint passed**.
+Lint reports 50 warnings and 4 hints, no errors. New tests exercise initial
+playback ordering, streaming sentences, corrections, interruption, queued turns,
+transcription failure/retry, admission persistence/restart, one-run submission,
+push-to-talk release, profile isolation and drawer interaction. The API 29 service
+type guard is source/compile checked; no API 29 device was tested.
+
+Seven isolated device tests passed on the unfolded Pixel 10 Pro Fold / GrapheneOS
+17: installed offline TTS callbacks, actual microphone capture/release/restart,
+foreground-service background survival and notification pause/stop, exact WAV
+transcription wire shape, encrypted settings/progress isolation, keyboard Save,
+installed About version/plugin statuses and drawer touches. Native probes report
+offline `en_US`, available/enabled AEC and no on-device speech recognizer.
+The loopback transcription fixture returns fixed text; it is **not** recognition
+or provider acceptance. No personal server or real inference provider was used.
+
+The cover-display attempt reached keyguard and all three UI tests timed out;
+those are failed/unexecuted UI assertions, **not** a cover-device pass. Cover and
+unfolded screenshot checks passed. The display override was reset; fixture apps,
+ADB reverse ports and local fixture processes were removed afterward.
+
+The signed APK was installed in place over 0.4.0 with the existing signing lineage,
+retaining UID **10260**, without uninstalling/clearing the personal app. Package
+metadata confirms 0.5.0/build 12 and `stopped=true`; the personal app was never
+launched or connected during these checks. Signed APK SHA-256 and all local
+evidence live under ignored `build/releases/0.5.0/`, including a before/after
+screenshot gallery and `verification.json`. APK SHA-256:
+`f83306349dcee524c149d2cf5e99be933e847473937d8509bf4372107c4e58bd`.
+
+This is a preview, not completion of Phase 5. The user must configure a private
+STT URL/key/model. Real recognition, acoustic echo/barge-in, perceived latency,
+physical lock/fold, Bluetooth/car/navigation/calls and real-network behavior need
+manual acceptance. Specific per-tool speech finishing before execution lacks a
+verified host handshake; the implemented guarantee is actual general preamble
+playback before run submission. No fake approval or core patch was added.
+Push the development branch only; no merge or public release. Remote CI evidence
+must be inspected separately; preceding Phase 4 plugin results are baseline
+evidence, not a newly executed plugin test run.
+
+## 0.4.0 Fold acceptance and branch push — 2026-10-11
+
+The user returned ADB and authorized install/test/tweak/push. Android **0.4.0/code
+11** is installed over 0.3.7 through the existing signing lineage, with Android
+UID **10260** retained and no clear/uninstall of the personal app. The personal
+app stayed stopped; personal profiles were not opened and the personal Hermes
+server was not accessed. The server update to **Bellpull plugin 0.3.0** remains a
+manual user action. No merge or public release is part of this work.
+
+Eight guarded test executions passed on the Pixel 10 Pro Fold / GrapheneOS 17:
+files, projects/cache/branch/compaction, two UI checks at each display width,
+conversation sources, and initial-SSE/compaction/restart recovery. The latter
+asserts one admitted inference. A disposable current stock non-Docker Hermes
+checkout and deterministic agent supplied the server; no personal credentials or
+provider calls were used. The actual About screen displayed 0.4.0/build 11 and
+plugin 0.3.0 from fixture discovery, and synthetic old/current plugin statuses
+passed on both displays.
+
+Device review fixed keyboard-obscured editor Save/Cancel and cover startup hiding
+the remembered project overview. New tests cover constrained editor height and
+cover shell startup. Public Android touch/accessibility APIs replaced the new
+UI test's Espresso harness after its Android 17 InputManager reflection failed
+before execution. The real keyboard/Save checks then passed at both widths.
+Final local Android checks: **396 JVM tests passed, one opt-in smoke skipped;
+140 screenshots verified; assemble and lint passed** (45 warnings, 4 hints).
+Plugin implementation is unchanged from the preceding 98/13/3/17 passing runs.
+
+Temporary state overrides selected the actual cover/unfolded displays and were
+reset to the original base state. Density settings were unchanged. Fixture apps,
+forwarding and local server processes were removed. Evidence and signed/plugin
+artifacts are under ignored `build/releases/0.4.0/`; APK SHA-256:
+`b347081c0ca87874b23826c0cb853059bc5e99f947659cbb6cccbe049e90cf53`.
+
+Push target is **`feature/phase4-projects`**, leaving `master` and the 0.3.7 repair
+branch unchanged. The normal Android/plugin workflow validates the pushed branch;
+inspect its result for remote CI evidence. See [Phase 4](PHASE-4-PROJECTS.md) for
+the full verification and stock-install checklist. Actual-provider behavior,
+personal encrypted-profile decoding and physical hinge movement remain user
+acceptance; no compatibility expansion or new dependency was introduced.
+
+## Phase 4 projects — 2026-10-11, ready for device acceptance
+
+Local branch **`feature/phase4-projects`**, based on pushed 0.3.7 commit
+`743dbe4fe758d36d08c02f8c633bd788aa1535e6`. Android **0.4.0/code 11**;
+Bellpull plugin **0.3.0**. The user narrowed Phase 4 to conversation projects,
+then added Settings → About. See [scope, verification and manual acceptance](PHASE-4-PROJECTS.md).
+
+Implemented plugin-authoritative folders with encrypted per-device snapshots,
+single membership, create/rename/description/color/icon, moves/Unfiled, project
+new chats, pinning, archive/restore and safe folder deletion. Projects open to
+their overview; pinned chats precede recent activity. Search explicitly switches
+between the selected scope and All conversations. Archived chats stay globally
+visible. Switching scopes preserves drafts/runs. Compression keeps membership,
+pins and read receipts; ordinary branches remain independently movable.
+Revision conflicts refresh instead of merging stale edits. Uncertain chat
+creation retains its identity across restart for explicit recovery without
+duplicate inference. About reads Android's actual installed version and cached
+plugin versions per saved profile, comparing with app minimum 0.3.0; it performs
+no latest-GitHub-release polling or background connections to other profiles.
+
+Actual local checks: **394 JVM tests passed, one opt-in live smoke skipped;
+139 screenshot baselines verified; Android assemble/lint passed** (45 warnings,
+4 hints, no errors). **98 plugin tests passed** on the extended pinned fixture;
+**13 project + 3 portable tests passed** on unmodified pinned stock Hermes;
+**17 portable/project/native-profile tests passed** on current non-Docker Hermes
+`d4d2ab7`. The primary HTTP workflow survives an adapter restart and real
+compaction/continuation. An additional local stock HTTP acceptance and installer
+preview/apply/backup check passed. Compatibility/license copies match.
+
+The guarded `ProjectsDeviceTest` and fixture APK/test APK compile; device tests
+have **not run**. The personal APK is signed/verified with the existing lineage.
+The user has the phone overnight: **no ADB commands or installations were made**.
+No personal-server access, Phase 4 push, merge or release. No Phase 4 remote CI
+evidence; 0.3.7 CI is previous-baseline evidence only. Local candidate APK, plugin
+bundle, checksums and logs are under ignored `build/releases/0.4.0/`.
+
+Next: return ADB access, run a fresh disposable current-stock helper with
+`--projects`, install only `org.praxisog.hermes.fixture` and its test APK, select
+`ProjectsDeviceTest` explicitly, then inspect both Fold widths, keyboard and About.
+Keep the personal app stopped during fixture tests. Upgrade the personal app only
+with explicit resumed authorization, preserving its UID/data/signing lineage;
+the user installs the plugin on their own server. Physical upgrade, actual provider
+behavior and personal-profile access remain unverified.
+
+Compatibility: metadata is additive in `bellpull-projects/<principal>/` and must
+be backed up with the stable principal/native DB. Old apps/plugins ignore it.
+Current native forks with explicit branch markers inherit; older external forks
+without markers need a move. Selected-message branching retains its existing
+source compatibility gate; no broad native compatibility claim was added. Native
+Hermes clients do not automatically share Bellpull folder metadata. No project
+files, model instructions, task boards or offline write queue were added.
+
+## 0.3.7 audit repair — 2026-10-11
+
+All six audited findings at `8597dbd` were verified and repaired locally on
+`repair/bellpull-plugin-migration`. See [the audit repair report](AUDIT-0.3.6-REPAIR.md)
+for behavior changes, regression results, compatibility limits, CI evidence and
+the stock non-Docker acceptance checklist. The existing prepared 0.3.6 release APK
+predates these repairs. The user subsequently authorized ADB installation and
+pushing 0.3.7. Android is **0.3.7/code 10**, paired with **plugin 0.2.2**. The signed
+in-place phone update preserves the Android UID; three isolated stock-fixture
+device tests cover files, source visibility and stream/compaction/restart recovery.
+The personal app remains stopped during tests. No personal-server access, merge
+or public release is authorized. Actual-provider and personal-profile acceptance
+remain for the user.
+
+## Stock SSE framing caught on the Fold — 2026-10-10
+
+Bellpull **0.3.6 / code 9**, paired with the unchanged **bellpull 0.2.1**
+plugin, supersedes the prepared 0.3.5 APK. ADB acceptance on the separate
+`org.praxisog.hermes.fixture` app exposed an additional client bug: current stock
+`/v1/runs/{id}/events` sends `id:` and `data:` lines, with the event name in JSON,
+and no separate SSE `event:` line. The previous reader silently dropped every
+such frame. The parser now accepts the JSON name when an explicit SSE name is
+absent; legacy explicit names take precedence. JSON sequence validation and
+native `Last-Event-ID` replay remain unchanged. Multi-line data joins with newlines.
+
+Physical Pixel 10 Pro Fold / GrapheneOS Android 17 acceptance used a temporary,
+non-Docker stock checkout at `d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`,
+one Bellpull plugin, and a deterministic test agent. No real inference, personal
+credentials or personal-server access. `tools/stock-device-fixture.py --streaming`
+adds authenticated loopback-only `/fixture/state` and `/fixture/advance` test
+controls so the native run can pause between callbacks. They are not plugin or
+production routes. Native gateway auth, durable run admission, SSE and history
+remain in use. The gateway core files are unchanged.
+
+On the actual unfolded display:
+
+- Real encrypted preferences migrated the old API-only default to All conversations;
+  an explicit CLI selection persisted. API, CLI, TUI and Telegram titles were visible.
+- One native run grew the already-expanded thinking block from **130 to 560
+  characters**, without a conversation selection or duplicate completed preview.
+  The saved native reasoning matched the displayed text byte for byte.
+- Interim prose, a running/completed Read file row and the live answer appeared
+  in the same open chat. The saved reply then appeared and Working/Stop cleared
+  without reselecting the conversation.
+- Six screenshots captured different dot intensities. The only changing pixels
+  inside the paused working row occupied the 17×17-pixel indicator region;
+  response width, separators and corners stayed fixed.
+- Four plugin-served PNGs downloaded on the phone with matching sizes and SHA-256.
+
+The cover-state device check reached the system lock screen. The emulated state
+override was reset; density/size settings were not changed. The user unlocked the
+phone for the final saved-reply check. Cover layout remains verified by JVM
+screenshots, not by this physical run. Fixture app/test packages, their temporary
+USB forwarding and the local fixture process were removed afterward. Personal
+Bellpull was only stopped; its installation, profiles and data were untouched.
+
+Validation: **352 JVM checks passed, one opt-in live smoke skipped; two guarded
+device tests passed; all 125 screenshot baselines verified; Android assemble/lint
+and release signing verification passed**. Existing 72 plugin regressions and
+portable checks from 0.3.5 still apply; plugin implementation did not change.
+New parser tests use actual stock framing, including a pipe held open before
+completion and replay through the durable-run client.
+
+Device evidence: `build/device-review-036/{start,reasoning-first,reasoning-second,
+tool-running,answer-streaming,completed-unfolded}.png`, paired accessibility XML,
+`working-animation.json` and `acceptance.json`. Manual artifacts:
+`build/releases/0.3.6/`. The actual provider and personal signed upgrade still
+await the user's manual installation/report. No publication, push or merge.
+
+## Conversation visibility, live thinking and working row — 2026-10-10
+
+Bellpull **0.3.5 / code 8** and the consolidated **bellpull 0.2.1** plugin are
+prepared on `repair/bellpull-plugin-migration` for the user's manual installation.
+The personal server remains off limits. The user took the phone back during this
+slice; **no ADB commands or device installs were performed for 0.3.5**.
+
+The drawer now defaults to **All conversations**, omitting the native `source`
+filter. A one-time encrypted preference migration retires the previous API-only
+default for existing server profiles; new explicit filters persist per profile.
+Native profile boundaries and nested-session visibility remain unchanged. Local
+stock-adapter and client/store tests include API, CLI, TUI and Telegram sessions.
+This reads Hermes' existing history; it does not import or merge provider history.
+
+The stock durable-run route did not connect the agent's live reasoning callback.
+Its `reasoning.available` event is a completed, 500-character preview. The plugin
+now uses two small, feature-detected adapter-instance callback wrappers to forward
+full reasoning through the native run stream as `reasoning.delta`. Older stock
+factories use the native agent's existing callback attribute. Hermes still owns
+auth, execution, event sequencing/replay, cancellation and persistence; no core
+files or endpoints are replaced. Existing explicit callbacks remain intact,
+duplicate completed previews are suppressed, and unload restores the factories
+and fences late reasoning. Failed route registration restores them too.
+`bellpull_reasoning_streaming` reports availability. Native interim/commentary
+events render once as separate prose segments, respecting `already_streamed`.
+
+The working status is a full-width row inside the response boundary, with the
+same separators and inherited outer corners as thinking/tools/files. Its small
+dot pulses without changing layout and stays still with reduced motion or system
+animations disabled. Tests verify growing thinking in the already-open chat,
+row geometry and changing indicator pixels. Static screenshot capture uses
+reduced motion; the animated case has its own controlled-clock test.
+
+Validation: **350 JVM checks passed, one opt-in live smoke skipped; 125 screenshot
+baselines verified; Android assemble/lint passed; 72 plugin tests passed**.
+Three portable tests also passed on each unmodified stock revision. Real stock HTTP
+tests on unmodified v2026.9.7 and current non-Docker checkout
+`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31` receive more than 500 reasoning
+characters while the run is still running, then the next reasoning step without
+duplicates; request replay stays idempotent and core hashes stay unchanged.
+Inference is replaced by a deterministic fixture, so actual provider streaming
+and the signed upgrade still await the user's manual report.
+
+Review images: `build/ui-review-035/streamingCover-diff.png`,
+`streamingUnfolded-diff.png`, and `conversations-diff.png` (before/after/brightened
+pixel difference). Manual artifacts live in `build/releases/`; signing uses the
+existing release key and preview lineage. No publish, push or merge was performed.
+
+## Stock-install file delivery and streaming repair — 2026-10-10
+
+The user's personal Hermes runs on another box without Docker. **Do not access
+that server.** The user will install this build/plugin manually and report back.
+The locally observed Docker gateway is a playground, not the personal server.
+All subsequent phone tests used `org.praxisog.hermes.fixture` with ADB loopback
+to a temporary, stock local Hermes installation; inference was disabled.
+
+Bellpull **0.3.4 / code 7** now resumes sequenced native run streams using
+`Last-Event-ID`, suppresses duplicate frames, and rejects replay gaps. A restored
+run can recover complete live replay. Successful terminal status waits for its
+saved final assistant row instead of treating stale HTTP-200 history as synced.
+Dropped legacy streams poll canonical history without resending, so the reply
+appears without tapping the conversation again.
+
+The consolidated **bellpull 0.2.0** plugin now provides persistent files and
+lifecycle routes through `register_platform_handler` on stock Hermes. Exact
+core hashes and host extensions no longer gate file sharing. Its native
+`bellpull_share_files` tool prepares a session-private outbox and explicitly
+publishes generated outputs. GPU telemetry stays in this same package; disable
+the separate `bellpull_gpu` plugin when enabling it. Native run admission/auth
+and model routing are unchanged. Input attachments/model overrides remain
+separate optional legacy capabilities, with a visible explanation and draft
+preservation on a stock server.
+
+`tools/install-plugin.py` previews by default, accepts the actual data home,
+backs up outside plugin discovery, and copies only plugin files. It does not edit
+Hermes core or configuration, use Docker, or hardcode a server URL. The stock
+install path is at the top of `plugins/bellpull/README.md`. `server-host/` is now
+explicitly an optional legacy compatibility fixture.
+
+Validation: **343 JVM checks passed, one opt-in live smoke skipped; 123 screenshot
+baselines verified; Android assemble/lint passed; 65 plugin tests passed**.
+Two portable tests additionally passed on both unmodified v2026.9.7 and a fresh
+non-Docker current checkout (`d4d2ab7b5d104166e7e22a02cafd12f1fe456a31`, Python
+3.14). Native discovery, four PNG outputs, authenticated HTTP 200 downloads,
+rejection of wrong keys/unserved profiles, restart persistence, 11 MiB chunked
+uploads, unsafe-output rejection and unchanged core hashes were checked. The
+current checkout's tracked files remain clean; only the plugin was added.
+
+The physical Fold fixture test passed: four 68-byte PNG downloads each matched
+SHA-256 `431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460`.
+ADB extraction independently confirmed the bytes. A pending file/text draft was
+preserved and nothing sent when chat attachments were unsupported. Manual ADB
+taps verified the file list and PNG preview on the unfolded display. Cover/wide
+unsupported-state screenshots were inspected. Espresso's Compose test rule is
+incompatible with this Android 17 InputManager surface, so the device test uses
+the AndroidX runner without Espresso; UI taps use ADB.
+
+Before the user requested manual installation, the original preview-to-release
+0.3.4 signing transition installed in place successfully and both encrypted
+server profiles remained accessible. A private pre-upgrade backup is outside
+Git. The final repaired APK is for **manual** installation; it has not been
+installed into the personal app or deployed to the personal server. Actual
+server acceptance, real provider streaming and natural physical cover use await
+the user's report. No publish, push or merge was performed.
+
+## Repair and plugin migration — 2026-10-10
+
+Branch **`repair/bellpull-plugin-migration`**, based on heading-alignment checkpoint
+`032486e` / upstream `e41f151`. The user authorized execution of
+`Bellpull-Repair-and-Plugin-Migration-Changelist.txt`, approved CommonMark Java
+0.30.1 plus tables, and selected **MIT** for Bellpull's own code. The original txt
+is retained as the investigation/proposal snapshot; this entry records execution.
+Phase 4 expansion and importing/merging provider history remain deferred.
+
+Android **0.3.4 (code 7)** now has native Markdown answers (headings, emphasis,
+lists, links, tables, code-block copying), title-only conversation navigation and
+dense defaults, optional larger labeled navigation controls, consistent Info /
+Session info wording, deliberate API/CLI/TUI/all-source selection, and complete
+saved-transcript paging. Existing stored density preferences remain respected.
+Global search says it searches loaded titles/previews; chat search and View prompts
+receive the completely loaded saved transcript. Raw whole-message copy and native
+selection remain available. Stream scroll/follow regressions pass.
+
+Artifact UI adds quota/collection warnings, confirmed deletion, unavailable/deleted
+history references and branch attachment aliases. Local draft files are protected
+from housekeeping. Terminal/history-synced run records expire after 30 days;
+ambiguous, outstanding and unsynced runs are retained.
+
+`plugins/bellpull/` is one installable package for branch/edit, files, models,
+notifications and optional telemetry. `server-host/` supplies the small proposed
+local native contract against exactly pinned Hermes v2026.9.7 / internal 0.21.1.
+It preserves the native run engine; no adapter method replacement or native static
+flag mutation. Exact source checks disable unsupported combinations. Android merges
+versioned plugin discovery with native structured run capabilities. Stable artifact
+identity survives bearer rotation; explicit offline migration preserves legacy
+IDs/content/metadata and old namespaces. New per-run output folders avoid old-file
+starvation. Plugin unload/shutdown closes notification and paging resources.
+
+Read-only production investigation found `/opt/data` backed by `~/hermes-data`,
+with **47 API, 7 CLI, 1 TUI conversations and 545 messages** at inspection. The
+former API-only source filter hid CLI/TUI chats. This is evidence about the inspected
+default home, not proof of device acceptance or of every possible profile's history.
+No live config/data/container changes or new inference were made for this repair.
+
+Validation: **336 JVM tests passed, one opt-in live smoke skipped; 121 screenshot
+baselines verified; debug APK and lint passed (zero errors, 39 warnings, four hints).
+63 isolated plugin/native tests pass** using real aiohttp, SQLite, plugin discovery,
+native adapter startup/shutdown, and fake inference, with no production mounts or
+network access. They cover >50-chat/>500-message activity-stable paging, compression,
+auth/profile isolation, exact branches and transaction rollback, migration/rotation,
+quotas, interrupted uploads, repeated outputs, admission races and full slots,
+restart recovery, opt-in/default/parallel/timeout approvals, and unload cleanup.
+Rendered cover/unfolded, dark/light and 1.5x text layouts were inspected; the dense
+conversation before/after diff is under ignored
+`android/app/build/repair-review/conversation-diff.png`.
+
+CI has Android test/screenshot/APK/lint and isolated plugin jobs with pinned actions,
+read-only permissions, no signing secrets, inference or deployment. Equivalent job
+commands passed locally; the GitHub-hosted workflow has not run because this branch
+has not been pushed. Release instructions are in `docs/release.md`.
+
+A dedicated RSA-4096 release key and the preview-to-release signing lineage were
+prepared outside Git in `~/.config/bellpull/signing` (0700, private files 0600).
+The original public preview certificate was checked against the downloaded 0.3.3
+APK. The release APK verifies for the supported Android range; this does not prove
+an actual on-device upgrade. No second-device/offline key backup has been made.
+Private signing material must be backed up before publishing.
+
+**Remaining acceptance work:**
+
+- ADB currently reports **no attached device**. Connect and unlock the Fold to
+  verify the in-place signing upgrade, existing profiles/drafts/settings, Markdown,
+  source selection, compact/labeled controls and natural fold/unfold behavior.
+- The thin plugin image is built locally as `bellpull:plugin-repair`; production
+  still uses the legacy overlay image. Prepare a maintenance-window data backup,
+  review migration dry-run, then obtain deployment approval before stopping writers,
+  migrating artifacts or changing the live image/config. Perform harmless authorized
+  production model/file/approval/notification parity checks after migration.
+- Keep `server-patches/` and the old final image as rollback until parity is accepted.
+  Neither remote branch publication nor an APK release has been performed.
+
+Current authorities: `plugins/bellpull/README.md` for install/migrate/rollback,
+`docs/hermes-api.md` for wire contracts, `docs/release.md` for signing/upgrades.
+The older chronological entries below describe earlier releases and decisions;
+this entry supersedes their default density, labeling and backend setup statements.
+
+## Conversations heading matches chat titles — 2026-10-10
+
+Branch `ui/align-conversations-heading` starts from tested checkpoint `e41f151`.
+The drawer's Conversations heading now aligns with the chat title text inside
+the cards, using the same `titleMedium` typography (15 sp, semibold). Standard
+and immersive headers use the cards' 8 dp outer inset plus 14 dp inner padding;
+the immersive header retains its camera avoidance and existing search position.
+This reflects the user's refinement from aligning with the cards' outer edge.
+
+Validation: 316 JVM tests passed, one opt-in live smoke skipped; all 113 screenshot
+baselines verified; APK/lint passed with zero errors, 36 warnings and four hints.
+All 29 updated snapshots differ only around the heading. Cover/dark and unfolded
+before/after images were inspected. The updated debug APK was installed in place
+on the naturally unfolded Pixel 10 Pro Fold: the heading and six visible chat
+titles all start at x=61 px. Private captures/geometry remain in ignored
+`android/app/build/device-tests/heading-align/`; fictional before/after comparisons
+are in `android/app/build/heading-align/`. Physical folding was not exercised.
+The app remains version 0.3.3 (code 6); this is a local branch checkpoint.
 
 ## Tool and artifact rows share the response outline — 2026-10-10
 

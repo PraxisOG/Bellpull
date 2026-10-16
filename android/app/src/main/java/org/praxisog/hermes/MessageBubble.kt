@@ -39,6 +39,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
     reading: Boolean = false, onRead: (Message) -> Unit = {}, onBranch: (Message) -> Unit = {},
     canBranch: Boolean = false, onFollowUp: ((Message) -> Unit)? = null,
     canEdit: Boolean = false, onEdit: (Message) -> Unit = {},
+    onInfo: ((Message) -> Unit)? = null,
     content: (@Composable () -> Unit)? = null) {
     val user = message.role == "user"
     // Freeze the selected text while streaming continues behind the menu.
@@ -49,7 +50,8 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             shape = if (user) RoundedCornerShape(18.dp) else ResponseBubbleShape,
             border = if (user) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {},
-                onLongClickLabel = "Message actions", onLongClick = { selected = message })
+                onLongClickLabel = "Message actions",
+                onLongClick = { selected = message })
                 .semantics { contentDescription = if (user) "Your message" else "Hermes response" }) {
             if (!user && content != null) CompositionLocalProvider(LocalInResponseBubble provides true) {
                 content()
@@ -57,9 +59,9 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (user && !dense) Text("You", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary)
-                if (content != null) content() else Text(
-                    if (user) message.content.orEmpty() else transcriptText(message.content.orEmpty()),
-                    style = MaterialTheme.typography.bodyLarge)
+                if (content != null) content()
+                else if (user) UserMessageText(message.content.orEmpty())
+                else Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge)
                 if (user && !dense && onFollowUp != null) Row {
                     TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
                     if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
@@ -71,7 +73,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             selected?.let { target ->
                 if (user) UserMessageActions(target, onSelectText, onFollowUp, onEdit, canEdit, { selected = null })
                 else MessageActions(target, reading, onRead, onBranch, canBranch, onFollowUp,
-                    onSelectText, onAction = { selected = null })
+                    onSelectText, onInfo = onInfo?.let { info -> { info(target) } }, onAction = { selected = null })
             }
         }
     }

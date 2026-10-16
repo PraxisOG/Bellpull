@@ -37,10 +37,9 @@ internal fun ConversationToolbar(
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
     val navigate: @Composable () -> Unit = {
-        IconButton(onClick = onNavigate, modifier = Modifier.semantics {
-            contentDescription = if (!sideBySide) "Back to sessions"
+        NavigationAction("Chats", onNavigate, description = if (!sideBySide) "Back to sessions"
                 else if (showList) "Hide sessions" else "Show sessions"
-        }) {
+        ) {
             Canvas(Modifier.size(20.dp)) {
                 val stroke = 2.dp.toPx()
                 if (sideBySide) {
@@ -61,7 +60,7 @@ internal fun ConversationToolbar(
                 NewChatButton(onNewSession, creatingSession, highlighted = false)
                 Box {
                     val actionTint = MaterialTheme.colorScheme.primary
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.semantics { contentDescription = "More options" }) {
+                    NavigationAction("More", { menuOpen = true }, description = "More options") {
                         Canvas(Modifier.size(20.dp)) {
                             listOf(.15f, .5f, .85f).forEach { y -> drawCircle(actionTint, 1.8.dp.toPx(), Offset(center.x, size.height * y)) }
                         }
@@ -105,10 +104,10 @@ internal fun ConversationToolbar(
 @Composable
 internal fun NewChatButton(onClick: () -> Unit, creating: Boolean, highlighted: Boolean = true) {
     val tint = MaterialTheme.colorScheme.primary.copy(alpha = if (creating) .38f else 1f)
-    IconButton(onClick = onClick, enabled = !creating,
+    NavigationAction("New chat", onClick = onClick, enabled = !creating,
         modifier = Modifier.testTag("toolbar-new-chat")
             .then(if (highlighted) Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape) else Modifier)
-            .semantics { contentDescription = if (creating) "Starting new chat" else "New chat" }) {
+            , description = if (creating) "Starting new chat" else "New chat") {
         Canvas(Modifier.size(20.dp)) {
             drawLine(tint, Offset(center.x, 0f), Offset(center.x, size.height), 2.dp.toPx(), StrokeCap.Round)
             drawLine(tint, Offset(0f, center.y), Offset(size.width, center.y), 2.dp.toPx(), StrokeCap.Round)

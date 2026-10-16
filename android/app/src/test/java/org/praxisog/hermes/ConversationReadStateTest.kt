@@ -29,4 +29,15 @@ class ConversationReadStateTest {
         receipts.completed("a", 11)
         assertTrue(receipts.unreadIds.isEmpty())
     }
+
+    @Test fun continuationReadClearsOlderAliasWithoutReadingNewerReplyOrBranch() {
+        val receipts = ConversationReadState()
+        receipts.completed("root", 10)
+        receipts.completed("tip", 20)
+        receipts.completed("branch", 9)
+        receipts.readThroughAliases(setOf("root", "tip"), 10)
+        assertEquals(setOf("tip", "branch"), receipts.unreadIds)
+        receipts.readThroughAliases(setOf("root", "tip"), 20)
+        assertEquals(setOf("branch"), receipts.unreadIds)
+    }
 }

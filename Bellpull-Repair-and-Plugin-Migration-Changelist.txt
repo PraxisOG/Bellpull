@@ -1,0 +1,350 @@
+BELLpull repair and plugin migration changelist
+Investigation date: 2026-10-10
+Status: PROPOSED WORK. No application, production, or remote repository changes made.
+
+Reviewed:
+- PraxisOG/Bellpull master at e41f151170891b563cddcd101e85288ef0ae5bdb
+- NousResearch/hermes-agent v2026.9.7 at 2237be355906fbe6065ce1815711eee52b2d646e
+- Additional comparison with upstream main at 66605471e9f0b0832abbefaf625ce08e948ca540
+
+PURPOSE AND PRIORITIES
+
+The primary product goal is compact, efficient conversation presentation.
+Keep the user's visual direction, dense default, and collapsible panels.
+Add an optional mode with larger icons and labels. Do not redesign the app
+around large cards or permanent panels. Substantial offline work is deferred.
+
+The strongest existing work deserves preservation: durable run recovery,
+careful authentication and ownership checks, atomic branch/edit behavior,
+and substantial attention to the native interface. Existing automated tests
+and the author's GUI testing both matter. Neither replaces the other.
+
+My backend assessment: the main weakness is upgrade and integration debt,
+rather than evidence that the entire backend is badly built. Four successive
+source-overlay images make the deployed implementation harder to upgrade and
+audit. Artifacts have specific lifecycle flaws. The evidence does not justify
+a wholesale backend rewrite. Production behavior has not been independently
+validated during this investigation.
+
+AGREED REPAIR LIST
+
+1. PRIORITY 1: ANSWER PRESENTATION
+   Improve assistant reply rendering for headings, emphasis, lists, links,
+   tables, inline code, and fenced code. Provide per-block code copying and
+   preserve whole-message copying and text selection.
+   Keep presentation dense. Handle long lines with horizontal scrolling where
+   appropriate, especially code and wide tables. Do not force chat-wide
+   horizontal scrolling or turn every reply into a large card.
+   Verify partially streamed Markdown, long replies, dark/light themes,
+   text scaling, selection, and scroll position while a reply grows.
+   Completion: representative model answers are readable without exposing
+   ordinary Markdown syntax as the primary presentation.
+
+2. PRIORITY 1: DENSE NAVIGATION AND OPTIONAL LABELED CONTROLS
+   Offer a vertical title-only conversation list without previews or stats.
+   Preserve the current compact visual direction and panel hide controls.
+   Add an optional larger-icon/labeled mode for discoverability and usability.
+   Standard icons do not need wholesale replacement.
+   Keep accessible names, touch targets, keyboard/focus behavior, and text
+   scaling compatible with the dense default.
+   Completion: both compact and labeled modes work on narrow and wide layouts.
+
+3. PRODUCTION HISTORY VISIBILITY
+   Investigate why the production instance showed no old conversations.
+   Confirm the selected server, profile, database mount, API permissions,
+   source filters, and session lineage behavior before assuming data loss.
+   Confirmed code fact: HermesStore defaults to source="api_server", so chats
+   created by CLI or other platforms can be excluded.
+   Provide a deliberate way to inspect permitted conversations from other
+   sources, with understandable labels and an accurate empty state.
+   Treat this separately from pagination; fixing only one may leave chats
+   invisible.
+   Completion: old production chats are visible under the intended profile
+   and source scope, without copying or exposing another user's history.
+
+4. PAGINATION AND COMPLETE HISTORY
+   Implement server/client paging for conversation lists and saved messages.
+   The inspected pinned server defaults to 50 sessions and up to 500 messages;
+   the client currently requests lists/history without implementing paging.
+   Use stable ordering and a supported cursor or offset contract. Merge pages
+   without duplicates, gaps, or losing the selected conversation.
+   Loading older messages must preserve the scroll anchor. Refresh must not
+   discard already loaded history or make old chats unreachable.
+   Search and "view prompts" must clearly distinguish loaded-page results
+   from complete-history results; preferably support complete-history search.
+   Completion: test more than 50 conversations and more than 500 messages,
+   including new activity arriving between page requests and compressed chats.
+
+5. ARTIFACTS: GIVE THE FEATURE A COMPLETE LIFECYCLE
+   a. Decouple persistent artifact ownership from the current bearer secret.
+      Current storage namespace derives from the native idempotency scope,
+      which includes key/profile identity. Rotating the key can leave old
+      artifacts on disk but inaccessible through the new namespace.
+      Introduce a stable authorized principal/profile identity and an explicit
+      migration. Do not remove ownership isolation to make old files visible.
+   b. Fix generated-file collection. The current collector examines only the
+      first 64 alphabetically sorted directory entries in a persistent
+      conversation output directory. Old entries can starve new results.
+      Track output changes or use run-specific directories and a bounded queue.
+   c. Surface collection failures, quota exhaustion, unavailable files, and
+      partial upload failures. Current collector catches OSError/ArtifactError
+      and silently continues. Preserve valid outputs while showing useful
+      failure information.
+   d. Add an explicit delete/retention policy, quota visibility, orphan cleanup,
+      interrupted-upload cleanup, and Android temporary/cache-file cleanup.
+   e. Define branch/edit behavior for attachment references and generated
+      outputs. Preserve authorization and immutable historical downloads.
+   f. Preserve existing digest checks, retry identity, bounded streaming,
+      rejection of unsafe paths/symlinks/hardlinks, and immutable artifact copies.
+   Completion: key rotation, gateway restart, full quota, more than 64 existing
+   output entries, repeated runs, branch/edit, and interrupted upload are covered.
+
+6. INFORMATION LABELS
+   Rename the panel heading "Context" to "Info".
+   Retain "Session info" as the corresponding menu wording.
+   Keep the existing view-prompts and chat-search tools; the author already
+   uses them for inspection. Do not misrepresent session metadata as a complete
+   view of the model's effective context.
+   Completion: labels are consistent across panel, menus, and narrow layouts.
+
+7. BACKEND CONSOLIDATION: ONE BELLpull PLUGIN
+   Move Bellpull-owned endpoints and logic into one installable Hermes plugin,
+   with a tested compatibility matrix, explicit capabilities, configuration,
+   data migration, installation/upgrade instructions, and rollback procedure.
+   Preserve the native durable run system and security semantics.
+   Detailed feasibility and staging are below.
+   Completion: a clean installation on a declared Hermes version reproduces
+   all supported Bellpull features without the four historical source overlays.
+
+8. MAINTENANCE AND RELEASE RELIABILITY
+   Prune completed run-journal records after a defined retention window.
+   Preserve outstanding/ambiguous runs until reconciliation finishes; do not
+   remove recovery records merely because the app restarted.
+   Add reliable CI for appropriate Android, plugin, API, artifact, and branch
+   regressions. Keep meaningful GUI/device testing.
+   Establish stable release signing and documented release/upgrade steps.
+   Add a clear license for Bellpull's own code; the copied Hermes code already
+   carries its upstream license, which does not settle licensing for the app.
+   Consolidate authoritative setup/API/handoff documentation and remove stale
+   contradictions.
+   Completion: repeatable releases and bounded journal growth with recovery
+   behavior preserved.
+
+DOCKER-TO-PLUGIN INVESTIGATION
+
+Current chain:
+  nousresearch/hermes-agent:v2026.9.7
+  -> selected-reply-fork
+  -> bellpull-edit-fork
+  -> bellpull-phase2
+  -> bellpull-phase3
+
+These are four custom build layers and one final Hermes container, not four
+concurrently running Hermes services. The upstream api_server.py checksum
+matches the first patch bundle's original source exactly.
+
+A Docker image and a Hermes plugin are different things. You can package the
+Bellpull extensions as one plugin and continue running Hermes in Docker.
+Removing the image chain primarily reduces maintenance and upgrade fragility;
+it does not inherently eliminate four running processes or make inference
+faster. The existing ntfy broker remains a separate runtime dependency if
+that notification design is retained. "One plugin" means one Bellpull package,
+not necessarily one process or zero external services.
+
+SUPPORTED MECHANISM ALREADY PRESENT
+
+Hermes v2026.9.7 exposes:
+  ctx.register_platform_handler("api_server", factory)
+
+The API server calls factories with its aiohttp application and adapter before
+the router freezes. A plugin can therefore add its own HTTP routes. It must
+perform authentication and respect the native profile scope. The adapter is
+documented as read-only.
+
+Bellpull's existing bellpull_gpu plugin already uses this mechanism for an
+authenticated endpoint, including the /p/{profile} route form. The historical
+image patches are not evidence that Hermes could not support plugins.
+
+FEATURE-BY-FEATURE DISPOSITION
+
+Branch at an assistant reply:
+  PROVEN CANDIDATE. Plugin-owned handlers can add the existing endpoint.
+  Local isolated prototype passed the existing behavioral regressions using
+  unmodified upstream Hermes and a disposable real SessionDB.
+
+Edit by branching before a user message:
+  PROVEN CANDIDATE. Same mechanism; covered by the prototype.
+
+GPU telemetry:
+  ALREADY A PLUGIN. Fold it into the single Bellpull package as an optional
+  feature or keep it separate if independently useful.
+
+Model catalog and model-selection HTTP endpoints:
+  STRONG CANDIDATE. Endpoint registration is available. Actual run-time
+  application of model locks and provider-specific reasoning options is a
+  separate integration problem.
+
+Artifact upload/list/download endpoints and persistent store:
+  STRONG CANDIDATE. Code is already largely separated into modules.
+  Fix artifact lifecycle issues before treating migration as completion.
+
+Notification SSE relay endpoint:
+  STRONG CANDIDATE. A plugin can own the authenticated relay and resources.
+  Producing complete, scoped native run-status notifications still needs an
+  integration point or an explicitly designed observer.
+
+Native /v1/capabilities advertisement:
+  NEEDS CLIENT/CONTRACT WORK. Current patches modify static native flags.
+  A plugin can expose its own versioned /api/bellpull/capabilities endpoint and
+  Android can query it. Extending native discovery would need a supported
+  core registration API. Do not mutate a private global flag dictionary.
+
+Attachment preparation during native runs:
+  NEEDS A HOST SEAM. The patch prepares actual multimodal input, applies
+  ephemeral instructions, associates artifacts with run IDs, and persists
+  the plain user prompt rather than the expanded attachment payload.
+  Merely adding upload endpoints does not reproduce this behavior.
+
+Generated-output capture and notifications:
+  NEEDS A HOST SEAM OR A CAREFULLY LIMITED OBSERVER. Session-end hooks exist,
+  but they do not by themselves give the complete authenticated run identity,
+  admission/replay behavior, or all restart/status transitions.
+
+25 MiB binary uploads:
+  NEEDS A BODY-LIMIT CONTRACT OR A DIFFERENT UPLOAD PROTOCOL. The unmodified
+  native request middleware rejects Content-Length above 10,000,000 bytes
+  before a plugin handler runs. Bellpull explicitly patches an exception for
+  its upload paths. Endpoint registration alone does not bypass that limit.
+
+Interactive approvals on the pinned version:
+  NEEDS HOST SUPPORT. Bellpull changes request-scoped approval context in the
+  native run worker and approval policy. Registering a plugin approval
+  transport supplies a presentation surface; it does not itself authorize
+  API runs to leave the unattended policy branch.
+
+Interactive approvals on inspected newer upstream main:
+  PARTLY SUPERSEDED. Upstream now recognizes a registered API approval
+  notifier in its approval-presence logic, while retaining restrictions for
+  other unattended surfaces. This may remove some Bellpull-specific code.
+  It does not establish identical behavior to Bellpull's explicit Boolean
+  per-run opt-in. Verify gateway configuration, all relevant tool gates,
+  default behavior for legacy clients, per-run ownership, and timeout/reset
+  behavior before selecting a new supported release.
+
+WHY EXISTING PLUGIN HOOKS DO NOT SOLVE EVERYTHING
+
+The inspected plugin middleware kinds concern tools and LLM requests/
+execution. pre_api_request hooks refer to outbound model-provider calls,
+not the incoming Hermes REST run request. Gateway-dispatch hooks concern
+gateway MessageEvents, not automatic interception of native /v1/runs.
+
+A plugin could technically wrap private adapter methods or manipulate
+aiohttp internals. That can put the code into one directory, but it carries
+forward the same private API dependencies and can break silently after an
+upgrade. I do not recommend calling that a finished maintainability repair.
+
+The demonstrated branch implementation still uses private SessionDB helpers
+and the database schema. It needs version checks and regression coverage,
+or ideally an upstream public atomic prefix-branch operation. Moving it into
+a plugin reduces deployment coupling; it does not remove every dependency.
+
+RECOMMENDED MIGRATION CHANGELIST
+
+Stage A: preserve current behavior and establish contracts
+- Freeze a known supported Hermes/plugin pair and record exact versions.
+- Keep the current final image as rollback while migration is validated.
+- Write one feature contract and remove contradictory setup instructions.
+- Define stable artifact ownership and migration before changing storage.
+
+Stage B: create one plugin package without replacing core methods
+- One manifest and register(ctx), with internal modules for branches, models,
+  artifacts, notifications, and optional telemetry.
+- Use native profile/auth helpers through a narrow versioned compatibility
+  layer. Fail closed when expected authentication or compatibility is absent.
+- Add /api/bellpull/capabilities with plugin version and per-feature flags.
+- Wire both ordinary and profile-prefixed endpoints.
+- Have Android disable unsupported actions with a useful explanation.
+- Move the proven branch/edit handlers first; then the independent endpoints.
+- Make tasks/connections/temporary files clean up on plugin unload/shutdown.
+
+Stage C: supply the missing generic Hermes extension points
+- Propose a typed, authenticated native-run preparation contract for admitted
+  new runs. Preserve the original request fingerprint; replay must return the
+  original run even when files/configuration changed or concurrency is full.
+- Let preparation return validated execution input, persisted user text,
+  ephemeral instructions, model options/lock state, and scoped plugin metadata.
+- Define behavior for simultaneous admission attempts. Preparation must not
+  create duplicate side effects if another request wins the atomic reservation.
+- Add scoped native run lifecycle/status callbacks, including failed,
+  cancelled, interrupted, and waiting-for-approval paths.
+- Provide per-route bounded upload policy or adopt chunked/resumable uploads
+  whose individual requests respect the host limit and total quota.
+- Reuse newer upstream approval behavior where it passes Bellpull's contract;
+  otherwise propose explicit request-scoped opt-in rather than a global bypass.
+- Keep host authorization, durable admission, idempotency, concurrency,
+  cancellation, and approval decision policy owned by Hermes.
+
+Stage D: validate migration and remove historical build layers
+- Test native run replay after lost acceptance, process restart, concurrent
+  retries, changed-payload conflicts, and a full concurrency slot.
+- Test unauthorized/cross-profile artifact, branch, run, and approval access.
+- Test parallel approvals, opt-in/default behavior, timeout, and context reset.
+- Test plain-prompt persistence alongside multimodal execution, generated
+  artifacts, model locks, reasoning controls, cancellation, and retention.
+- Test a fresh installation, existing-data upgrade, and rollback.
+- Only after parity, retire the source-copy image chain. A thin pinned Docker
+  image that installs one plugin remains a reasonable deployment option.
+
+VALIDATION ACTUALLY PERFORMED HERE
+
+- Verified the pinned upstream API source against Bellpull's original snapshot.
+- Inspected patch diffs, native route wiring, plugin APIs, and relevant newer
+  upstream run/approval implementations.
+- Ran an isolated prototype using real PluginContext registration, unmodified
+  native APIServerAdapter, aiohttp test server, and disposable real SessionDB.
+- 15 branch/edit behavioral regressions passed: auth, exact transcript prefix,
+  source preservation, compressed-session resolution, model/system-prompt
+  preservation, title conflicts, invalid/foreign selections, rollback,
+  concurrent same-ID requests, and tool-call boundaries.
+- Native static capability advertisement was deliberately excluded from that
+  prototype because it requires separate discovery integration.
+- Six existing standalone artifact-store tests passed.
+- Earlier focused review reproduced key-derived artifact namespace changes
+  and generated-file starvation beyond the first 64 directory entries.
+- This is a feasibility prototype, not a shipped plugin or a full gateway
+  startup/production migration test. No production instance was accessed.
+- Android build/device behavior was not independently executed here.
+
+OVERALL RECOMMENDATION
+
+Aim for one Bellpull plugin plus the smallest generic upstream hooks needed
+to preserve native behavior. Start with the proven branches and independent
+endpoints. Reassess the approval patch against a tested newer Hermes release.
+Do not rewrite the durable run engine simply to achieve "one plugin".
+Keep chat presentation and history usability at the top of the product list.
+
+Deferred: significant offline functionality, saved-answer/project expansion,
+and other major new workflows until the repaired base is reliable.
+
+PRIMARY SOURCE LINKS
+
+Bellpull reviewed commit:
+https://github.com/PraxisOG/Bellpull/tree/e41f151170891b563cddcd101e85288ef0ae5bdb
+
+Image-chain description and patch bundles:
+https://github.com/PraxisOG/Bellpull/tree/e41f151170891b563cddcd101e85288ef0ae5bdb/server-patches
+
+Existing native Bellpull plugin:
+https://github.com/PraxisOG/Bellpull/tree/e41f151170891b563cddcd101e85288ef0ae5bdb/plugins/bellpull_gpu
+
+Pinned Hermes plugin API:
+https://github.com/NousResearch/hermes-agent/blob/2237be355906fbe6065ce1815711eee52b2d646e/hermes_cli/plugins.py
+
+Pinned Hermes native API server:
+https://github.com/NousResearch/hermes-agent/blob/2237be355906fbe6065ce1815711eee52b2d646e/gateway/platforms/api_server.py
+
+Newer upstream approval behavior:
+https://github.com/NousResearch/hermes-agent/blob/66605471e9f0b0832abbefaf625ce08e948ca540/tools/approval.py
+
+Newer upstream native runs:
+https://github.com/NousResearch/hermes-agent/blob/66605471e9f0b0832abbefaf625ce08e948ca540/gateway/platforms/api_server_runs.py

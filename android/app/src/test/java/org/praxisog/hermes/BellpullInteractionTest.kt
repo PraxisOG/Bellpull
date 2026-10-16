@@ -20,13 +20,14 @@ class BellpullInteractionTest {
     private val drafts = ChatDrafts()
     private var id by mutableStateOf(UiFixtures.sessions.first().id)
     private var preferences by mutableStateOf(BellpullPreferences())
+    private var accepts = true
     private var sends = 0
 
     private fun app(history: List<Message> = emptyList()) {
         compose.setContent {
             HermesApp(UiState.Ready(UiFixtures.sessions), UiState.Ready(history), TurnState.Idle,
                 id, UiFixtures.sessions.first { it.id == id }, UiFixtures.NOW,
-                onOpenSession = { id = it }, onCloseSession = {}, onSend = { sends++ }, onStop = {},
+                onOpenSession = { id = it }, onCloseSession = {}, onSend = { sends++; accepts }, onStop = {},
                 onRetrySessions = {}, onRetryHistory = {}, onNewSession = {},
                 draft = drafts[id], onDraftChange = { drafts.set(id, it) }, preferences = preferences,
                 onPreferencesChange = { preferences = it })
@@ -41,6 +42,7 @@ class BellpullInteractionTest {
         compose.onAllNodesWithText("Tailscale routing for the Fold").onFirst().performClick()
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Display").performClick()
         compose.onNodeWithText("Collapse thinking by default").assertIsDisplayed()
         compose.onNodeWithText("Chats").performClick()
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
@@ -57,6 +59,7 @@ class BellpullInteractionTest {
 
     @Test fun followUpQuotesIntoAnEditableDraftWithoutSending() {
         app(listOf(Message(91, role = "assistant", content = "Use the green wire.")))
+        compose.onNodeWithText("Use the green wire.").performTouchInput { longClick() }
         compose.onNodeWithContentDescription("Follow up").performClick()
         compose.onNodeWithText("Quote selection").performClick()
         compose.onNodeWithContentDescription("Message Hermes").assertTextContains("message #91", substring = true)
@@ -73,6 +76,19 @@ class BellpullInteractionTest {
         assertEquals(1, sends)
     }
 
+    @Test fun acceptedSendClearsFocusAndRejectedSendPreservesFocusAndDraft() {
+        app()
+        val field = compose.onNodeWithContentDescription("Message Hermes")
+        field.performClick().performTextInput("Keep until accepted")
+        field.assertIsFocused()
+        accepts = false
+        compose.onNodeWithText("Send").performClick()
+        field.assertIsFocused().assertTextContains("Keep until accepted", substring = true)
+        accepts = true
+        compose.onNodeWithText("Send").performClick()
+        field.assertIsNotFocused().assertTextContains("Keep until accepted", substring = true)
+    }
+
     @Test fun thinkingDefaultsCollapsedAndLocalExpansionWorks() {
         app(listOf(Message(92, role = "assistant", content = "Answer", reasoningContent = "Recorded reasoning")))
         compose.onNodeWithText("Recorded reasoning").assertDoesNotExist()
@@ -83,6 +99,7 @@ class BellpullInteractionTest {
     @Test fun themesApplyAndCustomColorValidatesBeforeSaving() {
         app()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Appearance").performClick()
         compose.onNodeWithText("Maroon").performClick()
         assertEquals(Palette.MAROON, preferences.palette)
         compose.onNodeWithText("Black").performClick()
@@ -100,6 +117,7 @@ class BellpullInteractionTest {
     @Test @Config(sdk = [29]) fun wallpaperChoiceExplainsOlderAndroidLimit() {
         app()
         compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Appearance").performClick()
         compose.onNodeWithText("Android wallpaper").assertIsNotEnabled()
         compose.onNodeWithText("Wallpaper colors require Android 12 or later.").assertIsDisplayed()
     }

@@ -1,0 +1,191 @@
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -795,7 +795,8 @@
+             cl = request.headers.get("Content-Length")
+             if cl is not None:
+                 try:
+-                    if int(cl) > MAX_REQUEST_BYTES:
++                    from gateway.platforms.api_server_extensions import incoming_body_limit
++                    if int(cl) > incoming_body_limit(request, MAX_REQUEST_BYTES):
+                         return _error_response("Request body too large.", 413, code="body_too_large")
+                 except ValueError:
+                     return _error_response("Invalid Content-Length header.", 400, code="invalid_content_length")
+@@ -2147,6 +2148,10 @@
+             "gateway_session_key": gateway_session_key}
+         if request_service_tier is not _REQUEST_OPTION_MISSING:
+             agent_kwargs["service_tier"] = request_service_tier
++        from gateway.platforms.api_server_extensions import transport_options
++        wire_options = transport_options(self, runtime_kwargs.get("provider"), model, model_options)
++        if wire_options:
++            agent_kwargs["request_overrides"] = {**(agent_kwargs.get("request_overrides") or {}), **wire_options}
+         agent = AIAgent(**agent_kwargs)
+         route_source = (
+             "session_model_lock" if confirmed_runtime_lock
+@@ -2246,6 +2251,8 @@
+                 "responses_api": True, "responses_streaming": True, "run_submission": True,
+                 "runs_idempotency": _api_runs._idempotency_capabilities(self, store_type=RunIdempotencyStore),
+                 **_STATIC_FEATURE_FLAGS,
++                "run_interactive_approvals": True,
++                "api_extension_host_v1": True,
+                 "cors": bool(self._cors_origins),
+                 # Always advertised for feature-detection; enabled follows config.
+                 "browser_extension_control": {
+--- a/gateway/platforms/api_server_runs.py
++++ b/gateway/platforms/api_server_runs.py
+@@ -10,6 +10,7 @@
+ from contextlib import suppress
+ from dataclasses import dataclass
+ from typing import Any, Callable, Dict, List, Optional
++from gateway.platforms.api_server_extensions import PreparedRun
+ 
+ try:
+     from aiohttp import web
+@@ -141,6 +142,8 @@
+             self._run_idempotency_store.update_status(run_id, current)
+         except Exception:
+             logger.exception("[api_server] failed to persist idempotent run status %s", run_id)
++    from gateway.platforms.api_server_extensions import status_changed
++    status_changed(self, run_id, current)
+     return current
+ 
+ 
+@@ -233,8 +236,9 @@
+     if record is None:
+         return None
+     status = dict(record["status"])
+-    if status.get("status") not in TERMINAL_STATUSES and not _owner_alive(
+-        int(record.get("owner_pid") or 0), int(record.get("owner_started") or 0)):
++    interrupted = status.get("status") not in TERMINAL_STATUSES and not _owner_alive(
++        int(record.get("owner_pid") or 0), int(record.get("owner_started") or 0))
++    if interrupted:
+         status.update(
+             status="interrupted", error="The gateway restarted before this run settled.",
+             last_event="run.interrupted", updated_at=time.time())
+@@ -242,6 +246,9 @@
+     self._run_statuses[run_id] = status
+     self._run_idempotency_ids.add(run_id)
+     self._run_owners[run_id] = scope
++    if interrupted:
++        from gateway.platforms.api_server_extensions import status_changed
++        status_changed(self, run_id, status)
+     return status
+ 
+ 
+@@ -322,6 +329,8 @@
+     request_profile: Any
+     browser_control_principal: Any
+     browser_control_transport_family: Any
++    interactive_approvals: bool = False
++    prepared: PreparedRun | None = None
+ 
+     @property
+     def approval_session_key(self) -> str:
+@@ -381,6 +390,8 @@
+             {"body": body, "gateway_session_key": gateway_session_key or ""},
+             sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+         ).encode()).hexdigest()
++    if "interactive_approvals" in body and not isinstance(body["interactive_approvals"], bool):
++        return _json_error(_openai_error, "interactive_approvals must be a boolean", status=400)
+     raw_input = body.get("input")
+     if not raw_input:
+         return _json_error(_openai_error, "Missing 'input' field", status=400)
+@@ -416,6 +427,31 @@
+     limited = self._concurrency_limited_response()
+     if limited is not None:
+         return limited
++    prepared = None
++    confirmed_runtime_lock = False
++    # A stored session lock must also govern durable runs, not just /chat/stream.
++    if session_id:
++        db = await self._ensure_session_db_async()
++        session = await asyncio.to_thread(db.get_session, str(session_id)) if db is not None else None
++        runtime_request = self._effective_session_runtime_request(session=session, body=body)
++        if runtime_request.get("require_model_lock"):
++            route = runtime_request.get("route")
++            requested = runtime_request.get("requested") or {}
++            agent_overrides.update(requested_model=requested.get("model"),
++                requested_provider=requested.get("provider"), model_options=runtime_request.get("model_options"))
++            confirmed_runtime_lock = True
++    from gateway.platforms import api_server_extensions as extensions
++    try:
++        prepared = await asyncio.to_thread(extensions.prepare_run, self, request, body, session_id, user_message)
++    except extensions.ExtensionError as exc:
++        return _json_error(_openai_error, str(exc), code="extension_rejected", status=exc.status)
++    if prepared is not None:
++        plugin_options = dict(prepared.agent_options)
++        route = plugin_options.pop("route", route)
++        confirmed_runtime_lock = plugin_options.pop("confirmed_runtime_lock", confirmed_runtime_lock)
++        agent_overrides.update(plugin_options)
++        instructions = "\n\n".join(filter(None, [instructions, prepared.instructions]))
++        user_message = prepared.user_message
+     if not conversation_history and session_id and not previous_response_id:
+         conversation_history = await self._conversation_history_for_session(str(session_id))
+     run_id = f"run_{uuid.uuid4().hex}"
+@@ -447,10 +483,12 @@
+         agent_kwargs=dict(
+             ephemeral_system_prompt=instructions, session_id=session_id, gateway_session_key=gateway_session_key,
+             route=route, room_dispatch=room_dispatch, room_execution_policy=room_execution_policy,
++            confirmed_runtime_lock=confirmed_runtime_lock,
+             **{k: agent_overrides.get(k) for k in ("requested_model", "requested_provider", "model_options")}),
+         request_profile=_api_server._api_request_profile.get(),
+         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
+-        browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get())
++        browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get(),
++        interactive_approvals=body.get("interactive_approvals") is True, prepared=prepared)
+     self._activate_admitted_request()
+     task = self._active_run_tasks[run_id] = asyncio.create_task(_execute_run(self, launch, _api_server=_api_server))
+     with suppress(TypeError):
+@@ -477,6 +515,7 @@
+     effective_task_id = session_id or run.run_id
+     # (token, reset) pairs unwound in the finally block; bound only once each step succeeds.
+     resets: list[tuple[Any, Callable]] = []
++    r = None
+     with self._profile_scope(run.request_profile):
+         try:
+             # Contextvars, not process env: concurrent runs must not share identity.
+@@ -493,13 +532,21 @@
+                 policy = RoomExecutionPolicy.from_mapping(run.agent_kwargs["room_execution_policy"] or {})
+                 resets.append((bind_room_execution_policy(policy), reset_room_execution_policy))
+             register_gateway_notify(run.approval_session_key, approval_notify)
++            from tools.approval_context import _api_run_interactive_approvals
++            resets.append((_api_run_interactive_approvals.set(run.interactive_approvals), _api_run_interactive_approvals.reset))
+             # /v1/runs owns its agent lifecycle (no TurnRunner): record process ownership
+             # so stop/cancel reaps only the background processes this run created.
+             _api_server._publish_turn_process_ownership(agent, effective_task_id)
++            if run.prepared and run.prepared.on_start:
++                run.prepared.on_start(run.run_id, session_id)
+             r = agent.run_conversation(
+                 user_message=run.user_message, conversation_history=run.conversation_history,
+-                task_id=effective_task_id)
++                task_id=effective_task_id,
++                **({"persist_user_message": run.prepared.persist_user_message} if run.prepared else {}))
+         finally:
++            if run.prepared and run.prepared.on_finish:
++                with suppress(Exception):
++                    run.prepared.on_finish(run.run_id, session_id, r)
+             # Clear ownership now so a later stop can't reap work this run left running.
+             _api_server._clear_turn_process_ownership(agent)
+             # Declared-conversation binding, same precedence gate as _run_agent.
+--- a/tools/approval_context.py
++++ b/tools/approval_context.py
+@@ -131,6 +131,8 @@
+ # Programmatic/unattended platforms: no human can answer a prompt and the adapter has no ``send_exec_approval`` /
+ # ``/approve`` surface. Governed by ``approvals.unattended_mode`` (default deny), mirroring ``cron_mode`` — never an
+ # interactive round-trip that blocks for the full timeout with nobody to answer.
++_api_run_interactive_approvals = contextvars.ContextVar("api_run_interactive_approvals", default=False)
++
+ _UNATTENDED_APPROVAL_PLATFORMS = frozenset({"webhook", "msgraph_webhook", "api_server"})
+ 
+ 
+@@ -142,7 +144,10 @@
+     blocks the session for the full approval timeout (60-300s) and then fails closed anyway — the deadlock
+     in #37284/#87509.
+     """
+-    return _get_session_platform() in _UNATTENDED_APPROVAL_PLATFORMS
++    platform = _get_session_platform()
++    if platform == "api_server" and _api_run_interactive_approvals.get():
++        return False
++    return platform in _UNATTENDED_APPROVAL_PLATFORMS
+ 
+ 
+ def _is_single_query_approval_context() -> bool:

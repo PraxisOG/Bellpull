@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.praxisog.hermes.core.HermesClient
@@ -26,6 +27,82 @@ import org.praxisog.hermes.core.HermesClient
  * which is the subtle one.
  */
 class HermesStoreTest {
+    @Test fun reconciledOrReleasedCompactedPromptIsNotProjectedAfterTheSavedReply() {
+        for (synced in listOf(true, false)) {
+            val record = org.praxisog.hermes.model.RunSubmission("request", "one", "Archived prompt", 1.0, 1, emptySet(),
+                runId = "run", status = "completed", historySynced = synced, trackingDismissed = !synced)
+            val journal = object : RunJournal {
+                override fun readRuns() = listOf(record)
+                override fun writeRun(value: org.praxisog.hermes.model.RunSubmission) = true
+            }
+            val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                    .body("""{"session_id":"one","data":[{"id":20,"role":"assistant","content":"Compacted summary"},{"id":21,"role":"assistant","content":"Final reply"}]}"""
+                        .toResponseBody("application/json".toMediaType())).build()
+            }.build()
+            val client = HermesClient("http://fixture.invalid", { "fixture" }, httpClient = http)
+            val store = HermesStore(scope, client, durableRetention = 86400, journal = journal)
+            try {
+                store.startRecovery()
+                store.openSession("one")
+                awaitUntil("saved compacted history") { store.history is UiState.Ready }
+                assertNull(store.pendingUserText)
+                assertTrue(store.turn is TurnState.Idle)
+                assertEquals(listOf("Compacted summary", "Final reply"), (store.history as UiState.Ready).value.map { it.content })
+            } finally { store.close(); client.close() }
+        }
+    }
+    @Test fun conversationListDefaultsToEveryServerSourceAndStillSupportsAnExplicitFilter() {
+        val sources = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val source = request.url.queryParameter("source")
+            sources += source ?: "all"
+            val rows = listOf("api_server", "cli", "tui", "telegram").filter { source == null || source == it }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(("{\"data\":[" + rows.joinToString(",") { "{\"id\":\"$it\",\"source\":\"$it\"}" } + "]}")
+                    .toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val store = HermesStore(scope, HermesClient("http://fixture.invalid", { "fixture" }, httpClient = http))
+        store.loadSessions()
+        awaitUntil("all server conversations") { store.sessions is UiState.Ready }
+        assertEquals(setOf("api_server", "cli", "tui", "telegram"), (store.sessions as UiState.Ready).value.map { it.source }.toSet())
+        assertTrue(sources.all { it == "all" })
+        store.chooseSessionSource("cli")
+        awaitUntil("explicit CLI filter") { store.sessions is UiState.Ready }
+        assertEquals(listOf("cli"), (store.sessions as UiState.Ready).value.map { it.source })
+    }
+
+    @Test fun droppedLegacyStreamLoadsLaterSavedReplyWithoutOpeningChatAgain() {
+        val saved = AtomicBoolean(false)
+        val submissions = AtomicInteger()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val path = request.url.encodedPath
+            val body = when {
+                path.endsWith("/chat/stream") -> {
+                    submissions.incrementAndGet()
+                    "event: run.started\ndata: {\"run_id\":\"run_fixture\"}\n\nevent: message.delta\ndata: {\"delta\":\"partial\"}\n\n"
+                }
+                path.endsWith("/messages") -> if (saved.get())
+                    """{"session_id":"one","data":[{"id":1,"role":"user","content":"hello"},{"id":2,"role":"assistant","content":"Saved after disconnect"}]}"""
+                    else """{"session_id":"one","data":[]}"""
+                path.startsWith("/v1/runs/") -> """{"run_id":"run_fixture","status":"${if (saved.get()) "completed" else "running"}"}"""
+                else -> """{"data":[{"id":"one","source":"api_server","title":"Fixture"}]}"""
+            }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody((if (path.endsWith("/stream")) "text/event-stream" else "application/json").toMediaType())).build()
+        }.build()
+        val store = store(httpClient = http, baseUrl = "http://fixture.invalid")
+        store.openSession("one")
+        awaitUntil("initial history") { store.history is UiState.Ready }
+        store.send("hello")
+        awaitUntil("truncated stream") { store.turn is TurnState.Truncated }
+        saved.set(true)
+        awaitUntil("automatic recovery") { (store.history as? UiState.Ready)?.value?.lastOrNull()?.content == "Saved after disconnect" }
+        assertEquals(1, submissions.get())
+        store.close()
+    }
 
     private lateinit var scope: CoroutineScope
 
@@ -48,12 +125,19 @@ class HermesStoreTest {
     /** In-memory stand-in; SessionCache itself needs a real AndroidKeyStore. */
     private class FakeSnapshots(var snapshot: SessionSnapshots.Snapshot? = null) : SessionSnapshots {
         var writes = 0
+        var untitled: Set<String> = emptySet()
+        val pendingTitles = LinkedHashMap<String, String>()
         override fun read() = snapshot
         override fun write(sessions: List<org.praxisog.hermes.model.Session>, atEpochSeconds: Double) {
             writes++
             snapshot = SessionSnapshots.Snapshot(sessions, atEpochSeconds)
         }
         override fun clear() { snapshot = null }
+        override fun readUntitled() = untitled
+        override fun writeUntitled(ids: Set<String>) { untitled = ids }
+        override fun readPendingTitles() = pendingTitles.toMap()
+        override fun writePendingTitle(id: String, title: String) { pendingTitles[id] = title }
+        override fun clearPendingTitle(id: String) { pendingTitles.remove(id) }
     }
 
     private fun faulting(fault: String): OkHttpClient =

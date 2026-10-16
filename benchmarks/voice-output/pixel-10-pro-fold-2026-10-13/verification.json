@@ -1,0 +1,31 @@
+{
+  "android": {
+    "app": {
+      "tests": 499,
+      "failures": 0,
+      "skipped": 0
+    },
+    "core-hermes": {
+      "tests": 43,
+      "failures": 0,
+      "skipped": 1
+    },
+    "core-model": {
+      "tests": 21,
+      "failures": 0,
+      "skipped": 0
+    }
+  },
+  "plugin": {
+    "tests": 127,
+    "skipped": 1
+  },
+  "stock_projects": 14,
+  "phone": {
+    "ui_and_voice_unfolded": 7,
+    "ui_cover": 3,
+    "qwen_playback_and_cancellation": 2,
+    "candidate_benchmark": 1,
+    "pocket_benchmark_and_gap_comparison": 1
+  }
+}

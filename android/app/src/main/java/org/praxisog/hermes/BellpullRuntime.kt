@@ -11,6 +11,15 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
+    val voiceOutputs by lazy { VoiceOutputLab(this.context) }
+    fun voiceProblem(config: VoiceConfiguration) = config.startProblem { speechLab.voiceStartProblem() } ?: voiceOutputs.startProblem(config)
+    val speechLab by lazy { SpeechLab(this.context) }
+    var voice by mutableStateOf<VoiceSession?>(null)
+    var voiceStartError by mutableStateOf<String?>(null)
+    var voiceRequestedSession by mutableStateOf<String?>(null)
+    var voiceRequestedMode = VoiceMode.CONVERSATION
+    var voiceButtonHeld = false
+    var voiceDictationToDraft = false
     var cache: SessionCache? = null
         private set
     var drafts = ChatDrafts()
@@ -23,6 +32,14 @@ internal class BellpullRuntime private constructor(context: Context) {
     var client: HermesClient? = null
         private set
     var phase3 by mutableStateOf<Phase3Workspace?>(null)
+        private set
+    var projects by mutableStateOf<ProjectWorkspace?>(null)
+        private set
+    var coding by mutableStateOf<CodingActivityWorkspace?>(null)
+        private set
+    var planning by mutableStateOf<PlanningWorkspace?>(null)
+        private set
+    var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
         private set
     var notificationEventsAvailable by mutableStateOf(false)
         private set
@@ -48,12 +65,15 @@ internal class BellpullRuntime private constructor(context: Context) {
         loadDrafts()
     }
 
-    fun connect(client: HermesClient, capabilities: HermesClient.Capabilities): HermesStore {
+    fun connect(client: HermesClient, capabilities: HermesClient.Capabilities, verifiedDiscovery: Boolean = true): HermesStore {
         store?.let { return it }
         this.client = client
+        this.capabilities = capabilities
+        client.configureCapabilities(capabilities)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
         val next = HermesStore(scope, client, cache = cache, drafts = drafts, readState = receipts,
+            sessionSource = cache?.sessionSource(),
             supportsMessageBranching = capabilities.sessionForkAtMessage,
             supportsPromptEditing = capabilities.sessionForkBeforeMessage,
             durableRetention = capabilities.durableRunRetention, journal = cache)
@@ -62,9 +82,19 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         store = next
+        coding = CodingActivityWorkspace(scope, client, cache?.let { saved -> object : CodingCache {
+            override fun readCoding(id: String) = saved.readCoding(id)
+            override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
+        } }, capabilities.features["bellpull_coding_activity"] == true)
+        planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true) }
+        projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true,
+            capabilities.features["bellpull_conversation_pins"] == true) }
+        projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
-            capabilities.features["bellpull_model_controls"] == true) }
+            capabilities.features["bellpull_model_controls"] == true,
+            capabilities.features["bellpull_artifact_lifecycle"] == true,
+            capabilities.features["bellpull_run_attachments"] ?: (capabilities.features["bellpull_persistent_artifacts"] == true && capabilities.features["bellpull_model_controls"] == true)) }
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
@@ -73,9 +103,12 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.onAttention = { id, identity -> notifications?.attention(id, identity) }
         cache?.let {
             val catchUp = ReplyCatchUp(scope, client, it, receipts, next::discoveredReply)
-            next.onSessions = { sessions -> catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true }) }
+            next.onSessions = { sessions ->
+                catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true })
+                projects?.refresh()
+            }
         }
-        cache?.writeCapabilities(capabilities.raw.toString())
+        if (verifiedDiscovery) cache?.writeCapabilities(capabilities.raw.toString())
         next.startRecovery()
         next.loadSessions()
         cache?.lastSession()?.let(next::openSession)
@@ -89,13 +122,19 @@ internal class BellpullRuntime private constructor(context: Context) {
             val result = withContext(Dispatchers.IO) { current.capabilities() }
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
+            capabilities = result.value
+            coding?.configure(result.value.features["bellpull_coding_activity"] == true)
+            planning?.supported = result.value.features["bellpull_planning"]==true
+            projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
-            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport) {
+            val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
+            val inputSupport = result.value.features["bellpull_run_attachments"] ?: (fileSupport && modelSupport)
+            if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport || phase3?.lifecycleSupported != lifecycleSupport || phase3?.runAttachmentsSupported != inputSupport) {
                 phase3?.close()
-                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport) }
+                phase3 = cache?.let { Phase3Workspace(context, profileId.orEmpty(), scope, current, it, fileSupport, modelSupport, lifecycleSupport, inputSupport) }
             }
-            store?.runs?.interactiveApprovals = result.value.interactiveApprovals
+            store?.updateCapabilities(result.value)
             cache?.writeCapabilities(result.value.raw.toString())
         }
     }
@@ -128,10 +167,22 @@ internal class BellpullRuntime private constructor(context: Context) {
         val raw = cache?.readCapabilities() ?: return
         val obj = runCatching { Json.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return
         val flags = obj["features"]?.jsonObject?.mapValues { runCatching { it.value.jsonPrimitive.booleanOrNull == true }.getOrDefault(false) }.orEmpty()
-        connect(HermesClient(connection.profile.url, { connection.key }, memoryScopeKey = "hermes-android"), HermesClient.Capabilities(obj, flags))
+        connect(HermesClient(connection.profile.url, { connection.key }, memoryScopeKey = "hermes-android"),
+            HermesClient.Capabilities(obj, flags), verifiedDiscovery = false)
     }
 
     fun disconnect() {
+        coding?.close(); coding = null
+        voice?.close()
+        voice = null
+        voiceRequestedSession = null
+        voiceStartError = null
+        context.stopService(android.content.Intent(context, VoiceService::class.java))
+        projects?.close()
+        projects = null
+        planning?.close()
+        planning = null
+        capabilities = null
         phase3?.close()
         phase3 = null
         store?.close()

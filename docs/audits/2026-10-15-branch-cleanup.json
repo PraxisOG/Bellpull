@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-15",
+  "default_branch": "master",
+  "policy": "Delete remote development branches only after verifying each recorded tip is an ancestor of the published master; retain released tags/assets.",
+  "branches": [
+    {
+      "name": "desktop/mint-emulator-preview",
+      "commit": "c31c2c34ee1666622edd95f9e23262accc6b6578"
+    },
+    {
+      "name": "docs/readme-gallery",
+      "commit": "eb0bda12b47e4ac436f0642726f062f52eb993a4"
+    },
+    {
+      "name": "feature/local-speech-lab",
+      "commit": "3c8acf7584655ba463f37397f81d229e29be0a63"
+    },
+    {
+      "name": "feature/phase4-projects",
+      "commit": "a8d49cc9ec07f6de41b34310c8ccda27dcf3c0c9"
+    },
+    {
+      "name": "feature/phase5-voice",
+      "commit": "66ceb2dc5fa0406285b63237fed671e051297b89"
+    },
+    {
+      "name": "feature/voice-turn-taking",
+      "commit": "4c7291273e4d395e498f43df786743bbb60ff6da"
+    },
+    {
+      "name": "integration/phase6-8-9",
+      "commit": "4fa43d1d620e5e26ee8769356773af6a19dae5c0"
+    },
+    {
+      "name": "master",
+      "commit": "89920aea302ad79a4cfa6bacf6c927eb84af77ef"
+    },
+    {
+      "name": "phone/dense-chat-window",
+      "commit": "2ae977e6fbaec8cc266448cdee6af3e4dc9c399b"
+    },
+    {
+      "name": "phone/inline-artifact-previews",
+      "commit": "3f1d77f6eeba1639decb2a07a308611b051fb9b7"
+    },
+    {
+      "name": "phone/integrated-response-rows",
+      "commit": "e41f151170891b563cddcd101e85288ef0ae5bdb"
+    },
+    {
+      "name": "phone/phase2-server-profiles",
+      "commit": "1cb011b3373ab3bec9ea8d93c7bf41e808e3998b"
+    },
+    {
+      "name": "phone/phase3-models-artifacts",
+      "commit": "76f9d170c142240f7accc3b7c76ee59c8422f040"
+    },
+    {
+      "name": "release/android-quickstart",
+      "commit": "f1eb0946c9d957082ed88be30199c4e1dc5a2a69"
+    },
+    {
+      "name": "repair/audit-20261014-minor",
+      "commit": "4faa00854669d5fe18f76c981d2b0add19f6686e"
+    },
+    {
+      "name": "repair/audit-20261015-followup",
+      "commit": "6503f7dbc3282f6ee6df8d9d7945bc0498f0fcb7"
+    },
+    {
+      "name": "repair/bellpull-plugin-migration",
+      "commit": "743dbe4fe758d36d08c02f8c633bd788aa1535e6"
+    },
+    {
+      "name": "repair/experimental-open-issues",
+      "commit": "695f399ed947b1475215c98e763347b1e83d627d"
+    },
+    {
+      "name": "repair/reliability-followups-20261015",
+      "commit": "ed6f53130be0c707e03ce6a9d1cfcf1ba5d62338"
+    },
+    {
+      "name": "ui/conversation-controls",
+      "commit": "6359294bbb8ef75635db58c1888626784e5f63f2"
+    },
+    {
+      "name": "ui/immersive-chrome",
+      "commit": "67705514ac940647cff1c21f1ed6dfe715ad6802"
+    }
+  ]
+}

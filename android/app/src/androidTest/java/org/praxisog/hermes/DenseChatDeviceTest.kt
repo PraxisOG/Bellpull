@@ -37,7 +37,7 @@ class DenseChatDeviceTest {
             view = LocalView.current
             HermesApp(UiState.Ready(listOf(Session("synthetic", title = "Dense chat acceptance"))), UiState.Ready(listOf(user, bot)),
                 TurnState.Idle, "synthetic", Session("synthetic", title = "Dense chat acceptance"), 0.0,
-                {}, {}, { sends++ }, {}, {}, {}, {}, preferences = preferences, onPreferencesChange = { preferences = it },
+                {}, {}, { sends++; true }, {}, {}, {}, {}, preferences = preferences, onPreferencesChange = { preferences = it },
                 editingEnabled = true, onForkEdit = { message, text -> edit = message to text }, onReadMessage = { reads++ })
         }
         fun popup(id: Int) { compose.onNodeWithTag("bubble-$id").performTouchInput { longClick() } }
@@ -79,7 +79,7 @@ class DenseChatDeviceTest {
             Message(2, role = "assistant", content = "I'll check it."),
             Message(3, role = "tool", toolName = "read_file", content = """{"output":"A small fern."}"""),
             Message(4, role = "assistant", content = "A fern will work."))
-        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, {}, {}, {}, denseChatWindow = true) } }
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(messages), TurnState.Idle, { false }, {}, {}, denseChatWindow = true) } }
         compose.onAllNodesWithContentDescription("Hermes response").assertCountEquals(1)
         compose.onNode(hasText("Read file") and hasAnyAncestor(hasTestTag("bubble-4"))).performClick()
         compose.onNodeWithText("Copy data").assertIsDisplayed()

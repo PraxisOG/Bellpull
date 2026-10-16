@@ -2,6 +2,7 @@ package org.praxisog.hermes
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,6 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.*
 import org.praxisog.hermes.model.Message
 
 /** A new response segment owns its spacing; leading empty lines must not add blank rows. */
@@ -29,12 +37,58 @@ internal fun ThinkingBlock(text: String, collapseByDefault: Boolean) {
     }
 }
 
+/** Shares the response's boundary and separators, including when it is its only row. */
 @Composable
-private fun CompactDisclosure(label: String, onClick: () -> Unit) {
-    Box(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+internal fun WorkingRow(label: String, reduceMotion: Boolean) {
+    val animate = !reduceMotion && android.animation.ValueAnimator.areAnimatorsEnabled()
+    val opacity = if (animate) {
+        val transition = rememberInfiniteTransition(label = "Working")
+        val value by transition.animateFloat(.35f, 1f,
+            infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "Activity pulse")
+        value
+    } else 1f
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().responseRowEdges().testTag("stream-tail").semantics(mergeDescendants = true) {}) {
+        Row(Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(6.dp).alpha(opacity).background(MaterialTheme.colorScheme.primary,
+                androidx.compose.foundation.shape.CircleShape).testTag("working-indicator"))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
         .heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** The original message remains the source for copy, selection, quotes and edits. */
+@Composable
+internal fun UserMessageText(text: String) {
+    val voice = remember(text) { voicePromptPresentation(text) }
+    if (voice == null) Text(text, style = MaterialTheme.typography.bodyLarge)
+    else {
+        var expanded by rememberSaveable(voice.details) { mutableStateOf(false) }
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface, shape = MaterialTheme.shapes.small) {
+            Column(Modifier.fillMaxWidth()) {
+                CompactDisclosure(if (expanded) "Bellpull voice enabled ▴" else "Bellpull voice enabled ▾",
+                    Modifier.testTag("voice-preset-toggle").semantics {
+                        contentDescription = "Bellpull voice enabled"
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                    }) { expanded = !expanded }
+                if (expanded) SelectionContainer {
+                    Text(voice.details, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
+                }
+            }
+        }
+        if (voice.body.isNotEmpty()) Text(voice.body, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

@@ -80,3 +80,11 @@ and brown seed colors; custom schemes use checked text contrast.
   backgrounds or optional immersive hiding; do not change them without a later request.
   [Android edge-to-edge](https://developer.android.com/develop/ui/compose/system/setup-e2e),
   [immersive mode](https://developer.android.com/develop/ui/views/layout/immersive).
+
+## Phase 5 voice (2026-10-11)
+
+Reuse the existing application runtime/durable journal and Android's installed
+TextToSpeech voice, AudioRecord communication capture, available AEC/noise
+suppression, audio focus, communication routing and MediaSession. See the primary
+Android and transcription protocol links in [PHASE-5-VOICE.md](PHASE-5-VOICE.md).
+No new dependency, cloud recognizer, model installation, wake word or Auto surface.

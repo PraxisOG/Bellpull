@@ -6,6 +6,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.encodeToJsonElement
@@ -63,6 +64,10 @@ class HermesClient(
     private val streamingHttpClient = streamingClient(httpClient)
     private val calls = mutableSetOf<Call>()
     private var closed = false
+    @Volatile private var snapshotPaging = false
+    fun configureCapabilities(value: Capabilities) {
+        snapshotPaging = value.features["bellpull_snapshot_paging"] == true
+    }
 
     /** Ends this profile's transports without requesting that remote runs stop. */
     fun close() = synchronized(calls) {
@@ -91,6 +96,71 @@ class HermesClient(
         get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
 
     fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
+    fun codingActivity(sessionId: String, after: Long? = null): HermesResult<CodingSnapshot> {
+        require(after == null || after >= 0)
+        return get("/api/bellpull/sessions/${urlPart(sessionId)}/coding" + (after?.let { "?after=$it" } ?: ""), sessionId) {
+            json.decodeFromString<CodingSnapshot>(it).validated(sessionId)
+        }
+    }
+    fun codingWorkspace(workId: String, fileId: String? = null): HermesResult<CodingWorkspaceSnapshot> {
+        require(workId.matches(Regex("[a-f0-9]{32}")) && (fileId == null || fileId.matches(Regex("[a-f0-9]{64}"))))
+        return get("/api/bellpull/coding/$workId/workspace" + (fileId?.let { "?file=$it" } ?: "")) {
+            json.decodeFromString<CodingWorkspaceSnapshot>(it).also { value ->
+                require(value.version == 1 && value.files.size <= 200 && value.files.map { f -> f.id }.distinct().size == value.files.size)
+                require(value.files.all { f -> f.id.matches(Regex("[a-f0-9]{64}")) && f.path.length <= 4096 })
+                require((value.diff?.length ?: 0) <= 262144)
+                require(fileId == null || value.file?.id == fileId)
+            }
+        }
+    }
+    fun planning(): HermesResult<PlanningSnapshot> = get("/api/bellpull/planning") { json.decodeFromString<PlanningSnapshot>(it).validated() }
+    fun planningAction(kind: String, body: JsonObject): HermesResult<JsonObject> {
+        require(kind in setOf("reminders","routines","proposals"))
+        return post("/api/bellpull/planning/$kind",body.toString()) { json.parseToJsonElement(it).jsonObject }
+    }
+    /** Cancellation is latched even if it precedes creation of the HTTP call. */
+    class CalendarTransport {
+        private var cancelled = false
+        private var call: Call? = null
+        @Synchronized fun cancel() { cancelled = true; call?.cancel() }
+        @Synchronized internal fun attach(value: Call) { call = value; if (cancelled) value.cancel() }
+    }
+    fun shareCalendar(device: String, body: JsonObject, transport: CalendarTransport? = null): HermesResult<JsonObject> {
+        require(device.matches(Regex("[a-f0-9]{32}")))
+        return execute(authed("/api/bellpull/calendar/$device").put(body.toString().toRequestBody(JSON_MEDIA)).build(),null,transport) { json.parseToJsonElement(it).jsonObject }
+    }
+    private fun projectSnapshot(body: String): ProjectSnapshot {
+        val raw = json.parseToJsonElement(body).jsonObject
+        require(raw["version"]?.jsonPrimitive?.intOrNull == 1 &&
+            (raw["revision"]?.jsonPrimitive?.longOrNull ?: -1) >= 0 &&
+            raw["projects"] is kotlinx.serialization.json.JsonArray && raw["memberships"] is kotlinx.serialization.json.JsonArray)
+        val value = json.decodeFromString<ProjectSnapshot>(body)
+        val ids = value.projects.map { it.id }
+        require(ids.size == ids.toSet().size)
+        val aliases = mutableSetOf<String>()
+        value.memberships.forEach { member ->
+            require(member.projectId == null || member.projectId in ids)
+            (member.sessionIds + member.sessionId).toSet().forEach { require(aliases.add(it)) }
+        }
+        return value
+    }
+    fun projects(): HermesResult<ProjectSnapshot> = get("/api/bellpull/projects", decode = ::projectSnapshot)
+    fun mutateProject(value: ProjectMutation): HermesResult<ProjectSnapshot> =
+        post("/api/bellpull/projects", json.encodeToString(value), decode = ::projectSnapshot)
+    fun createProjectChat(value: PendingProjectChat): HermesResult<Session> {
+        require(value.projectId.matches(Regex("[a-f0-9]{32}")))
+        val payload = buildJsonObject {
+            put("id", value.id); put("expected_revision", value.expectedRevision)
+            value.title?.let { put("title", it) }
+            value.selection?.let {
+                put("model", it.model); put("provider", it.provider)
+                put("model_options", json.encodeToJsonElement(it.options)); put("require_model_lock", true)
+            }
+        }.toString()
+        return post("/api/bellpull/projects/${value.projectId}/sessions", payload) {
+            json.decodeFromString<SessionCreated>(it).session
+        }
+    }
     fun sessionModel(sessionId: String): HermesResult<SessionModel> =
         get("/api/bellpull/sessions/$sessionId/model", sessionId) { json.decodeFromString(it) }
     fun selectModel(sessionId: String, selection: ModelSelection): HermesResult<SessionModel> =
@@ -99,12 +169,19 @@ class HermesClient(
     fun artifacts(sessionId: String? = null): HermesResult<ArtifactList> =
         get("/api/bellpull/artifacts" + (sessionId?.let { "?session_id=" + urlPart(it) } ?: "")) { json.decodeFromString(it) }
 
+    fun deleteArtifact(id: String): HermesResult<Unit> {
+        require(id.matches(Regex("[a-f0-9]{32}")))
+        return execute(authed("/api/bellpull/artifacts/$id").delete().build(), null) { Unit }
+    }
+
     fun uploadArtifact(file: java.io.File, draft: DraftFile, onStart: (Streaming) -> Unit,
         onProgress: (Long) -> Unit): HermesResult<Artifact> {
         require(draft.id.matches(Regex("[a-f0-9]{32}")))
         val body = object : okhttp3.RequestBody() {
             override fun contentType() = draft.mime.toMediaType()
-            override fun contentLength() = file.length()
+            // The plugin bounds streaming bytes itself. Chunking preserves stock
+            // Hermes' smaller JSON Content-Length ceiling on native routes.
+            override fun contentLength() = -1L
             override fun writeTo(sink: okio.BufferedSink) {
                 file.inputStream().use { input ->
                     val buffer = ByteArray(65536)
@@ -165,7 +242,8 @@ class HermesClient(
      * `GET /v1/capabilities`. Returns the feature flags. This is the cheapest authenticated
      * call, so it doubles as the connection check.
      */
-    fun capabilities(): HermesResult<Capabilities> = get("/v1/capabilities") { body ->
+    fun capabilities(): HermesResult<Capabilities> {
+        val native = get("/v1/capabilities") { body ->
         val obj = json.parseToJsonElement(body).jsonObject
         val features = obj["features"]?.jsonObject ?: JsonObject(emptyMap())
         Capabilities(
@@ -174,13 +252,31 @@ class HermesClient(
                 runCatching { v.jsonPrimitive.booleanOrNull ?: false }.getOrDefault(false)
             },
         )
+        }
+        if (native !is HermesResult.Ok) return native
+        val plugin = get("/api/bellpull/capabilities") { json.parseToJsonElement(it).jsonObject }
+        if (plugin !is HermesResult.Ok) {
+            configureCapabilities(native.value)
+            return native
+        }
+        val flags = (plugin.value["features"] as? JsonObject).orEmpty()
+        val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
+        val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines")
+        val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
+            supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
+        val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
+        val result = Capabilities(JsonObject(native.value.raw + ("features" to merged) + ("bellpull_plugin" to plugin.value)),
+            native.value.features + pluginFlags.mapValues { it.value.jsonPrimitive.booleanOrNull == true })
+        configureCapabilities(result)
+        return HermesResult.Ok(result)
     }
 
     /**
      * `GET /api/sessions`.
      *
-     * [includeChildren] defaults to false and [source] is worth setting, because without them
-     * the list fills with cron, tool, API and subagent sessions rather than human chats.
+     * [includeChildren] defaults to false to omit nested agent sessions. Omitting [source]
+     * includes conversations from every platform in the authenticated Hermes profile.
      */
     fun listSessions(
         limit: Int? = null,
@@ -197,6 +293,36 @@ class HermesClient(
         return get("/api/sessions?" + params.joinToString("&")) { json.decodeFromString(it) }
     }
 
+    /** The native list uses mutable recency offsets. Verify the head after paging and
+     * restart if activity moved it; never present a truncated page as complete. */
+    fun allSessions(source: String? = null): HermesResult<SessionList> {
+        if (snapshotPaging) return snapshotSessions(source)
+        repeat(3) {
+            val rows = linkedMapOf<String, Session>()
+            var offset = 0
+            var head: List<Pair<String, Double?>>? = null
+            while (offset < 100_000) {
+                val result = listSessions(limit = 200, offset = offset, source = source)
+                if (result is HermesResult.Err) return result
+                val page = (result as HermesResult.Ok).value
+                if (offset == 0) head = page.data.map { it.id to it.lastActive }
+                val previousSize = rows.size
+                page.data.forEach { rows[it.id] = it }
+                if (!page.hasMore) {
+                    if (offset == 0) return HermesResult.Ok(page.copy(data = rows.values.toList()))
+                    val check = listSessions(limit = 200, offset = 0, source = source)
+                    if (check is HermesResult.Err) return check
+                    if ((check as HermesResult.Ok).value.data.map { it.id to it.lastActive } == head)
+                        return HermesResult.Ok(page.copy(data = rows.values.toList(), offset = 0, hasMore = false))
+                    break
+                }
+                if (rows.size == previousSize) return HermesResult.Err(HermesError.MalformedResponse("Conversation paging did not advance."))
+                offset += 200
+            }
+        }
+        return HermesResult.Err(HermesError.MalformedResponse("Conversations changed while loading. Refresh to try again."))
+    }
+
     /** `POST /api/sessions`. Unwraps the `session` envelope. */
     fun createSession(title: String? = null, selection: ModelSelection? = null): HermesResult<Session> {
         val payload = buildJsonObject {
@@ -209,6 +335,13 @@ class HermesClient(
         return post("/api/sessions", payload) {
             json.decodeFromString<SessionCreated>(it).session
         }
+    }
+
+    /** `PATCH /api/sessions/{id}`. A title write has user provenance on Hermes. */
+    fun setSessionTitle(sessionId: String, title: String): HermesResult<Unit> {
+        val payload = buildJsonObject { put("title", title) }.toString()
+        return execute(authed("/api/sessions/${urlPart(sessionId)}")
+            .patch(payload.toRequestBody(JSON_MEDIA)).build(), sessionId) { Unit }
     }
 
     /** Requires the explicitly advertised session_fork_at_message server extension. */
@@ -230,8 +363,78 @@ class HermesClient(
     }
 
     /** `GET /api/sessions/{id}/messages`. */
-    fun messages(sessionId: String): HermesResult<MessageHistory> =
-        get("/api/sessions/$sessionId/messages", sessionId) { json.decodeFromString(it) }
+    fun messages(sessionId: String, limit: Int? = null, offset: Int? = null, order: String? = null): HermesResult<MessageHistory> {
+        val params = buildList {
+            limit?.let { add("limit=$it") }; offset?.let { add("offset=$it") }; order?.let { add("order=$it") }
+        }.joinToString("&")
+        return get("/api/sessions/$sessionId/messages" + if (params.isEmpty()) "" else "?$params", sessionId) { json.decodeFromString(it) }
+    }
+
+    /** Ascending append-only pages keep newly arriving messages from shifting older
+     * offsets. Compression changes the resolved identity: restart against that lineage. */
+    fun completeHistory(sessionId: String): HermesResult<MessageHistory> {
+        if (snapshotPaging) return snapshotHistory(sessionId)
+        repeat(3) {
+            val rows = linkedMapOf<Int, Message>()
+            var resolved: String? = null
+            var offset = 0
+            while (offset < 1_000_000) {
+                val result = messages(sessionId, limit = 500, offset = offset, order = "oldest")
+                if (result is HermesResult.Err) return result
+                val page = (result as HermesResult.Ok).value
+                if (offset == 0) resolved = page.sessionId
+                if (resolved != page.sessionId) break
+                val previousSize = rows.size
+                page.data.forEach { rows[it.id] = it }
+                if (page.data.size < 500) return HermesResult.Ok(page.copy(data = rows.values.toList(),
+                    pagination = Pagination(limit = rows.size, offset = 0, order = "oldest", returned = rows.size)))
+                if (previousSize == rows.size) return HermesResult.Err(HermesError.MalformedResponse("History paging did not advance."))
+                offset += page.data.size
+            }
+        }
+        return HermesResult.Err(HermesError.MalformedResponse("Conversation history changed while loading. Refresh to try again."))
+    }
+
+    private fun snapshotSessions(source: String?): HermesResult<SessionList> {
+        val rows = linkedMapOf<String, Session>()
+        val seen = mutableSetOf<String>()
+        var cursor: String? = null
+        do {
+            val params = listOfNotNull(source?.let { "source=${urlPart(it)}" }, cursor?.let { "cursor=${urlPart(it)}" }).joinToString("&")
+            val result = get("/api/bellpull/sessions?$params") { json.decodeFromString<SessionList>(it) }
+            if (result !is HermesResult.Ok) return result
+            val page = result.value
+            page.data.forEach { rows[it.id] = it }
+            cursor = page.nextCursor
+            if (cursor == null && page.hasMore) return HermesResult.Err(HermesError.MalformedResponse("Missing conversation page cursor."))
+            if (cursor != null && !seen.add(cursor)) return HermesResult.Err(HermesError.MalformedResponse("Conversation paging did not advance."))
+            if (cursor == null) return HermesResult.Ok(page.copy(data = rows.values.toList(), offset = 0))
+        } while (seen.size < 10000)
+        return HermesResult.Err(HermesError.MalformedResponse("Conversation snapshot has too many pages."))
+    }
+
+    private fun snapshotHistory(sessionId: String): HermesResult<MessageHistory> {
+        val rows = linkedMapOf<Int, Message>()
+        val seen = mutableSetOf<String>()
+        var cursor: String? = null
+        do {
+            val result = get("/api/bellpull/sessions/${urlPart(sessionId)}/messages" + (cursor?.let { "?cursor=${urlPart(it)}" } ?: ""), sessionId) {
+                json.decodeFromString<MessageHistory>(it)
+            }
+            if (result !is HermesResult.Ok) return result
+            val page = result.value
+            page.data.forEach { rows[it.id] = it }
+            cursor = page.pagination?.nextCursor
+            if (cursor != null && !seen.add(cursor)) return HermesResult.Err(HermesError.MalformedResponse("History paging did not advance."))
+            if (cursor == null) {
+                if (page.pagination?.total?.let { it != rows.size } == true)
+                    return HermesResult.Err(HermesError.MalformedResponse("History snapshot ended before all messages arrived."))
+                return HermesResult.Ok(page.copy(data = rows.values.toList(),
+                    pagination = Pagination(rows.size, 0, "oldest", rows.size, total = rows.size)))
+            }
+        } while (seen.size < 10000)
+        return HermesResult.Err(HermesError.MalformedResponse("History snapshot has too many pages."))
+    }
 
     /**
      * `POST /api/sessions/{id}/chat/stream`. Blocks on the calling thread, invoking [onEvent]
@@ -329,9 +532,10 @@ class HermesClient(
             .post(body.toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }
     }
 
-    /** Status/history remain authoritative: this queue cannot replay consumed events. */
-    fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
-        events("/v1/runs/$runId/events", onStart, onEvent)
+    /** Current Hermes replays sequenced events; older queues require status/history recovery. */
+    fun runEvents(runId: String, onStart: (Streaming) -> Unit = {}, lastEventId: Int? = null,
+        onEvent: (StreamEvent) -> Unit): HermesResult<Unit> =
+        events("/v1/runs/$runId/events", onStart, lastEventId, onEvent)
 
     /** Authenticated gateway proxy to the existing loopback ntfy broker. Wake hints only. */
     fun notificationEvents(onStart: (Streaming) -> Unit, onWake: (String, String) -> Unit): HermesResult<Unit> =
@@ -343,9 +547,12 @@ class HermesClient(
             }
         }
 
-    private fun events(path: String, onStart: (Streaming) -> Unit, onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
+    private fun events(path: String, onStart: (Streaming) -> Unit, lastEventId: Int? = null,
+        onEvent: (StreamEvent) -> Unit): HermesResult<Unit> {
         val call = trackedCall(streamingHttpClient, authed(path)
-            .header("Accept", "text/event-stream").get().build())
+            .header("Accept", "text/event-stream").apply {
+                lastEventId?.let { header("Last-Event-ID", it.toString()) }
+            }.get().build())
         onStart(Streaming(call))
         return try {
             call.execute().use { response ->
@@ -402,20 +609,21 @@ class HermesClient(
     }
 
     private fun <T> get(path: String, sessionId: String? = null, decode: (String) -> T): HermesResult<T> =
-        execute(authed(path).get().build(), sessionId, decode)
+        execute(authed(path).get().build(), sessionId, decode = decode)
 
     private fun <T> post(path: String, body: String, sessionId: String? = null, decode: (String) -> T): HermesResult<T> =
-        execute(authed(path).post(body.toRequestBody(JSON_MEDIA)).build(), sessionId, decode)
+        execute(authed(path).post(body.toRequestBody(JSON_MEDIA)).build(), sessionId, decode = decode)
 
     /**
      * Run a request, retrying a 429 up to [MAX_RATE_LIMIT_RETRIES] times. The delay comes from
      * the server's `Retry-After` header when present — no invented backoff curve — and the
      * final 429 is returned as a typed error rather than retried forever.
      */
-    private fun <T> execute(request: Request, sessionId: String?, decode: (String) -> T): HermesResult<T> {
+    private fun <T> execute(request: Request, sessionId: String?, transport: CalendarTransport? = null, decode: (String) -> T): HermesResult<T> {
         var attempt = 0
         while (true) {
             val call = trackedCall(httpClient, request)
+            transport?.attach(call)
             val result = try {
                 call.execute().use { response ->
                     if (response.isSuccessful) {

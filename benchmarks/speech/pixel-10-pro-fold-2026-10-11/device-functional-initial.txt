@@ -1,0 +1,159 @@
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.VoiceDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.VoiceDeviceTest:
+INSTRUMENTATION_STATUS: test=installedOfflineVoicePlaysAndNativeMicrophoneReleases
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: aec_available=true
+INSTRUMENTATION_STATUS: aec_enabled=true
+INSTRUMENTATION_STATUS: offline_voice=en_US
+INSTRUMENTATION_STATUS: on_device_recognition=false
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.VoiceDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=installedOfflineVoicePlaysAndNativeMicrophoneReleases
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.VoiceDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=encryptedVoiceConfigurationAndPlaybackStayWithinProfileAndClear
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.VoiceDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=encryptedVoiceConfigurationAndPlaybackStayWithinProfileAndClear
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.ProjectsUiDeviceTest:
+INSTRUMENTATION_STATUS: test=editorSaveCanBeTouchedWhileTheKeyboardIsOpen
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=editorSaveCanBeTouchedWhileTheKeyboardIsOpen
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stack=java.lang.NullPointerException
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels$lambda$0(ProjectsUiDeviceTest.kt:142)
+	at org.praxisog.hermes.ProjectsUiDeviceTest$$ExternalSyntheticLambda12.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.withWindows(ProjectsUiDeviceTest.kt:65)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels(ProjectsUiDeviceTest.kt:109)
+
+INSTRUMENTATION_STATUS: stream=
+Error in localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels(org.praxisog.hermes.ProjectsUiDeviceTest):
+java.lang.NullPointerException
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels$lambda$0(ProjectsUiDeviceTest.kt:142)
+	at org.praxisog.hermes.ProjectsUiDeviceTest$$ExternalSyntheticLambda12.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.withWindows(ProjectsUiDeviceTest.kt:65)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels(ProjectsUiDeviceTest.kt:109)
+
+INSTRUMENTATION_STATUS: test=localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=aboutShowsInstalledVersionAndDistinctPluginStatuses
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=aboutShowsInstalledVersionAndDistinctPluginStatuses
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=drawerFiltersAreReachableAndCompactRowsDoNotShowSourceBadges
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.ProjectsUiDeviceTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=drawerFiltersAreReachableAndCompactRowsDoNotShowSourceBadges
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.LocalSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.LocalSpeechDeviceTest:
+INSTRUMENTATION_STATUS: test=nativeModelSwitchingTuningAndLocalVoiceReviewWithoutNetwork
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: speech_progress=Native switching, saved tuning and local voice review passed; UID network counters RX 481713310 → 481713310, TX 746756 → 746756
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.LocalSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=nativeModelSwitchingTuningAndLocalVoiceReviewWithoutNetwork
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.LocalSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=defaultConversationPauseGateOnDirectCorpus
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: speech_progress=Bellpull pause gate clean: 0 premature turns; endings=[11600.0] ms; last word=10090.0 ms
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: speech_progress=Bellpull pause gate numbers-measurements: 0 premature turns; endings=[5860.0] ms; last word=4330.0 ms
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: speech_progress=Bellpull pause gate natural-pauses: 0 premature turns; endings=[15600.0] ms; last word=14140.0 ms
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: speech_progress=Bellpull pause gate road-noise: 0 premature turns; endings=[11540.0] ms; last word=10090.0 ms
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.LocalSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=8
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=defaultConversationPauseGateOnDirectCorpus
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 61.506
+There was 1 failure:
+1) localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels(org.praxisog.hermes.ProjectsUiDeviceTest)
+java.lang.NullPointerException
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels$lambda$0(ProjectsUiDeviceTest.kt:142)
+	at org.praxisog.hermes.ProjectsUiDeviceTest$$ExternalSyntheticLambda12.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.withWindows(ProjectsUiDeviceTest.kt:65)
+	at org.praxisog.hermes.ProjectsUiDeviceTest.localSpeechSettingsHideRemoteFieldsAndSwitchInstalledModels(ProjectsUiDeviceTest.kt:109)
+
+FAILURES!!!
+Tests run: 8,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

@@ -24,7 +24,7 @@ class DisconnectedWorkspaceTest {
         var draft by remember { mutableStateOf(TextFieldValue()) }
         HermesApp(UiState.Ready(listOf(BellpullExample.session)), UiState.Ready(BellpullExample.messages),
             TurnState.Idle, id, BellpullExample.session.takeIf { id != null }, 0.0,
-            { id = it }, { id = null }, { sends++ }, {}, {}, {}, { id = null },
+            { id = it }, { id = null }, { sends++; true }, {}, {}, {}, { id = null },
             draft = draft, onDraftChange = { draft = it }, disconnected = true,
             serverProfiles = { ServerProfilesPanel(emptyList(), null, "Explore Bellpull, or add your own server.", false,
                 { _, _, _ -> true }, {}, {}, {}, {}, { _, _ -> }) })
@@ -44,6 +44,7 @@ class DisconnectedWorkspaceTest {
     @Test fun settingsCover() {
         compose.setContent { App() }
         compose.onNodeWithText("Open Settings").performClick()
+        compose.onNodeWithText("Servers").performClick()
         compose.onNodeWithText("Server profiles").assertIsDisplayed()
         compose.onRoot().captureRoboImage()
     }
@@ -74,9 +75,9 @@ class DisconnectedWorkspaceTest {
         }) }
     }
     @Test fun savedProfilesCover() {
-        compose.setContent { ProfileSettings() }; compose.onRoot().captureRoboImage()
+        compose.setContent { ProfileSettings() }; compose.onNodeWithText("Servers").performClick(); compose.onRoot().captureRoboImage()
     }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun savedProfilesUnfoldedDark() {
-        compose.setContent { ProfileSettings() }; compose.onRoot().captureRoboImage()
+        compose.setContent { ProfileSettings() }; compose.onNodeWithText("Servers").performClick(); compose.onRoot().captureRoboImage()
     }
 }

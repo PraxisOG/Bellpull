@@ -1,0 +1,32 @@
+{
+  "tracked_regular_files": 671,
+  "text_files_scanned": 460,
+  "candidate_locations": [],
+  "extensions": {
+    "": 13,
+    ".yml": 1,
+    ".txt": 28,
+    ".md": 37,
+    ".png": 209,
+    ".kts": 5,
+    ".xml": 12,
+    ".kt": 221,
+    ".java": 1,
+    ".json": 26,
+    ".cpp": 3,
+    ".py": 89,
+    ".properties": 2,
+    ".jar": 1,
+    ".bat": 1,
+    ".html": 2,
+    ".gz": 1,
+    ".jsonl": 1,
+    ".sse": 1,
+    ".sh": 3,
+    ".yaml": 3,
+    ".hermes-agent": 3,
+    ".patch": 5,
+    ".commonmark-java": 1,
+    ".moonshine-voice": 2
+  }
+}

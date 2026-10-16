@@ -25,13 +25,24 @@ val hasReleaseKeystore = keystoreProperties.getProperty("storeFile")?.let { File
 android {
     namespace = "org.praxisog.hermes"
     compileSdk = 37
+    ndkVersion = "29.0.14206865"
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" } }
 
     defaultConfig {
-        applicationId = "org.praxisog.hermes"
+        // Device fixtures use a separate sandbox; personal profiles are never loaded.
+        applicationId = if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true")
+            "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        externalNativeBuild { cmake {
+            arguments += "-DANDROID_STL=c++_static"
+            arguments += "-DBELLPULL_TTS_CANDIDATE_BENCHMARK=" +
+                if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
+        } }
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.3.3"
+        versionCode = 25
+        versionName = "0.8.4-integration-preview"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -113,6 +124,14 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation(project(":core-hermes"))
+    // Approved Markdown parser; Compose owns rendering and link handling.
+    implementation("org.commonmark:commonmark:0.30.1")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.30.1")
+    // User-approved local CPU speech SDK (2026-10-11). Bellpull owns capture/downloads.
+    implementation("ai.moonshine:moonshine-voice:0.1.5") {
+        exclude(group = "com.google.android.material")
+        exclude(group = "androidx.work")
+    }
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

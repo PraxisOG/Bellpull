@@ -19,7 +19,9 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
         text = { Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
             Text(state.submission.text)
             Spacer(Modifier.height(12.dp))
-            Text("Stopping tracking does not stop work already accepted by Hermes. Check this conversation before sending again. An empty composer will recover this text; your newer draft will be preserved.")
+            Text(if (state.submission.historyNeedsReview)
+                "Hermes reports that this run finished. Check its saved conversation before releasing tracking. Your draft stays intact; this accepted prompt will not be put back into the composer."
+                else "Stopping tracking does not stop work already accepted by Hermes. Check this conversation before sending again. An empty composer will recover this text; your newer draft will be preserved.")
             TextButton(onClick = {
                 (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                     .setPrimaryClip(android.content.ClipData.newPlainText("Saved request", state.submission.text))
@@ -49,7 +51,8 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text(notice, style = MaterialTheme.typography.bodySmall)
                 if (state.busy) TextButton(onClick = onRetry, enabled = !state.checking) { Text("Check status") }
-                if (state.submission.status == "review") TextButton(onClick = { review = true }) { Text("Review saved request") }
+                if (state.submission.status == "review" || state.submission.historyNeedsReview)
+                    TextButton(onClick = { review = true }) { Text("Review saved request") }
             }
         }
     }

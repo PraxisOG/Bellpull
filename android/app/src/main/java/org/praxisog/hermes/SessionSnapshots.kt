@@ -15,5 +15,14 @@ internal interface SessionSnapshots {
     fun write(sessions: List<Session>, atEpochSeconds: Double)
     fun clear()
 
+    /** Chats this phone created untitled; their first delivered prompt may name them. */
+    fun readUntitled(): Set<String> = emptySet()
+    fun writeUntitled(ids: Set<String>) {}
+
+    /** Derived first-prompt titles awaiting a confirmed PATCH, keyed by session id. */
+    fun readPendingTitles(): Map<String, String> = emptyMap()
+    fun writePendingTitle(id: String, title: String) {}
+    fun clearPendingTitle(id: String) {}
+
     data class Snapshot(val sessions: List<Session>, val cachedAtEpochSeconds: Double)
 }

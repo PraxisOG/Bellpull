@@ -38,6 +38,7 @@ class MessageBranchingTest {
             val request = chain.request()
             var status = 200
             val body = when (request.url.encodedPath) {
+                "/api/bellpull/capabilities" -> { status = 404; "{}" }
                 "/v1/capabilities" -> if (supported) """{"features":{"session_fork_at_message":true}}"""
                     else """{"features":{"session_fork":true}}"""
                 "/api/sessions" -> """{"data":[{"id":"source","title":"Original"},{"id":"branch","title":"Branch"}]}"""

@@ -53,6 +53,7 @@ data class SessionList(
     val limit: Int = 0,
     val offset: Int = 0,
     @SerialName("has_more") val hasMore: Boolean = false,
+    @SerialName("next_cursor") val nextCursor: String? = null,
 )
 
 /**

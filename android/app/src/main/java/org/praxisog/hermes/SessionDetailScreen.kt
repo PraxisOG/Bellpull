@@ -1,8 +1,11 @@
 package org.praxisog.hermes
 
+import androidx.compose.ui.input.key.*
+
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
@@ -68,11 +71,12 @@ import kotlinx.coroutines.launch
  * Takes data and callbacks only — no client — so every state below is reachable in a
  * screenshot test without a network.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionDetailScreen(
     history: UiState<List<Message>>,
     turn: TurnState,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     onRetry: () -> Unit,
     prefill: String = "",
@@ -100,6 +104,7 @@ internal fun SessionDetailScreen(
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    messageStats: Map<Int, MessageInfo> = emptyMap(),
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
     val composerDraft = draft ?: localDraft
@@ -121,6 +126,14 @@ internal fun SessionDetailScreen(
                 onClick = { onForkEdit(editingMessage, editedText) }) { Text(if (branchingSession) "Creating branch…" else "Create edited branch") }
         }, dismissButton = { TextButton(enabled = !branchingSession, onClick = { editingMessageId = null }) { Text("Cancel") } })
     var selectingMessage by remember { mutableStateOf<Message?>(null) }
+    var infoMessage by remember { mutableStateOf<Message?>(null) }
+    infoMessage?.let { message ->
+        val stats = messageInfo(message, (history as? UiState.Ready)?.value.orEmpty(), messageStats)
+        androidx.compose.material3.ModalBottomSheet(onDismissRequest = { infoMessage = null },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            MessageInfoContent(stats) { infoMessage = null }
+        }
+    }
     selectingMessage?.let { SelectMessageTextDialog(it) { selectingMessage = null } }
     var quoteMessage by remember { mutableStateOf<Message?>(null) }
     quoteMessage?.let { source ->
@@ -138,15 +151,23 @@ internal fun SessionDetailScreen(
     val scope = rememberCoroutineScope()
     var highlightedId by rememberSaveable { mutableStateOf<Int?>(null) }
     var browsingHistory by rememberSaveable { mutableStateOf(false) }
+    val bottomTolerance = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.roundToPx() }
     // Follow is reader intent, not canScrollForward: arriving content changes the latter.
-    val readerScroll = remember(listState) {
+    val readerScroll = remember(listState, bottomTolerance) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput && available.y != 0f) followingTail = false
                 return Offset.Zero
             }
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (consumed.y < 0f && !listState.canScrollForward) {
+                val layout = listState.layoutInfo
+                val last = layout.visibleItemsInfo.lastOrNull()
+                val nearBottom = !listState.canScrollForward || (last != null &&
+                    last.index == layout.totalItemsCount - 1 &&
+                    last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset <= bottomTolerance)
+                // At the end the list consumes zero pixels; the rest of the
+                // gesture must still restore the reader's intent to follow.
+                if ((consumed.y < 0f || available.y < 0f) && nearBottom) {
                     followingTail = true
                     browsingHistory = false
                 }
@@ -178,7 +199,7 @@ internal fun SessionDetailScreen(
     val entries = remember(groups, artifacts) { responseBlocks(artifactTranscript(groups, artifacts)) }
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
-    val mayRead = readEnabled && navigation == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
+    val mayRead = readEnabled && navigation == null && infoMessage == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
     LaunchedEffect(listState, latestReply?.id, mayRead, entries) {
         if (mayRead && latestReply != null) {
             val replyIndex = entries.indexOfFirst { entry -> entry.messages.any { it.id == latestReply.id } }
@@ -309,6 +330,7 @@ internal fun SessionDetailScreen(
                                             MessageBubble(message, denseChatWindow, { selectingMessage = it },
                                                 reading = readingMessageId == message.id, onRead = onReadMessage,
                                                 onBranch = onBranchMessage, canBranch = canBranch,
+                                                onInfo = { infoMessage = it },
                                                 onFollowUp = { quoteMessage = it }) {
                                                 Column {
                                                     block.entries.forEach { entry ->
@@ -385,7 +407,7 @@ private fun MessageView(
                 if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
                 if (!message.content.isNullOrBlank()) {
                     if (message.role == "assistant") {
-                        Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge,
+                        MarkdownAnswer(message.content.orEmpty(),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp))
                     } else {
                         Text(message.role, style = MaterialTheme.typography.labelMedium,
@@ -438,7 +460,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val prose: @Composable (String) -> Unit = { value ->
-            Text(transcriptText(value), style = MaterialTheme.typography.bodyLarge,
+            MarkdownAnswer(value,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp)
                     .semantics(mergeDescendants = true) {})
         }
@@ -458,13 +480,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                                 ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
                             }
                         }
-                        Text(
-                            if (turn.stopRequested) "Stopping…" else turn.statusLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = scheme.primary,
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (dense) 8.dp else 12.dp)
-                                .testTag("stream-tail").semantics(mergeDescendants = true) {},
-                        )
+                        WorkingRow(if (turn.stopRequested) "Stopping…" else turn.statusLabel, reduceMotion)
                     }
 
                     // Gate 0d: the server reports a stopped turn as completed, so this label comes
@@ -517,7 +533,7 @@ private fun Banner(text: String, color: androidx.compose.ui.graphics.Color) {
 @Composable
 private fun Composer(
     turn: TurnState,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     busy: Boolean,
     draft: TextFieldValue,
@@ -528,6 +544,14 @@ private fun Composer(
 ) {
     val streaming = turn as? TurnState.Streaming
     var focused by remember { mutableStateOf(false) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    fun submit() {
+        if (!busy && !sendBlocked && draft.text.isNotBlank() && onSend(draft.text)) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column {
@@ -546,6 +570,12 @@ private fun Composer(
                         maxLines = 5,
                         enabled = !busy,
                         modifier = Modifier.weight(1f).focusRequester(focusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                                    event.key == androidx.compose.ui.input.key.Key.Enter && event.isCtrlPressed) {
+                                    submit(); true
+                                } else false
+                            }
                             .onFocusChanged { focused = it.isFocused }
                             .semantics { contentDescription = "Message Hermes" }
                             .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.medium)
@@ -571,7 +601,7 @@ private fun Composer(
                         ) { Text("Stop") }
                     } else {
                         Button(
-                            onClick = { onSend(draft.text) },
+                            onClick = ::submit,
                             enabled = draft.text.isNotBlank() && !busy && !sendBlocked,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.heightIn(min = BottomControlHeight),

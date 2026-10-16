@@ -1,0 +1,14 @@
+{
+  "gateway/platforms/api_server.py": {
+    "before": "221589ae8c45349736bb291b4679b86e9e12cb22f5a33220ae3d22929fea8297",
+    "after": "95bcf4693c730d25ef211598b9bfe7cb4c12c48d708f8043ce892ce8b409a5dd"
+  },
+  "gateway/platforms/api_server_runs.py": {
+    "before": "270f7e221b5486a6ac499732d0f5471f3f48dc0c0a0633186bc762bcb1345a39",
+    "after": "433fd909f8e5b2dd56e2ae0a6ffbcd4ea990a8e162e71981ab878a55cc2636b5"
+  },
+  "tools/approval_context.py": {
+    "before": "91b086647fed3d5e23c2ef350d87f963530c0ec53d9373d5ef069dfbad022479",
+    "after": "4d0f89b85f44970776de0e6c229d46070d6f205180776d6fb5759c164b65e36b"
+  }
+}

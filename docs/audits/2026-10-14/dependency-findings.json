@@ -1,0 +1,705 @@
+{
+  "queried_on": "2026-10-14",
+  "service": "https://api.osv.dev/v1/querybatch",
+  "scope": "Version/commit matches; no package exploit or deployed-host exposure established. Alias records are deduplicated by GHSA identifier.",
+  "pypi_coordinates_queried": 147,
+  "matched_coordinates": [
+    {
+      "package": "PyJWT",
+      "version": "2.13.0",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-2gx3-rcp4-g85q",
+        "GHSA-42vr-xj54-vc7v",
+        "GHSA-8wjv-2p76-3863",
+        "GHSA-9j54-fg26-wv3r",
+        "GHSA-9v7f-9g4p-ffgj",
+        "GHSA-ffc3-869f-jxw9",
+        "GHSA-gvp8-978c-rx2q",
+        "GHSA-hxm8-2xgr-2p9m",
+        "GHSA-jwrc-g2q2-pq5p",
+        "GHSA-p4g4-x82p-q773",
+        "GHSA-r6x4-923q-g947",
+        "GHSA-w2cx-738m-mc7w",
+        "GHSA-w6j9-cwv2-h6wq",
+        "GHSA-x33g-cr3x-6449"
+      ]
+    },
+    {
+      "package": "anyio",
+      "version": "4.12.1",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-5p39-cfhj-2xmp",
+        "GHSA-82r6-8w77-94w6"
+      ]
+    },
+    {
+      "package": "httpcore2",
+      "version": "2.7.0",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-7mj9-2mp8-4m2p"
+      ]
+    },
+    {
+      "package": "httpx2",
+      "version": "2.7.0",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-7mj9-2mp8-4m2p",
+        "GHSA-8xx6-hgc6-gc2m",
+        "GHSA-f2fp-rgf2-35cp",
+        "GHSA-h4x7-gw46-3wm6",
+        "GHSA-pf96-p4fj-6566"
+      ]
+    },
+    {
+      "package": "multidict",
+      "version": "6.7.1",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-54p9-h82j-f925"
+      ]
+    },
+    {
+      "package": "oauthlib",
+      "version": "3.3.1",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-hj66-6f7g-4r5v",
+        "GHSA-xpv3-w29h-x7cv"
+      ]
+    },
+    {
+      "package": "tornado",
+      "version": "6.5.7",
+      "images": [
+        "legacy"
+      ],
+      "advisories": [
+        "GHSA-3hv7-mjh2-fv65",
+        "GHSA-8423-8fgw-73vq",
+        "GHSA-c2m8-h5v5-343r",
+        "GHSA-chx6-46f5-w4vp",
+        "GHSA-mpf4-983q-p7j4",
+        "GHSA-wwv5-g3v4-889x"
+      ]
+    },
+    {
+      "package": "tornado",
+      "version": "6.5.8",
+      "images": [
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-3hv7-mjh2-fv65",
+        "GHSA-c2m8-h5v5-343r",
+        "GHSA-chx6-46f5-w4vp"
+      ]
+    },
+    {
+      "package": "urllib3",
+      "version": "2.7.0",
+      "images": [
+        "legacy",
+        "modern"
+      ],
+      "advisories": [
+        "GHSA-8988-9cw3-xx77",
+        "GHSA-gh4c-6fx4-qh6g",
+        "GHSA-vxq7-64xx-v4gw"
+      ]
+    }
+  ],
+  "unique_ghsa_records": 33,
+  "advisories": [
+    {
+      "id": "GHSA-2gx3-rcp4-g85q",
+      "aliases": [
+        "CVE-2026-101917",
+        "PYSEC-2026-4140"
+      ],
+      "published": "2026-09-29T23:11:51Z",
+      "modified": "2026-10-01T17:56:20.150726241Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-2gx3-rcp4-g85q"
+    },
+    {
+      "id": "GHSA-3hv7-mjh2-fv65",
+      "aliases": [
+        "CVE-2026-103261"
+      ],
+      "published": "2026-09-30T23:49:25Z",
+      "modified": "2026-10-02T03:56:09.601689224Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.9"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-3hv7-mjh2-fv65"
+    },
+    {
+      "id": "GHSA-42vr-xj54-vc7v",
+      "aliases": [
+        "CVE-2026-101918",
+        "PYSEC-2026-4141"
+      ],
+      "published": "2026-09-30T15:41:05Z",
+      "modified": "2026-10-01T17:56:09.538835697Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.15.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-42vr-xj54-vc7v"
+    },
+    {
+      "id": "GHSA-54p9-h82j-f925",
+      "aliases": [
+        "CVE-2026-104874"
+      ],
+      "published": "2026-10-05T23:40:58Z",
+      "modified": "2026-10-06T00:00:09.468260817Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "multidict": [
+          "6.9.1"
+        ]
+      },
+      "source": "https://github.com/aio-libs/multidict/security/advisories/GHSA-54p9-h82j-f925"
+    },
+    {
+      "id": "GHSA-5p39-cfhj-2xmp",
+      "aliases": [
+        "CVE-2026-64847",
+        "PYSEC-2026-4024"
+      ],
+      "published": "2026-09-18T17:17:10Z",
+      "modified": "2026-10-01T17:55:57.336188727Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "anyio": [
+          "4.14.2"
+        ]
+      },
+      "source": "https://github.com/agronholm/anyio/security/advisories/GHSA-5p39-cfhj-2xmp"
+    },
+    {
+      "id": "GHSA-7mj9-2mp8-4m2p",
+      "aliases": [
+        "CVE-2026-84381",
+        "PYSEC-2026-3844",
+        "PYSEC-2026-3845"
+      ],
+      "published": "2026-09-08T20:45:18Z",
+      "modified": "2026-09-10T12:25:50.011150386Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "httpcore2": [
+          "2.10.0"
+        ],
+        "httpx2": [
+          "2.10.0"
+        ]
+      },
+      "source": "https://github.com/pydantic/httpx2/security/advisories/GHSA-7mj9-2mp8-4m2p"
+    },
+    {
+      "id": "GHSA-82r6-8w77-94w6",
+      "aliases": [
+        "CVE-2026-63374",
+        "PYSEC-2026-4025"
+      ],
+      "published": "2026-09-18T17:17:18Z",
+      "modified": "2026-10-01T17:56:11.058322399Z",
+      "withdrawn": null,
+      "upstream_severity": "CRITICAL",
+      "fixed_versions_in_record": {
+        "anyio": [
+          "4.14.2"
+        ]
+      },
+      "source": "https://github.com/agronholm/anyio/security/advisories/GHSA-82r6-8w77-94w6"
+    },
+    {
+      "id": "GHSA-8423-8fgw-73vq",
+      "aliases": [
+        "CVE-2026-91990"
+      ],
+      "published": "2026-09-01T20:17:38Z",
+      "modified": "2026-09-16T03:56:01.992806508Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.8"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-8423-8fgw-73vq"
+    },
+    {
+      "id": "GHSA-8988-9cw3-xx77",
+      "aliases": [
+        "CVE-2026-97687",
+        "PYSEC-2026-4175"
+      ],
+      "published": "2026-09-30T14:46:04Z",
+      "modified": "2026-10-01T17:55:53.793608550Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "urllib3": [
+          "2.8.0"
+        ]
+      },
+      "source": "https://github.com/urllib3/urllib3/security/advisories/GHSA-8988-9cw3-xx77"
+    },
+    {
+      "id": "GHSA-8wjv-2p76-3863",
+      "aliases": [
+        "CVE-2026-102265",
+        "PYSEC-2026-4142"
+      ],
+      "published": "2026-09-29T23:43:06Z",
+      "modified": "2026-10-01T17:55:45.157085612Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-8wjv-2p76-3863"
+    },
+    {
+      "id": "GHSA-8xx6-hgc6-gc2m",
+      "aliases": [
+        "CVE-2026-84382",
+        "PYSEC-2026-3846"
+      ],
+      "published": "2026-09-08T20:48:59Z",
+      "modified": "2026-09-10T12:26:04.899389228Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "httpx2": [
+          "2.12.0"
+        ]
+      },
+      "source": "https://github.com/pydantic/httpx2/security/advisories/GHSA-8xx6-hgc6-gc2m"
+    },
+    {
+      "id": "GHSA-9j54-fg26-wv3r",
+      "aliases": [
+        "CVE-2026-102266",
+        "PYSEC-2026-4143"
+      ],
+      "published": "2026-09-29T23:43:19Z",
+      "modified": "2026-10-01T17:56:01.035847258Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-9j54-fg26-wv3r"
+    },
+    {
+      "id": "GHSA-9v7f-9g4p-ffgj",
+      "aliases": [
+        "CVE-2026-102267",
+        "PYSEC-2026-4144"
+      ],
+      "published": "2026-09-29T23:15:00Z",
+      "modified": "2026-10-01T17:56:19.395032954Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-9v7f-9g4p-ffgj"
+    },
+    {
+      "id": "GHSA-c2m8-h5v5-343r",
+      "aliases": [
+        "CVE-2026-103263"
+      ],
+      "published": "2026-09-30T23:48:55Z",
+      "modified": "2026-10-02T03:56:10.964622908Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.9"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-c2m8-h5v5-343r"
+    },
+    {
+      "id": "GHSA-chx6-46f5-w4vp",
+      "aliases": [
+        "CVE-2026-103262"
+      ],
+      "published": "2026-09-30T23:49:13Z",
+      "modified": "2026-10-02T03:56:11.819291984Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.9"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-chx6-46f5-w4vp"
+    },
+    {
+      "id": "GHSA-f2fp-rgf2-35cp",
+      "aliases": [
+        "CVE-2026-84378",
+        "PYSEC-2026-3847"
+      ],
+      "published": "2026-09-08T20:45:29Z",
+      "modified": "2026-09-10T12:26:01.695645755Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "httpx2": [
+          "2.10.0"
+        ]
+      },
+      "source": "https://github.com/pydantic/httpx2/security/advisories/GHSA-f2fp-rgf2-35cp"
+    },
+    {
+      "id": "GHSA-ffc3-869f-jxw9",
+      "aliases": [
+        "CVE-2026-102268",
+        "PYSEC-2026-4145"
+      ],
+      "published": "2026-09-29T23:17:33Z",
+      "modified": "2026-10-01T17:55:42.096970476Z",
+      "withdrawn": null,
+      "upstream_severity": "CRITICAL",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-ffc3-869f-jxw9"
+    },
+    {
+      "id": "GHSA-gh4c-6fx4-qh6g",
+      "aliases": [
+        "CVE-2026-97688",
+        "PYSEC-2026-4176"
+      ],
+      "published": "2026-09-30T15:00:38Z",
+      "modified": "2026-10-01T17:55:40.608255720Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "urllib3": [
+          "2.8.0"
+        ]
+      },
+      "source": "https://github.com/urllib3/urllib3/security/advisories/GHSA-gh4c-6fx4-qh6g"
+    },
+    {
+      "id": "GHSA-gvp8-978c-rx2q",
+      "aliases": [
+        "CVE-2026-103001",
+        "PYSEC-2026-4146"
+      ],
+      "published": "2026-09-30T23:53:17Z",
+      "modified": "2026-10-01T17:55:53.001409325Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": []
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-gvp8-978c-rx2q"
+    },
+    {
+      "id": "GHSA-h4x7-gw46-3wm6",
+      "aliases": [
+        "CVE-2026-84379",
+        "PYSEC-2026-3848"
+      ],
+      "published": "2026-09-08T20:45:43Z",
+      "modified": "2026-09-10T12:25:35.236610813Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "httpx2": [
+          "2.11.0"
+        ]
+      },
+      "source": "https://github.com/pydantic/httpx2/security/advisories/GHSA-h4x7-gw46-3wm6"
+    },
+    {
+      "id": "GHSA-hj66-6f7g-4r5v",
+      "aliases": [
+        "CVE-2026-49264",
+        "PYSEC-2026-4113"
+      ],
+      "published": "2026-09-29T17:53:41Z",
+      "modified": "2026-10-13T16:00:32.098776410Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "oauthlib": [
+          "4.0.0"
+        ]
+      },
+      "source": "https://github.com/oauthlib/oauthlib/security/advisories/GHSA-hj66-6f7g-4r5v"
+    },
+    {
+      "id": "GHSA-hxm8-2xgr-2p9m",
+      "aliases": [
+        "CVE-2026-102269",
+        "PYSEC-2026-4147"
+      ],
+      "published": "2026-09-29T23:17:55Z",
+      "modified": "2026-10-01T17:55:59.204638768Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-hxm8-2xgr-2p9m"
+    },
+    {
+      "id": "GHSA-jwrc-g2q2-pq5p",
+      "aliases": [
+        "CVE-2026-102270",
+        "PYSEC-2026-4148"
+      ],
+      "published": "2026-09-30T14:40:25Z",
+      "modified": "2026-10-01T17:55:44.209063147Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-jwrc-g2q2-pq5p"
+    },
+    {
+      "id": "GHSA-mpf4-983q-p7j4",
+      "aliases": [
+        "CVE-2026-82397",
+        "PYSEC-2026-3928"
+      ],
+      "published": "2026-09-02T14:38:43Z",
+      "modified": "2026-09-10T12:25:33.492830390Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.8"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-mpf4-983q-p7j4"
+    },
+    {
+      "id": "GHSA-p4g4-x82p-q773",
+      "aliases": [
+        "CVE-2026-102271",
+        "PYSEC-2026-4149"
+      ],
+      "published": "2026-09-29T23:14:33Z",
+      "modified": "2026-10-01T17:55:49.051187883Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-p4g4-x82p-q773"
+    },
+    {
+      "id": "GHSA-pf96-p4fj-6566",
+      "aliases": [
+        "CVE-2026-84380",
+        "PYSEC-2026-3849"
+      ],
+      "published": "2026-09-08T20:46:28Z",
+      "modified": "2026-09-10T12:25:28.219277036Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "httpx2": [
+          "2.11.0"
+        ]
+      },
+      "source": "https://github.com/pydantic/httpx2/security/advisories/GHSA-pf96-p4fj-6566"
+    },
+    {
+      "id": "GHSA-r6x4-923q-g947",
+      "aliases": [
+        "CVE-2026-102272",
+        "PYSEC-2026-4150"
+      ],
+      "published": "2026-09-29T23:14:00Z",
+      "modified": "2026-10-01T17:56:05.452379838Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-r6x4-923q-g947"
+    },
+    {
+      "id": "GHSA-vxq7-64xx-v4gw",
+      "aliases": [
+        "CVE-2026-97689",
+        "PYSEC-2026-4177"
+      ],
+      "published": "2026-09-30T14:46:18Z",
+      "modified": "2026-10-01T17:55:57.514829071Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "urllib3": [
+          "2.8.0"
+        ]
+      },
+      "source": "https://github.com/urllib3/urllib3/security/advisories/GHSA-vxq7-64xx-v4gw"
+    },
+    {
+      "id": "GHSA-w2cx-738m-mc7w",
+      "aliases": [
+        "CVE-2026-102273",
+        "PYSEC-2026-4151"
+      ],
+      "published": "2026-09-29T23:16:55Z",
+      "modified": "2026-10-01T17:56:17.439454528Z",
+      "withdrawn": null,
+      "upstream_severity": "HIGH",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-w2cx-738m-mc7w"
+    },
+    {
+      "id": "GHSA-w6j9-cwv2-h6wq",
+      "aliases": [
+        "CVE-2026-102274",
+        "PYSEC-2026-4152"
+      ],
+      "published": "2026-09-29T18:23:01Z",
+      "modified": "2026-10-01T17:55:45.889604470Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.14.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-w6j9-cwv2-h6wq"
+    },
+    {
+      "id": "GHSA-wwv5-g3v4-889x",
+      "aliases": [
+        "CVE-2026-91991"
+      ],
+      "published": "2026-09-01T20:17:23Z",
+      "modified": "2026-09-16T03:56:00.367681644Z",
+      "withdrawn": null,
+      "upstream_severity": "LOW",
+      "fixed_versions_in_record": {
+        "tornado": [
+          "6.5.8"
+        ]
+      },
+      "source": "https://github.com/tornadoweb/tornado/security/advisories/GHSA-wwv5-g3v4-889x"
+    },
+    {
+      "id": "GHSA-x33g-cr3x-6449",
+      "aliases": [
+        "CVE-2026-102275",
+        "PYSEC-2026-4183"
+      ],
+      "published": "2026-10-05T23:44:03Z",
+      "modified": "2026-10-07T10:11:04.862065390Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "pyjwt": [
+          "2.15.0"
+        ]
+      },
+      "source": "https://github.com/jpadilla/pyjwt/security/advisories/GHSA-x33g-cr3x-6449"
+    },
+    {
+      "id": "GHSA-xpv3-w29h-x7cv",
+      "aliases": [
+        "CVE-2026-49265",
+        "PYSEC-2026-4114"
+      ],
+      "published": "2026-09-29T17:56:31Z",
+      "modified": "2026-10-13T16:00:32.097492414Z",
+      "withdrawn": null,
+      "upstream_severity": "MODERATE",
+      "fixed_versions_in_record": {
+        "oauthlib": [
+          "4.0.0"
+        ]
+      },
+      "source": "https://github.com/oauthlib/oauthlib/security/advisories/GHSA-xpv3-w29h-x7cv"
+    }
+  ],
+  "maven_coordinates_queried": 141,
+  "maven_matches": 0,
+  "native_git_commits_queried": 3,
+  "native_matches": [
+    {
+      "id": "CVE-2026-108954",
+      "commit": "11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf",
+      "affected_source": "sherpa-onnx/csrc/offline-transducer-greedy-search-decoder.cc",
+      "reachability": "Excluded from Pocket-only CMake source list and all four inspected release compile manifests.",
+      "source": "https://github.com/CVEProject/cvelistV5/blob/main/cves/2026/108xxx/CVE-2026-108954.json"
+    }
+  ]
+}

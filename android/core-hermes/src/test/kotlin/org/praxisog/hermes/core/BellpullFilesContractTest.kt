@@ -19,6 +19,17 @@ class BellpullFilesContractTest {
     private fun client(handler: (Request) -> Response) = HermesClient("http://127.0.0.1:1", { "fixture-only" },
         httpClient = HermesClient.defaultHttpClient().newBuilder().addInterceptor { handler(it.request()) }.build())
 
+    @Test fun serverCompressionAliasesKeepFilesInBothOldAndContinuedConversationFilters() {
+        val api = client { request -> response(request, """{"data":[{"id":"$id","session_id":"root","session_ids":["root","middle","tip"],"message_id":10,"name":"answer.txt","mime":"text/plain","size":5,"sha256":"$hash","created_at":100,"source":"agent"}]}""".toByteArray()) }
+        try {
+            val row = (api.artifacts() as HermesResult.Ok).value.data.single()
+            for (session in listOf("root", "middle", "tip")) assertNotNull(row.forSession(session))
+            assertNull(row.forSession("branch"))
+            assertNull(row.forSession("tip")!!.messageId) // Never invent a mapped message association.
+            assertEquals(10, row.forSession("root")!!.messageId)
+        } finally { api.close() }
+    }
+
     @Test fun uploadPreservesBytesEncodedNamesAuthenticationAndProgress() {
         val file = Files.createTempFile("bellpull", ".bin").toFile().apply { writeBytes(bytes) }
         val progress = mutableListOf<Long>()

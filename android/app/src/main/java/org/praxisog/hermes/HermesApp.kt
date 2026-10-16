@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.Session
 
@@ -35,11 +36,13 @@ internal fun HermesApp(
     now: Double,
     onOpenSession: (String) -> Unit,
     onCloseSession: () -> Unit,
-    onSend: (String) -> Unit,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     onRetrySessions: () -> Unit,
     onRetryHistory: () -> Unit,
     onNewSession: () -> Unit,
+    sessionSource: String? = "api_server",
+    onSessionSourceChange: ((String?) -> Unit)? = null,
     creatingSession: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
     offline: OfflineState? = null,
@@ -81,6 +84,7 @@ internal fun HermesApp(
     serverProfiles: (@Composable () -> Unit)? = null,
     settingsRevision: Int = 0,
     extraTools: (@Composable () -> Unit)? = null,
+    planningView: (@Composable () -> Unit)? = null,
     modelControl: (@Composable () -> Unit)? = null,
     composerLeading: (@Composable () -> Unit)? = null,
     attachmentStrip: (@Composable () -> Unit)? = null,
@@ -90,13 +94,36 @@ internal fun HermesApp(
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
+    projects: ProjectWorkspace? = null,
+    onRetryProjectCreation: () -> Unit = {},
+    pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
+    speechLab: (@Composable () -> Unit)? = null,
+    voiceSettings: (@Composable () -> Unit)? = null,
+    voiceOutputSettings: (@Composable () -> Unit)? = null,
+    voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
+    coding: CodingActivityWorkspace? = null,
+    messageStats: Map<Int, MessageInfo> = emptyMap(),
 ) {
-    var mode by rememberSaveable { mutableStateOf(WorkspaceMode.CHATS) }
-    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected) }
+    var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
+    var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
+    var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected && projects?.selectedProject == null) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
     var artifactsOpen by remember(openSessionId) { mutableStateOf(false) }
     var navigation by remember(openSessionId) { mutableStateOf<ChatNavigation?>(null) }
+    var organizing by remember { mutableStateOf<Session?>(null) }
+    val allSessions = (sessions as? UiState.Ready)?.value.orEmpty()
+    val projectSessions = projects?.sessions(allSessions) ?: allSessions
+    val scopedSessions = if (sessions is UiState.Ready) UiState.Ready(projectSessions) else sessions
+    val projectUnread = projects?.unreadIds(allSessions, unreadIds) ?: unreadIds
+    val projectLabels = projects?.runLabels(allSessions, runLabels) ?: runLabels
+    val runningIds = runLabels.filterValues { it in setOf("Running", "Sending", "Reconnecting", "Stopping", "Needs approval") }.keys
+    val selectProjectScope: (String) -> Unit = { id ->
+        projects?.choose(id)
+        expandedSearch = false
+        if (id in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS)) { mode = WorkspaceMode.CHATS; drawerOnCover = true }
+        else { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }
+    }
     val screenState = rememberSaveableStateHolder()
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
@@ -121,7 +148,13 @@ internal fun HermesApp(
         }
     }
     HermesTheme(appearance = preferences.appearance, palette = preferences.palette, customAccent = preferences.customAccent) {
-        CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode) {
+        DisposableEffect(coding, openSessionId, activityOpen, foreground, mode) {
+            openSessionId?.let { coding?.observe(it, activityOpen && foreground && mode == WorkspaceMode.CHATS) }
+            onDispose { openSessionId?.let { coding?.observe(it, false) } }
+        }
+        coding?.let { CodingWorkspaceDialog(it) }
+        CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode,
+            LocalLabeledControls provides preferences.labeledControls) {
             branchError?.let { error ->
                 AlertDialog(onDismissRequest = onDismissBranchError,
                     title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
@@ -129,13 +162,18 @@ internal fun HermesApp(
             }
             if (artifactsOpen) ConversationArtifactsDialog(artifacts, onDownloadArtifact,
                 onView = { artifactsOpen = false; onViewArtifact(it) }, onClose = { artifactsOpen = false })
+            organizing?.let { session -> projects?.let { workspace ->
+                ProjectChatDialog(workspace, session) { organizing = null }
+            } }
             if (expandedSearch) WorkspaceSearch(
-                (sessions as? UiState.Ready)?.value.orEmpty(), apps, now, openSessionId,
+                projectSessions, apps, now, openSessionId,
                 query, onQueryChange, open, onLaunchApp,
                 onAsk = { if (disconnected) openSettings() else {
                     onAskHermes(it); expandedSearch = false; mode = WorkspaceMode.CHATS
                 } },
-                onDismiss = { expandedSearch = false })
+                onDismiss = { expandedSearch = false },
+                scopeTitle = projects?.scopeTitle?.takeUnless { projects.selectedScope == ALL_PROJECT_CHATS },
+                allConversations = allSessions)
             Surface(Modifier.fillMaxSize()) {
                 val insets = if (preferences.immersiveMode)
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
@@ -146,7 +184,7 @@ internal fun HermesApp(
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
                     val visibleSession = openSessionId.takeIf { foreground && mode == WorkspaceMode.CHATS &&
-                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewPane == null && previewDialog == null }
+                        (sideBySide || !drawerOnCover) && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewPane == null && previewDialog == null }
                     DisposableEffect(visibleSession) {
                         onVisibleSession(visibleSession)
                         onDispose { onVisibleSession(null) }
@@ -171,12 +209,20 @@ internal fun HermesApp(
                     val animate = paneMotionEnabled(preferences.reduceMotion)
                     val listPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
-                            SessionListScreen(state = sessions, now = now, selectedId = openSessionId,
+                            SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
                                 creating = creatingSession, createError = createError, offline = offline,
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
-                                unreadIds = unreadIds, completionRevision = completionRevision,
-                                runLabels = runLabels,
+                                unreadIds = projectUnread, completionRevision = completionRevision,
+                                runLabels = projectLabels,
+                                pinnedIds = projects?.pinnedIds(projectSessions).orEmpty(),
+                                recentOrder = projects?.selectedProject != null,
+                                projectFilters = projects?.let { workspace -> { closeFilters -> ProjectFilterItems(workspace, unreadIds, runningIds,
+                                    { id -> closeFilters(); selectProjectScope(id) }, { closeFilters(); mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
+                                onOrganize = projects?.let { { session -> organizing = session } },
+                                titleOnly = preferences.titleOnlyConversations,
+                                source = sessionSource, onSourceChange = onSessionSourceChange,
+                                filterSummary = listOfNotNull(projects?.scopeTitle?.takeIf { projects.selectedScope != ALL_PROJECT_CHATS }, sessionSource).takeIf { it.isNotEmpty() }?.joinToString(" · "),
                                 onExpandedSearch = { expandedSearch = true })
                             WorkspaceModes(mode) { mode = it; drawerOnCover = false }
                         }
@@ -204,13 +250,15 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
-                                WorkspaceMode.PROJECTS, WorkspaceMode.TODAY -> Column(Modifier.padding(24.dp)) {
+                                WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
+                                    selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,
+                                    preferences.titleOnlyConversations)
+                                WorkspaceMode.TODAY -> if (planningView != null) planningView() else Column(Modifier.padding(24.dp)) {
                                     Text("Coming soon", style = MaterialTheme.typography.titleLarge)
-                                    Text(if (mode == WorkspaceMode.PROJECTS) "Collect chats, notes and attachments in projects."
-                                        else "Reminders and follow-ups will appear here.")
+                                    Text("Reminders and follow-ups will appear here.")
                                 }
                                 WorkspaceMode.CHATS -> if (openSessionId == null) {
                                     if (disconnected) DisconnectedWelcome({ open(BellpullExample.ID) }, openSettings)
@@ -218,8 +266,18 @@ internal fun HermesApp(
                                 } else {
                                     if (disconnected) DisconnectedBanner(openSettings)
                                     RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
-                                    screenState.SaveableStateProvider(openSessionId) {
+                                    if (coding != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilterChip(selected = !activityOpen, onClick = { activityOpen = false }, label = { Text("Chat") })
+                                        FilterChip(selected = activityOpen, onClick = { activityOpen = true }, label = { Text("Activity") }, modifier = Modifier.testTag("open-coding-activity"))
+                                    }
+                                    if (activityOpen && coding != null) CodingActivityPanel(coding.snapshot, coding.loading,
+                                        coding.supported, coding.disconnected, coding.problem, runPresentation?.label,
+                                        coding::retry, { coding.inspect(it) }, { activityOpen = false }, onStop,
+                                        canStop = (turn as? TurnState.Streaming)?.canStop == true,
+                                        modifier = Modifier.weight(1f))
+                                    else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
+                                            messageStats = messageStats,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
@@ -228,7 +286,7 @@ internal fun HermesApp(
                                             sendBlocked = disconnected || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
-                                            readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && branchError == null && previewDialog == null && previewPane == null,
+                                            readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewDialog == null && previewPane == null,
                                             onReadThrough = { onReadThrough(openSessionId, it) },
                                             navigation = navigation, onDismissNavigation = { navigation = null },
                                             onReadMessage = onReadMessage, onBranchMessage = onBranchMessage,

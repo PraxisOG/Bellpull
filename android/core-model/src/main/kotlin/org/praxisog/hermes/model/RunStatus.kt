@@ -25,7 +25,7 @@ data class RunStatus(
     @SerialName("last_event") val lastEvent: String? = null,
     @SerialName("created_at") val createdAt: Double? = null,
     @SerialName("updated_at") val updatedAt: Double? = null,
-    /** Left as raw JSON: Tier 1 does not read usage, and its shape is not pinned down. */
+    /** Server run aggregates; absent counters remain unavailable (see per-turn info contract). */
     val usage: JsonObject? = null,
     val output: String? = null,
     val error: String? = null,
@@ -72,6 +72,16 @@ data class RunSubmission(
     val error: String? = null,
     val interactiveApprovals: Boolean = false,
     val bellpull: BellpullRunOptions? = null,
+    /** Server evidence survives restart while the final transcript transaction catches up. */
+    val completionOutput: String? = null,
+    val serverCreatedAt: Double? = null,
+    val historyChecks: Int = 0,
+    val historyNeedsReview: Boolean = false,
+    /** Explicit user release of tracking, distinct from a verified transcript match. */
+    val trackingDismissed: Boolean = false,
+    /** Optional server evidence for per-turn info; never session-total or estimated tokens. */
+    val completionUsage: JsonObject? = null,
+    val serverCompletedAt: Double? = null,
 ) {
     val terminal: Boolean get() = status in setOf("completed", "failed", "cancelled", "stopped", "interrupted", "rejected", "abandoned")
 }

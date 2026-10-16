@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,8 +78,34 @@ internal fun SessionListScreen(
     unreadIds: Set<String> = emptySet(),
     completionRevision: Long = 0,
     runLabels: Map<String, String> = emptyMap(),
+    titleOnly: Boolean = false,
+    source: String? = null,
+    onSourceChange: ((String?) -> Unit)? = null,
+    projectFilters: (@Composable (() -> Unit) -> Unit)? = null,
+    onOrganize: ((Session) -> Unit)? = null,
+    pinnedIds: Set<String> = emptySet(),
+    recentOrder: Boolean = false,
+    filterSummary: String? = null,
 ) {
     val searching = query.isNotBlank()
+    var filtersOpen by remember { mutableStateOf(false) }
+    val filters: @Composable () -> Unit = {
+        Box {
+            NavigationAction("Filters", { filtersOpen = true }, modifier = Modifier.testTag("conversation-filters").semantics { stateDescription = filterSummary ?: "All projects and sources" },
+                description = "Filter conversations") { FilterGlyph(active = source != null || filterSummary != null) }
+            DropdownMenu(filtersOpen, onDismissRequest = { filtersOpen = false }) {
+                projectFilters?.invoke { filtersOpen = false }
+                if (projectFilters != null && onSourceChange != null) androidx.compose.material3.HorizontalDivider()
+                if (onSourceChange != null) {
+                    Text("Conversation source", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp))
+                    sourceChoices.forEach { (label, value) ->
+                        DropdownMenuItem(text = { Text((if (source == value) "✓ " else "") + label) },
+                            onClick = { filtersOpen = false; onSourceChange(value) })
+                    }
+                }
+            }
+        }
+    }
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -97,14 +128,17 @@ internal fun SessionListScreen(
                 },
             )
             if (LocalImmersiveHeaders.current && onExpandedSearch != null) {
-                CutoutHeader(title = {
-                    Text("Conversations", style = MaterialTheme.typography.titleSmall,
+                // Align with chat titles: 8 dp list inset + 14 dp card padding.
+                // CutoutHeader supplies the other 4 dp of that 22 dp inset.
+                CutoutHeader(modifier = Modifier.padding(start = 18.dp), title = {
+                    Text("Conversations", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
                 }, trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.IconButton(onClick = onExpandedSearch,
-                            modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }
+                        filters()
+                        NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                         if (showNewChatButton) NewChatButton(onNewSession, creating)
                     }
                 })
@@ -112,11 +146,13 @@ internal fun SessionListScreen(
                 if (onExpandedSearch == null) Box(Modifier.weight(1f)) {
                     SectionHeader(if (searching) "Search results" else "Conversations")
                 } else {
-                    Text("Conversations", style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    Text("Conversations", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f).padding(start = 14.dp),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
-                    androidx.compose.material3.IconButton(onClick = onExpandedSearch,
-                        modifier = Modifier.semantics { contentDescription = "Search conversations" }) { SearchGlyph() }
+                    filters()
+                    NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                 }
                 if (showNewChatButton) NewChatButton(onNewSession, creating)
             }
@@ -195,14 +231,17 @@ internal fun SessionListScreen(
                         ) {
                             BellpullMark(size = 48.dp)
                             Text("Room for a new idea", style = MaterialTheme.typography.titleMedium)
-                            Text("No sessions on Hermes yet.", style = MaterialTheme.typography.bodyMedium,
+                            Text(if (onSourceChange != null && source != null)
+                                "No conversations in this source. Try All conversations."
+                                else "No visible conversations on this server.", style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
                     val listState = rememberLazyListState()
-                    val ordered = remember(state.value, unreadIds) {
-                        state.value.sortedWith(compareByDescending<Session> { it.id in unreadIds }
+                    val ordered = remember(state.value, unreadIds, pinnedIds, recentOrder) {
+                        state.value.sortedWith(compareByDescending<Session> { it.id in pinnedIds }
+                            .thenByDescending { !recentOrder && it.id in unreadIds }
                             .thenByDescending { it.lastActive ?: it.startedAt ?: 0.0 })
                     }
                     val serverHead = state.value.firstOrNull()?.id
@@ -240,6 +279,9 @@ internal fun SessionListScreen(
                                     selected = session.id == selectedId,
                                     unread = session.id in unreadIds,
                                     runLabel = runLabels[session.id],
+                                    titleOnly = titleOnly,
+                                    pinned = session.id in pinnedIds,
+                                    onOrganize = onOrganize?.let { organize -> { organize(session) } },
                                     onClick = { onOpen(session.id) },
                                 )
                             }
@@ -355,29 +397,44 @@ private fun SectionHeader(text: String) {
     )
 }
 
+private val sourceChoices = listOf("All sources" to null, "API chats" to "api_server", "CLI chats" to "cli", "TUI chats" to "tui")
+
 @Composable
-private fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null, onClick: () -> Unit) {
+internal fun SessionRow(session: Session, now: Double, selected: Boolean, unread: Boolean = false, runLabel: String? = null,
+    titleOnly: Boolean = false, pinned: Boolean = false,
+    onOrganize: (() -> Unit)? = null, onClick: () -> Unit) {
     val background =
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     Surface(
         color = background, onClick = onClick, modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        border = if (titleOnly) null else BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 14.dp, end = 4.dp, top = if (titleOnly) 6.dp else 14.dp, bottom = if (titleOnly) 6.dp else 14.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 session.title?.takeIf { it.isNotBlank() } ?: "Untitled session",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.let { if (titleOnly) it.copy(lineHeight = 20.sp) else it },
                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+                minLines = if (titleOnly) 2 else 1,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            session.preview?.takeIf { it.isNotBlank() }?.let {
+            if (titleOnly && pinned) Text("◆", style = MaterialTheme.typography.labelSmall, modifier = Modifier.semantics { contentDescription = "Pinned conversation" })
+            if (titleOnly && runLabel != null) Text("•", color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { contentDescription = runLabel })
+            if (titleOnly && unread) UnreadDot(session.id)
+            if (onOrganize != null) TextButton(onClick = onOrganize, modifier = Modifier.size(32.dp).testTag("chat-actions-${session.id}")
+                .semantics { contentDescription = "Organize ${session.title ?: "conversation"}" },
+                contentPadding = PaddingValues(0.dp)) { Text("⋮") }
+            }
+            if (pinned && !titleOnly) Text("Pinned", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            if (!titleOnly) session.preview?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.bodyMedium,
@@ -387,7 +444,7 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, unread:
                 )
             }
             // Reserve the dot first; the metadata fits one line even in the narrow drawer.
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            if (!titleOnly) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText(
                     buildList {
@@ -403,14 +460,19 @@ private fun SessionRow(session: Session, now: Double, selected: Boolean, unread:
                     modifier = Modifier.weight(1f),
                 )
                 if (unread) {
-                    val accent = MaterialTheme.colorScheme.primary
-                    Canvas(Modifier.size(8.dp).testTag("unread-${session.id}")
-                        .semantics { contentDescription = "Unread reply" }) { drawCircle(accent) }
+                    UnreadDot(session.id)
                 }
             }
-            runLabel?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            if (!titleOnly) runLabel?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
         }
     }
+}
+
+@Composable
+private fun UnreadDot(id: String) {
+    val accent = MaterialTheme.colorScheme.primary
+    Canvas(Modifier.size(8.dp).testTag("unread-$id")
+        .semantics { contentDescription = "Unread reply" }) { drawCircle(accent) }
 }
 
 @Composable
@@ -428,4 +490,15 @@ internal fun SearchGlyph() {
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+}
+
+@Composable
+internal fun FilterGlyph(active: Boolean = false) {
+    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(Modifier.size(18.dp)) {
+        listOf(.2f to .3f, .5f to .7f, .8f to .4f).forEach { (y, x) ->
+            drawLine(color, Offset(0f, size.height * y), Offset(size.width, size.height * y), 1.6.dp.toPx(), StrokeCap.Round)
+            drawCircle(color, 2.4.dp.toPx(), Offset(size.width * x, size.height * y))
+        }
+    }
 }

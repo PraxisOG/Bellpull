@@ -8,7 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.intOrNull
 
 /**
- * One SSE frame from `POST /api/sessions/{id}/chat/stream`.
+ * One SSE frame from a native session stream or durable `/v1/runs/{id}/events`.
  *
  * Event names and payload keys are from the recorded fixture plus the Gate 0c probes, which
  * added `tool.started` / `tool.completed` — see `docs/hermes-api.md` § Streaming. An
@@ -26,6 +26,9 @@ sealed interface StreamEvent {
 
     /** A token of assistant text. Append [delta]; do not treat it as a whole message. */
     data class AssistantDelta(override val raw: JsonObject, val messageId: String?, val delta: String) : StreamEvent
+
+    /** Completed interim prose that some native routes emit without text deltas. */
+    data class AssistantCommentary(override val raw: JsonObject, val text: String, val alreadyStreamed: Boolean) : StreamEvent
 
     /**
      * Tool or reasoning progress. `tool_name` is `_thinking` for reasoning, which is why this
@@ -80,19 +83,22 @@ sealed interface StreamEvent {
             this[key]?.let { runCatching { it.jsonPrimitive.booleanOrNull }.getOrNull() } ?: false
 
         /**
-         * Build an event from an SSE `event:` name and its `data:` payload. Returns null only
-         * when [data] is not a JSON object at all.
+         * Native stock run streams put the event name inside JSON and omit the optional
+         * SSE `event:` line. Legacy streams name it explicitly; that name takes precedence.
+         * Returns null only when [data] is not a JSON object at all.
          */
-        fun parse(event: String, data: String): StreamEvent? {
+        fun parse(event: String?, data: String): StreamEvent? {
             val obj = runCatching { json.parseToJsonElement(data).jsonObject }.getOrNull() ?: return null
-            return when (event) {
+            val name = event?.takeIf { it.isNotEmpty() } ?: obj.str("event") ?: "message"
+            return when (name) {
                 "run.started" -> RunStarted(obj, obj.str("run_id"))
                 "message.started" -> MessageStarted(
                     obj,
                     runCatching { obj["message"]?.jsonObject?.str("id") }.getOrNull(),
                 )
                 "assistant.delta", "message.delta" -> AssistantDelta(obj, obj.str("message_id"), obj.str("delta") ?: "")
-                "reasoning.available" -> ToolProgress(obj, "_thinking", obj.str("text"))
+                "message.interim", "assistant.commentary" -> AssistantCommentary(obj, obj.str("text") ?: "", obj.bool("already_streamed"))
+                "reasoning.available", "reasoning.delta" -> ToolProgress(obj, "_thinking", obj.str("text"))
                 "tool.progress" -> ToolProgress(obj, obj.str("tool_name"), obj.str("delta"))
                 "tool.started" -> ToolStarted(obj, obj.str("tool_name") ?: obj.str("tool"), obj.str("preview"))
                 "tool.completed" -> ToolCompleted(obj, obj.str("tool_name") ?: obj.str("tool"))
@@ -104,7 +110,7 @@ sealed interface StreamEvent {
                 )
                 "run.completed" -> RunCompleted(obj, obj.bool("completed"))
                 "done" -> Done(obj)
-                else -> Unknown(obj, event)
+                else -> Unknown(obj, name)
             }
         }
     }
