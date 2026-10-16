@@ -5,9 +5,9 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-Development source: [integration/phase6-8-9](https://github.com/PraxisOG/Bellpull/tree/integration/phase6-8-9).
-App **0.8.1-integration-preview**, plugin **0.4.0-integration-preview**.
-[Evidence and limitations](https://github.com/PraxisOG/Bellpull/blob/integration/phase6-8-9/docs/INTEGRATION-6-8-9.md).
+Development source: [`master`](https://github.com/PraxisOG/Bellpull/tree/master).
+Current pair: app **0.8.4-integration-preview**, plugin **0.4.2-integration-preview**.
+[Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance
 

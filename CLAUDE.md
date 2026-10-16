@@ -63,6 +63,18 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Current authority (2026-10-15, consolidation):** the user asked to make the
+latest version the default and keep GitHub clean. Consolidate app/plugin development
+onto `master`, publish one matching current development download, update entry-point
+documentation and remove remote branches only after their tips are reachable from
+`master`. Preserve released tags/assets and record the old branch tips. Earlier
+no-default-merge instructions below are historical and superseded for this work.
+The current packaged pair is app 0.8.4/build25 and plugin 0.4.2. Future development
+starts from `master`; completed feature branches are temporary. Personal-server
+access remains out of scope. Phone installation authorization persists; preserve
+signing, app data and the owner's selected Pocket/Loona voice.
+
+
 **Latest authority (2026-10-14, experimental release):** the user requested verifying
 the installed app is 0.8.3 and publishing app 0.8.3 plus plugin 0.4.1 as experimental
 on GitHub. ADB confirms build22; its APK matches the previously signed artifact.

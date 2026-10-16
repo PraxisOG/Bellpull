@@ -1,9 +1,9 @@
-# Bellpull integration plugin 0.4.1-integration-preview
+# Bellpull integration plugin 0.4.2-integration-preview
 
 This single plugin includes OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.8.3-integration-preview** (build 22) from
-`repair/experimental-open-issues`. The separate Phase 6/8/9 preview plugin directories are
+Pair it with Android **0.8.4-integration-preview** (build 25) from
+`master`. The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
 Install the entire `plugins/bellpull/` directory using the stock-plugin procedure
@@ -24,11 +24,12 @@ See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.
 
 ## Experimental release limits
 
-The [October 14 audit](../../docs/AUDIT-2026-10-14.md) records unresolved defects,
-including Git filters executing during workspace preview, a calendar revocation
-race, proposal retention and hard-link containment. This 0.4.1 publication includes
-the global-pin repair; it does not fix the subsequent audit findings. Read the
-[release record](../../docs/RELEASE-0.8.3-EXPERIMENTAL.md) before deployment.
+The [October 14 audit](../../docs/AUDIT-2026-10-14.md) is a historical baseline.
+Current source includes the workspace-filter/hard-link, calendar-generation and
+proposal-retention repairs, plus 0.4.2's receipt scrubbing and concurrent-proposal
+revocation check. The [October 15 audit](../../docs/EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit)
+records remaining app/device acceptance. Read the current
+[release record](../../docs/release.md) before deployment.
 
 ## Existing stock features and installation
 
@@ -50,12 +51,12 @@ work through the native `register_platform_handler` plugin surface. They require
 Use Bellpull Android 0.3.7 or newer for the complete audit repair. The earlier Phase 4 pair was Android 0.4.0/plugin 0.3.0. This integration package
 includes those project and file features; use the matching integration checkout or
 plugin archive from the
-[0.8.3 experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.3-integration-preview.1).
+[current development release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.4-integration-preview.1).
 Install on your server yourself:
 
 ```bash
 # From the matching unpacked integration plugin bundle or repository checkout:
-# Source branch: repair/experimental-open-issues; use the complete matching release bundle.
+# Source branch: master; use the complete matching release bundle.
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME --apply
 HERMES_HOME=/YOUR/HERMES/DATA/HOME hermes plugins disable bellpull_gpu

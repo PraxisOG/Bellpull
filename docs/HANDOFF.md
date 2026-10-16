@@ -1,3 +1,21 @@
+# Current development: master — app 0.8.4 / plugin 0.4.2
+
+The owner requested one clear default and a clean GitHub repository. `master`
+contains the current app and plugin; historical releases remain available, and
+merged development branches are retired with their exact tips recorded in
+[audit metadata](audits/2026-10-15-branch-cleanup.json).
+
+The [October 15 audit](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit) records ten
+closed issues and six open ones, including the new car Read aloud route report.
+Pocket/Loona was explicitly selected for the active phone profile after pinned-file
+verification and successful local synthesis. Other settings stayed unchanged.
+The local Docker test server runs plugin 0.4.2; no personal server was accessed.
+
+Use [release evidence](release.md) for the current download and validation.
+The entries below are historical records, not the current branch/version policy.
+
+---
+
 # Latest: 0.8.3 / plugin 0.4.1 experimental publication (2026-10-14)
 
 The user requested checking the installed app and publishing this pair as

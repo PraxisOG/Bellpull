@@ -1,4 +1,37 @@
-## Current experimental release — 0.8.3 / build 22
+## Current development release — 0.8.4 / build 25
+
+The canonical source for both Android and the plugin is `master`. The matching
+pair is **Android 0.8.4-integration-preview/build25** and **plugin
+0.4.2-integration-preview**, published under
+`android-v0.8.4-integration-preview.1`. Historical releases are retained for
+reference and rollback; they are not separate active development lines.
+
+The release contains the signed `Bellpull.apk`, complete
+`bellpull-plugin-0.4.2-integration-preview.tar.gz`, recursive
+`Bellpull-source-0.8.4.tar.gz`, phase roadmap and `SHA256SUMS`. The source archive
+includes pinned native submodules and `SOURCE-REVISIONS.json`. It excludes model
+weights, credentials, signing material, build caches and untracked personal files.
+Use the [build guide](BUILDING.md) or the [plugin installer](../plugins/bellpull/README.md).
+
+This consolidates the audit repairs: calendar revocation/retained receipts,
+transcription Retry, Stop feedback, streaming follow, message statistics and media
+routing for standalone Read aloud. A screenshot fixture now publishes project
+state on the main dispatcher used by the app; its existing baselines are unchanged.
+No new speech engine or silent fallback is introduced. Pocket/Loona was explicitly
+enabled on the owner's phone in the preceding setup; an app update preserves it.
+
+Validation: 598 Android tests passed with one live-server skip, 172 screenshot
+baselines, debug/release builds and lint. Plugin runtime is unchanged from the
+validated 0.4.2 repair: 148 passes/one skip on the full legacy-image suite and
+66 passes/one skip on the stock-host subset. Publication also verifies the signed
+APK/16-KiB alignment, archive contents and an extracted plugin installation.
+
+See the [October 15 reliability audit](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit)
+for ten closed issues and six remaining open issues. Physical car/headset routes,
+sustained speech heat, pin touch behavior, title recovery and provider/cloud
+acceptance remain explicit limitations. This remains a development preview.
+
+## Historical experimental release — 0.8.3 / build 22
 
 The user authorized publishing Android 0.8.3-integration-preview/build22 with
 plugin 0.4.1-integration-preview. ADB confirms the installed APK is exactly the
