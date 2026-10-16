@@ -60,8 +60,63 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(self.store.resolve(result),self.store.resolve(result))
         with patch("plugins.bellpull.planning.time.time",return_value=time.time()+90000):
             with self.assertRaises(ArtifactError): self.store.propose(dict(args,operation_id="b"*32))
+    def test_revoke_scrubs_retained_proposals_but_blocks_replay_after_resharing(self):
+        device="d"*32; other="e"*32
+        for identity in (device,other):
+            self.store.calendar(identity,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        args=self.proposal_args(0)
+        proposal=self.store.propose(args)
+        result=self.store.resolve(dict(id=proposal["id"],device=device,state="applied",result="Private event ID"))
+        # This is the same receipt shape produced by terminal-history pruning.
+        with self.store.db() as c:
+            c.execute("INSERT INTO proposal_receipts VALUES(?,?)",(proposal["id"],json.dumps(result)))
+            c.execute("DELETE FROM proposals WHERE id=?",(proposal["id"],))
+            peer=dict(result,id="b"*32,device=other)
+            c.execute("INSERT INTO proposal_receipts VALUES(?,?)",(peer["id"],json.dumps(peer)))
+        revoked=self.store.calendar(device,dict(revoke=True))
+        restarted=PlanningStore(self.home)
+        with restarted.db() as c:
+            stored=json.loads(c.execute("SELECT data FROM proposal_receipts WHERE id=?",(proposal["id"],)).fetchone()[0])
+            self.assertEqual({"id":proposal["id"],"device":device,"revoked":True},stored)
+            self.assertEqual(peer,json.loads(c.execute("SELECT data FROM proposal_receipts WHERE id=?",(peer["id"],)).fetchone()[0]))
+        restarted.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[],generation=revoked["generation"]))
+        with self.assertRaisesRegex(ArtifactError,"revoked"):
+            restarted.propose(args)
+        self.assertEqual([],restarted.snapshot()["proposals"])
     def proposal_args(self,number,device="d"*32):
         return dict(operation_id=f"{number:032x}",device=device,action="create_event",title="Calendar fixture",start_ms=self.now,end_ms=self.now+60000)
+    def test_upgrade_scrubs_old_receipts_for_an_already_revoked_device(self):
+        device="d"*32
+        self.store.calendar(device,dict(revoke=True))
+        old=dict(id="a"*32,device=device,state="applied",title="Private appointment",result="Private result",start_ms=self.now)
+        with self.store.db() as c:
+            c.execute("INSERT INTO proposal_receipts VALUES(?,?)",(old["id"],json.dumps(old)))
+        restarted=PlanningStore(self.home)
+        with restarted.db() as c:
+            actual=json.loads(c.execute("SELECT data FROM proposal_receipts WHERE id=?",(old["id"],)).fetchone()[0])
+        self.assertEqual(dict(id=old["id"],device=device,revoked=True),actual)
+    def test_revoked_pending_proposal_cannot_be_recreated_by_an_old_retry(self):
+        device="d"*32
+        self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        args=self.proposal_args(0)
+        self.store.propose(args)
+        revoked=self.store.calendar(device,dict(revoke=True))
+        self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[],generation=revoked["generation"]))
+        with self.assertRaisesRegex(ArtifactError,"revoked"):
+            self.store.propose(args)
+        self.assertEqual("pending",self.store.propose(self.proposal_args(1))["state"])
+    def test_revoke_between_calendar_read_and_proposal_commit_rejects_stale_details(self):
+        device="d"*32
+        self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))
+        read=self.store.calendar
+        def read_then_revoke(identity):
+            snapshot=read(identity)
+            read(identity,dict(revoke=True))
+            return snapshot
+        with patch.object(self.store,"calendar",side_effect=read_then_revoke):
+            with self.assertRaisesRegex(ArtifactError,"sharing changed"):
+                self.store.propose(self.proposal_args(0))
+        self.assertEqual([],self.store.snapshot()["proposals"])
     def test_over_100_create_resolve_cycles_and_evicted_retries_survive_restart(self):
         for device in ("d"*32,"e"*32):
             self.store.calendar(device,dict(read_at_ms=self.now,busy_only=True,events=[]))

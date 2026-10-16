@@ -47,6 +47,14 @@ availability is separately reported as `bellpull_routines`.
   per-device tombstone retains the generation across process restarts. It is never
   removed with the snapshot. A fresh upload carrying the acknowledged M can resume
   sharing; an older upload cannot restore the revoked data.
+  Revocation also removes personal fields from retained proposal receipts. Only
+  proposal ID, device ID and a revoked flag remain, within the existing 5,000-receipt
+  retention bound; retries using those identities return 409 even after re-sharing.
+  Startup scrubs old receipts for devices whose current policy remains revoked.
+  Proposal admission rechecks the calendar snapshot inside its write transaction,
+  returning 409 if sharing changed since validation, so a concurrent revoke cannot
+  restore proposal details. This clears application records, not historical backups
+  or forensic remnants in SQLite/free storage.
   The phone saves the last acknowledged generation in its encrypted per-connection
   policy. Every policy change (including selected-calendar narrowing and detailed to
   busy-only) first clears local calendar data and persists revoke intent, then uses

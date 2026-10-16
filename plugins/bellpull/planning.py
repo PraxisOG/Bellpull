@@ -58,6 +58,9 @@ class PlanningStore:
             CREATE TABLE IF NOT EXISTS proposal_receipts(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             """)
             self.prune_proposals(c)
+            # Repair retained data from revocations made before receipt scrubbing.
+            for device, in c.execute("SELECT device FROM calendar_policies WHERE busy_only IS NULL").fetchall():
+                self.forget_proposals(c,device)
         self.path.chmod(0o600)
 
     @contextmanager
@@ -127,8 +130,7 @@ class PlanningStore:
                     generation+=1
                     c.execute("INSERT INTO calendar_policies VALUES(?,?,NULL) ON CONFLICT(device) DO UPDATE SET generation=excluded.generation,busy_only=NULL",(device,generation))
                     c.execute("DELETE FROM calendars WHERE device=?",(device,))
-                    for pid,data in c.execute("SELECT id,data FROM proposals").fetchall():
-                        if json.loads(data).get("device")==device: c.execute("DELETE FROM proposals WHERE id=?",(pid,))
+                    self.forget_proposals(c,device)
                     return dict(revoked=True,generation=generation)
                 supplied=body.get("generation")
                 if supplied is None:
@@ -180,16 +182,32 @@ class PlanningStore:
             value.update(event_id=text(args.get("event_id"),100),fingerprint=text(args.get("fingerprint"),64))
             if calendar["busy_only"] or not any(e["id"]==value["event_id"] and e.get("fingerprint")==value["fingerprint"] for e in calendar["events"]): raise ArtifactError("Event is absent or changed. Refresh the phone calendar.",409)
         with self.db() as c:
+            current=c.execute("SELECT data FROM calendars WHERE device=?",(device,)).fetchone()
+            if not current or json.loads(current[0])!=calendar:
+                raise ArtifactError("Calendar sharing changed. Refresh before proposing.",409)
             old=c.execute("SELECT data FROM proposals WHERE id=?",(pid,)).fetchone()
             if not old: old=c.execute("SELECT data FROM proposal_receipts WHERE id=?",(pid,)).fetchone()
             if old:
-                previous=json.loads(old[0]); compared={**previous,"state":"pending"}; compared.pop("result",None)
+                previous=json.loads(old[0])
+                if previous.get("revoked") is True:
+                    raise ArtifactError("Proposal was revoked. Use a new operation identity.",409)
+                compared={**previous,"state":"pending"}; compared.pop("result",None)
                 compared["created_at"]=value["created_at"]
                 if compared!=value: raise ArtifactError("Proposal identity reused.",409)
                 return previous
             if c.execute("SELECT COUNT(*) FROM proposals WHERE json_extract(data,'$.state')='pending'").fetchone()[0]>=100: raise ArtifactError("Pending proposal limit reached. Resolve pending proposals first.",409)
             c.execute("INSERT INTO proposals VALUES(?,?)",(pid,json.dumps(value)))
         return value
+
+    @staticmethod
+    def forget_proposals(c,device):
+        # Identity tombstones prevent replay without retaining personal fields.
+        for table in ("proposals","proposal_receipts"):
+            for pid, in c.execute(f"SELECT id FROM {table} WHERE json_extract(data,'$.device')=?",(device,)).fetchall():
+                tombstone=json.dumps(dict(id=pid,device=device,revoked=True))
+                c.execute("INSERT INTO proposal_receipts VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",(pid,tombstone))
+        c.execute("DELETE FROM proposals WHERE json_extract(data,'$.device')=?",(device,))
+        c.execute("DELETE FROM proposal_receipts WHERE rowid IN (SELECT rowid FROM proposal_receipts ORDER BY rowid DESC LIMIT -1 OFFSET 5000)")
 
     @staticmethod
     def prune_proposals(c):
