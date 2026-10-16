@@ -307,10 +307,10 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         }
     }
     fun retryTranscription() {
-        if (!beforeResume()) return
+        if (closed || !canRetryTranscription || transcriptionJob?.isActive == true) return
+        if (!conversation.selected) { notice = "Reopen the voice conversation before retrying transcription."; return }
+        if (!beforeResume()) { notice = "Audio is still unavailable. Retry transcription after the call or audio interruption finishes."; return }
         val bytes = pendingAudio ?: return
-        if (closed || !conversation.selected) return
-        transcriptionJob = null
         transcribe(bytes)
     }
     fun correct(text: String) { pendingForAdmission = false; transcript = text; saveTranscript(text) }

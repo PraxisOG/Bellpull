@@ -42,10 +42,12 @@ class VoiceSessionTest {
     @Volatile private var failure = false
     @Volatile private var unavailableRecognizer = false
     @Volatile private var transcriptions = 0
+    private var recognizers = 0
     @Volatile private var recognitionWait: java.util.concurrent.CountDownLatch? = null
     private val voice = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(concise = false), output, capture,
         transcriber = {
             check(!unavailableRecognizer) { "Selected local weights are missing." }
+            recognizers++
             object : VoiceTranscriber {
             override fun transcribe(wav: ByteArray): Result<String> { transcriptions++; recognitionWait?.await(3, java.util.concurrent.TimeUnit.SECONDS); return if (failure) Result.failure(IllegalStateException("Speech offline")) else Result.success(recognized) }
             override fun close() {}
@@ -431,6 +433,52 @@ class VoiceSessionTest {
         await { voice.state == VoiceState.SPEAKING }
         assertEquals(2, transcriptions); assertTrue(target.sent.isEmpty()); assertFalse(voice.canRetryTranscription)
         output.complete(); assertEquals(1, target.sent.size)
+    }
+    @Test fun repeatedRetryCannotStartTwoRecognizersForTheSameRecording() {
+        failure = true; voice.start(); utterance()
+        assertTrue(voice.canRetryTranscription)
+        failure = false
+        val release = java.util.concurrent.CountDownLatch(1)
+        recognitionWait = release
+        try {
+            voice.retryTranscription()
+            await { transcriptions == 2 }
+            voice.retryTranscription()
+            assertEquals(2, recognizers)
+        } finally { release.countDown() }
+        await { voice.state == VoiceState.SPEAKING }
+        output.complete()
+        assertEquals(1, target.sent.size)
+    }
+    @Test fun unavailableAudioExplainsWhyTranscriptionRetryCannotStart() {
+        var allowAudio = true
+        var attempts = 0
+        val retained = mutableListOf<ByteArray>()
+        val local = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            beforeResume = { allowAudio }, transcriber = { object : VoiceTranscriber {
+                override fun transcribe(wav: ByteArray): Result<String> {
+                    retained.add(wav.copyOf()); attempts++
+                    return if (attempts == 1) Result.failure(IllegalStateException("Recognition unavailable")) else Result.success("Recovered words")
+                }
+                override fun close() {}
+            } })
+        try {
+            local.start(VoiceMode.DICTATION)
+            repeat(25) { local.frame(ShortArray(320) { 2500 }, 320) }
+            repeat(90) { local.frame(ShortArray(320), 320) }
+            await { local.state == VoiceState.PAUSED }
+            assertEquals(1, attempts)
+            allowAudio = false
+            local.retryTranscription()
+            assertTrue(local.notice.orEmpty().contains("Audio is still unavailable"))
+            assertTrue(local.canRetryTranscription)
+            assertEquals(1, attempts)
+            allowAudio = true
+            local.retryTranscription()
+            await { local.state == VoiceState.REVIEW }
+            assertTrue(retained[0].contentEquals(retained[1]))
+            assertTrue(target.sent.isEmpty())
+        } finally { local.close() }
     }
     @Test fun dictationCompletionRequiresRecordingAnotherTurnInsteadOfResendingOldWords() {
         voice.start(VoiceMode.DICTATION); utterance(); voice.sendTranscript(); output.complete()

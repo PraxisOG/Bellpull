@@ -1,5 +1,19 @@
 # B4 — Dictation fails after one or two sentences; Retry never succeeds
 
+## October 15 audit status — partially repaired
+
+`retryTranscription` previously reset its job guard, allowing repeated Retry taps
+to construct concurrent recognizers for one recording. It also returned silently
+when audio acquisition failed. The repair permits Retry only for retained failed
+audio without active transcription, explains unavailable audio/chat ownership, and
+keeps the recording for another attempt. `VoiceSessionTest` verifies a blocked
+recognizer plus repeated taps, unavailable audio and a later successful retry of
+byte-identical audio without an inference admission.
+
+The reported cutoff after one or two sentences remains unverified. These repairs
+do not establish thermal throttling, microphone contention or a recognition-engine
+failure as its cause. B1 and this report remain open for sustained device diagnosis.
+
 Type: user-reported bug. Reported October 15, 2026.
 Related: [B1](B1-android-auto-heat-and-voice-recovery.md),
 [F1](F1-continuous-call-style-voice.md), [F2](F2-server-side-speech.md).
