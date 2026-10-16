@@ -32,7 +32,10 @@ class SettingsOrganizationTest {
                 voiceSettings = { Text("Private transcription settings") }, speechLab = { SpeechExperiments(lab, {}) }, voiceOutputSettings = { Text("Output models") })
         }
     }
-    @Test fun categoriesCover() { compose.setContent { HermesTheme { Settings() } }; compose.onRoot().captureRoboImage() }
+    @Test fun categoriesCover() { compose.setContent { HermesTheme { Settings() } }
+        // The voice-output section subtitle is pinned by assertion: composition changes must be intentional.
+        compose.onNodeWithText("Models, server offload and playback").performScrollTo().assertExists()
+        compose.onRoot().captureRoboImage() }
     @Test @Config(qualifiers = "w840dp-h900dp-night") fun categoriesUnfoldedDark() {
         compose.setContent { HermesTheme { Settings() } }; compose.onRoot().captureRoboImage()
     }

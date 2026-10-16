@@ -125,8 +125,9 @@ class ServerSpeechTest {
         assertTrue(transcriber.transcribe(byteArrayOf()).exceptionOrNull() is CancellationException)
     }
 
-    @Test fun legacyStandaloneSelectionRequiresExplicitChoiceInsteadOfContactingOldHost() {
-        assertNotNull(VoiceConfiguration(endpoint = "https://speech.invalid/transcribe").startProblem { null })
+    @Test fun privateServerEndpointStaysUsableAndServerSwitchTakesPrecedence() {
+        // Restored feature: a configured private endpoint is a valid choice on its own.
+        assertNull(VoiceConfiguration(endpoint = "https://speech.invalid/transcribe").startProblem { null })
         assertNull(VoiceConfiguration(endpoint = "https://speech.invalid/transcribe", transcribeViaServer = true).startProblem {
             error("Server input does not need weights")
         })
