@@ -1,0 +1,18 @@
+Bellpull task: add MOSS-TTS-Nano as an on-device TTS engine replacing Pocket TTS in the selectable options.
+
+Repo facts you must respect:
+- docs/hermes-api.md is the ONLY API source of truth. This task touches NO endpoints and NO plugin code. Do not edit plugins/, server-host/, or docs/hermes-api.md.
+- Voice output engines live in android/app/src/main/java/org/praxisog/hermes/: VoiceOutputModels.kt (enum VoiceOutputEngine, OutputModel specs, VoiceOutputFiles downloader with sha256 verification), QwenVoiceOutput.kt (LocalTtsEngine interface, engine cache, VoiceOutputLab), PocketVoiceOutput.kt (the engine to replace), VoiceOutputSettings.kt and VoiceSettings.kt (UI + persisted settings).
+- A reference ONNX-RT Android implementation of MOSS-TTS-Nano is copied into this repo at docs/references/MossOnnxDemoEngine.kt (copied reference, 631 lines, reads browser_poc_manifest.json, runs prefill + decode_step + local_fixed_sampled_frame + audio tokenizer decode sessions, writes mono WAV). Port it, do not reinvent it.
+- Verified asset manifest (16 files, ~727 MiB, hf repos OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX and MOSS-Audio-Tokenizer-Nano-ONNX): docs/MOSS-NANO-MANIFEST.txt (name, bytes, sha256 per line).
+
+Requirements:
+1. VoiceOutputEngine gains MOSS("MOSS-TTS-Nano · on device"). Keep SYSTEM and QWEN. Remove POCKET from the enum; keep PocketVoiceOutput.kt source and its settings migration: any persisted POCKET setting must decode to MOSS (or SYSTEM) instead of crashing.
+2. MossVoiceOutput.kt: MossModel OutputModel (id "moss-nano-onnx") with the 16 manifest files, hf.co resolve URLs for the two repos (main branch). Reuse VoiceOutputFiles download/verification. ONNX sessions via the com.microsoft.onnxruntime:onnxruntime-android dependency already used by the sherpa layer (declare it explicitly in app/build.gradle.kts if transitives exclude it).
+3. Tokenization: the demo engine needs pre-tokenized text. MOSS uses a SentencePiece model (tokenizer.model in the manifest). Add a small JNI/CMake sentencepiece integration to the EXISTING native TTS CMake setup (third-party sources fetched the same way sherpa/ggml are, pinned commit, license notice under third-party/ and assets/licenses/), exposing nativeTokenize(bytes): IntArray. If sentencepiece cannot be vendored cleanly, STOP and report instead of inventing a fake tokenizer.
+4. Streaming playback: engine must emit PCM chunks to the existing LocalTtsSink during generation like the Qwen engine does (phrase-in, PCM-out), honoring the existing cancellation path.
+5. Settings UI: MOSS model row mirrors the Pocket/Qwen row: download, installed size, delete, preview button. Voice preview uses built-in voice "Junhao" (default).
+6. Persistence: VoiceOutputSettings must round-trip the new engine id "moss"; unknown ids fall back to SYSTEM.
+7. Add JVM unit tests mirroring existing Pocket/Qwen tests: manifest validation, settings round-trip, engine selection. NO Roborazzi baselines changes unless a screenshot literally breaks, then STOP and report it.
+
+Constraints: DO NOT run gradle, do not fetch anything from the network, do not touch android/app/src/test/snapshots. Keep every edit inside android/app and docs/MOSS-NANO-MANIFEST.txt. Report at the end: list of files changed, any file you were unsure about, and anything you could not complete.
