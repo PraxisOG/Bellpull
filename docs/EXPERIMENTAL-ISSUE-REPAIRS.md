@@ -1,5 +1,88 @@
 # Experimental issue repairs — 2026-10-13
 
+## October 15 re-audit
+
+Audited all 15 open GitHub issues against `695f399`, their acceptance criteria,
+current source, local regression suites and the separately dated device evidence
+below. The latest commit itself records requests; it does not implement continuous
+call-style voice or server speech. The preceding code adds useful title recovery,
+calendar recovery and message statistics, but recovery boundaries still contain
+confirmed defects. Commit authorship does not establish which model wrote a change.
+
+| Issue | Disposition | Evidence and remaining scope |
+|---|---|---|
+| #1 | Open | Parent still needs sustained physical car acceptance; new heat/recovery report B1 remains unexplained. |
+| #2 | Close | `VoiceService` additions only diagnose inventory; selected-device removal still pauses. Prior isolated built-in-route startup stayed LISTENING; current voice readiness/callback tests pass. Car behavior stays under #1/#3. |
+| #3 | Open | Queue preservation/focus recovery tests pass, but wired Android Auto, navigation, real calls and route removal have not established that the reported cutoff is resolved. |
+| #4 | Close | `VoiceSessionTest` covers rejected noise, pending echo recognition plus backend completion, confirmed interruption and stale callbacks. The partially played phrase restarts; completed phrases stay consumed. |
+| #5 | Close source defect | `VoiceSignalTest.shortEchoRequiresRecentWholePlaybackAndPreservesUserCommands` covers one/two-word audible phrases and genuine commands. Session tests cover rejected echo without another Stop/send. This is exact normalized matching, not acoustic speaker identification; physical headset/car acoustic acceptance stays under #1. |
+| #6 | Close original defect | `MainActivity.onReadMessage` no longer pauses voice. Its factory consistently rejects active/paused sessions with an End voice notice; no microphone/server action occurs. The newly reported car routing bug is separate, #16. |
+| #7 | Open | Native measurements and bounded synthesis-ahead exist; Pocket's paired gap improved from 1,478.5 ms to 38.8 ms. Sustained thermal tests, subjective listening acceptance and production candidate frontend integration remain incomplete. Owner reiterates that a good on-device voice is a priority. |
+| #8 | Close | `SettingsOrganizationTest` opens About directly; cover/unfolded snapshots and prior physical taps verify the layout. `AboutSettingsTest` covers app/plugin information. |
+| #9 | Close source defect | `toolBatchesAndReplayedSnapshotsNeverRepeatPublicProse` verifies tools/replays/new commentary without suppressing legitimate repetitions. Activity labels and answer prose have separate provenance. No new physical multi-tool listening run is claimed. |
+| #10 | Close | All four combinations of tool/search flags and all-off admission are tested. Settings interaction and encrypted per-profile persistence were also device-tested October 13. |
+| #11 | Close | Full final-word playback beyond 180 words, unrestricted detail preset, bounded prefetch and cancellation tests pass. Provider limits and thermal failures remain separate concerns. |
+| #12 | Close | `Composer` hides IME/clears focus only after accepted send; Ctrl+Enter shares that path. Prior physical IME test preserved multiline text and deliberately reopened the keyboard. |
+| #13 | Open | Global pin API/persistence and capability tests pass, but B3 reports the actual control is unresponsive. Inspect the exact touch target and server capability before closing. A missing plugin capability is a possibility, not a diagnosis. |
+| #14 | Open, defect reproduced | `recoverSessionTitles` drops a pending repair on any nonblank server title, including an automatically derived voice-wrapper title. Synthetic real-store probe loses the desired title. Recovery must distinguish automatic titling from a user rename atomically; blindly overwriting nonblank titles is unsafe. |
+| #15 | Close | `MessageInfoTest` verifies duration/token attribution to a unique final reply, ambiguity rejection and explicitly estimated fallback. `DenseChatScreenshotTest` long-presses the actual row and opens Message info. Unavailable server usage remains unknown. |
+| #16 | Open, new routing report | Read aloud played on the phone instead of car speakers. Source classification/focus repair is below; actual car output must still be verified. |
+
+Closing a source defect here does not certify every physical route. Unverified
+car/headset acceptance is explicitly retained under the parent and route tickets.
+The October 13 device evidence is historical; it was not rerun during this audit.
+
+### Additional confirmed repairs
+
+Work is isolated on `repair/reliability-followups-20261015`, with separate commits:
+
+- `c3ca0c5`: manual return to the bottom resumes streaming follow even when the
+  final drag is unconsumed overscroll (B2); a real Compose gesture reproduces the
+  old failure and verifies the repair.
+- `547e540`: a rejected Stop remains visible across successful status polls until
+  retry/terminal completion. The deterministic regression failed on the old code;
+  this explains a plausible cause of the existing intermittent CI failure rather
+  than treating it as harmless test noise.
+- `a70f3e0`: Retry no longer admits concurrent recognition jobs, and unavailable
+  audio gives a useful notice while retaining the same recording. B4's original
+  long-dictation cutoff remains unresolved.
+- `f4156f9`: calendar revoke removes personal fields from pruned proposal receipts,
+  retains bounded identity-only tombstones against replay, and repairs currently
+  revoked policies at startup. Admission rechecks its calendar snapshot in the
+  write transaction so a concurrent revoke cannot recreate private proposal data.
+  Four regression cases cover retained rows, upgrade, pending replay and the race.
+  This is application-record cleanup, not erasure of backups/storage remnants.
+- `7515d02`: standalone Read aloud uses media speech and matching audio focus for
+  Android/Pocket/Qwen, without changing communication-mode conversation routing.
+  Five reader tests verify usage, completion/error cleanup, denied focus, stale
+  callbacks and explicit restart after interruption. Physical car success remains
+  an acceptance item in #16.
+
+Android full regression, screenshot verification, build and lint are run for this
+branch; final counts and installation evidence are recorded in the audit comments.
+Before the routing addition: 593 passed, one live-server skip, 172 unchanged
+screenshot baselines. Plugin: 148 passed and one compatibility skip in the full
+legacy-image suite; 66 passed and one compatibility skip in the stock 0.21.5 subset
+(coding, planning, projects, portability). No real inference was submitted.
+
+### On-device voice recommendation
+
+Pocket is the first practical option to audition in the current app: Settings →
+Voice output → Download Pocket → select Pocket TTS → Save, for the current server
+profile. Its shipped voice is Loona; defaults are 5 steps, temperature 0.7 and
+15-frame chunks. This is an explicit local selection, with no remote fallback.
+
+The recorded Pixel test synthesized Pocket at median RTF 0.528 (about 1.9× playback
+speed), with peak process PSS 674 MiB. Current Qwen defaults measured RTF 6.862 and
+2,688 MiB on three matching short texts, making that implementation unsuitable for
+responsive conversation on this phone. These are performance measurements, not a
+listening-quality ranking. Pocket still needs long car-session thermal acceptance.
+Paradee/Inflect remain benchmark candidates, not selectable production voices.
+See the [measured report](../benchmarks/voice-output/pixel-10-pro-fold-2026-10-13/README.md)
+and [Pocket's official samples](https://kyutai-labs.github.io/pocket-tts/).
+
+## Original October 13 repair record
+
 Work started from `integration/phase6-8-9` at `4fa43d1` and is isolated on
 `repair/experimental-open-issues`. Android 0.8.2-integration-preview, build 21;
 Bellpull plugin 0.4.1-integration-preview. The user requested all open issues,
