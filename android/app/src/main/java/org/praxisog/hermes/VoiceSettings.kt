@@ -19,7 +19,8 @@ internal data class VoiceConfiguration(val endpoint: String = "", val key: Strin
 internal fun VoiceConfiguration.startProblem(localProblem: () -> String?): String? =
     if (transcribeViaServer) null else when (recognition) {
         VoiceRecognition.LOCAL -> localProblem()
-        VoiceRecognition.PRIVATE_SERVER -> "Choose Transcribe on server or on-device recognition in Voice input settings."
+        VoiceRecognition.PRIVATE_SERVER -> if (endpoint.isBlank())
+            "Configure your selected private transcription service first." else null
     }
 
 @Suppress("DEPRECATION")

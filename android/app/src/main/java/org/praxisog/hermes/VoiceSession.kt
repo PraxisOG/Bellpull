@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import androidx.compose.runtime.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import org.praxisog.hermes.core.PrivateTranscription
 
 internal enum class VoiceMode { CONVERSATION, DICTATION, PUSH_TO_TALK }
 internal enum class VoiceState(val label: String) {
@@ -24,6 +25,11 @@ internal interface VoiceConversation {
 internal interface VoiceTranscriber {
     fun transcribe(wav: ByteArray): Result<String>
     fun close()
+}
+internal class HttpVoiceTranscriber(config: VoiceConfiguration) : VoiceTranscriber {
+    private val client = PrivateTranscription(config.endpoint, config.key, config.model)
+    override fun transcribe(wav: ByteArray) = client.transcribe(wav)
+    override fun close() = client.close()
 }
 internal class StoreVoiceConversation(private val store: HermesStore, private val id: String) : VoiceConversation {
     private var previousIds = emptySet<Int>()
@@ -71,7 +77,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val conversation: VoiceConversation, private val config: VoiceConfiguration,
     private val output: VoiceOutput, private val capture: VoiceCapture,
     private val transcriber: () -> VoiceTranscriber = {
-        error("The speech runtime is not connected.")
+        check(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER) { "The local speech runtime is not connected." }
+        HttpVoiceTranscriber(config)
     },
     private val onClosed: () -> Unit = {},
     private val beforeResume: () -> Boolean = { true },

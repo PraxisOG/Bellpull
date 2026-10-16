@@ -105,7 +105,8 @@ class VoiceService : Service() {
                     if (config.transcribeViaServer) ServerVoiceTranscriber(ProfileSpeechTransport(runtime.speechConnection())) {
                         runtime.speechLab.fallbackTranscriber()
                     }
-                    else runtime.speechLab.voiceTranscriber()
+                    else if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
+                    else HttpVoiceTranscriber(config)
                 }, onClosed = { stopSelf() }, beforeResume = {
                     acquireAudio()
                 }, onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
