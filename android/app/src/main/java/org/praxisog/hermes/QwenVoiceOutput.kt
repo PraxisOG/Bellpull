@@ -71,8 +71,16 @@ internal interface VoicePcmPlayer : AutoCloseable {
     suspend fun drain()
     fun stop()
 }
-internal class AndroidVoicePcmPlayer(rate: Float, volume: Float, sampleRate: Int = 24000,
-    usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION) : VoicePcmPlayer {
+internal fun voicePcmPlayer(engine: VoiceOutputEngine, rate: Float, volume: Float,
+    usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION): VoicePcmPlayer =
+    AndroidVoicePcmPlayer(rate, volume, usage = usage, sampleRate = when (engine) {
+        VoiceOutputEngine.MOSS, VoiceOutputEngine.SERVER_MOSS -> MossModel.sampleRate
+        VoiceOutputEngine.QWEN -> 24000
+        VoiceOutputEngine.SYSTEM -> error("The Android voice manages its own audio format.")
+    })
+
+internal class AndroidVoicePcmPlayer(rate: Float, volume: Float,
+    usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION, sampleRate: Int = 24000) : VoicePcmPlayer {
     private val track = AudioTrack.Builder()
         .setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
@@ -153,11 +161,15 @@ internal class LocalVoiceOutput(
             }
         }
     }
-    private fun synthesize(text: String, token: Long): PreparedSpeech {
+    private fun synthesize(text: String, token: Long, after: Deferred<Unit>? = null): PreparedSpeech {
         val queue = Channel<FloatArray>(16) // At most 1.6 seconds of 24 kHz PCM per phrase.
         val producer = scope.async(Dispatchers.IO) {
             var problem: Throwable? = null
             try {
+                // IO scheduling can run prefetch before the active phrase. Waiting
+                // here preserves phrase order before either job takes the model lock;
+                // otherwise the ahead queue fills and deadlocks the audible phrase.
+                after?.await()
                 check(!severe()) { "Phone is too warm. $name paused; let it cool before resuming." }
                 val job = currentCoroutineContext()[Job]!!
                 var hot = false
@@ -196,7 +208,7 @@ internal class LocalVoiceOutput(
     override fun prefetch(text: String) {
         if (closed || active == null || text.isBlank() || ahead?.text == text) return
         ahead?.cancel()
-        ahead = synthesize(text, generation.get())
+        ahead = synthesize(text, generation.get(), after = active?.producer)
     }
     override fun speak(text: String, started: () -> Unit, complete: () -> Unit) {
         if (closed || text.isBlank()) return
@@ -298,7 +310,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
         startProblem(config)?.let { error(it) }
         config.output.validated()
         if (config.output.engine == VoiceOutputEngine.SERVER_MOSS)
-            return ServerMossVoiceOutput(checkNotNull(serverConnection()) { "Select a connected server profile first." }, config)
+            return ServerMossVoiceOutput(checkNotNull(serverConnection()) { "Select a connected server profile first." }, config, usage = usage)
         if (config.output.engine == VoiceOutputEngine.SYSTEM) {
             // Free the heavyweight engine when switching back to Android, off the UI thread.
             return object : VoiceOutput {
@@ -317,7 +329,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
             }
         }
         val voice = LocalVoiceOutput(modelRuntime(config.output.engine), config.output, config.rate,
-            { thermals.severe }, player = { rate, volume -> AndroidVoicePcmPlayer(rate, volume, usage = usage) }, cue = { readyChime() })
+            { thermals.severe }, player = { rate, volume -> voicePcmPlayer(config.output.engine, rate, volume, usage) }, cue = { readyChime() })
         return object : VoiceOutput by voice {
             override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) =
                 voice.prepare({ refresh(); onReady(it) }, { refresh(); onError(it) })

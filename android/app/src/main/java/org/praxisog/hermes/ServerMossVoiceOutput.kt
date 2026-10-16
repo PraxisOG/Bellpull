@@ -47,7 +47,12 @@ internal class ProfileSpeechTransport(private val connection: ServerConnection) 
             val response = call.execute()
             if (!response.isSuccessful) {
                 val status = response.code; response.close()
-                error("Server speech failed (HTTP $status). The written answer is available.")
+                error(speechHttpError("speech", status))
+            }
+            val type = response.body.contentType()?.let { "${it.type}/${it.subtype}" }
+            if (type !in setOf("application/octet-stream", "audio/pcm")) {
+                response.close()
+                error("Server speech did not return streaming PCM. Check the Bellpull speech helper. The written answer is available.")
             }
             return object : FilterInputStream(response.body.byteStream()) {
                 override fun close() { try { response.close() } finally { forget(call) } }
@@ -60,14 +65,14 @@ internal class ProfileSpeechTransport(private val connection: ServerConnection) 
         val call = call("stt", body, 65)
         try {
             return call.execute().use { response ->
-                check(response.isSuccessful) { "Server transcription failed (HTTP ${response.code})." }
+                check(response.isSuccessful) { speechHttpError("transcription", response.code) }
                 val source = response.body.source()
                 check(!source.request(1024 * 1024 + 1L)) { "Server transcription response is too large." }
                 val value = Json.parseToJsonElement(source.readUtf8()).jsonObject["text"]
                 check(value is JsonPrimitive && value.isString) { "Server transcription returned invalid text." }
-                val text = value.content.trim()
-                check(!text.isNullOrBlank()) { "Server transcription returned no text." }
-                text
+                // Silence is a successful empty transcript, not a broken server or a
+                // reason to launch a second recognizer. VoiceSession handles it.
+                value.content.trim()
             }
         } finally { forget(call) }
     }
@@ -77,6 +82,16 @@ internal class ProfileSpeechTransport(private val connection: ServerConnection) 
         client.connectionPool.evictAll()
         client.dispatcher.executorService.shutdown()
     }
+}
+
+private fun speechHttpError(operation: String, status: Int): String {
+    val action = when (status) {
+        401, 403 -> "Check this server profile's connection and API key."
+        404 -> "Update the Bellpull plugin on this server to enable speech routes."
+        502, 503, 504 -> "Check the speech helper on your Bellpull server, then retry."
+        else -> "Check the Bellpull speech helper, then retry."
+    }
+    return "Server $operation failed (HTTP $status). $action"
 }
 
 internal data class ServerSpeechTiming(val firstPcmMs: Long?, val totalMs: Long, val audioSeconds: Double)
@@ -138,9 +153,10 @@ internal class ServerMossEngine(private val transport: ServerSpeechTransport,
 
 /** Reuse the bounded local PCM queue, callbacks and playback cancellation. */
 internal class ServerMossVoiceOutput(connection: ServerConnection, config: VoiceConfiguration,
-    private val transport: ServerSpeechTransport = ProfileSpeechTransport(connection)) : VoiceOutput {
+    private val transport: ServerSpeechTransport = ProfileSpeechTransport(connection),
+    usage: Int = android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION) : VoiceOutput {
     private val voice = LocalVoiceOutput(LocalTtsRuntime({}) { ServerMossEngine(transport) }, config.output, config.rate,
-        severe = { false }, player = { rate, volume -> AndroidVoicePcmPlayer(rate, volume, 48000) },
+        severe = { false }, player = { rate, volume -> voicePcmPlayer(VoiceOutputEngine.SERVER_MOSS, rate, volume, usage) },
         cue = ::readyChime, cancelSynthesis = transport::cancel)
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) = voice.prepare(onReady, onError)
     override fun speak(text: String, started: () -> Unit, complete: () -> Unit) = voice.speak(text, started, complete)

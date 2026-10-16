@@ -36,8 +36,9 @@ internal class MossOnnxEngine(private val root: File, cpuThreads: Int = 2) : Aut
 
     init {
         try {
-            // The existing shared playback sink is mono 24 kHz. Never play at the wrong rate.
-            check(sampleRate == 24000) { "MOSS requires mono 24 kHz output for this playback path." }
+            // The pinned codec is 48 kHz stereo. decodeAudioTokens mixes channels to
+            // mono without changing time; the playback sink must keep the codec rate.
+            check(sampleRate == MossModel.sampleRate) { "MOSS codec sample rate does not match its playback format." }
             require(nVq > 0 && maxFrames in 1..4096)
             options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
             options.setIntraOpNumThreads(cpuThreads.coerceAtLeast(1))

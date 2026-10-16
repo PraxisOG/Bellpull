@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include "ssentencepiece/csrc/ssentencepiece.h"
+#include "sentencepiece_processor.h"
 
 namespace {
 void fail(JNIEnv *env, const char *message) {
@@ -49,9 +49,12 @@ Java_org_praxisog_hermes_MossNative_tokenize(JNIEnv *env, jobject, jstring model
         std::ifstream model(path, std::ios::binary);
         if (!model.good()) throw std::runtime_error("Tokenizer model unavailable");
         // No BOS/EOS injection: the ONNX prompt templates supply their own framing.
-        ssentencepiece::Ssentencepiece tokenizer(path);
+        sentencepiece::SentencePieceProcessor tokenizer;
+        if (!tokenizer.Load(path).ok())
+            throw std::runtime_error("Invalid SentencePiece model");
         std::vector<int32_t> ids;
-        tokenizer.Encode(input, &ids);
+        if (!tokenizer.Encode(input, &ids).ok())
+            throw std::runtime_error("SentencePiece encoding failed");
         if (ids.empty() || ids.size() > static_cast<size_t>(std::numeric_limits<jsize>::max()))
             throw std::runtime_error("Invalid token count");
         std::vector<jint> result(ids.begin(), ids.end());

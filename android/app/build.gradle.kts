@@ -1,9 +1,60 @@
 import java.util.Properties
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+import org.gradle.api.artifacts.transform.CacheableTransform
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.TransformParameters
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("io.github.takahirom.roborazzi")
+}
+
+/** Moonshine embeds a reduced CPU-only ORT. It cannot satisfy the Java bridge's
+ * NNAPI symbols even though both libraries report 1.23.2. Keep Moonshine's SDK
+ * and transitive dependencies, but use the full pinned ORT AAR for both engines.
+ */
+@CacheableTransform
+abstract class SharedSpeechOrt : TransformAction<TransformParameters.None> {
+    @get:InputArtifact
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val inputArtifact: Provider<FileSystemLocation>
+
+    override fun transform(outputs: TransformOutputs) {
+        val input = inputArtifact.get().asFile
+        if (!input.name.startsWith("moonshine-voice-")) {
+            outputs.file(input)
+            return
+        }
+        ZipFile(input).use { archive ->
+            ZipOutputStream(outputs.file("shared-ort-${input.name}").outputStream()).use { output ->
+                archive.entries().asSequence().forEach { entry ->
+                    if (!entry.name.matches(Regex("jni/[^/]+/libonnxruntime\\.so"))) {
+                        output.putNextEntry(ZipEntry(entry.name).apply { time = 0 })
+                        archive.getInputStream(entry).use { it.copyTo(output) }
+                        output.closeEntry()
+                    }
+                }
+            }
+        }
+    }
+}
+val sharedSpeechOrt = Attribute.of("org.praxisog.sharedSpeechOrt", Boolean::class.javaObjectType)
+dependencies {
+    attributesSchema.attribute(sharedSpeechOrt)
+    artifactTypes.maybeCreate("aar").attributes.attribute(sharedSpeechOrt, false)
+    registerTransform(SharedSpeechOrt::class) {
+        from.attribute(ARTIFACT_TYPE_ATTRIBUTE, "aar").attribute(sharedSpeechOrt, false)
+        to.attribute(ARTIFACT_TYPE_ATTRIBUTE, "aar").attribute(sharedSpeechOrt, true)
+    }
+}
+configurations.configureEach {
+    if (isCanBeResolved) attributes.attribute(sharedSpeechOrt, true)
 }
 
 // Release signing is configured from an untracked file so no keystore or password ever
@@ -27,18 +78,6 @@ android {
     compileSdk = 37
     ndkVersion = "29.0.14206865"
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" } }
-    packaging {
-        // Moonshine's AAR bundles a stripped libonnxruntime.so (no NNAPI exports); the
-        // Java ORT 4j JNI needs OrtSessionOptionsAppendExecutionProvider_Nnapi, so the
-        // app ships the complete official 1.23.2 build in src/main/jniLibs (verified a
-        // superset of Moonshine's needed symbols) and drop every AAR copy by exclusion,
-        // then re-include only the app-owned path. pickFirsts used to resolve the AAR
-        // clash silently kept Moonshine's stripped copy -> MOSS dlopen crash.
-        jniLibs {
-            excludes += "lib/*/libonnxruntime.so"
-            pickFirsts += "lib/*/libonnxruntime.so"
-        }
-    }
 
     defaultConfig {
         // Device fixtures use a separate sandbox; personal profiles are never loaded.
@@ -47,6 +86,7 @@ android {
         minSdk = 29
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         externalNativeBuild { cmake {
+            targets += listOf("bellpull_qwen", "bellpull_pocket", "bellpull_moss")
             arguments += "-DANDROID_STL=c++_static"
             arguments += "-DBELLPULL_TTS_CANDIDATE_BENCHMARK=" +
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
@@ -145,8 +185,8 @@ dependencies {
         exclude(group = "androidx.work")
     }
     // MOSS uses the Java session API. Pocket's statically isolated ORT has no Java API.
-    // Pinned to the same 1.23.2 the Moonshine AAR bundles so both Java engines share one
-    // libc version (the MOSS demo's 1.20.0 floor and the ONNX opsets both satisfy 1.23.x).
+    // Full runtime paired with its own Java bridge; the transform removes only
+    // Moonshine's incompatible reduced ORT, never an arbitrary pickFirst copy.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.

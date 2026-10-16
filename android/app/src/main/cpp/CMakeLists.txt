@@ -91,26 +91,23 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/pocket-exports.map" "{ global: ${POCKET_
 target_link_options(bellpull_pocket PRIVATE "-Wl,--exclude-libs,ALL" "-Wl,-z,max-page-size=16384"
     "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/pocket-exports.map")
 
-# MOSS text tokenizer, fetched only at build time. Pin matches Sherpa's
-# cmake/simple-sentencepiece.cmake; apply its Android no-threading patches.
-# License note: simple-sentencepiece (Apache-2.0) and its BSD-licensed components
-# retain their upstream copyright/license notices in the fetched source.
-# Apache/BSD license texts and attribution: https://github.com/pkufool/simple-sentencepiece
-# (v0.7 LICENSE and bundled component notices). No upstream code is vendored here.
-set(SBPE_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
-set(SBPE_BUILD_PYTHON OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(simple-sentencepiece
-    URL "https://github.com/pkufool/simple-sentencepiece/archive/refs/tags/v0.7.tar.gz"
-    URL_HASH SHA256=1748a822060a35baa9f6609f84efc8eb54dc0e74b9ece3d82367b7119fdc75af
-    PATCH_COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=<SOURCE_DIR>"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/patch-moss-sentencepiece.cmake")
-FetchContent_MakeAvailable(simple-sentencepiece)
-target_include_directories(ssentencepiece_core PUBLIC "${simple-sentencepiece_SOURCE_DIR}")
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(ssentencepiece_core PRIVATE -Wno-deprecated-declarations)
-endif()
+# MOSS ships a binary SentencePiece BPE ModelProto with NFKC normalization.
+# simple-sentencepiece reads a text unigram vocabulary and calls exit(-1) on this
+# file. Use the offline ModelProto processor; no Android services are involved.
+# License and bundled dependency notices are in assets/licenses/SentencePiece-*.
+set(SPM_ENABLE_SHARED OFF CACHE BOOL "" FORCE)
+set(SPM_BUILD_TEST OFF CACHE BOOL "" FORCE)
+set(SPM_ENABLE_TCMALLOC OFF CACHE BOOL "" FORCE)
+set(SPM_DISABLE_EMBEDDED_DATA ON CACHE BOOL "" FORCE)
+FetchContent_Declare(sentencepiece
+    URL "https://github.com/google/sentencepiece/archive/refs/tags/v0.2.1.tar.gz"
+    URL_HASH SHA256=c1a59e9259c9653ad0ade653dadff074cd31f0a6ff2a11316f67bee4189a8f1b
+    EXCLUDE_FROM_ALL)
+FetchContent_MakeAvailable(sentencepiece)
+set_target_properties(sentencepiece-static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(bellpull_moss SHARED moss-jni.cpp)
-target_link_libraries(bellpull_moss PRIVATE ssentencepiece_core)
+target_include_directories(bellpull_moss PRIVATE "${sentencepiece_SOURCE_DIR}/src")
+target_link_libraries(bellpull_moss PRIVATE sentencepiece-static log)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moss-exports.map" "{ global: Java_org_praxisog_hermes_MossNative_*; local: *; };\n")
 target_link_options(bellpull_moss PRIVATE "-Wl,--exclude-libs,ALL" "-Wl,-z,max-page-size=16384"
     "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/moss-exports.map")

@@ -8,6 +8,7 @@ import java.net.URI
  * A changed upstream file fails verification rather than silently replacing weights.
  */
 internal object MossModel {
+    const val sampleRate = 48000
     const val voice = "Junhao"
     const val ttsRepository = "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX"
     const val codecRepository = "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX"
