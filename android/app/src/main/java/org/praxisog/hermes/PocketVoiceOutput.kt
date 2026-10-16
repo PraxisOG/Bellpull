@@ -14,7 +14,8 @@ internal class NativePocketEngine(files: VoiceOutputFiles) : LocalTtsEngine {
     override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
         check(handle != 0L)
         config.validated()
-        require(config.engine == VoiceOutputEngine.POCKET)
+        // Retained for legacy fixture benchmarks only; Pocket is no longer selectable.
+        require(config.seed <= Int.MAX_VALUE)
         return PocketNative.synthesize(handle, text.toByteArray(Charsets.UTF_8), config.pocketSteps,
             config.pocketTemperature, config.pocketChunkFrames, config.seed.toInt(), sink)
     }

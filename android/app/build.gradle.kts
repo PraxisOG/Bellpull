@@ -132,6 +132,8 @@ dependencies {
         exclude(group = "com.google.android.material")
         exclude(group = "androidx.work")
     }
+    // MOSS uses the Java session API. Pocket's statically isolated ORT has no Java API.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.28.2")
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")

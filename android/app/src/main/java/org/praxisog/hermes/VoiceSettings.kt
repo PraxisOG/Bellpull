@@ -33,7 +33,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
         prefs.getString("recognition", null)?.let(VoiceRecognition::valueOf)
             ?: if (prefs.getString("endpoint", "").isNullOrBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
         VoiceOutputConfiguration(
-            engine = runCatching { VoiceOutputEngine.valueOf(prefs.getString("output", "SYSTEM")!!) }.getOrDefault(VoiceOutputEngine.SYSTEM),
+            engine = VoiceOutputEngine.decode(prefs.getString("output", null)),
             speaker = prefs.getString("speaker", "ryan").orEmpty(), language = prefs.getString("language", "english").orEmpty(),
             temperature = prefs.getFloat("temperature", .9f), topP = prefs.getFloat("top_p", 1f), topK = prefs.getInt("top_k", 50),
             repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f),
@@ -48,7 +48,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             require(value.model.isNotBlank() && value.model.length <= 200)
         }
         check(prefs.edit().putString("endpoint", value.endpoint.trim()).putString("key", value.key.trim()).putString("model", value.model.trim())
-            .putString("output", value.output.engine.name).putString("speaker", value.output.speaker).putString("language", value.output.language)
+            .putString("output", value.output.engine.id).putString("speaker", value.output.speaker).putString("language", value.output.language)
             .putFloat("temperature", value.output.temperature).putFloat("top_p", value.output.topP).putInt("top_k", value.output.topK)
             .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)
             .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
