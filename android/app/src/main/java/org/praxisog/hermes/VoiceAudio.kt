@@ -23,7 +23,8 @@ internal interface VoiceOutput {
     fun chime() {}
 }
 /** Only voices explicitly reported as offline by the installed engine are eligible. */
-internal class AndroidVoiceOutput(context: Context, private val rate: Float) : VoiceOutput {
+internal class AndroidVoiceOutput(context: Context, private val rate: Float,
+    private val usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION) : VoiceOutput {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private var engine: TextToSpeech? = null
@@ -56,7 +57,7 @@ internal class AndroidVoiceOutput(context: Context, private val rate: Float) : V
             if (choice == null) { onError("Install an offline voice for your language. No cloud fallback was selected."); return@post }
             if (tts.setVoice(choice) != TextToSpeech.SUCCESS) { onError("The installed offline voice could not load."); return@post }
             tts.setSpeechRate(rate)
-            tts.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            tts.setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) { main.post { if (utteranceId == generation.toString()) begun?.invoke() } }

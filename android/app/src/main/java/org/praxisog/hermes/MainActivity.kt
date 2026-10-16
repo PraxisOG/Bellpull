@@ -68,9 +68,9 @@ class MainActivity : ComponentActivity() {
             insets
         }
         androidx.core.view.ViewCompat.requestApplyInsets(window.decorView)
-        val reader = MessageReader(this) {
+        val reader = MessageReader(this) { usage ->
             check(runtime.voice == null) { "End voice conversation before using Read aloud." }
-            runtime.voiceOutputs.output(runtime.profileId?.let { VoiceSettings(this, it).read() } ?: VoiceConfiguration())
+            runtime.voiceOutputs.output(runtime.profileId?.let { VoiceSettings(this, it).read() } ?: VoiceConfiguration(), usage)
         }
         messageReader = reader
         profiles = ServerProfiles(this, scope, runtime, onLeaving = {

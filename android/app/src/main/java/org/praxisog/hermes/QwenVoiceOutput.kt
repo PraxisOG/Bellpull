@@ -71,9 +71,10 @@ internal interface VoicePcmPlayer : AutoCloseable {
     suspend fun drain()
     fun stop()
 }
-internal class AndroidVoicePcmPlayer(rate: Float, volume: Float) : VoicePcmPlayer {
+internal class AndroidVoicePcmPlayer(rate: Float, volume: Float,
+    usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION) : VoicePcmPlayer {
     private val track = AudioTrack.Builder()
-        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
         .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_FLOAT).setSampleRate(24000)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
@@ -110,7 +111,7 @@ internal class AndroidVoicePcmPlayer(rate: Float, volume: Float) : VoicePcmPlaye
 internal class LocalVoiceOutput(
     private val runtime: LocalTtsRuntime, private val config: VoiceOutputConfiguration, private val rate: Float,
     private val severe: () -> Boolean,
-    private val player: (Float, Float) -> VoicePcmPlayer = ::AndroidVoicePcmPlayer,
+    private val player: (Float, Float) -> VoicePcmPlayer = { rate, volume -> AndroidVoicePcmPlayer(rate, volume) },
     private val cue: () -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     private val callbacks: CoroutineDispatcher = Dispatchers.Main.immediate,
@@ -265,13 +266,13 @@ internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? 
             "Download ${name(config.output.engine)} in Settings → Voice output first."
         else -> null
     }
-    fun output(config: VoiceConfiguration): VoiceOutput {
+    fun output(config: VoiceConfiguration, usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION): VoiceOutput {
         startProblem(config)?.let { error(it) }
         config.output.validated()
         if (config.output.engine == VoiceOutputEngine.SYSTEM) {
             // Free the heavyweight engine when switching back to Android, off the UI thread.
             return object : VoiceOutput {
-                private val voice = AndroidVoiceOutput(app, config.rate)
+                private val voice = AndroidVoiceOutput(app, config.rate, usage)
                 private var prepareTask: Job? = null
                 override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
                     prepareTask = scope.launch {
@@ -286,7 +287,7 @@ internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? 
             }
         }
         val voice = LocalVoiceOutput(modelRuntime(config.output.engine), config.output, config.rate,
-            { thermals.severe }, cue = { readyChime() })
+            { thermals.severe }, player = { rate, volume -> AndroidVoicePcmPlayer(rate, volume, usage) }, cue = { readyChime() })
         return object : VoiceOutput by voice {
             override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) =
                 voice.prepare({ refresh(); onReady(it) }, { refresh(); onError(it) })
