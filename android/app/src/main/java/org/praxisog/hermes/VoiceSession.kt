@@ -77,7 +77,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val conversation: VoiceConversation, private val config: VoiceConfiguration,
     private val output: VoiceOutput, private val capture: VoiceCapture,
     private val transcriber: () -> VoiceTranscriber = {
-        check(config.recognition == VoiceRecognition.PRIVATE_SERVER) { "The local speech runtime is not connected." }
+        check(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER) { "The local speech runtime is not connected." }
         HttpVoiceTranscriber(config)
     },
     private val onClosed: () -> Unit = {},

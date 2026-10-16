@@ -71,14 +71,14 @@ internal interface VoicePcmPlayer : AutoCloseable {
     suspend fun drain()
     fun stop()
 }
-internal class AndroidVoicePcmPlayer(rate: Float, volume: Float,
+internal class AndroidVoicePcmPlayer(rate: Float, volume: Float, sampleRate: Int = 24000,
     usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION) : VoicePcmPlayer {
     private val track = AudioTrack.Builder()
         .setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-        .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_FLOAT).setSampleRate(24000)
+        .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_FLOAT).setSampleRate(sampleRate)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
-        .setBufferSizeInBytes(maxOf(24000, AudioTrack.getMinBufferSize(24000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)))
+        .setBufferSizeInBytes(maxOf(sampleRate, AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)))
         .setTransferMode(AudioTrack.MODE_STREAM).build()
     private var frames = 0L
     @Volatile private var stopped = false
@@ -115,6 +115,7 @@ internal class LocalVoiceOutput(
     private val cue: () -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     private val callbacks: CoroutineDispatcher = Dispatchers.Main.immediate,
+    private val cancelSynthesis: () -> Unit = {},
 ) : VoiceOutput {
     private val generation = AtomicLong()
     private var task: Job? = null
@@ -127,7 +128,12 @@ internal class LocalVoiceOutput(
     @Volatile private var audio: VoicePcmPlayer? = null
     private var closed = false
     private var failure: (String) -> Unit = {}
-    private val name: String = if (config.engine == VoiceOutputEngine.POCKET) "Pocket" else "Qwen"
+    private val name: String = when (config.engine) {
+        VoiceOutputEngine.MOSS -> "MOSS-TTS-Nano"
+        VoiceOutputEngine.QWEN -> "Qwen"
+        VoiceOutputEngine.SYSTEM -> "Local TTS" // Direct runtime fixtures only.
+        VoiceOutputEngine.SERVER_MOSS -> "MOSS · server offload"
+    }
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
         stop(); failure = onError
         val token = generation.get()
@@ -136,7 +142,8 @@ internal class LocalVoiceOutput(
                 check(!severe()) { "Phone is too warm. Let it cool before using $name." }
                 withContext(Dispatchers.IO) { runtime.withModel { _, _, _ -> Unit } }
                 check(!severe()) { "Phone is too warm. Let it cool before using $name." }
-                if (!closed && token == generation.get()) onReady("$name · ${if (config.engine == VoiceOutputEngine.POCKET) "Loona" else config.speaker} · CPU")
+                if (!closed && token == generation.get()) onReady(if (config.engine == VoiceOutputEngine.SERVER_MOSS) name
+                    else "$name · ${if (config.engine == VoiceOutputEngine.MOSS) MossModel.voice else config.speaker} · CPU")
             } catch (error: Exception) {
                 if (error !is CancellationException && !closed && token == generation.get())
                     onError(error.message ?: "$name voice could not load.")
@@ -224,51 +231,63 @@ internal class LocalVoiceOutput(
     override fun stop() {
         generation.incrementAndGet(); playbackSequence++; task?.cancel(); task = null; audio?.stop()
         active?.cancel(); active = null; ahead?.cancel(); ahead = null
+        cancelSynthesis()
     }
     override fun close() { closed = true; stop(); scope.cancel() }
 }
 
-internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? = null) {
+internal class VoiceOutputLab(context: Context, private val serverConnection: () -> ServerConnection? = { null },
+    create: (() -> LocalTtsEngine)? = null) {
     private val app = context.applicationContext
     val files = VoiceOutputFiles(app)
-    val pocketFiles = VoiceOutputFiles(app, PocketModel.model)
+    val mossFiles = VoiceOutputFiles(app, MossModel.model)
     private val owner = ReentrantLock()
-    val runtime: LocalTtsRuntime = LocalTtsRuntime(files::verify, owner, { pocketRuntime.unload() }) {
+    val runtime: LocalTtsRuntime = LocalTtsRuntime(files::verify, owner, { mossRuntime.unload() }) {
         create?.invoke() ?: NativeQwenEngine(files)
     }
-    val pocketRuntime: LocalTtsRuntime = LocalTtsRuntime(pocketFiles::verify, owner, { runtime.unload() }) {
-        NativePocketEngine(pocketFiles)
+    val mossRuntime: LocalTtsRuntime = LocalTtsRuntime(mossFiles::verify, owner, { runtime.unload() }) {
+        NativeMossEngine(mossFiles)
     }
     private val thermals = SpeechThermals(app)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     var installed by androidx.compose.runtime.mutableStateOf(files.installed); private set
     var partial by androidx.compose.runtime.mutableStateOf(files.partial); private set
-    var pocketInstalled by androidx.compose.runtime.mutableStateOf(pocketFiles.installed); private set
-    var pocketPartial by androidx.compose.runtime.mutableStateOf(pocketFiles.partial); private set
+    var mossInstalled by androidx.compose.runtime.mutableStateOf(mossFiles.installed); private set
+    var mossPartial by androidx.compose.runtime.mutableStateOf(mossFiles.partial); private set
     var busy by androidx.compose.runtime.mutableStateOf(false); private set
     var loaded by androidx.compose.runtime.mutableStateOf(false); private set
-    var pocketLoaded by androidx.compose.runtime.mutableStateOf(false); private set
+    var mossLoaded by androidx.compose.runtime.mutableStateOf(false); private set
     var notice by androidx.compose.runtime.mutableStateOf<String?>(null); private set
     var progress by androidx.compose.runtime.mutableStateOf<Float?>(null); private set
     private var task: Job? = null
     private var preview: VoiceOutput? = null
-    private fun modelFiles(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.POCKET) pocketFiles else files
-    private fun modelRuntime(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.POCKET) pocketRuntime else runtime
-    private fun name(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.POCKET) "Pocket" else "Qwen"
+    private fun modelFiles(engine: VoiceOutputEngine) = when (engine) {
+        VoiceOutputEngine.MOSS -> mossFiles
+        VoiceOutputEngine.QWEN -> files
+        VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> error("This voice has no downloadable model.")
+    }
+    private fun modelRuntime(engine: VoiceOutputEngine) = when (engine) {
+        VoiceOutputEngine.MOSS -> mossRuntime
+        VoiceOutputEngine.QWEN -> runtime
+        VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> error("This voice has no local model runtime.")
+    }
+    private fun name(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.MOSS) "MOSS-TTS-Nano" else "Qwen"
     fun isInstalled(engine: VoiceOutputEngine) = when (engine) {
-        VoiceOutputEngine.SYSTEM -> true
+        VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> true
         VoiceOutputEngine.QWEN -> installed
-        VoiceOutputEngine.POCKET -> pocketInstalled
+        VoiceOutputEngine.MOSS -> mossInstalled
     }
     fun startProblem(config: VoiceConfiguration): String? = when {
         busy -> "Finish the Voice output operation before starting voice."
-        config.output.engine != VoiceOutputEngine.SYSTEM && !modelFiles(config.output.engine).installed ->
+        config.output.engine in listOf(VoiceOutputEngine.QWEN, VoiceOutputEngine.MOSS) && !modelFiles(config.output.engine).installed ->
             "Download ${name(config.output.engine)} in Settings → Voice output first."
         else -> null
     }
     fun output(config: VoiceConfiguration, usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION): VoiceOutput {
         startProblem(config)?.let { error(it) }
         config.output.validated()
+        if (config.output.engine == VoiceOutputEngine.SERVER_MOSS)
+            return ServerMossVoiceOutput(checkNotNull(serverConnection()) { "Select a connected server profile first." }, config)
         if (config.output.engine == VoiceOutputEngine.SYSTEM) {
             // Free the heavyweight engine when switching back to Android, off the UI thread.
             return object : VoiceOutput {
@@ -276,7 +295,7 @@ internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? 
                 private var prepareTask: Job? = null
                 override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
                     prepareTask = scope.launch {
-                        withContext(Dispatchers.IO) { runtime.unload(); pocketRuntime.unload() }
+                        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload() }
                         refresh(); voice.prepare(onReady, onError)
                     }
                 }
@@ -302,7 +321,7 @@ internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? 
         notice = "${name(engine)} deleted. Select an installed voice or download it again."
     }
     fun unload() = perform {
-        withContext(Dispatchers.IO) { runtime.unload(); pocketRuntime.unload() }
+        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload() }
         notice = "Local output models unloaded."
     }
     fun load(engine: VoiceOutputEngine = VoiceOutputEngine.QWEN) = perform {
@@ -317,17 +336,19 @@ internal class VoiceOutputLab(context: Context, create: (() -> LocalTtsEngine)? 
                 busy = true; notice = "Loading preview…"
                 voice.prepare({
                     refresh(); notice = "Generating preview…"
-                    voice.speak("Hello. I’m Bellpull. Your voice stays on this device.",
+                    voice.speak(if (config.output.engine == VoiceOutputEngine.SERVER_MOSS)
+                        "Hello. I’m Bellpull. This voice is generated on your Bellpull server."
+                        else "Hello. I’m Bellpull. Your voice stays on this device.",
                         { notice = "Playing preview…" }, { stopPreview(); notice = "Preview finished." })
                 }, { stopPreview(); notice = it })
             }
         } catch (error: Exception) { busy = false; notice = error.message }
     }
     fun stopPreview() { preview?.close(); preview = null; busy = task?.isActive == true }
-    fun cancel() { stopPreview(); task?.cancel(); runtime.invalidate(); pocketRuntime.invalidate() }
+    fun cancel() { stopPreview(); task?.cancel(); runtime.invalidate(); mossRuntime.invalidate() }
     private fun refresh() {
         installed = files.installed; partial = files.partial; loaded = runtime.loaded
-        pocketInstalled = pocketFiles.installed; pocketPartial = pocketFiles.partial; pocketLoaded = pocketRuntime.loaded
+        mossInstalled = mossFiles.installed; mossPartial = mossFiles.partial; mossLoaded = mossRuntime.loaded
     }
     private fun perform(block: suspend () -> Unit) {
         if (busy) return

@@ -16,7 +16,7 @@ class VoiceOutputModelsTest {
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }) }
     @Test fun shippedModelManifestsConstructBeforeAnyModelIsInstalled() {
         val root = temporary.newFolder()
-        for (model in listOf(qwenOutputModel, PocketModel.model)) {
+        for (model in listOf(qwenOutputModel, PocketModel.model, MossModel.model)) {
             val files = VoiceOutputFiles(root, model.files, model)
             assertEquals(File(root, "${model.id}-${model.revision}"), files.directory)
             assertFalse(files.installed)

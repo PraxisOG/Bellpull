@@ -14,6 +14,7 @@ from .notifications import Relay
 from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
+from .speech import SpeechProxy
 
 
 def wire(app, adapter):
@@ -37,6 +38,8 @@ def wire(app, adapter):
         host_ready = False
     relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"))
     sampler = Sampler()
+    speech = SpeechProxy()
+    app.on_startup.append(speech.start)
     snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     coding = Observer(adapter)
@@ -50,11 +53,13 @@ def wire(app, adapter):
         coding.stop()
         snapshots.close()
         relay.stop()
+        speech.stop()
     async def close():
         await coding.close()
         stop_streaming()
         snapshots.close()
         await relay.close()
+        await speech.close()
 
     def authenticated(handler):
         async def guarded(request):
@@ -94,6 +99,7 @@ def wire(app, adapter):
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,
+                "bellpull_speech": True,
                 "bellpull_routines": projects_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
             "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
@@ -161,6 +167,7 @@ def wire(app, adapter):
              "confirmed_runtime_lock": True}, start, finish)
 
     routes = [("GET", "/api/bellpull/capabilities", capabilities)]
+    routes.extend(speech.routes())
     if projects_ready:
         routes.extend(coding.routes())
     if projects_ready:

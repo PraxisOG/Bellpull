@@ -37,7 +37,7 @@ internal fun VoiceGlyph(active: Boolean = false) {
 internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startError: String?,
     onSave: (VoiceConfiguration) -> Unit, onStart: (VoiceMode) -> Unit, onDismiss: () -> Unit,
     onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null) {
-    var editing by remember { mutableStateOf(config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
+    var editing by remember { mutableStateOf(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
     var mode by remember { mutableStateOf(VoiceMode.CONVERSATION) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.imePadding().padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(.92f), shape = MaterialTheme.shapes.large) {
@@ -50,7 +50,9 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                             if (speechLab == null) "Choose and download a model in Settings → Voice input → Experimental first."
                             else speechLab.voiceStartProblem()
                         } ?: outputLab?.startProblem(config)
-                        if (config.recognition == VoiceRecognition.LOCAL) {
+                        if (config.transcribeViaServer) {
+                            Text("Audio is transcribed through your Bellpull server profile. If unavailable, an installed local model can transcribe it instead.")
+                        } else if (config.recognition == VoiceRecognition.LOCAL) {
                             Text("Speech is transcribed on this device. Answers use the saved Voice output selection. Sending your words to Hermes still needs a connection.")
                             Text("${speechLab?.selected?.label ?: "Moonshine Tiny Streaming"} · CPU", style = MaterialTheme.typography.bodySmall)
                         } else {
@@ -132,25 +134,30 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     var model by remember { mutableStateOf(initial.model) }
     var pause by remember { mutableIntStateOf(initial.pauseMs) }; var concise by remember { mutableStateOf(initial.concise) }
     var error by remember { mutableStateOf<String?>(null) }
+    var transcribeViaServer by remember { mutableStateOf(initial.transcribeViaServer) }
     var recognition by remember { mutableStateOf(initial.recognition) }
     Text("Speech recognition", style = MaterialTheme.typography.titleMedium)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(recognition == VoiceRecognition.LOCAL, { recognition = VoiceRecognition.LOCAL }, enabled = editable,
-            label = { Text("On device") })
-        FilterChip(recognition == VoiceRecognition.PRIVATE_SERVER, { recognition = VoiceRecognition.PRIVATE_SERVER }, enabled = editable,
-            label = { Text("Private server") })
-    }
-    if (recognition == VoiceRecognition.LOCAL) {
-        Text("Audio stays on this device for transcription. Download a model once, then recognition works offline.", style = MaterialTheme.typography.bodySmall)
-        if (speechLab != null) LocalSpeechSettings(speechLab, {}, enabled)
-        else Text("Choose and download Moonshine Tiny, Small or Medium Streaming in Settings → Voice input → Experimental.", style = MaterialTheme.typography.bodySmall)
-    } else {
-        Text("Private transcription", style = MaterialTheme.typography.titleMedium)
-        Text("Use a service you manage that accepts an OpenAI-compatible WAV transcription request. This is separate from Hermes; no service is selected automatically.", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(endpoint, { endpoint = it }, label = { Text("Full transcription URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Text("For example: https://your-speech-host/v1/audio/transcriptions", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(key, { key = it }, label = { Text("Speech service key (if required)") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(model, { model = it }, label = { Text("Transcription model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    PreferenceSwitch("Transcribe on server", "Send captured audio over the existing Bellpull profile connection. No separate key; an installed local model is the fallback.",
+        transcribeViaServer, editable) { transcribeViaServer = it }
+    if (!transcribeViaServer) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(recognition == VoiceRecognition.LOCAL, { recognition = VoiceRecognition.LOCAL }, enabled = editable,
+                label = { Text("On device") })
+            FilterChip(recognition == VoiceRecognition.PRIVATE_SERVER, { recognition = VoiceRecognition.PRIVATE_SERVER }, enabled = editable,
+                label = { Text("Private server") })
+        }
+        if (recognition == VoiceRecognition.LOCAL) {
+            Text("Audio stays on this device for transcription. Download a model once, then recognition works offline.", style = MaterialTheme.typography.bodySmall)
+            if (speechLab != null) LocalSpeechSettings(speechLab, {}, enabled)
+            else Text("Choose and download Moonshine Tiny, Small or Medium Streaming in Settings → Voice input → Experimental.", style = MaterialTheme.typography.bodySmall)
+        } else {
+            Text("Private transcription", style = MaterialTheme.typography.titleMedium)
+            Text("Use a service you manage that accepts an OpenAI-compatible WAV transcription request. This is separate from Hermes; no service is selected automatically.", style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(endpoint, { endpoint = it }, label = { Text("Full transcription URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("For example: https://your-speech-host/v1/audio/transcriptions", style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(key, { key = it }, label = { Text("Speech service key (if required)") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(model, { model = it }, label = { Text("Transcription model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
     }
     Text("Conversation", style = MaterialTheme.typography.titleMedium)
     Text("End-of-turn pause: ${"%.1f".format(pause / 1000f)} seconds"); Slider(pause.toFloat(), { pause = it.toInt() }, valueRange = 1000f..3500f)
@@ -159,8 +166,9 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     Text("The preset is included visibly in voice messages. Typed messages and their model settings keep their existing behavior.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {
-        onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition))
-        if (recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
+        onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition,
+            transcribeViaServer = transcribeViaServer))
+        if (!transcribeViaServer && recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
     }.onFailure { error = it.message ?: "Could not save voice settings." } }) { Text("Save voice settings") }
 }
 

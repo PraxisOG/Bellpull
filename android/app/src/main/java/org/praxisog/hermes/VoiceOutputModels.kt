@@ -9,7 +9,18 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
 
-internal enum class VoiceOutputEngine(val label: String) { SYSTEM("Default Android voice"), QWEN("Qwen3-TTS · on device"), POCKET("Pocket TTS · experimental") }
+internal enum class VoiceOutputEngine(val id: String, val label: String) {
+    SYSTEM("system", "Default Android voice"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device"),
+    SERVER_MOSS("server-moss", "MOSS · server offload");
+    companion object {
+        fun decode(id: String?): VoiceOutputEngine = when (id?.lowercase(java.util.Locale.ROOT)) {
+            "qwen" -> QWEN
+            "server-moss" -> SERVER_MOSS
+            "moss", "pocket" -> MOSS // Upgrade the former selectable engine; weights still need downloading.
+            else -> SYSTEM
+        }
+    }
+}
 internal data class VoiceOutputConfiguration(
     val engine: VoiceOutputEngine = VoiceOutputEngine.SYSTEM,
     val speaker: String = "ryan", val language: String = "english",
@@ -23,7 +34,6 @@ internal data class VoiceOutputConfiguration(
         require(topK in 0..100 && repetition.isFinite() && repetition in 1f..1.5f && seed >= -1)
         require(volume.isFinite() && volume in 0f..1f)
         require(pocketSteps in 1..10 && pocketTemperature.isFinite() && pocketTemperature in 0f..1.5f && pocketChunkFrames in 1..30)
-        require(engine != VoiceOutputEngine.POCKET || seed <= Int.MAX_VALUE)
         return this
     }
     companion object {
@@ -75,9 +85,10 @@ internal class VoiceOutputFiles(private val root: File,
     init {
         // Checkpoint IDs include decimal sizes (qwen-0.6b). Keep them stable so
         // an upgrade reuses downloaded weights; allow dots after a safe prefix.
-        require(model.id.matches(Regex("[a-z0-9][a-z0-9.-]*")) && model.revision.matches(Regex("[0-9a-f]{40}")))
+        require(model.id.matches(Regex("[a-z0-9][a-z0-9.-]*")) &&
+            (model.revision.matches(Regex("[0-9a-f]{40}")) || model == MossModel.model))
         require(specs.isNotEmpty() && specs.map { it.name }.distinct().size == specs.size)
-        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
+        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav|model|data)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
     }
     val directory get() = File(root, "${model.id}-${model.revision}")
     private val staging get() = File(root, ".${model.id}-${model.revision}.partial")
@@ -138,12 +149,16 @@ internal class VoiceOutputFiles(private val root: File,
     }
 }
 private fun File.readTextOrNull(): String? = runCatching { takeIf { isFile }?.readText() }.getOrNull()
+internal fun voiceModelUri(spec: VoiceModelFile, model: OutputModel): URI {
+    require(model in listOf(qwenOutputModel, PocketModel.model, MossModel.model) && spec in model.files)
+    return if (model == MossModel.model) MossModel.uri(spec)
+        else URI("https://huggingface.co/${model.repository}/resolve/${model.revision}/${spec.remoteName}")
+}
 private fun openVoiceModel(spec: VoiceModelFile, model: OutputModel): InputStream {
-    require(model in listOf(qwenOutputModel, PocketModel.model) && spec in model.files)
-    var uri = URI("https://huggingface.co/${model.repository}/resolve/${model.revision}/${spec.remoteName}")
+    var uri = voiceModelUri(spec, model)
     repeat(6) {
         require(uri.scheme == "https" && uri.userInfo == null && uri.fragment == null &&
-            (uri.host == "huggingface.co" || uri.host?.endsWith(".huggingface.co") == true ||
+            (uri.host == "huggingface.co" || uri.host == "hf.co" || uri.host?.endsWith(".huggingface.co") == true ||
                 uri.host?.endsWith(".hf.co") == true || uri.host?.endsWith(".xethub.hf.co") == true)) { "Unexpected model download redirect." }
         val connection = uri.toURL().openConnection() as HttpURLConnection
         connection.instanceFollowRedirects = false; connection.connectTimeout = 15000; connection.readTimeout = 15000

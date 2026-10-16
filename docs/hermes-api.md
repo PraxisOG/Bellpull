@@ -87,6 +87,49 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 # Bellpull / Hermes API contract
 
+## Bellpull speech proxy — 0.4.3-integration-preview
+
+All routes below use the existing profile base URL and native bearer key, guarded
+by `adapter._check_auth` exactly like capabilities. Both root and `/p/{profile}`
+route forms are registered. No speech-service URL or second key is needed on the phone.
+
+| Method | Route | Request | Successful response |
+|---|---|---|---|
+| GET | `/api/bellpull/speech/health` | None | JSON `{ok, tts, stt, tts_loaded, stt_loaded, proxy:true}`; helper latency probe fields may also be present |
+| POST | `/api/bellpull/speech/tts` | JSON `{text, voice?, stream?}`; text 1..4000 characters; JSON envelope at most 8 KiB | `audio/wav`, 48 kHz stereo; `stream:true` instead returns chunked signed 16-bit little-endian **mono** PCM at 48 kHz |
+| POST | `/api/bellpull/speech/stt` | Multipart field `audio` (captured WAV); entire multipart envelope at most 32 MiB | JSON `{text, language, seconds, took_ms}` |
+
+`?stream=true` on TTS is also accepted and sets the helper JSON `stream:true`.
+`X-Audio-Seconds` and `X-Took-Ms` pass through when supplied. Helper non-2xx
+responses retain status and body. An unreachable helper returns JSON
+`{error:{message:...}}` with 503; timeout returns the same envelope with 504
+(TTS 120 seconds, STT 60 seconds, health 10 seconds). After audio headers have
+been sent, a stream failure aborts the connection: HTTP cannot replace its status
+with 504 mid-stream. Oversized requests return 413; invalid TTS JSON/text/options
+or non-multipart STT return 400. The helper validates the multipart audio field.
+
+| Discovery feature | Meaning |
+|---|---|
+| `features.bellpull_speech` | Boolean, true when the proxy routes are wired; does not imply that the helper or models are healthy |
+
+The plugin owns one aiohttp session for its gateway lifetime. Host environment:
+`BELLPULL_SPEECH_URL` defaults to `http://127.0.0.1:8645`; the helper serves
+`GET /health`, `POST /tts`, `POST /stt`. Optional `BELLPULL_SPEECH_KEY` is sent
+only to that helper as `Authorization: Bearer ...`; absent means no auth header.
+Configure a loopback helper on the same host. Helper implementation/model deployment
+is outside this repository. Audio responses stream with bounded buffers.
+
+Android's explicit “Transcribe on server” choice uses this STT route and the
+existing captured WAV. If it fails, an installed local model may transcribe the
+same WAV; cancellation never triggers fallback. Server TTS errors remain visible
+without substituting another output engine. Per-phrase numeric latency/audio
+telemetry excludes text, audio, keys and URLs.
+
+The standalone transcription URL/key UI and transport are retired. Legacy saved
+private-transcription selections require an explicit Voice input choice before
+starting; old credentials remain in encrypted storage for compatibility but are
+never used for requests. `stt_server` defaults to false and is profile-scoped.
+
 ## Phase 6 experimental plugin contract — 2026-10-12
 
 This is a newly implemented **Bellpull-owned** contract, not an assumed upstream

@@ -77,4 +77,20 @@ class VoiceStartGuardTest {
             fail("Private mode must not inspect local models"); null
         })
     }
+
+    @Test fun installedButUnloadedModelCanStartAndServerModeDoesNotCheckLocalWeights() {
+        val lab = lab()
+        stage(lab, complete = true)
+        assertNull(lab.runtime.loadedModel)
+        assertNull(VoiceConfiguration().startProblem(lab::voiceStartProblem))
+        lab.voiceTranscriber().close()
+        assertEquals(0, nativeCreations) // Loading is deferred to the transcription worker.
+        lab.files.delete(lab.selected)
+        assertNull(VoiceConfiguration(transcribeViaServer = true).startProblem {
+            fail("Server mode must not inspect local models"); null
+        })
+        assertNotNull(VoiceConfiguration(recognition = VoiceRecognition.PRIVATE_SERVER).startProblem {
+            fail("Private mode must not inspect local models"); null
+        })
+    }
 }

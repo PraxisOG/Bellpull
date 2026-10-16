@@ -11,7 +11,10 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
-    val voiceOutputs by lazy { VoiceOutputLab(this.context) }
+    fun speechConnection(): ServerConnection = checkNotNull(profileId?.let { SecureConnectionStore(context).connection(it) }) {
+        "Select a server profile before using server speech."
+    }
+    val voiceOutputs by lazy { VoiceOutputLab(this.context, serverConnection = { speechConnection() }) }
     fun voiceProblem(config: VoiceConfiguration) = config.startProblem { speechLab.voiceStartProblem() } ?: voiceOutputs.startProblem(config)
     val speechLab by lazy { SpeechLab(this.context) }
     var voice by mutableStateOf<VoiceSession?>(null)
