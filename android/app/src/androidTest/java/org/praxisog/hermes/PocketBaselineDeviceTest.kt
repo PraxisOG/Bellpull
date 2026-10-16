@@ -40,7 +40,8 @@ class PocketBaselineDeviceTest {
                     runtime.withModel { engine, loadMs, invalid ->
                         loading = loadMs
                         val synthesis = System.nanoTime()
-                        engine.synthesize(text, VoiceOutputConfiguration(engine = VoiceOutputEngine.POCKET, seed = 42), object : LocalTtsSink {
+                        // Legacy direct-engine benchmark; Pocket is no longer a selectable engine.
+                        engine.synthesize(text, VoiceOutputConfiguration(seed = 42), object : LocalTtsSink {
                             override fun isCancelled() = invalid() || thermal.severe || System.nanoTime() - synthesis > 180_000_000_000L
                             override fun onChunk(samples: FloatArray): Boolean {
                                 if (isCancelled()) return false
@@ -61,7 +62,7 @@ class PocketBaselineDeviceTest {
             }
             // Actual Android playback: compare the same two phrases with/without synthesis ahead.
             for (prefetch in listOf(false, true)) {
-                val output = LocalVoiceOutput(runtime, VoiceOutputConfiguration(engine = VoiceOutputEngine.POCKET, seed = 42), 1f, { thermal.severe })
+                val output = LocalVoiceOutput(runtime, VoiceOutputConfiguration(seed = 42), 1f, { thermal.severe })
                 val ready = CompletableDeferred<Unit>(); val done = CompletableDeferred<Unit>()
                 val starts = mutableListOf<Long>(); val ends = mutableListOf<Long>()
                 val phrases = listOf("Your answer is ready.", "The board measures twenty four inches by twelve inches.")

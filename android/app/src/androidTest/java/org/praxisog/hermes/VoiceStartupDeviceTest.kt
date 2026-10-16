@@ -19,7 +19,7 @@ class VoiceStartupDeviceTest {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             lab = VoiceOutputLab(app)
             assertNull(lab.startProblem(VoiceConfiguration()))
-            for (engine in listOf(VoiceOutputEngine.QWEN, VoiceOutputEngine.POCKET)) {
+            for (engine in listOf(VoiceOutputEngine.QWEN, VoiceOutputEngine.MOSS)) {
                 val config = VoiceConfiguration(output = VoiceOutputConfiguration(engine = engine))
                 assertFalse(lab.isInstalled(engine))
                 assertTrue(lab.startProblem(config).orEmpty().contains("Download"))
