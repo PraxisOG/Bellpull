@@ -28,10 +28,16 @@ android {
     ndkVersion = "29.0.14206865"
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" } }
     packaging {
-        // Moonshine's AAR and the pinned onnxruntime-android AAR both carry the same
-        // 1.23.2 arm64/x86_64 libonnxruntime.so; the CMake-built Pocket ORT is static
-        // and version-isolated, so it never appears here.
-        jniLibs { pickFirsts += "lib/*/libonnxruntime.so" }
+        // Moonshine's AAR bundles a stripped libonnxruntime.so (no NNAPI exports); the
+        // Java ORT 4j JNI needs OrtSessionOptionsAppendExecutionProvider_Nnapi, so the
+        // app ships the complete official 1.23.2 build in src/main/jniLibs (verified a
+        // superset of Moonshine's needed symbols) and drop every AAR copy by exclusion,
+        // then re-include only the app-owned path. pickFirsts used to resolve the AAR
+        // clash silently kept Moonshine's stripped copy -> MOSS dlopen crash.
+        jniLibs {
+            excludes += "lib/*/libonnxruntime.so"
+            pickFirsts += "lib/*/libonnxruntime.so"
+        }
     }
 
     defaultConfig {
@@ -46,8 +52,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 22
-        versionName = "0.8.3-integration-preview"
+        versionCode = 26
+        versionName = "0.8.5-qwen-asr"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

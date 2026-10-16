@@ -144,8 +144,11 @@ internal class LocalVoiceOutput(
                 check(!severe()) { "Phone is too warm. Let it cool before using $name." }
                 if (!closed && token == generation.get()) onReady(if (config.engine == VoiceOutputEngine.SERVER_MOSS) name
                     else "$name · ${if (config.engine == VoiceOutputEngine.MOSS) MossModel.voice else config.speaker} · CPU")
-            } catch (error: Exception) {
-                if (error !is CancellationException && !closed && token == generation.get())
+            } catch (error: CancellationException) {
+                if (!closed && token == generation.get()) throw error
+            } catch (error: Throwable) {
+                // UnsatisfiedLinkError etc. must reach onError, not the process.
+                if (!closed && token == generation.get())
                     onError(error.message ?: "$name voice could not load.")
             }
         }
@@ -180,7 +183,12 @@ internal class LocalVoiceOutput(
                 }
                 check(!hot) { "Phone reached severe thermal status. $name stopped; let it cool." }
                 check(status == 0) { "$name synthesis was interrupted. Try again when ready." }
-            } catch (error: Throwable) { problem = error; throw error }
+            } catch (error: Throwable) {
+                // Do not rethrow: an async failure delegates native Errors to the scope
+                // handler and kills the process. The queue cause below surfaces it to
+                // the consumer instead.
+                problem = error
+            }
             finally { queue.close(problem) }
         }
         return PreparedSpeech(text, queue, producer)
@@ -220,9 +228,12 @@ internal class LocalVoiceOutput(
                 if (!closed && token == generation.get() && sequence == playbackSequence) {
                     active = null; complete()
                 }
-            } catch (error: Exception) {
+            } catch (error: CancellationException) {
                 if (token == generation.get() && sequence == playbackSequence) audio?.stop()
-                if (error !is CancellationException && !closed && token == generation.get() && sequence == playbackSequence)
+                throw error
+            } catch (error: Throwable) {
+                if (token == generation.get() && sequence == playbackSequence) audio?.stop()
+                if (!closed && token == generation.get() && sequence == playbackSequence)
                     failure(error.message ?: "$name speech failed. The written answer is available.")
             }
         }
@@ -306,7 +317,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
             }
         }
         val voice = LocalVoiceOutput(modelRuntime(config.output.engine), config.output, config.rate,
-            { thermals.severe }, player = { rate, volume -> AndroidVoicePcmPlayer(rate, volume, usage) }, cue = { readyChime() })
+            { thermals.severe }, player = { rate, volume -> AndroidVoicePcmPlayer(rate, volume, usage = usage) }, cue = { readyChime() })
         return object : VoiceOutput by voice {
             override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) =
                 voice.prepare({ refresh(); onReady(it) }, { refresh(); onError(it) })
@@ -356,7 +367,11 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
         task = scope.launch {
             try { block() }
             catch (error: CancellationException) { notice = "Cancelled. Verified completed download files are kept for retry." }
-            catch (error: Exception) { notice = error.message ?: "Voice output operation failed." }
+            catch (error: Throwable) {
+                // Native load failures are Errors (UnsatisfiedLinkError); catching only
+                // Exception lets them escape the coroutine and kill the process.
+                notice = error.message ?: "Voice output operation failed."
+            }
             finally { refresh(); busy = false; progress = null; task = null }
         }
     }
