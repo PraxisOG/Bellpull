@@ -53,7 +53,7 @@ android {
         } }
         targetSdk = 37
         versionCode = 26
-        versionName = "0.8.5-qwen-asr"
+        versionName = "0.8.5-integration-preview"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

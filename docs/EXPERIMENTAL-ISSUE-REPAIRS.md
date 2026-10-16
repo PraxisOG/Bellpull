@@ -58,12 +58,31 @@ Work is isolated on `repair/reliability-followups-20261015`, with separate commi
   callbacks and explicit restart after interruption. Physical car success remains
   an acceptance item in #16.
 
-Android full regression, screenshot verification, build and lint are run for this
-branch; final counts and installation evidence are recorded in the audit comments.
-Before the routing addition: 593 passed, one live-server skip, 172 unchanged
-screenshot baselines. Plugin: 148 passed and one compatibility skip in the full
+Final Android validation: **598 passed, one live-server skip**, **172 unchanged
+screenshot baselines**, release build and lint passed. Plugin: 148 passed and one compatibility skip in the full
 legacy-image suite; 66 passed and one compatibility skip in the stock 0.21.5 subset
 (coding, planning, projects, portability). No real inference was submitted.
+
+The ten closures and six remaining open issues (including new #16) were verified
+through GitHub after per-ticket audit comments were posted. Repairs are published
+as [draft PR #17](https://github.com/PraxisOG/Bellpull/pull/17), targeting the existing
+experimental branch.
+
+### October 15 testing installation
+
+Installed source `16ece99` as **0.8.3-test.16ece99/build 24**, using an external
+Gradle version override. SHA-256:
+`334dcd3e1497ff3588b89f589779c07afbf108667e71e60ba3f06022e5abbce9`.
+Signing lineage, installed APK hash and 16 KiB alignment passed. UID 10260 and
+CE/DE identities 117766/116002 stayed unchanged; build 23's APK is backed up.
+The personal app was left stopped; no voice choice or saved profile was changed.
+
+The **local Docker test server** now runs plugin **0.4.2-integration-preview**.
+Both writers were stopped for a full data backup. Health/auth/capabilities and
+planning/projects reads passed; all 58 sessions and 562 messages remain, and
+configuration/environment bytes are unchanged. The personal Hermes server was
+not accessed. Evidence, test XML, issue audit results, signed APK and install
+records are under `/home/praxisog/Bellpull-builds/2026-10-15-reliability-audit/`.
 
 ### On-device voice recommendation
 

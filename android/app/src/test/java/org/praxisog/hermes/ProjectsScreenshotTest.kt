@@ -25,7 +25,9 @@ import org.praxisog.hermes.core.HermesClient
 @Config(sdk = [35], qualifiers = "w393dp-h850dp")
 class ProjectsScreenshotTest {
     @get:Rule val compose = createComposeRule()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // Match the app's UI scope: publish refresh results on the main looper so
+    // Compose observes one ordered update instead of a background snapshot race.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val project = ConversationProject("a".repeat(32), "WALL·E & EVE", "Finish both costumes before October 31.\nKeep electronics and sewing notes together.", "#59091E", "craft")
     private val archived = ConversationProject("b".repeat(32), "Garden lights", archived = true)
     private val sessions = listOf(Session("tip", title = "Costume wiring reference", source = "cli", lastActive = UiFixtures.NOW - 9000,

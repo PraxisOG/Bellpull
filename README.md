@@ -9,10 +9,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Development preview](https://img.shields.io/badge/preview-0.8.3-59091e?style=flat-square)](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.3-integration-preview.1)
+[![Development preview](https://img.shields.io/badge/preview-0.8.4-59091e?style=flat-square)](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.4-integration-preview.1)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the preview**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.3-integration-preview.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.3-integration-preview.1)
+[**Download the preview**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.8.4-integration-preview.1)
 
 </div>
 
@@ -53,8 +53,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.8.3-integration-preview / build 22**
-> pairs with Bellpull plugin **0.4.1-integration-preview**. New server features need
+> **This is an experimental prerelease:** Android **0.8.4-integration-preview / build 25**
+> pairs with Bellpull plugin **0.4.2-integration-preview**. New server features need
 > the plugin and compatible Hermes capabilities. Background/offline reminder alerts
 > are planned for Phase 10. Real OpenCode/provider, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
@@ -62,7 +62,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. Download [**Bellpull.apk**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.3-integration-preview.1/Bellpull.apk) from the development release.
+1. Download [**Bellpull.apk**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/Bellpull.apk) from the development release.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -71,14 +71,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.3-integration-preview.1/Bellpull-source-0.8.3.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/Bellpull-source-0.8.4.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
-[Earlier 0.3.3 preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.3.3-preview.1) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.3-integration-preview.1/SHA256SUMS)
+[Release history](https://github.com/PraxisOG/Bellpull/releases) ·
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/SHA256SUMS)
 
 ## Connect Hermes
 
-The release includes a [**matching plugin bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.3-integration-preview.1/bellpull-plugin-0.4.1-integration-preview.tar.gz).
+The release includes a [**matching plugin bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/bellpull-plugin-0.4.2-integration-preview.tar.gz).
 Unpack it on your Hermes host, back up the data home, then preview the installer:
 
 ```bash
@@ -94,35 +94,31 @@ actual data home, including for a named Hermes profile. **Stock installation use
 one plugin; no Docker or core-file replacements are required.** Existing legacy
 core-overlay installations need the documented migration rather than an overlay.
 
-[Installation, compatibility and rollback](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/plugins/bellpull/README.md) ·
-[Combined acceptance and known failures](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/docs/INTEGRATION-6-8-9.md)
+[Installation, compatibility and rollback](plugins/bellpull/README.md) ·
+[Combined acceptance and known failures](docs/INTEGRATION-6-8-9.md)
 
 ## Verification and scope
 
-[The October 14 project audit](docs/AUDIT-2026-10-14.md) covers app 0.8.3/build22
-and plugin 0.4.1. **Six reproduced defects remain unresolved**, including Git filter
-execution during workspace preview and a race that can restore calendar data after
-sharing is revoked. Dependency findings and physical audio-route acceptance also
-remain open. This release is experimental, with those limitations carried forward.
+The [current reliability audit](docs/EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit)
+records ten closed issues and six remaining open issues. Recent repairs cover
+calendar revocation, transcription Retry, Stop feedback, streaming follow and
+standalone Read aloud routing. Car/headset acceptance, sustained speech heat,
+pin-button behavior and voice-title recovery remain open.
 
-The audit's fresh checks passed **574 Android tests with one skip**, **172 screenshot
-baselines**, debug/release builds and lint. The plugin suite passed **126 tests with
-one skip**; supported stock-host suites also passed. Earlier isolated phone checks
-cover the voice repairs and compact prompt disclosure. The published APK was
-verified byte-for-byte against the phone's installed 0.8.3 build22.
-
-[Release verification and current CI status](docs/RELEASE-0.8.3-EXPERIMENTAL.md) ·
-[Voice repair evidence](docs/EXPERIMENTAL-ISSUE-REPAIRS.md) ·
-[Compact prompt evidence](docs/VOICE-PROMPT-DISCLOSURE.md)
+Validation: **598 Android tests passed with one expected skip**, **172 unchanged
+screenshot baselines**, debug/release builds and lint. The full plugin suite passed
+**148 tests with one expected skip**; supported stock-host checks also passed.
+See [release and installation evidence](docs/release.md) and the
+[open issues](https://github.com/PraxisOG/Bellpull/issues).
 
 ## For contributors and agents
 
-The preview source is on **[`repair/experimental-open-issues`](https://github.com/PraxisOG/Bellpull/tree/repair/experimental-open-issues)**.
-The default branch retains the earlier app code with updated documentation;
-use the repair branch or release tag to inspect or build this preview.
+**`master` is the default and current development source for both the Android app
+and the Bellpull plugin.** Earlier work is preserved in Git history and release
+tags. Use short-lived branches for new changes and merge them back here.
 
 ```bash
-git clone --branch repair/experimental-open-issues --recurse-submodules https://github.com/PraxisOG/Bellpull.git
+git clone --recurse-submodules https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
 ```
@@ -137,12 +133,12 @@ be run indiscriminately against a configured personal app.
 | :--- | :--- |
 | [Build from source](docs/BUILDING.md) | Recursive clone, complete source archive, pinned dependencies and signing. |
 | [Phase roadmap](docs/ROADMAP.md) | Phases 0–17, revised scope and honest implementation status. |
-| [Handoff](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
-| [API contract](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
-| [Repository instructions](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/CLAUDE.md) | Scope, dependencies and deployment boundaries. |
-| [Build/signing notes](https://github.com/PraxisOG/Bellpull/blob/repair/experimental-open-issues/docs/release.md) | Signing lineage, updates and rollback limits. |
+| [Handoff](docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
+| [API contract](docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
+| [Repository instructions](CLAUDE.md) | Scope, dependencies and deployment boundaries. |
+| [Build/signing notes](docs/release.md) | Signing lineage, updates and rollback limits. |
 
-The [Linux Mint emulator launcher](https://github.com/PraxisOG/Bellpull/tree/repair/experimental-open-issues/desktop/mint-emulator)
+The [Linux Mint emulator launcher](desktop/mint-emulator)
 is a separate earlier experiment. Desktop packaging, on-device LLMs, offline agent
 conversations and Android Auto are not requirements for this preview.
 
