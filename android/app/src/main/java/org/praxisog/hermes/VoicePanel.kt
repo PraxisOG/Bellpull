@@ -38,7 +38,7 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
     onSave: (VoiceConfiguration) -> Unit, onStart: (VoiceMode) -> Unit, onDismiss: () -> Unit,
     onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null) {
     var editing by remember { mutableStateOf(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
-    var mode by remember { mutableStateOf(VoiceMode.CONVERSATION) }
+    var mode by remember { mutableStateOf(VoiceMode.CALL) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.imePadding().padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(.92f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -60,20 +60,22 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                             Text("Transcription model: ${config.model}", style = MaterialTheme.typography.bodySmall)
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(mode == VoiceMode.CALL, { mode = VoiceMode.CALL }, label = { Text("Call mode") })
                             FilterChip(mode == VoiceMode.CONVERSATION, { mode = VoiceMode.CONVERSATION }, label = { Text("Hands-free") })
                             FilterChip(mode == VoiceMode.DICTATION, { mode = VoiceMode.DICTATION }, label = { Text("Review before sending") })
                             FilterChip(mode == VoiceMode.PUSH_TO_TALK, { mode = VoiceMode.PUSH_TO_TALK }, label = { Text("Push to talk") })
                         }
-                        Text("Hands-free sends recognized speech automatically. Review mode lets you correct each transcription. A visible notification controls the microphone while the app is in the background.", style = MaterialTheme.typography.bodySmall)
+                        Text("Call mode keeps the microphone connected between turns without beeps and sends recognized speech automatically. Review mode lets you correct each transcription. Pause or end voice from the notification, including with the screen off.", style = MaterialTheme.typography.bodySmall)
                         (startProblem ?: startError)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Button(enabled = startProblem == null, onClick = { onStart(mode) }) { Text("Start voice") }
                         TextButton(onClick = { editing = true }) { Text("Voice settings") }
                     } else {
                         Text(voice.state.label, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { contentDescription = "Voice state: ${voice.state.label}" })
                         if (voice.state in setOf(VoiceState.STARTING, VoiceState.TRANSCRIBING, VoiceState.WORKING, VoiceState.WAITING)) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text("${when (voice.mode) { VoiceMode.CONVERSATION -> "Hands-free"; VoiceMode.DICTATION -> "Review before sending"; VoiceMode.PUSH_TO_TALK -> "Push to talk" }} · ${voice.voiceName}", style = MaterialTheme.typography.labelMedium)
+                        Text("${when (voice.mode) { VoiceMode.CALL -> "Call mode"; VoiceMode.CONVERSATION -> "Hands-free"; VoiceMode.DICTATION -> "Review before sending"; VoiceMode.PUSH_TO_TALK -> "Push to talk" }} · ${voice.voiceName}", style = MaterialTheme.typography.labelMedium)
                         voice.notice?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(voice.mode == VoiceMode.CALL, { voice.chooseMode(VoiceMode.CALL) }, label = { Text("Call mode") })
                             FilterChip(voice.mode == VoiceMode.CONVERSATION, { voice.chooseMode(VoiceMode.CONVERSATION) }, label = { Text("Hands-free") })
                             FilterChip(voice.mode == VoiceMode.DICTATION, { voice.chooseMode(VoiceMode.DICTATION) }, label = { Text("Review first") })
                             FilterChip(voice.mode == VoiceMode.PUSH_TO_TALK, { voice.chooseMode(VoiceMode.PUSH_TO_TALK) }, label = { Text("Push to talk") })

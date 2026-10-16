@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import org.praxisog.hermes.core.PrivateTranscription
 
-internal enum class VoiceMode { CONVERSATION, DICTATION, PUSH_TO_TALK }
+internal enum class VoiceMode { CALL, CONVERSATION, DICTATION, PUSH_TO_TALK }
 internal enum class VoiceState(val label: String) {
     READY("Ready for your next turn"), STARTING("Starting voice…"), LISTENING("Listening"), RECORDING("Listening to you…"),
     TRANSCRIBING("Transcribing…"), REVIEW("Review your words"), WORKING("Hermes is working…"),
@@ -213,7 +213,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (micOpen || closed || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
         listeningBlock(conversation.run())?.let { pause(it); return }
         micOpen = capture.start(::frame, ::pause)
-        if (micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output.chime()
+        if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output.chime()
     }
     private fun closeMic() { micOpen = false; capture.close(); gate.reset() }
     private fun listen() {
@@ -223,12 +223,12 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         state = VoiceState.LISTENING
         val wasOpen = micOpen
         openMic()
-        if (wasOpen && micOpen && !gate.active) output.chime()
+        if (mode != VoiceMode.CALL && wasOpen && micOpen && !gate.active) output.chime()
     }
     /** Public to the capture port; deterministic PCM tests exercise the same path as AudioRecord. */
     fun frame(pcm: ShortArray, count: Int) {
         if (closed || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
-        val result = gate.accept(pcm, count, holdTurn)
+        val result = gate.accept(pcm, count, holdTurn, manual = mode == VoiceMode.PUSH_TO_TALK && pushHeld)
         if (result.began) {
             val now = System.nanoTime()
             val recent = recentPlayback.filter { now - it.first <= 1_500_000_000L }.map { it.second } +
@@ -273,7 +273,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         val forceReview = mode == VoiceMode.PUSH_TO_TALK && pushHeld
         if (forceReview) { pushHeld = false; holdTurn = false }
         pendingAudio = bytes; canRetryTranscription = false
-        closeMic(); state = VoiceState.TRANSCRIBING
+        // A call keeps the same AudioRecord (and Bluetooth communication route)
+        // alive across recognition and playback. Frames are drained, not buffered,
+        // while TRANSCRIBING. Pause, route loss and End still release capture.
+        if (mode == VoiceMode.CALL) gate.reset() else closeMic()
+        state = VoiceState.TRANSCRIBING
         endedAt = System.nanoTime(); transcriptionMs = null; firstTextMs = null; firstPlaybackMs = null
         val token = generation
         val provider = try { transcriber() } catch (error: Exception) {
@@ -411,7 +415,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (closed || tentative || audioSuspended || state in setOf(VoiceState.TRANSCRIBING, VoiceState.RECORDING, VoiceState.REVIEW, VoiceState.PAUSED)) return
         submitted = false; finished = false
         if (queuedText.isNotBlank()) { transcript = queuedText; sendTranscript() }
-        else if (mode == VoiceMode.CONVERSATION) listen()
+        else if (mode == VoiceMode.CALL || mode == VoiceMode.CONVERSATION) listen()
         else { transcript = ""; state = VoiceState.READY; closeMic() }
     }
     private fun saveTranscript(text: String) {

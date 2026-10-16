@@ -32,6 +32,25 @@ class VoiceSignalTest {
         assertFalse(activities.joinToString().contains("PRIVATE PATH"))
     }
     private val loud = ShortArray(320) { if (it % 2 == 0) 2400 else -2400 }
+    @Test fun heldMicrophoneKeepsQuietSpeechWithoutAutomaticSpeechThreshold() {
+        val gate = VoiceGate()
+        val quiet = ShortArray(320) { if (it % 2 == 0) 100 else -100 }
+        repeat(25) { gate.accept(quiet, quiet.size, hold = true, manual = true) }
+        val result = checkNotNull(gate.finish())
+        assertEquals(44 + 25 * 640, result.size)
+        assertEquals(100.toShort(), ByteBuffer.wrap(result).order(ByteOrder.LITTLE_ENDIAN).getShort(44))
+        assertFalse(gate.active)
+    }
+    @Test fun heldDigitalSilenceDoesNotCreateARequestAndManualCaptureIsBounded() {
+        val gate = VoiceGate()
+        repeat(100) { gate.accept(ShortArray(320), 320, hold = true, manual = true) }
+        assertNull(gate.finish())
+        var finished = 0
+        repeat(3000) { if (gate.accept(loud, 320, hold = true, manual = true).complete != null) finished++ }
+        assertEquals(1, finished)
+        gate.reset()
+        assertNull(gate.finish())
+    }
     @Test fun noiseAndBriefClicksDoNotCreateAnUtterance() {
         val gate = VoiceGate()
         repeat(100) { assertNull(gate.accept(ShortArray(320) { 120 }, 320).complete) }

@@ -378,7 +378,7 @@ class MainActivity : ComponentActivity() {
         if (preferences.value.debuggingVoiceInterface) { voiceOpen = true; return }
         runtime.voice?.let { if (it.dictationToDraft && it.holdTurn) it.endPushToTalk() else it.close(); return }
         runtime.voiceDictationToDraft = false
-        requestVoice(VoiceMode.CONVERSATION)
+        requestVoice(VoiceMode.CALL)
     }
     private fun holdVoice() {
         messageReader?.stop()

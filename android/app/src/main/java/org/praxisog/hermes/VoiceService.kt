@@ -22,11 +22,18 @@ class VoiceService : Service() {
     private var acquiring = false
     private var oldMode = AudioManager.MODE_NORMAL
     private var requestedRoute: AudioDeviceInfo? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wakeRenewal: Job? = null
+    private var routePending = false
+    private var routeTimeout: Job? = null
     @get:androidx.annotation.RequiresApi(31)
     private val routeChanged by lazy {
         AudioManager.OnCommunicationDeviceChangedListener {
+            if (Build.VERSION.SDK_INT >= 31 && audio.communicationDevice?.id == requestedRoute?.id) {
+                routePending = false; routeTimeout?.cancel(); routeTimeout = null
+            }
             if (Build.VERSION.SDK_INT >= 31 && started && ownsAudio && !acquiring && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
-                audio.communicationDevice?.id != requestedRoute?.id)
+                !routePending && audio.communicationDevice?.id != requestedRoute?.id)
                 pauseAudio("route_changed", "The communication route changed. Check your route and resume voice.")
         }
     }
@@ -89,7 +96,8 @@ class VoiceService : Service() {
         val open = PendingIntent.getActivity(this, 51, Intent(this, MainActivity::class.java).setAction(OPEN),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         fun notification(text: String, paused: Boolean = false) = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Bellpull voice").setContentText(text).setContentIntent(open).setOngoing(true)
+            .setContentTitle(if ((runtime.voice?.mode ?: runtime.voiceRequestedMode) == VoiceMode.CALL) "Bellpull call mode" else "Bellpull voice")
+            .setContentText(text).setContentIntent(open).setOngoing(true)
             .addAction(Notification.Action.Builder(null, if (paused) "Resume voice" else "Pause microphone", action(if (paused) RESUME else PAUSE, 52)).build())
             .addAction(Notification.Action.Builder(null, "End voice", action(STOP, 53)).build()).build()
         try {
@@ -134,7 +142,7 @@ class VoiceService : Service() {
             voice.start(runtime.voiceRequestedMode)
             if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
             scope.launch {
-                androidx.compose.runtime.snapshotFlow { voice.state }.collect { state ->
+                androidx.compose.runtime.snapshotFlow { voice.state to voice.mode }.collect { (state, _) ->
                     val paused = state == VoiceState.PAUSED
                     if (paused) releaseAudio()
                     media?.setPlaybackState(PlaybackState.Builder()
@@ -174,6 +182,20 @@ class VoiceService : Service() {
             ownsAudio = true
             audio.mode = AudioManager.MODE_IN_COMMUNICATION
             check(selectRoute())
+            // The user-started foreground session must continue capturing and
+            // receiving speech while the screen is off, even between phrases.
+            wakeLock = getSystemService(PowerManager::class.java)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Bellpull:voice").also {
+                    it.setReferenceCounted(false)
+                    it.acquire(10 * 60_000L)
+                }
+            wakeRenewal = scope.launch {
+                while (isActive) {
+                    delay(5 * 60_000L)
+                    if (!ownsAudio) break
+                    wakeLock?.acquire(10 * 60_000L)
+                }
+            }
             true
         } catch (_: Exception) { releaseAudio(); false }
         finally { acquiring = false }
@@ -183,6 +205,9 @@ class VoiceService : Service() {
         audioCycle++
         val owned = ownsAudio
         ownsAudio = false; requestedRoute = null
+        routePending = false; routeTimeout?.cancel(); routeTimeout = null
+        wakeRenewal?.cancel(); wakeRenewal = null
+        wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
         focus?.let(audio::abandonAudioFocusRequest); focus = null
         if (owned && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
         if (owned && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
@@ -200,8 +225,19 @@ class VoiceService : Service() {
             val device = devices.firstOrNull { it.type in setOf(AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET,
                 AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET) }
                 ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-            if (device == null || !audio.setCommunicationDevice(device)) return false
+            if (device == null) return false
             requestedRoute = device
+            routePending = audio.communicationDevice?.id != device.id
+            if (!audio.setCommunicationDevice(device)) return false
+            // Bluetooth route selection is asynchronous. An intermediate device
+            // callback is not loss of a route that has not connected yet.
+            routeTimeout?.cancel()
+            if (routePending) routeTimeout = scope.launch {
+                delay(30_000)
+                routePending = false
+                if (started && ownsAudio && audio.communicationDevice?.id != requestedRoute?.id)
+                    pauseAudio("route_timeout", "The call audio route did not connect. Check Bluetooth and resume voice.")
+            }
         }
         return true
     }

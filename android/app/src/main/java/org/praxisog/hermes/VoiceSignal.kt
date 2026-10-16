@@ -12,18 +12,29 @@ internal class VoiceGate(private val silenceMs: Int = 1600, private val sampleRa
     private var quietMs = 0
     private var totalMs = 0
     private var voicedMs = 0
+    private var manualRecording = false
+    private var manualSignal = false
     private val lead = ArrayDeque<ByteArray>()
     private val recording = ByteArrayOutputStream()
     var active = false
         private set
     data class Frame(val began: Boolean = false, val complete: ByteArray? = null)
-    fun accept(pcm: ShortArray, count: Int, hold: Boolean = false): Frame {
+    fun accept(pcm: ShortArray, count: Int, hold: Boolean = false, manual: Boolean = false): Frame {
         if (count <= 0) return Frame()
+        require(count <= pcm.size)
         val ms = count * 1000 / sampleRate
         val rms = sqrt((0 until count).sumOf { pcm[it].toDouble() * pcm[it] } / count)
         val speech = rms > maxOf(450.0, noise * 3.0)
         val bytes = ByteBuffer.allocate(count * 2).order(ByteOrder.LITTLE_ENDIAN).apply { repeat(count) { putShort(pcm[it]) } }.array()
         var began = false
+        // A held microphone is an explicit recording request. Do not require 200 ms
+        // of continuously loud speech before keeping it; soft words were lost here
+        // before either the local recognizer or the server ever received a WAV.
+        if (manual && !active) {
+            active = true; manualRecording = true; began = true
+            lead.forEach(recording::write); lead.clear()
+        }
+        if (manualRecording && rms >= 32.0) manualSignal = true
         if (!active) {
             lead.addLast(bytes); while (lead.size > 12) lead.removeFirst()
             if (speech) loudMs += ms else { loudMs = 0; noise = .98 * noise + .02 * rms.coerceAtMost(600.0) }
@@ -40,10 +51,14 @@ internal class VoiceGate(private val silenceMs: Int = 1600, private val sampleRa
         return Frame(began = began)
     }
     fun finish(): ByteArray? {
-        val result = if (active && voicedMs >= 300) wav(recording.toByteArray()) else null
+        val enoughAudio = if (manualRecording) totalMs >= 160 && manualSignal else voicedMs >= 300
+        val result = if (active && enoughAudio) wav(recording.toByteArray()) else null
         reset(); return result
     }
-    fun reset() { active = false; loudMs = 0; quietMs = 0; totalMs = 0; voicedMs = 0; lead.clear(); recording.reset() }
+    fun reset() {
+        active = false; loudMs = 0; quietMs = 0; totalMs = 0; voicedMs = 0
+        manualRecording = false; manualSignal = false; lead.clear(); recording.reset()
+    }
 }
 internal fun wav(pcm: ByteArray): ByteArray = ByteBuffer.allocate(44 + pcm.size).order(ByteOrder.LITTLE_ENDIAN).apply {
     put("RIFF".toByteArray()); putInt(36 + pcm.size); put("WAVEfmt ".toByteArray()); putInt(16)

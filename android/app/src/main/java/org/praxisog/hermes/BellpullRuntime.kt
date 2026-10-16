@@ -20,7 +20,7 @@ internal class BellpullRuntime private constructor(context: Context) {
     var voice by mutableStateOf<VoiceSession?>(null)
     var voiceStartError by mutableStateOf<String?>(null)
     var voiceRequestedSession by mutableStateOf<String?>(null)
-    var voiceRequestedMode = VoiceMode.CONVERSATION
+    var voiceRequestedMode = VoiceMode.CALL
     var voiceButtonHeld = false
     var voiceDictationToDraft = false
     var cache: SessionCache? = null
