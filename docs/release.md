@@ -1,30 +1,30 @@
-## Current development release — 0.8.4 / build 25
+## Current development release — 0.8.5 / build 26
 
-The canonical source for both Android and the plugin is `master`. The matching
-pair is **Android 0.8.4-integration-preview/build25** and **plugin
-0.4.2-integration-preview**, published under
-`android-v0.8.4-integration-preview.1`. Historical releases are retained for
-reference and rollback; they are not separate active development lines.
+The experimental line is **Android 0.8.5-integration-preview/build26** with
+**plugin 0.4.3-integration-preview**, published under
+`android-v0.8.5-integration-preview.1` from `repair/qwen-asr-server-stt`
+(master 0.8.4 merged in, then version bump). Historical releases are retained
+for reference and rollback.
 
 The release contains the signed `Bellpull.apk`, complete
-`bellpull-plugin-0.4.2-integration-preview.tar.gz`, recursive
-`Bellpull-source-0.8.4.tar.gz`, phase roadmap and `SHA256SUMS`. The source archive
-includes pinned native submodules and `SOURCE-REVISIONS.json`. It excludes model
-weights, credentials, signing material, build caches and untracked personal files.
-Use the [build guide](BUILDING.md) or the [plugin installer](../plugins/bellpull/README.md).
+`bellpull-plugin-0.4.3-integration-preview.tar.gz`, recursive
+`Bellpull-source-0.8.5.tar.gz`, phase roadmap and `SHA256SUMS`. The source
+archive includes pinned native submodules and `SOURCE-REVISIONS.json`. It
+excludes model weights, credentials, signing material, build caches and
+untracked personal files. Use the [build guide](BUILDING.md) or the
+[plugin installer](../plugins/bellpull/README.md).
 
-This consolidates the audit repairs: calendar revocation/retained receipts,
-transcription Retry, Stop feedback, streaming follow, message statistics and media
-routing for standalone Read aloud. A screenshot fixture now publishes project
-state on the main dispatcher used by the app; its existing baselines are unchanged.
-No new speech engine or silent fallback is introduced. Pocket/Loona was explicitly
-enabled on the owner's phone in the preceding setup; an app update preserves it.
+New since 0.8.4: MOSS-TTS-Nano on-device engine, server-offload voice routes
+(`GET /api/bellpull/speech/health`, `POST /api/bellpull/speech/tts|stt`,
+capability `bellpull_speech`, plugin 0.4.3) proxied to the loopback-only
+speech helper, and the fix for the MOSS on-device load crashing the process
+(complete ORT 1.23.2 native libs vendored; `Throwable`-level catches in voice
+output). Master's audit consolidations from 0.8.4 are included via merge.
 
-Validation: 598 Android tests passed with one live-server skip, 172 screenshot
-baselines, debug/release builds and lint. Plugin runtime is unchanged from the
-validated 0.4.2 repair: 148 passes/one skip on the full legacy-image suite and
-66 passes/one skip on the stock-host subset. Publication also verifies the signed
-APK/16-KiB alignment, archive contents and an extracted plugin installation.
+Validation: CI on the pushed branch; plugin suite in the pinned legacy image.
+Signed APK shares the published signing lineage (cert
+`c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf`), so it
+upgrades the installed app in place.
 
 See the [October 15 reliability audit](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit)
 for ten closed issues and six remaining open issues. Physical car/headset routes,
