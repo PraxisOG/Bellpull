@@ -106,6 +106,28 @@ class StreamScrollTest {
         compose.onNodeWithTag("stream-tail").assertIsDisplayed()
     }
 
+    @Test fun manuallyReturningToBottomAndDraggingPastItResumesFollowing() {
+        var turn by mutableStateOf<TurnState>(TurnState.Streaming("start", canStop = true))
+        compose.setContent {
+            SessionDetailScreen(UiState.Ready(longHistory), turn, { false }, {}, {})
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("transcript").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsNotDisplayed()
+        // Reaching the end often leaves part of the gesture unconsumed (overscroll).
+        repeat(4) {
+            compose.onNodeWithTag("transcript").performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+        compose.runOnIdle {
+            turn = TurnState.Streaming((1..75).joinToString("\n") { "New line $it" }, canStop = true)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("stream-tail").assertIsDisplayed()
+    }
+
     @Test @Config(qualifiers = "w840dp-h900dp") fun shrinkingPaneKeepsLatestReplyVisibleWithoutNewTokens() {
         var width by mutableStateOf(754)
         val history = (1..12).map { Message(it, role = if (it % 2 == 0) "assistant" else "user",

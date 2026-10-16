@@ -151,15 +151,23 @@ internal fun SessionDetailScreen(
     val scope = rememberCoroutineScope()
     var highlightedId by rememberSaveable { mutableStateOf<Int?>(null) }
     var browsingHistory by rememberSaveable { mutableStateOf(false) }
+    val bottomTolerance = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.roundToPx() }
     // Follow is reader intent, not canScrollForward: arriving content changes the latter.
-    val readerScroll = remember(listState) {
+    val readerScroll = remember(listState, bottomTolerance) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput && available.y != 0f) followingTail = false
                 return Offset.Zero
             }
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (consumed.y < 0f && !listState.canScrollForward) {
+                val layout = listState.layoutInfo
+                val last = layout.visibleItemsInfo.lastOrNull()
+                val nearBottom = !listState.canScrollForward || (last != null &&
+                    last.index == layout.totalItemsCount - 1 &&
+                    last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset <= bottomTolerance)
+                // At the end the list consumes zero pixels; the rest of the
+                // gesture must still restore the reader's intent to follow.
+                if ((consumed.y < 0f || available.y < 0f) && nearBottom) {
                     followingTail = true
                     browsingHistory = false
                 }

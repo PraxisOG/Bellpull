@@ -26,3 +26,13 @@ messages remain readable.
   do not force following while the reader is visibly above the bottom.
 - Verify behavior over a growing response with an interaction test or device
   check; a static screenshot alone does not establish this behavior.
+
+## October 15 audit repair
+
+Reproduced with a Compose touch-gesture regression. At the bottom an extra upward
+finger movement is unconsumed; pre-scroll disabled following but post-scroll only
+restored it when pixels were consumed. The repair recognizes that overscroll and
+uses a 16 dp bottom tolerance. `StreamScrollTest` verifies returning manually,
+dragging past the bottom and receiving a growing answer; its existing scroll-away
+test still prevents snapping the reader back. Physical car use is unrelated to
+this source-confirmed UI defect.
