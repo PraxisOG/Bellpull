@@ -57,6 +57,11 @@ class VoiceOutputSettingsTest {
         compose.onNodeWithText("Save voice output").assertIsNotEnabled()
         compose.onNodeWithText("Preview").assertIsNotEnabled()
         compose.onNodeWithText("Speaker: ryan").assertExists()
+        // Engine chip set is held by assertions: composition changes must be intentional.
+        compose.onNodeWithText("Default Android voice").assertExists()
+        compose.onNodeWithText("Qwen3-TTS · on device").assertExists()
+        compose.onNodeWithText("MOSS-TTS-Nano · on device").assertExists()
+        compose.onNodeWithText("Pocket TTS · experimental").assertDoesNotExist()
         compose.onRoot().captureRoboImage()
     }
     @Test fun outputCover() = screen()

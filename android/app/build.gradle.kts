@@ -27,6 +27,12 @@ android {
     compileSdk = 37
     ndkVersion = "29.0.14206865"
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" } }
+    packaging {
+        // Moonshine's AAR and the pinned onnxruntime-android AAR both carry the same
+        // 1.23.2 arm64/x86_64 libonnxruntime.so; the CMake-built Pocket ORT is static
+        // and version-isolated, so it never appears here.
+        jniLibs { pickFirsts += "lib/*/libonnxruntime.so" }
+    }
 
     defaultConfig {
         // Device fixtures use a separate sandbox; personal profiles are never loaded.
@@ -133,7 +139,9 @@ dependencies {
         exclude(group = "androidx.work")
     }
     // MOSS uses the Java session API. Pocket's statically isolated ORT has no Java API.
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.28.2")
+    // Pinned to the same 1.23.2 the Moonshine AAR bundles so both Java engines share one
+    // libc version (the MOSS demo's 1.20.0 floor and the ONNX opsets both satisfy 1.23.x).
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
     // Already on the classpath transitively via Compose; declared so the version is ours
     // rather than an accident of whatever compose-bom happens to pull in.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
