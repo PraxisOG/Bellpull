@@ -7,3 +7,5 @@ Correction task on the current branch (speech proxy work). Three defects to fix,
 3. Make SettingsOrganizationTest pass again by feature restoration (its assertions about "Private server" chips and Start voice enabling with a private endpoint configured must hold unchanged; do NOT edit that test).
 
 Then run nothing; report files changed. No gradle, no network.
+
+Restoration notes: HttpVoiceTranscriber was fully DELETED; restore it verbatim from git: `git show HEAD~2:android/app/src/main/java/org/praxisog/hermes/VoiceSession.kt` contains it. Diff `git diff HEAD~2 HEAD -- android/app/src/main/java` to see every removal and restore each private-server path.
