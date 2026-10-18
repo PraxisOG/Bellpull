@@ -39,14 +39,21 @@ class ServerSpeechTest {
         prefs.edit().clear().commit()
         val settings = VoiceSettings(prefs)
         assertFalse(settings.read().transcribeViaServer)
+        assertFalse(settings.read().allowLocalTranscriptionFallback)
+        // Existing server users must not inherit the former implicit fallback.
+        prefs.edit().putBoolean("stt_server", true).commit()
+        assertFalse(settings.read().allowLocalTranscriptionFallback)
         val value = VoiceConfiguration(transcribeViaServer = true,
             output = VoiceOutputConfiguration(engine = VoiceOutputEngine.SERVER_MOSS))
         settings.save(value)
         assertEquals("server-moss", prefs.getString("output", null))
         assertTrue(prefs.getBoolean("stt_server", false))
         assertEquals(value, VoiceSettings(prefs).read())
+        settings.save(value.copy(allowLocalTranscriptionFallback = true))
+        assertTrue(VoiceSettings(prefs).read().allowLocalTranscriptionFallback)
         settings.save(value.copy(transcribeViaServer = false))
         assertFalse(settings.read().transcribeViaServer)
+        assertFalse(settings.read().allowLocalTranscriptionFallback)
         val other = VoiceSettings(app.getSharedPreferences("server-speech-other", Context.MODE_PRIVATE))
         other.clear()
         assertFalse(other.read().transcribeViaServer)
@@ -93,7 +100,7 @@ class ServerSpeechTest {
         val wav = byteArrayOf(1, 2, 3)
         var attempts = 0
         var localClosed = false
-        val transcriber = ServerVoiceTranscriber(transport) {
+        val transcriber = ServerVoiceTranscriber(transport, allowLocalFallback = true) {
             attempts++
             object : VoiceTranscriber {
                 override fun transcribe(wavReceived: ByteArray): Result<String> {
@@ -117,12 +124,35 @@ class ServerSpeechTest {
         val transport = Transport()
         val failure = IOException("helper unavailable")
         transport.result = { throw failure }
-        assertSame(failure, ServerVoiceTranscriber(transport) { null }.transcribe(byteArrayOf()).exceptionOrNull())
+        assertSame(failure, ServerVoiceTranscriber(transport, allowLocalFallback = true) { null }.transcribe(byteArrayOf()).exceptionOrNull())
         transport.result = { throw CancellationException("cancelled") }
-        val transcriber = ServerVoiceTranscriber(transport) { error("Cancellation must not load a model") }
+        val transcriber = ServerVoiceTranscriber(transport, allowLocalFallback = true) { error("Cancellation must not load a model") }
         assertTrue(transcriber.transcribe(byteArrayOf()).exceptionOrNull() is CancellationException)
         transcriber.close()
         assertTrue(transcriber.transcribe(byteArrayOf()).exceptionOrNull() is CancellationException)
+    }
+
+    @Test fun serverOnlyFailuresPreserveTheErrorAndNeverCreateLocalRecognition() {
+        val transport = Transport()
+        var localAttempts = 0
+        val transcriber = ServerVoiceTranscriber(transport) {
+            localAttempts++
+            error("Server-only mode must not initialize local recognition")
+        }
+        try {
+            val failures = listOf(IOException("timeout"), IllegalStateException("HTTP 401"),
+                IllegalStateException("HTTP 404"), IOException("connection lost"))
+            repeat(25) {
+                for (failure in failures) {
+                    transport.result = { throw failure }
+                    assertSame(failure, transcriber.transcribe(byteArrayOf()).exceptionOrNull())
+                }
+            }
+            assertEquals(0, localAttempts)
+            transport.result = { "recovered server" }
+            assertEquals("recovered server", transcriber.transcribe(byteArrayOf()).getOrThrow())
+            assertEquals(0, localAttempts)
+        } finally { transcriber.close() }
     }
 
     @Test fun privateServerEndpointStaysUsableAndServerSwitchTakesPrecedence() {

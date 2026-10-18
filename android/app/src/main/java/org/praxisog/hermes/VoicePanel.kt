@@ -51,7 +51,9 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                             else speechLab.voiceStartProblem()
                         } ?: outputLab?.startProblem(config)
                         if (config.transcribeViaServer) {
-                            Text("Audio is transcribed through your Bellpull server profile. If unavailable, an installed local model can transcribe it instead.")
+                            Text(if (config.allowLocalTranscriptionFallback)
+                                "Audio is transcribed through your Bellpull server profile. Local fallback is enabled and may use the phone's CPU if the server fails."
+                            else "Audio is transcribed through your Bellpull server profile. Server failures pause voice for retry; local fallback is off.")
                         } else if (config.recognition == VoiceRecognition.LOCAL) {
                             Text("Speech is transcribed on this device. Answers use the saved Voice output selection. Sending your words to Hermes still needs a connection.")
                             Text("${speechLab?.selected?.label ?: "Moonshine Tiny Streaming"} · CPU", style = MaterialTheme.typography.bodySmall)
@@ -137,10 +139,15 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     var pause by remember { mutableIntStateOf(initial.pauseMs) }; var concise by remember { mutableStateOf(initial.concise) }
     var error by remember { mutableStateOf<String?>(null) }
     var transcribeViaServer by remember { mutableStateOf(initial.transcribeViaServer) }
+    var allowLocalFallback by remember { mutableStateOf(initial.allowLocalTranscriptionFallback) }
     var recognition by remember { mutableStateOf(initial.recognition) }
     Text("Speech recognition", style = MaterialTheme.typography.titleMedium)
-    PreferenceSwitch("Transcribe on server", "Send captured audio over the existing Bellpull profile connection. No separate key; an installed local model is the fallback.",
+    PreferenceSwitch("Transcribe on server", "Send captured audio over the existing Bellpull profile connection. Server failures are reported without starting local recognition by default.",
         transcribeViaServer, editable) { transcribeViaServer = it }
+    if (transcribeViaServer) {
+        PreferenceSwitch("Allow local transcription fallback", "If the server fails, try an installed recognizer on this phone. This can increase CPU use and delay cancellation. Off by default.",
+            allowLocalFallback, editable) { allowLocalFallback = it }
+    }
     if (!transcribeViaServer) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(recognition == VoiceRecognition.LOCAL, { recognition = VoiceRecognition.LOCAL }, enabled = editable,
@@ -169,7 +176,7 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {
         onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition,
-            transcribeViaServer = transcribeViaServer))
+            transcribeViaServer = transcribeViaServer, allowLocalTranscriptionFallback = allowLocalFallback))
         if (!transcribeViaServer && recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
     }.onFailure { error = it.message ?: "Could not save voice settings." } }) { Text("Save voice settings") }
 }

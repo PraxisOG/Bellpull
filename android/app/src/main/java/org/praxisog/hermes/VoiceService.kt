@@ -110,7 +110,8 @@ class VoiceService : Service() {
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
                 runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
-                    if (config.transcribeViaServer) ServerVoiceTranscriber(ProfileSpeechTransport(runtime.speechConnection())) {
+                    if (config.transcribeViaServer) ServerVoiceTranscriber(ProfileSpeechTransport(runtime.speechConnection()),
+                        allowLocalFallback = config.allowLocalTranscriptionFallback) {
                         runtime.speechLab.fallbackTranscriber()
                     }
                     else if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()

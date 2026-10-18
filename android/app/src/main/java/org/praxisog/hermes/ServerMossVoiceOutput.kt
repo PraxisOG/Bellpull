@@ -165,8 +165,9 @@ internal class ServerMossVoiceOutput(connection: ServerConnection, config: Voice
     override fun close() { voice.close(); transport.close() }
 }
 
-/** Only the explicit server-input setting permits local fallback; close fences both paths. */
+/** Server failures stay visible unless local fallback is separately enabled. */
 internal class ServerVoiceTranscriber(private val transport: ServerSpeechTransport,
+    private val allowLocalFallback: Boolean = false,
     private val local: () -> VoiceTranscriber?) : VoiceTranscriber {
     @Volatile private var closed = false
     private var fallback: VoiceTranscriber? = null
@@ -176,6 +177,7 @@ internal class ServerVoiceTranscriber(private val transport: ServerSpeechTranspo
         catch (error: Exception) {
             checkOpen()
             if (error is CancellationException) throw error
+            if (!allowLocalFallback) throw error
             val next = synchronized(this) {
                 checkOpen()
                 local()?.also { fallback = it }

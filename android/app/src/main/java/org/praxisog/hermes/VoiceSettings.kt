@@ -11,7 +11,8 @@ internal data class VoiceConfiguration(val endpoint: String = "", val key: Strin
     val recognition: VoiceRecognition = if (endpoint.isBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
     val output: VoiceOutputConfiguration = VoiceOutputConfiguration(),
     val announcements: VoiceAnnouncements = VoiceAnnouncements(),
-    val transcribeViaServer: Boolean = false) {
+    val transcribeViaServer: Boolean = false,
+    val allowLocalTranscriptionFallback: Boolean = false) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
 
@@ -42,7 +43,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)),
         VoiceAnnouncements(prefs.getBoolean("announce_tools", true), prefs.getBoolean("announce_web_search", true),
             prefs.getBoolean("announce_thinking", true), prefs.getBoolean("announce_working", true)),
-        prefs.getBoolean("stt_server", false))
+        prefs.getBoolean("stt_server", false), prefs.getBoolean("stt_local_fallback", false))
     fun save(value: VoiceConfiguration) {
         value.output.validated()
         if (!value.transcribeViaServer && value.recognition == VoiceRecognition.PRIVATE_SERVER) {
@@ -56,6 +57,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
             .putInt("pocket_chunk_frames", value.output.pocketChunkFrames)
             .putBoolean("stt_server", value.transcribeViaServer)
+            .putBoolean("stt_local_fallback", value.allowLocalTranscriptionFallback)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))
             .putInt("pause", value.pauseMs.coerceIn(1000, 3500)).putBoolean("concise", value.concise)
             .putBoolean("announce_tools", value.announcements.tools).putBoolean("announce_web_search", value.announcements.webSearch)
