@@ -132,7 +132,8 @@ class CallModeTest {
         assertTrue(voice.canRetryTranscription)
         failRecognition = false
         voice.retryTranscription()
-        await { conversation.sends == 1 }
+        // Admission precedes capture restart on the recognition completion thread.
+        await { conversation.sends == 1 && capture.active && capture.starts == 2 }
         assertTrue(capture.active)
         assertEquals(2, capture.starts)
     }

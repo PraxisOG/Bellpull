@@ -4,3 +4,9 @@
 [submodule "third-party/sherpa-onnx"]
 	path = third-party/sherpa-onnx
 	url = https://github.com/k2-fsa/sherpa-onnx.git
+[submodule "third-party/llama.cpp"]
+	path = third-party/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "third-party/Vulkan-Headers"]
+	path = third-party/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git

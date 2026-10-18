@@ -149,6 +149,13 @@ class MainActivity : ComponentActivity() {
                             PhoneNotificationSettings(PhoneNotificationRepository.get(applicationContext),
                                 profiles.profiles.firstOrNull { it.id == profiles.activeId })
                         },
+                        localLlmSettings = {
+                            androidx.compose.material3.Text("Import a local GGUF, chat offline and compare CPU/GPU correctness and speed.")
+                            androidx.compose.material3.Button(onClick = {
+                                runtime.voice?.close(); reader.stop()
+                                startActivity(android.content.Intent(this@MainActivity, LocalLlmActivity::class.java))
+                            }) { androidx.compose.material3.Text("Open local chat lab") }
+                        },
                         pluginVersions = profiles::pluginVersions,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {

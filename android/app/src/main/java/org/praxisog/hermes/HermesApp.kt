@@ -103,6 +103,7 @@ internal fun HermesApp(
     voiceOutputSettings: (@Composable () -> Unit)? = null,
     voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     phoneNotificationSettings: (@Composable () -> Unit)? = null,
+    localLlmSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
 ) {
@@ -256,7 +257,7 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,

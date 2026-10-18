@@ -24,3 +24,14 @@ SDK source: https://github.com/moonshine-ai/moonshine/tree/v0.1.5
 Existing Android dependencies retain their own licenses: AndroidX/Compose,
 Kotlin/kotlinx serialization, and OkHttp use Apache-2.0. Test/build dependencies
 are development tooling and are not shipped as application features.
+
+
+Phase 13 reuses the user-supplied Imagination experiment's unmodified llama.cpp
+(`a97cce86a8addeb9f40cba7a261c94b1f0c576cb`, MIT) and Vulkan-Headers
+(`3c65a01745e4a1134d32b9c2c456472212dba16d`, upstream multi-license notice).
+llama.cpp enables its pinned KleidiAI v1.24.0 CPU kernels (Apache-2.0/BSD-3-Clause).
+Notices are shipped under `android/app/src/main/assets/licenses/`; source remains
+in the pinned submodules and upstream build download. Bellpull's JNI owner is
+separate from the supplied app's UI/wrapper and uses no source patch to llama.cpp.
+GGUF model weights are user-imported and retain their own licenses; they are not
+included in Bellpull's APK/source release.

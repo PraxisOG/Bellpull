@@ -25,7 +25,7 @@ jobs:
           packages: platform-tools
       - run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;29.0.14206865' 'cmake;3.31.6'
       - uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
-      - run: ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
+      - run: bash tools/build-local-lab.sh test verifyRoborazziDebug assembleDebug lintDebug
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

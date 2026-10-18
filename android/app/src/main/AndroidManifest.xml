@@ -43,6 +43,7 @@
         android:usesCleartextTraffic="true">
         <!-- Use Bellpull's explicit microphone permission and capture lifecycle. -->
         <activity android:name="ai.moonshine.voice.MicrophonePermissionActivity" tools:node="remove" />
+        <activity android:name=".LocalLlmActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"

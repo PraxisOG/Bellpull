@@ -1,38 +1,49 @@
+## Phase 13 local LLM branch
+
+This branch builds **0.13.0-experimental / build 31**. Initialize submodules
+recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
+to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
+NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
+See [Phase 13](PHASE-13-LOCAL-LLM.md) for limits and validation.
+
 # Build the experimental preview
 
-This branch builds **0.12.0-experimental / build 30**, with the unchanged 0.4.3
+This branch builds **0.13.0-experimental / build 31**, with the unchanged 0.4.3
 plugin from the car experimental base. See [Phase 12](PHASE-12-NOTIFICATION-CONTEXT.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Use a recursive clone of the default branch:
+Use a recursive clone of this experimental branch:
 
 ```bash
-git clone --recurse-submodules \
+git clone --recurse-submodules --branch feature/phase13-local-llm-0130 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
 ```
 
 To reproduce a release, fetch and check out its tag, then run
-`git submodule update --init --recursive`. There are three pinned native trees:
+`git submodule update --init --recursive`. The pinned native trees include:
 
 | Source | Exact revision |
 | --- | --- |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | `a97cce86a8addeb9f40cba7a261c94b1f0c576cb` |
+| [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | `3c65a01745e4a1134d32b9c2c456472212dba16d` |
 | [qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp) | `51512f129a7419567f4b8abfb06801451789b8f1` |
 | Its nested [GGML](https://github.com/ServeurpersoCom/ggml) | `2eddaf94a8cdbbf1c30017d28313cd661a9da543` |
 | [Sherpa-ONNX](https://github.com/k2-fsa/sherpa-onnx) | `11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf` (1.13.8) |
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
-**not** include submodule contents. Use the recursive clone above, or download the
-release's **Bellpull-source-0.8.4.tar.gz**, which includes tracked source and all
-three native trees. That archive also contains `SOURCE-REVISIONS.json`.
+**not** include submodule contents. Use the recursive clone above, or download the preceding
+release's **Bellpull-source-0.12.0.tar.gz**, which includes that release's tracked
+source and native trees (without Phase 13). That archive also contains
+`SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.8.4.tar.gz
-cd Bellpull-0.8.4
+tar -xzf Bellpull-source-0.12.0.tar.gz
+cd Bellpull-0.12.0
 ```
 
 ## Toolchain

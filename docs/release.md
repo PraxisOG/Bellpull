@@ -1,4 +1,10 @@
-## Local experimental build — 0.12.0 / build 30
+## Local Phase 13 experiment — 0.13.0 / build 31
+
+Adds an explicit local text inference lab using the supplied Imagination GPU
+experiment. See [implementation and measurements](PHASE-13-LOCAL-LLM.md).
+Plugin runtime remains 0.4.3; no server update is needed for the lab.
+
+## Published experimental build — 0.12.0 / build 30
 
 `feature/phase12-notification-context-0120` adds [Phase 12 phone notification
 context](PHASE-12-NOTIFICATION-CONTEXT.md) on top of the car experimental build and
@@ -7,8 +13,10 @@ encrypted local history, app exclusions, retention, search, updates/removals and
 per-server opt-in sharing are implemented. Relevant excerpts use existing chat/run
 APIs; no server migration or new endpoint is required.
 
-Plugin code remains 0.4.3-integration-preview. This is a local experimental build,
-not a GitHub publication. Older published downloads below are historical.
+Plugin code remains 0.4.3-integration-preview. Published as
+[`android-v0.12.0-experimental.1`](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.12.0-experimental.1)
+from `4741b4b`, with the installed build30 APK, matching plugin, recursive source,
+roadmap and checksums. Older downloads below are historical.
 
 ## Historical development release — 0.8.4 / build 25
 

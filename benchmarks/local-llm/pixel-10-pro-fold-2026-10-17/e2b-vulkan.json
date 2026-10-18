@@ -1,0 +1,287 @@
+{
+  "llama_revision": "a97cce86a8addeb9f40cba7a261c94b1f0c576cb",
+  "model": "Gemma 4 E2B Q4_0.gguf",
+  "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+  "context": 2048,
+  "threads": 4,
+  "device": "Pixel 10 Pro Fold",
+  "sdk": 37,
+  "gpu_configuration": "no coopmat, coopmat2, coopmat2 decode vector, integer dot, f16, fusion, async; flash attention off",
+  "start": {
+    "elapsed_ms": 685760195,
+    "pss_mib": 223.673828125,
+    "thermal_status": 0,
+    "battery_temperature_c": 32.4,
+    "battery_percent": 65,
+    "charge_counter_uah": 3121666,
+    "plugged": 2
+  },
+  "scope": "Fixed prompts and settings only. Short, plugged-in runs do not establish battery life or sustained thermals.",
+  "runs": [
+    {
+      "backend": "CPU (0 GPU layers)",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 0,
+      "load_ms": 2703.514,
+      "prompt_tokens": 16,
+      "generated_tokens": 3,
+      "prompt_ms": 215.683,
+      "generation_ms": 248.016,
+      "prompt_tps": 74.18294441379247,
+      "generation_tps": 12.09599380685117,
+      "finish": "complete",
+      "token_ids": [
+        811,
+        1156,
+        1806,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+      "prompt": "Reply with exactly: one two three",
+      "text": "one two three",
+      "wall_ms": 466,
+      "observation": {
+        "elapsed_ms": 685763651,
+        "pss_mib": 4562.6298828125,
+        "thermal_status": 0,
+        "battery_temperature_c": 32.4,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "CPU (0 GPU layers)",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 0,
+      "load_ms": 2703.514,
+      "prompt_tokens": 16,
+      "generated_tokens": 3,
+      "prompt_ms": 227.815,
+      "generation_ms": 242.159,
+      "prompt_tps": 70.23242543291705,
+      "generation_tps": 12.38855462733163,
+      "finish": "complete",
+      "token_ids": [
+        811,
+        1156,
+        1806,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+      "prompt": "Reply with exactly: one two three",
+      "text": "one two three",
+      "wall_ms": 473,
+      "observation": {
+        "elapsed_ms": 685764652,
+        "pss_mib": 4563.1923828125,
+        "thermal_status": 0,
+        "battery_temperature_c": 32.4,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "CPU (0 GPU layers)",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 0,
+      "load_ms": 2703.514,
+      "prompt_tokens": 22,
+      "generated_tokens": 1,
+      "prompt_ms": 299.399,
+      "generation_ms": 79.908,
+      "prompt_tps": 73.48053934715881,
+      "generation_tps": 12.514391550282825,
+      "finish": "complete",
+      "token_ids": [
+        236810,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+      "prompt": "What is 2 plus 3? Answer with one number.",
+      "text": "5",
+      "wall_ms": 382,
+      "observation": {
+        "elapsed_ms": 685765611,
+        "pss_mib": 4565.798828125,
+        "thermal_status": 0,
+        "battery_temperature_c": 32.4,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "CPU (0 GPU layers)",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 0,
+      "load_ms": 2703.514,
+      "prompt_tokens": 22,
+      "generated_tokens": 1,
+      "prompt_ms": 293.737,
+      "generation_ms": 87.292,
+      "prompt_tps": 74.89693160888822,
+      "generation_tps": 11.455803510058196,
+      "finish": "complete",
+      "token_ids": [
+        236810,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+      "prompt": "What is 2 plus 3? Answer with one number.",
+      "text": "5",
+      "wall_ms": 383,
+      "observation": {
+        "elapsed_ms": 685766545,
+        "pss_mib": 4566.052734375,
+        "thermal_status": 0,
+        "battery_temperature_c": 32.4,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "Vulkan: Vulkan0",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 36,
+      "load_ms": 3121.254,
+      "prompt_tokens": 16,
+      "generated_tokens": 12,
+      "prompt_ms": 4207.37,
+      "generation_ms": 8066.564,
+      "prompt_tps": 3.8028507119649566,
+      "generation_tps": 1.487622239159077,
+      "finish": "token limit",
+      "token_ids": [
+        9366,
+        2847,
+        506,
+        2587,
+        4403,
+        653,
+        506,
+        4133,
+        2934,
+        611,
+        659,
+        26242
+      ],
+      "load_log": "load_tensors: offloaded 36\/36 layers to GPU\nload_tensors:          CPU model buffer size =  2467.50 MiB\nload_tensors:      Vulkan0 model buffer size =  1026.76 MiB\n",
+      "prompt": "Reply with exactly: one two three",
+      "text": "Please provide the full context or the complete question you are referring",
+      "wall_ms": 12276,
+      "observation": {
+        "elapsed_ms": 685782879,
+        "pss_mib": 4068.591796875,
+        "thermal_status": 0,
+        "battery_temperature_c": 33.5,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "Vulkan: Vulkan0",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 36,
+      "load_ms": 3121.254,
+      "prompt_tokens": 16,
+      "generated_tokens": 3,
+      "prompt_ms": 2648.245,
+      "generation_ms": 2003.509,
+      "prompt_tps": 6.041737074930756,
+      "generation_tps": 1.497372859318326,
+      "finish": "complete",
+      "token_ids": [
+        811,
+        1156,
+        1806,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 36\/36 layers to GPU\nload_tensors:          CPU model buffer size =  2467.50 MiB\nload_tensors:      Vulkan0 model buffer size =  1026.76 MiB\n",
+      "prompt": "Reply with exactly: one two three",
+      "text": "one two three",
+      "wall_ms": 4655,
+      "observation": {
+        "elapsed_ms": 685787894,
+        "pss_mib": 4069.271484375,
+        "thermal_status": 0,
+        "battery_temperature_c": 33.5,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "Vulkan: Vulkan0",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 36,
+      "load_ms": 3121.254,
+      "prompt_tokens": 22,
+      "generated_tokens": 1,
+      "prompt_ms": 2757.021,
+      "generation_ms": 643.839,
+      "prompt_tps": 7.9796272861178785,
+      "generation_tps": 1.5531833268876225,
+      "finish": "complete",
+      "token_ids": [
+        236828,
+        106
+      ],
+      "load_log": "load_tensors: offloaded 36\/36 layers to GPU\nload_tensors:          CPU model buffer size =  2467.50 MiB\nload_tensors:      Vulkan0 model buffer size =  1026.76 MiB\n",
+      "prompt": "What is 2 plus 3? Answer with one number.",
+      "text": "8",
+      "wall_ms": 3406,
+      "observation": {
+        "elapsed_ms": 685791669,
+        "pss_mib": 4070.0029296875,
+        "thermal_status": 0,
+        "battery_temperature_c": 33.5,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    },
+    {
+      "backend": "Vulkan: Vulkan0",
+      "model": "gemma4 E2B Q4_0",
+      "offloaded_layers": 36,
+      "load_ms": 3121.254,
+      "prompt_tokens": 22,
+      "generated_tokens": 0,
+      "prompt_ms": 2678.109,
+      "generation_ms": 0,
+      "prompt_tps": 8.214751528037134,
+      "generation_tps": 0,
+      "finish": "complete",
+      "token_ids": [
+        106
+      ],
+      "load_log": "load_tensors: offloaded 36\/36 layers to GPU\nload_tensors:          CPU model buffer size =  2467.50 MiB\nload_tensors:      Vulkan0 model buffer size =  1026.76 MiB\n",
+      "prompt": "What is 2 plus 3? Answer with one number.",
+      "text": "",
+      "wall_ms": 2682,
+      "observation": {
+        "elapsed_ms": 685794728,
+        "pss_mib": 4070.2763671875,
+        "thermal_status": 0,
+        "battery_temperature_c": 33.5,
+        "battery_percent": 65,
+        "charge_counter_uah": 3121666,
+        "plugged": 2
+      }
+    }
+  ],
+  "gpu_exact_match": false,
+  "end": {
+    "elapsed_ms": 685795815,
+    "pss_mib": 295.7998046875,
+    "thermal_status": 0,
+    "battery_temperature_c": 33.5,
+    "battery_percent": 65,
+    "charge_counter_uah": 3121666,
+    "plugged": 2
+  }
+}

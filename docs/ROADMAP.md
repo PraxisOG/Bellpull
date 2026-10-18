@@ -5,10 +5,11 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.12.0-experimental / build 30**, plugin
+This experimental branch: app **0.13.0-experimental / build 31**, plugin
 **0.4.3-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
+[Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance
@@ -25,7 +26,7 @@ This experimental branch: app **0.12.0-experimental / build 30**, plugin
 | 10 | Local notification inbox, offline reminders and delivery | Experimental framework; real Doze/reboot acceptance remains open |
 | 11 | Today dashboard | Implemented overview of calendar, reminders, decisions, tracked work and unread replies; see phase evidence |
 | 12 | Phone notification context | Early implementation: opt-in encrypted history, exclusions, retention and per-server bounded context |
-| 13 | On-device LLM feasibility | Deferred |
+| 13 | On-device LLM feasibility | Experimental local chat lab; E2B CPU works, Vulkan fails correctness checks |
 | 14 | Offline conversations and reconnection | Deferred, conditional on Phase 13 |
 | 15 | Phone assistant replacement and device actions | Deferred |
 | 16 | Android Auto | Separate deferred investigation |
@@ -48,8 +49,8 @@ supersede the original scope. Verify actual implementation status in the reposit
 ## Priorities
 
 Existing foundation: Phases 0–3. Preserve and repair rather than rebuild.
-Active roadmap: Phases 4–12. Notification context is the next phase to audit.
-Deferred work: Phases 13–16. These must not block the active roadmap.
+Active roadmap: Phases 4–13. Phase 13 now has an explicitly authorized bounded experiment.
+Deferred work: Phases 14–16. These must not block the active roadmap.
 Final polish: Phase 17. Widgets and Quick Settings belong here.
 
 The deferred numbering is organizational, not a strict dependency chain.
@@ -215,7 +216,13 @@ restricted app selection the default requirement for the requested broad mode.
 
 ## Deferred
 
-### Phase 13 · On-device LLM feasibility — MUCH LATER
+### Phase 13 · On-device LLM feasibility — EXPERIMENTAL IMPLEMENTATION
+The user authorized this experiment after publishing 0.12.0. See
+[the local chat lab and measurements](PHASE-13-LOCAL-LLM.md). CPU chat, local GGUF
+import, benchmarks, cancellation/background unloading and a conservative GPU
+correctness gate are implemented. E2B CPU passed device checks; Vulkan did not.
+Long-duration battery/thermal acceptance remains open.
+
 CPU-first bounded experiment on the actual phone with the intended model/release.
 Measure quality, startup, prompt processing, generation, memory, thermal/battery
 behavior, cancellation, and lifecycle. Give a usable-scope or no-go result before

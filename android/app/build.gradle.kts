@@ -93,8 +93,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 30
-        versionName = "0.12.0-experimental"
+        versionCode = 31
+        versionName = "0.13.0-experimental"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -177,6 +177,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation(project(":core-hermes"))
+    implementation(project(":local-llm"))
     // Approved Markdown parser; Compose owns rendering and link handling.
     implementation("org.commonmark:commonmark:0.30.1")
     implementation("org.commonmark:commonmark-ext-gfm-tables:0.30.1")

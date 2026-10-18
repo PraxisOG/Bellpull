@@ -63,6 +63,17 @@ trust, not a second use of the old one.
 
 ## Scope gate
 
+**Latest authority (2026-10-17, Phase 13):** the user requested publishing the
+latest experimental build first, then implementing a working Phase 13 prototype,
+using `/home/praxisog/Imagination-gpu-experiment` as a reference. 0.12.0/build30
+is published as `android-v0.12.0-experimental.1` from `4741b4b`. Work now lives on
+`feature/phase13-local-llm-0130`, building 0.13.0/build31. The supplied pinned
+llama.cpp/Vulkan/KleidiAI implementation is in scope for this request. Keep explicit
+model/backend selection and correctness gates. Existing phone testing/install
+authorization persists; preserve signing and personal data. The local Docker
+Hermes is authorized for tests, with no personal remote server/config deployment.
+See `docs/PHASE-13-LOCAL-LLM.md`. No default-branch merge is part of this task.
+
 **Current authority (2026-10-15, consolidation):** the user asked to make the
 latest version the default and keep GitHub clean. Consolidate app/plugin development
 onto `master`, publish one matching current development download, update entry-point

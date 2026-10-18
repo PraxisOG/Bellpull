@@ -16,5 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "HermesAndroid"
 include(":app")
+include(":local-llm")
 include(":core-model")
 include(":core-hermes")

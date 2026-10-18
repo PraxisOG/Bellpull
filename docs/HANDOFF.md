@@ -1,3 +1,36 @@
+# Phase 13 installed — October 17, 2026
+
+0.12.0/build30 was pushed and published first as
+[`android-v0.12.0-experimental.1`](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.12.0-experimental.1)
+from `4741b4b`, with APK/plugin/recursive source/roadmap/checksums. GitHub's APK
+digest matches the installed build30 artifact.
+
+`feature/phase13-local-llm-0130` now implements **0.13.0-experimental / build31**.
+Settings → Local chat lab imports a GGUF, streams explicit CPU chat, cancels and
+unloads on background, reports performance and checks GPU correctness. E2B/E4B CPU
+work; Vulkan remains blocked after repeated incorrect results. See
+[implementation, measurements and limits](PHASE-13-LOCAL-LLM.md).
+
+683 Android passes/one skip; 187 screenshot baselines; release/lint pass. Three
+fixture phone tests covered E2B lifecycle/recall/Stop, GPU rejection/recovery, and
+E4B narrow-screen offline chat/Unicode/overflow/UI Send. Plugin unchanged: 153
+passes/one skip. An existing CallModeTest wait race was fixed without changing
+voice behavior. No live server deployment or default-branch merge occurred.
+
+Signed APK: `/home/praxisog/Bellpull-builds/0.13.0-experimental/Bellpull-0.13.0-experimental-build31.apk`.
+SHA-256: `30a7cd200709074e96a28a53fe3b75bd4a75306023956eecc20cf0c624d527ed`.
+Installed with `adb install -r`, retaining UID10308/data; pulled APK hash matches.
+Build30 rollback APK and all test logs are in the same artifact directory. Fixture
+packages/test weights/probe were removed; network/display settings restored.
+Personal app is stopped. Import `/sdcard/Models/gemma-4-E2B_q4_0-it.gguf` (or the
+E4B file) through the lab's picker, then select Load CPU. Local chat is in-memory
+for this Phase 13 experiment, not Phase 14 persistent/synchronized conversation.
+No automatic fallback, model download, notification context, tools or voice in the
+local lab. Sustained thermal/battery acceptance remains open. 0.13 is installed
+locally; the GitHub release published by this task is 0.12.0.
+
+---
+
 # October 17: Phase 12 / 0.12.0 experimental installed
 
 Branch `feature/phase12-notification-context-0120`; production source `9e3491d`,
