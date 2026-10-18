@@ -86,6 +86,11 @@ internal class BellpullRuntime private constructor(context: Context) {
             cache?.writeReceipt(id, receipt)
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
+        val contextProfile = profileId.orEmpty()
+        next.phoneNotificationContext = { query ->
+            if (store === next && profileId == contextProfile)
+                PhoneNotificationRepository.get(context).contextFor(contextProfile, query) else null
+        }
         store = next
         coding = CodingActivityWorkspace(scope, client, cache?.let { saved -> object : CodingCache {
             override fun readCoding(id: String) = saved.readCoding(id)

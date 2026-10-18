@@ -70,8 +70,15 @@ private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, onCl
 /** The original message remains the source for copy, selection, quotes and edits. */
 @Composable
 internal fun UserMessageText(text: String) {
-    val voice = remember(text) { voicePromptPresentation(text) }
-    if (voice == null) Text(text, style = MaterialTheme.typography.bodyLarge)
+    val (body, notificationContext) = remember(text) { splitPhoneNotificationContext(text) }
+    if (notificationContext != null) {
+        var expanded by rememberSaveable(notificationContext) { mutableStateOf(false) }
+        CompactDisclosure(if (expanded) "Phone notification context ▴" else "Phone notification context ▾",
+            Modifier.testTag("phone-context-toggle")) { expanded = !expanded }
+        if (expanded) SelectionContainer { Text(notificationContext, style = MaterialTheme.typography.bodySmall) }
+    }
+    val voice = remember(body) { voicePromptPresentation(body) }
+    if (voice == null) Text(body, style = MaterialTheme.typography.bodyLarge)
     else {
         var expanded by rememberSaveable(voice.details) { mutableStateOf(false) }
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,

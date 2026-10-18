@@ -6,7 +6,10 @@ import kotlinx.serialization.json.Json
 internal data class VoicePromptPresentation(val details: String, val body: String)
 
 /** Strip only a recognized Bellpull voice wrapper; ordinary messages pass through verbatim. */
-internal fun voicePromptUserText(text: String): String = voicePromptPresentation(text)?.body ?: text
+internal fun voicePromptUserText(text: String): String {
+    val body = splitPhoneNotificationContext(text).first
+    return voicePromptPresentation(body)?.body ?: body
+}
 
 /** A blank transcription cannot supply a title. Keep titles single-line and bounded. */
 internal fun voicePromptTitle(text: String): String? {

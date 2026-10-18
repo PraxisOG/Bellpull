@@ -5,9 +5,10 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.11.0-experimental / build 29**, plugin
+This experimental branch: app **0.12.0-experimental / build 30**, plugin
 **0.4.3-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
+[Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance
@@ -23,7 +24,7 @@ This experimental branch: app **0.11.0-experimental / build 29**, plugin
 | 9 | Phone calendar management and visual day/week blocks | Preview; selected calendars, separate write opt-in, explicit proposal Apply |
 | 10 | Local notification inbox, offline reminders and delivery | Experimental framework; real Doze/reboot acceptance remains open |
 | 11 | Today dashboard | Implemented overview of calendar, reminders, decisions, tracked work and unread replies; see phase evidence |
-| 12 | Phone notification context | Next context-access audit; not implemented |
+| 12 | Phone notification context | Early implementation: opt-in encrypted history, exclusions, retention and per-server bounded context |
 | 13 | On-device LLM feasibility | Deferred |
 | 14 | Offline conversations and reconnection | Deferred, conditional on Phase 13 |
 | 15 | Phone assistant replacement and device actions | Deferred |
@@ -194,7 +195,7 @@ Empty and stale/unavailable states remain distinct. Keep source links and avoid
 duplicated databases or inferred commitments. Optional Brief me is later polish.
 Today is a chosen tab, not a forced landing screen on every launch.
 
-### Phase 12 · Phone notification context — NEXT TO AUDIT
+### Phase 12 · Phone notification context — EARLY EXPERIMENTAL IMPLEMENTATION
 Updated user intent: access all phone notifications available through Android's
 supported notification-access mechanism, after explicit opt-in, so Hermes can use
 them as context. Do not limit the product to a small initial app allowlist.
@@ -202,7 +203,8 @@ This runs with server-side Hermes and does not depend on an on-device model.
 Keep a local record of observed notification content, source, time, updates, and
 removal state; send/retrieve relevant context without dumping the whole history
 into every prompt. Broad access and bounded prompt context are compatible.
-Determine during the phase audit: retention, server-sharing controls, foreground/
+Implemented defaults and remaining limits are in [Phase 12](PHASE-12-NOTIFICATION-CONTEXT.md).
+Audit coverage includes retention, server-sharing controls, foreground/
 background refresh, update/group deduplication, treatment of ongoing/system alerts,
 revocation/clear-history behavior, and representation of missing/redacted content.
 Do not promise content the OS does not expose or historical notifications never

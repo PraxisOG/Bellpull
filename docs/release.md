@@ -1,12 +1,14 @@
-## Local experimental build — 0.11.0 / build 29
+## Local experimental build — 0.12.0 / build 30
 
-`feature/phase11-today-0110` adds the [Phase 11 Today dashboard](PHASE-11-TODAY.md)
-to the car experimental branch. Today opens to calendar events, due/overdue
-reminders, pending decisions, tracked work and unread replies. Existing Inbox,
-reminder, routine and calendar controls remain available. Rendering and refresh
-use local records and existing read APIs without submitting a model request.
-Plugin code stays at 0.4.3-integration-preview. This is a local experimental build,
-not a new GitHub publication. Older published downloads below are historical.
+`feature/phase12-notification-context-0120` adds [Phase 12 phone notification
+context](PHASE-12-NOTIFICATION-CONTEXT.md) on top of the car experimental build and
+[Today dashboard](PHASE-11-TODAY.md). Capture and sharing start off. Android access,
+encrypted local history, app exclusions, retention, search, updates/removals and
+per-server opt-in sharing are implemented. Relevant excerpts use existing chat/run
+APIs; no server migration or new endpoint is required.
+
+Plugin code remains 0.4.3-integration-preview. This is a local experimental build,
+not a GitHub publication. Older published downloads below are historical.
 
 ## Historical development release — 0.8.4 / build 25
 

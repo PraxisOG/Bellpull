@@ -145,6 +145,10 @@ class MainActivity : ComponentActivity() {
                                 is org.praxisog.hermes.model.HermesResult.Err -> Unit
                             }
                         } } },
+                        phoneNotificationSettings = {
+                            PhoneNotificationSettings(PhoneNotificationRepository.get(applicationContext),
+                                profiles.profiles.firstOrNull { it.id == profiles.activeId })
+                        },
                         pluginVersions = profiles::pluginVersions,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
@@ -251,6 +255,8 @@ class MainActivity : ComponentActivity() {
                                         if (voice.sessionId == id) voice.putWordsInDraft()
                                     }
                                 })
+                            PhoneNotificationSendHint(PhoneNotificationRepository.get(applicationContext), profiles.activeId,
+                                current.draft.text, profiles::showSettings)
                             files?.let { AttachmentStrip(it, id) }
                         } },
                         uploading = files?.sending?.get(current?.openSessionId) == true || (files?.importing?.get(current?.openSessionId) ?: 0) > 0,
@@ -369,6 +375,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        val phoneNotifications = PhoneNotificationRepository.get(applicationContext)
+        phoneNotifications.refresh()
+        scope.launch {
+            phoneNotifications.awaitIdle()
+            val state = phoneNotifications.state.value
+            if (state.ready && state.policy.capture && state.access && !state.connected) requestPhoneNotificationBinding(applicationContext)
+        }
         runtime.delivery?.refresh()
         store?.loadSessions(); store?.refreshHistory(); runtime.refreshCapabilities()
         if (preferences.value.notifications && store != null) setNotifications(true)

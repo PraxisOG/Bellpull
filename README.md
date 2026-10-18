@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.11.0-59091e?style=flat-square)](docs/PHASE-11-TODAY.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.12.0-59091e?style=flat-square)](docs/PHASE-12-NOTIFICATION-CONTEXT.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -54,16 +54,17 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.11.0-experimental / build 29**
+> **This branch is experimental:** Android **0.12.0-experimental / build 30**
 > pairs with Bellpull plugin **0.4.3-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
-> and Phase 11's overview are included. Real Doze/reboot, car audio and cloud calendar sync
+> and Phase 11's overview are included, plus Phase 12's opt-in notification history and context.
+> Real Doze/reboot, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
 > failures are reported separately in the evidence.
 
 ## Get started
 
-1. [Build this branch](docs/BUILDING.md) for 0.11.0 experimental. The [published 0.8.4 APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/Bellpull.apk) is an older preview without this dashboard.
+1. [Build this branch](docs/BUILDING.md) for 0.12.0 experimental. The [published 0.8.4 APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.8.4-integration-preview.1/Bellpull.apk) is an older preview without Today or phone notification context.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.

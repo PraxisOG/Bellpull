@@ -1,3 +1,9 @@
+> Branch note: this checkout contains plugin **0.4.3-integration-preview** and
+> Android **0.12.0-experimental / build 30**. Phase 12 notification context uses
+> existing native chat/run input and requires no plugin migration. See the
+> [current release record](../../docs/release.md). The integration-release
+> instructions below describe the older published 0.4.2 package.
+
 # Bellpull integration plugin 0.4.2-integration-preview
 
 This single plugin includes OpenCode activity, reminders/native Hermes routines,

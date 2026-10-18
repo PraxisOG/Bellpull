@@ -59,6 +59,7 @@ internal class HermesStore(
     }
     val runs = if (durableRetention != null && journal != null)
         DurableRuns(scope, client, journal, drafts, durableRetention, clock) else null
+    var phoneNotificationContext: (String) -> String? = { null }
     var onReply: (String, Message) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onSessions: (List<Session>) -> Unit = {}
@@ -461,6 +462,12 @@ internal class HermesStore(
      * output. Tool results only exist in history anyway, since `tool.completed` carries none.
      */
     fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null): Boolean {
+        if (text.isBlank() || openSessionId == null || turn is TurnState.Streaming || branchingSession) return false
+        val excerpt = phoneNotificationContext(voicePromptUserText(text))
+        return sendPrepared(text + excerpt.orEmpty(), bellpull)
+    }
+
+    private fun sendPrepared(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions?): Boolean {
         val sessionId = openSessionId ?: return false
         if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return false
         if ((history as? UiState.Ready)?.value.orEmpty().any { it.role == "user" })
