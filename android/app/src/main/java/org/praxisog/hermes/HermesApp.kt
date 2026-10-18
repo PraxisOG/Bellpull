@@ -126,6 +126,7 @@ internal fun HermesApp(
         else { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }
     }
     val screenState = rememberSaveableStateHolder()
+    val planningState = rememberSaveableStateHolder()
     var previousSessionId by rememberSaveable { mutableStateOf(openSessionId) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -260,9 +261,10 @@ internal fun HermesApp(
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
                                     selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,
                                     preferences.titleOnlyConversations)
-                                WorkspaceMode.TODAY -> if (planningView != null) planningView() else Column(Modifier.padding(24.dp)) {
-                                    Text("Coming soon", style = MaterialTheme.typography.titleLarge)
-                                    Text("Reminders and follow-ups will appear here.")
+                                WorkspaceMode.TODAY -> if (planningView != null) planningState.SaveableStateProvider("today") { planningView() } else Column(Modifier.padding(24.dp)) {
+                                    Text("Today", style = MaterialTheme.typography.titleLarge)
+                                    Text("Connect to Hermes to see your calendar, reminders and agent activity.")
+                                    TextButton(onClick=openSettings) { Text("Open Settings") }
                                 }
                                 WorkspaceMode.CHATS -> if (openSessionId == null) {
                                     if (disconnected) DisconnectedWelcome({ open(BellpullExample.ID) }, openSettings)

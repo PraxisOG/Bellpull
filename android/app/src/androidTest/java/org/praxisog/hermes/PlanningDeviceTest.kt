@@ -77,6 +77,7 @@ class PlanningDeviceTest {
                 if (ui.text("Today") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
                 ui.tapText("Today")
                 ui.awaitMain("Planning snapshot did not load") { runtime.planning?.snapshot != null && runtime.planning?.loading == false }
+                ui.tapText("Reminders")
                 ui.tapText("Add reminder")
                 ui.await("Reminder editor missing") { ui.find { it.isEditable } != null }
                 ui.tap(ui.find { it.isEditable }!!)

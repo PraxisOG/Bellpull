@@ -1,4 +1,14 @@
-## Current development release — 0.8.4 / build 25
+## Local experimental build — 0.11.0 / build 29
+
+`feature/phase11-today-0110` adds the [Phase 11 Today dashboard](PHASE-11-TODAY.md)
+to the car experimental branch. Today opens to calendar events, due/overdue
+reminders, pending decisions, tracked work and unread replies. Existing Inbox,
+reminder, routine and calendar controls remain available. Rendering and refresh
+use local records and existing read APIs without submitting a model request.
+Plugin code stays at 0.4.3-integration-preview. This is a local experimental build,
+not a new GitHub publication. Older published downloads below are historical.
+
+## Historical development release — 0.8.4 / build 25
 
 The canonical source for both Android and the plugin is `master`. The matching
 pair is **Android 0.8.4-integration-preview/build25** and **plugin

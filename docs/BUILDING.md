@@ -1,8 +1,9 @@
 # Build the experimental preview
 
-`master` is the current development source for both app and plugin. Release tags
-preserve exact older versions. The current packaged pair is Android 0.8.4/build25
-and plugin 0.4.2; see [release evidence](release.md).
+This branch builds **0.11.0-experimental / build 29**, with the unchanged 0.4.3
+plugin from the car experimental base. See [Phase 11](PHASE-11-TODAY.md) and
+[release evidence](release.md). Published tags and archives preserve older
+versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 

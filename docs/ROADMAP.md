@@ -1,12 +1,13 @@
 # Bellpull phase roadmap
 
-Updated **October 13, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 17, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-Development source: [`master`](https://github.com/PraxisOG/Bellpull/tree/master).
-Current pair: app **0.8.4-integration-preview**, plugin **0.4.2-integration-preview**.
+This experimental branch: app **0.11.0-experimental / build 29**, plugin
+**0.4.3-integration-preview**, based on `2026-10-17-car-experimental`.
+[Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance
@@ -20,8 +21,8 @@ Current pair: app **0.8.4-integration-preview**, plugin **0.4.2-integration-prev
 | 7 | Hermes prompt optimization and latency | Rescoped to backend work; no Quick Chat app feature planned |
 | 8 | Persistent reminders and native Hermes routines | Preview; background/offline reminder delivery belongs to Phase 10 |
 | 9 | Phone calendar management and visual day/week blocks | Preview; selected calendars, separate write opt-in, explicit proposal Apply |
-| 10 | Local notification inbox, offline reminders and delivery | Planned |
-| 11 | Today dashboard | Partial: planning view exists; unified attention/work dashboard remains planned |
+| 10 | Local notification inbox, offline reminders and delivery | Experimental framework; real Doze/reboot acceptance remains open |
+| 11 | Today dashboard | Implemented overview of calendar, reminders, decisions, tracked work and unread replies; see phase evidence |
 | 12 | Phone notification context | Next context-access audit; not implemented |
 | 13 | On-device LLM feasibility | Deferred |
 | 14 | Offline conversations and reconnection | Deferred, conditional on Phase 13 |

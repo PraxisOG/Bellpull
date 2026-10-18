@@ -20,6 +20,7 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
     var problem by mutableStateOf<String?>(null); private set
     var syncing by mutableStateOf(false); private set
     var ready by mutableStateOf(false); private set
+    var hasSynced by mutableStateOf(false); private set
     var alertStatus by mutableStateOf(""); private set
     private val alerts = ReminderAlerts(context, profileId)
     private val lock = Mutex()
@@ -100,6 +101,7 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
                     }
                     withContext(Dispatchers.IO) { cache.writePlanning(response.value) }
                     onSnapshot(response.value)
+                    hasSynced = true
                     failures = 0; problem = null; nextAttempt = SystemClock.elapsedRealtime() + SYNC_INTERVAL_MS
                     refreshLocal()
                 }

@@ -72,13 +72,17 @@ class CombinedWorkspaceScreenshotTest {
             override fun writeRun(value: RunSubmission): Boolean { records[value.sessionId]=value; return true }
         }
         val runs = DurableRuns(scope, client, journal, drafts, 86400)
+        val accepted = java.util.concurrent.atomic.AtomicBoolean()
+        runs.onAccepted = { accepted.set(true) }
         val coding = CodingActivityWorkspace(scope,client,supported=true,pollMs=50)
         val planning = PlanningWorkspace(scope,client,PlanningCacheFixture(),app,true)
         val session = Session("root",source="api_server",title="Combined workspace check")
         try {
-            runs.send("root","Continue the coding task",emptySet())
-            compose.waitUntil(5000) { runs.states["root"]?.submission?.runId == "run_combined" }
-            drafts.set("root",TextFieldValue("Preserve this unsent follow-up"))
+            compose.runOnUiThread { runs.send("root","Continue the coding task",emptySet()) }
+            // A run ID is published before the submitted draft is acknowledged.
+            // Wait for that transaction to finish before typing the next draft.
+            compose.waitUntil(5000) { accepted.get() }
+            compose.runOnUiThread { drafts.set("root",TextFieldValue("Preserve this unsent follow-up")) }
             compose.setContent {
                 val state = runs.states["root"]!!
                 HermesApp(UiState.Ready(listOf(session)), UiState.Ready(emptyList()), state.turn,
@@ -86,7 +90,7 @@ class CombinedWorkspaceScreenshotTest {
                     draft=drafts["root"],onDraftChange={ drafts.set("root",it) },
                     preferences=BellpullPreferences(reduceMotion=true), runPresentation=state,
                     runLabels=mapOf("root" to "Running"),coding=coding,
-                    planningView={ PlanningScreen(planning,true,{}) })
+                    planningView={ PlanningScreen(planning,true,clock={1791774000000L},requestPermission={}) })
             }
             compose.onNodeWithText("Activity").performClick()
             compose.waitUntil(5000) { coding.snapshot?.works?.singleOrNull()?.id == work.id }

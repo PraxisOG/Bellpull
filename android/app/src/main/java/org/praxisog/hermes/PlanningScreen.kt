@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -25,11 +26,34 @@ import org.praxisog.hermes.model.*
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlinx.coroutines.delay
 
-@Composable internal fun PlanningScreen(workspace: PlanningWorkspace, foreground: Boolean, requestPermission: (Boolean) -> Unit) {
+@Composable internal fun PlanningScreen(workspace: PlanningWorkspace, foreground: Boolean,
+    store: HermesStore? = null, onOpenSession: (String) -> Unit = {}, inboxRevision: Int = 0,
+    clock: () -> Long = { System.currentTimeMillis() },
+    requestPermission: (Boolean) -> Unit) {
     DisposableEffect(workspace,foreground) { workspace.open(foreground); onDispose { workspace.open(false) } }
     val delivery = workspace.delivery
-    var tab by remember { mutableStateOf(if (delivery != null) "Inbox" else "Reminders") }
+    var tab by rememberSaveable { mutableStateOf("Overview") }
+    var consumedInboxRevision by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(inboxRevision) {
+        if (inboxRevision != 0 && inboxRevision != consumedInboxRevision && delivery != null) tab = "Inbox"
+        consumedInboxRevision = inboxRevision
+    }
+    var now by remember { mutableLongStateOf(clock()) }
+    LaunchedEffect(workspace, store, foreground) {
+        if (foreground) {
+            store?.loadSessions()
+            while (true) {
+                now = clock()
+                delay(30_000)
+                workspace.refresh()
+                store?.loadSessions()
+            }
+        }
+    }
+    val today = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault()).toLocalDate()
+    LaunchedEffect(tab, today) { if (tab == "Overview" && workspace.day != today) workspace.selectDay(today) }
     var editor by remember { mutableStateOf<String?>(null) }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var editingRoutine by remember { mutableStateOf<Routine?>(null) }
@@ -37,11 +61,48 @@ import java.util.UUID
     var eventEditor by remember { mutableStateOf(false) }
     var proposal by remember { mutableStateOf<CalendarProposal?>(null) }
     val context=LocalContext.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             Text("Today",style=MaterialTheme.typography.titleLarge)
-            TextButton(onClick=workspace::refresh,enabled=!workspace.loading) { Text("Refresh") }
+            TextButton(onClick={ now=clock(); workspace.refresh(); store?.loadSessions() },enabled=!workspace.loading) { Text("Refresh") }
         }
+        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { (if (delivery != null) listOf("Overview","Inbox","Reminders","Routines","Calendar") else listOf("Overview","Reminders","Routines","Calendar")).forEach { label ->
+            FilterChip(tab==label,{ tab=label },label={ Text(label) },modifier=Modifier.testTag("planning-tab-$label"))
+        } }
+        if (tab == "Overview") {
+            val planning = delivery?.state?.planning ?: workspace.snapshot
+            val data = todayData(now, ZoneId.systemDefault(), planning, delivery?.state, workspace.calendar,
+                workspace.canRead(), workspace.policy.selected, workspace.device,
+                (store?.sessions as? UiState.Ready)?.value.orEmpty(), store?.runs?.states?.toMap().orEmpty(),
+                store?.readState?.snapshot().orEmpty(), store?.openSessionId, store?.turn ?: TurnState.Idle)
+            val planningProblem = delivery?.problem ?: workspace.problem
+            val saved = workspace.disconnected || planningProblem != null || !workspace.supported ||
+                (delivery != null && !delivery.hasSynced)
+            val reminderSource = when {
+                planning == null -> TodaySource(planningProblem ?: if (!workspace.supported) "Reminders are unavailable for this connection." else "Reminders have not synced yet.", available=false)
+                else -> TodaySource(buildString {
+                    if (saved) append("Saved reminders · ")
+                    append("Last synced ${displayInstant(delivery?.state?.lastSync?.takeIf { it > 0 } ?: (planning.observedAt * 1000).toLong())}.")
+                    planningProblem?.let { append(" $it") }
+                    if (delivery?.state?.operations?.isNotEmpty() == true) append(" ${delivery.state.operations.size} actions awaiting sync or review.")
+                }, saved=saved)
+            }
+            val workSource = when {
+                store == null -> TodaySource("Connect to Hermes to load your work.", available=false)
+                store.offline != null -> TodaySource("Saved activity · Hermes has not refreshed. Open a chat to check its current status.", saved=true)
+                store.sessions is UiState.Failed -> TodaySource("Work refresh unavailable. Showing only locally tracked activity.", available=data.running.isNotEmpty() || data.decisions.isNotEmpty() || data.unread.isNotEmpty(), saved=true)
+                store.sessions is UiState.Loading -> TodaySource("Refreshing activity tracked on this phone…", available=false, saved=true)
+                else -> TodaySource("Activity tracked on this phone · open a chat for its current status.")
+            }
+            if (workspace.loading || delivery?.syncing == true) LinearProgressIndicator(Modifier.fillMaxWidth())
+            TodayDashboard(data, now,
+                todayCalendarSource(workspace.canRead(),workspace.policy.selected,workspace.calendar,workspace.calendarProblem,workspace.loading,now),
+                reminderSource,workSource,
+                onReminder={ reminder, action -> workspace.reminder(reminder,action,if (action=="snooze") clock()+3_600_000L else null) },
+                onEvent={ selectedEvent=it },onProposal={ proposal=it },onOpenSession=onOpenSession,
+                onCalendar={ tab="Calendar" },onReminders={ tab="Reminders" },onInbox={ tab=if (delivery!=null) "Inbox" else "Reminders" },
+                modifier=Modifier.weight(1f),busy=workspace.busy)
+        } else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         if (delivery == null) Text("Planning prototype · reminders need this view for now; background/offline alerts belong to Phase 10.",style=MaterialTheme.typography.bodySmall)
         else {
             Text(delivery.alertStatus, style=MaterialTheme.typography.bodySmall)
@@ -64,9 +125,6 @@ import java.util.UUID
         workspace.problem?.let { Text(it,color=MaterialTheme.colorScheme.error) }
         workspace.result?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
         if (workspace.loading || workspace.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { (if (delivery != null) listOf("Inbox","Reminders","Routines","Calendar") else listOf("Reminders","Routines","Calendar")).forEach { label ->
-            FilterChip(tab==label,{ tab=label },label={ Text(label) })
-        } }
         when(tab) {
             "Inbox" -> if (delivery != null) InboxContent(delivery.state.entries, delivery::mark) { entry ->
                 entry.sessionId?.let { context.startActivity(Intent(context, MainActivity::class.java)
@@ -127,6 +185,7 @@ import java.util.UUID
                 if (pending.isNotEmpty()) Text("Pending Hermes proposals",style=MaterialTheme.typography.titleMedium)
                 pending.forEach { value -> OutlinedButton(onClick={ proposal=value }) { Text("${value.action.replace('_',' ')} · ${value.title}") } }
             }
+        }
         }
     }
     editor?.let { kind -> PlanningEditor(kind,editingReminder,editingRoutine,workspace.busy,{ editor=null }) { title,whenText,prompt,operation ->
@@ -300,7 +359,7 @@ import java.util.UUID
 }
 
 private fun newOperation()=UUID.randomUUID().toString().replace("-","")
-private fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm z"))
+internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm z"))
 
 
 @Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit) {

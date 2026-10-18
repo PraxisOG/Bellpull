@@ -131,7 +131,9 @@ class MainActivity : ComponentActivity() {
                     HermesApp(
                         focusTodayRevision = focusTodayRevision,
                         planningView = runtime.planning?.let { planning -> {
-                            PlanningScreen(planning,foreground) { write ->
+                            PlanningScreen(planning,foreground,store=current,
+                                onOpenSession={ preview=null; current?.openSession(it); focusChatRevision++ },
+                                inboxRevision=focusTodayRevision) { write ->
                                 calendarPermissionProfile=runtime.profileId
                                 calendarPermissions.launch(if (write) arrayOf(android.Manifest.permission.READ_CALENDAR,android.Manifest.permission.WRITE_CALENDAR) else arrayOf(android.Manifest.permission.READ_CALENDAR))
                             }

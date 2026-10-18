@@ -72,12 +72,13 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         refreshJob=scope.launch {
             delay(200); loading=true
             try {
+                // Phone calendar remains usable while an offline server request waits.
+                readPhone()
                 if (delivery != null) { delivery.sync(true); disconnected=delivery.problem != null }
                 else if (supported) when (val response=withContext(Dispatchers.IO) { client.planning() }) {
                     is HermesResult.Ok -> { if (closed) return@launch; snapshot=response.value; withContext(Dispatchers.IO) { cache.writePlanning(response.value) }; disconnected=false; problem=null }
                     is HermesResult.Err -> { disconnected=true; problem=response.error.toUserMessage() }
                 }
-                readPhone()
                 syncCalendar()
             } finally { loading=false }
         }

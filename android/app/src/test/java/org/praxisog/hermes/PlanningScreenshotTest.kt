@@ -64,7 +64,8 @@ class PlanningScreenshotTest {
             Reminder("b".repeat(32),"Reference photo saved",1791630000000,"completed",2)),routinesAvailable=true,observedAt=1.0) }
         val workspace=PlanningWorkspace(scope,client,cache,app,true)
         try {
-            compose.setContent { HermesTheme { Surface(Modifier.fillMaxSize()) { PlanningScreen(workspace,false,{}) } } }
+            compose.setContent { HermesTheme { Surface(Modifier.fillMaxSize()) { PlanningScreen(workspace,false,requestPermission={}) } } }
+            compose.onNodeWithTag("planning-tab-Reminders").performClick()
             compose.onNodeWithText("Finish costume measurements").assertIsDisplayed()
             compose.onNodeWithText("Complete").assertExists()
             captureScreenRoboImage()
