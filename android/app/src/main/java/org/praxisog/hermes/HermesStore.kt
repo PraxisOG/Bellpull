@@ -378,7 +378,19 @@ internal class HermesStore(
         val revision = sessionRevision
         val request = ++historyRequest
         scope.launch {
+            if (history !is UiState.Ready) {
+                val saved = io { runCatching { cache?.readHistory(sessionId) }.getOrNull() }
+                if (revision != sessionRevision || request != historyRequest) return@launch
+                if (saved != null) history = UiState.Ready(saved)
+            }
             val result = io { client.completeHistory(sessionId) }
+            if (revision != sessionRevision || request != historyRequest) return@launch
+            if (result is HermesResult.Ok) io { runCatching { cache?.writeHistory(sessionId, result.value.data) } }
+            else if (history !is UiState.Ready) {
+                val saved = io { runCatching { cache?.readHistory(sessionId) }.getOrNull() }
+                if (revision != sessionRevision || request != historyRequest) return@launch
+                if (saved != null) history = UiState.Ready(saved)
+            }
             if (revision != sessionRevision || request != historyRequest) return@launch
             when (result) {
                 is HermesResult.Ok -> Snapshot.withMutableSnapshot {

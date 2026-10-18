@@ -91,6 +91,12 @@ class HermesClient(
 
     // ---- endpoints ------------------------------------------------------------
 
+    fun offlineMemory(): HermesResult<OfflineMemory> = get("/api/bellpull/offline/memory") {
+        json.decodeFromString<OfflineMemory>(it).also { m -> require(m.version == 1 && m.text.length <= 16000) }
+    }
+    fun offlineHandoff(value: OfflineHandoff): HermesResult<OfflineReceipt> =
+        post("/api/bellpull/offline/handoff", json.encodeToString(value)) { json.decodeFromString(it) }
+
     /** Optional bellpull_gpu Hermes plugin. A 404 means it is not installed. */
     fun gpuTemperatures(): HermesResult<org.praxisog.hermes.model.GpuTelemetry> =
         get("/api/bellpull/plugins/gpu") { json.decodeFromString(it) }
@@ -262,7 +268,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

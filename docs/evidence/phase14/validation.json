@@ -1,0 +1,42 @@
+{
+  "jvm": {
+    "app": {
+      "tests": 617,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-model": {
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-hermes": {
+      "tests": 44,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  },
+  "plugin": {
+    "tests": 160,
+    "failures": 0,
+    "skipped": 1
+  },
+  "hermes_0215_offline_profile_tests": 7,
+  "screenshots": 187,
+  "lint": "passed",
+  "release_abis": [
+    "arm64-v8a",
+    "x86_64"
+  ],
+  "apk_sha256": "b5758f46397c769e27fc187f851bf50d3f07949a188e5125a28c0a5083d4845b",
+  "device_tests": [
+    "encrypted storage, profile isolation, interrupted recovery and draft navigation",
+    "actual embeddings, CPU E2B, thinking, prefix cache, recreation and cancellation",
+    "bounded model-requested source search and cited answer",
+    "unsupported-server handoff preserves local editability",
+    "real Hermes preparation, offline answer, lost-response retry and unchanged source"
+  ]
+}

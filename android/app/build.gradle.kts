@@ -93,8 +93,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 31
-        versionName = "0.13.0-experimental"
+        versionCode = 32
+        versionName = "0.14.0-experimental"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -168,6 +168,15 @@ android {
 roborazzi {
     outputDir.set(file("src/test/snapshots"))
 }
+
+val searchAssets = layout.buildDirectory.dir("generated/search-assets")
+val prepareSearchModel by tasks.registering(Exec::class) {
+    commandLine("python3", rootProject.file("../tools/prepare-search-model.py"), searchAssets.get().asFile)
+    inputs.file(rootProject.file("../tools/prepare-search-model.py"))
+    outputs.dir(searchAssets)
+}
+android.sourceSets.getByName("main").assets.srcDir(searchAssets.get().asFile)
+tasks.named("preBuild").configure { dependsOn(prepareSearchModel) }
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.08.00")

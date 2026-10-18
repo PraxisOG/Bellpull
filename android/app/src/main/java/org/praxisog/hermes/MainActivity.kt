@@ -150,6 +150,10 @@ class MainActivity : ComponentActivity() {
                                 profiles.profiles.firstOrNull { it.id == profiles.activeId })
                         },
                         localLlmSettings = {
+                            androidx.compose.material3.Button(onClick = {
+                                runtime.voice?.close(); reader.stop()
+                                startActivity(android.content.Intent(this@MainActivity, OfflineChatActivity::class.java))
+                            }, enabled = runtime.profileId != null) { androidx.compose.material3.Text("Open offline chats") }
                             androidx.compose.material3.Text("Import a local GGUF, chat offline and compare CPU/GPU correctness and speed.")
                             androidx.compose.material3.Button(onClick = {
                                 runtime.voice?.close(); reader.stop()
@@ -157,6 +161,11 @@ class MainActivity : ComponentActivity() {
                             }) { androidx.compose.material3.Text("Open local chat lab") }
                         },
                         pluginVersions = profiles::pluginVersions,
+                        onOffline = if (current?.openSessionId != null) ({
+                            runtime.voice?.close(); reader.stop()
+                            startActivity(android.content.Intent(this@MainActivity, OfflineChatActivity::class.java)
+                                .putExtra("sourceId", current.openSessionId).putExtra("sourceTitle", current.openSession?.title ?: "Conversation"))
+                        }) else null,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
                             val profile = profiles.activeId

@@ -14,6 +14,8 @@ internal interface SessionSnapshots {
     fun read(): Snapshot?
     fun write(sessions: List<Session>, atEpochSeconds: Double)
     fun clear()
+    fun readHistory(id: String): List<org.praxisog.hermes.model.Message>? = null
+    fun writeHistory(id: String, messages: List<org.praxisog.hermes.model.Message>) {}
 
     /** Chats this phone created untitled; their first delivered prompt may name them. */
     fun readUntitled(): Set<String> = emptySet()

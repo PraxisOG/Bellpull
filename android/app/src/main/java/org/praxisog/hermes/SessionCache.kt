@@ -25,6 +25,12 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
     @Synchronized fun close() { closed = true }
+    private val offline by lazy { OfflineStorage(context.applicationContext, profileId) }
+    override fun readHistory(id: String) = if (closed) null else offline.source(id)?.messages
+    @Synchronized override fun writeHistory(id: String, messages: List<org.praxisog.hermes.model.Message>) {
+        if (!closed) offline.save(OfflineSource(id, read()?.sessions?.firstOrNull { it.id == id }?.title ?: "Conversation", messages))
+    }
+    @Synchronized fun writeOfflineMemory(value: org.praxisog.hermes.model.OfflineMemory) { if (!closed) offline.save(value) }
 
     private val preferences = testPreferences ?: EncryptedSharedPreferences.create(
         context,

@@ -106,6 +106,7 @@ internal fun HermesApp(
     localLlmSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
+    onOffline: (() -> Unit)? = null,
 ) {
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
@@ -248,6 +249,7 @@ internal fun HermesApp(
                                 onSearch = { navigation = ChatNavigation.SEARCH },
                                 onSettings = openSettings,
                                 onArtifacts = { artifactsOpen = true },
+                                onOffline = onOffline,
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
                                     ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }
                                         .joinToString("\n\n") { "${if (it.role == "user") "You" else "Hermes"}:\n${it.content}" })

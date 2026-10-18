@@ -41,6 +41,14 @@ class ProfileTest(unittest.IsolatedAsyncioTestCase):
                     headers = {name: {"Authorization": "Bearer " + key} for name, key in keys.items()}
                     a, b = "/p/alpha", "/p/beta"
                     self.assertEqual(401, (await client.get(a + "/api/bellpull/capabilities", headers=headers["beta"])).status)
+                    self.assertEqual(401, (await client.get(a + "/api/bellpull/offline/memory", headers=headers["beta"])).status)
+                    for name, home in homes.items():
+                        (home / "memories").mkdir(exist_ok=True)
+                        (home / "memories" / "USER.md").write_text("User belongs to " + name)
+                    for name, prefix in (("alpha", a), ("beta", b)):
+                        response = await client.get(prefix + "/api/bellpull/offline/memory", headers=headers[name])
+                        self.assertEqual(200, response.status, await response.text())
+                        self.assertIn("belongs to " + name, (await response.json())["text"])
                     response = await client.post(a + "/api/sessions", headers=headers["alpha"], json={})
                     session = (await response.json())["session"]["id"]
                     project = "b" * 32
@@ -77,6 +85,15 @@ class ProfileTest(unittest.IsolatedAsyncioTestCase):
                     response = await client.post(b + "/v1/runs/" + run + "/approval", headers=headers["beta"],
                         json={"request_id": "foreign", "choice": "once"})
                     self.assertEqual(404, response.status, await response.text())
+                    transfer = {"operation_id": "c" * 32, "source_id": session, "title": "Local fork",
+                                "messages": [{"role": "user", "content": "Offline question"}]}
+                    self.assertEqual(404, (await client.post(b + "/api/bellpull/offline/handoff", headers=headers["beta"], json=transfer)).status)
+                    self.assertEqual(401, (await client.post(a + "/api/bellpull/offline/handoff", headers=headers["beta"], json=transfer)).status)
+                    response = await client.post(a + "/api/bellpull/offline/handoff", headers=headers["alpha"], json=transfer)
+                    self.assertEqual(200, response.status, await response.text())
+                    self.assertTrue((await response.json())["created"])
+                    response = await client.post(a + "/api/bellpull/offline/handoff", headers=headers["alpha"], json=transfer)
+                    self.assertFalse((await response.json())["created"])
                     await asyncio.gather(*adapter._active_run_tasks.values(), return_exceptions=True)
                 adapter._run_idempotency_store.close()
                 for database in adapter._session_dbs.values(): database.close()

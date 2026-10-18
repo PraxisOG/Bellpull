@@ -1,3 +1,13 @@
+## Local Phase 14 experiment — 0.14.0 / build 32
+
+Persistent encrypted local forks, Gemma 4 E2B CPU with a thinking toggle,
+source-only semantic/keyword search and read-only retrieval tools, cached Hermes
+memory, optional offline preparation, and reviewed idempotent handoff into a new
+server conversation. See [implementation and acceptance](PHASE-14-OFFLINE.md).
+Memory and handoff require Bellpull plugin 0.5.0-integration-preview; the local
+test Hermes is updated. This build is a locally installed experiment, not a
+published GitHub release.
+
 ## Local Phase 13 experiment — 0.13.0 / build 31
 
 Adds an explicit local text inference lab using the supplied Imagination GPU

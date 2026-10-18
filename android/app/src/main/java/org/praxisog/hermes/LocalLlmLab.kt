@@ -212,6 +212,49 @@ internal class LocalLlmLab private constructor(private val context: Context) {
         }
         return output.toString(Charsets.UTF_8.name()) to JSONObject(LocalLlmNative.report())
     }
+
+    /** Shares the lab's admission lock and native owner. CPU only, verified E2B weights. */
+    @Synchronized fun offlineReply(cacheKey: String, thinking: Boolean, maxTokens: Int,
+        prompt: ((List<LocalTurn>) -> Int) -> List<LocalTurn>, onText: (String) -> Unit): Deferred<Pair<String, String>> {
+        check(!state.value.busy) { "The local model is busy. Stop the other operation first." }
+        val result = CompletableDeferred<Pair<String, String>>()
+        stopped.set(false)
+        mutable.update { it.copy(busy = true, error = null, status = "Preparing offline reply…") }
+        scope.launch {
+            try {
+                val e2b = state.value.models.firstOrNull { it.sha256 == "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634" }
+                    ?: error("Import Gemma 4 E2B Q4_0 in Model setup first.")
+                if (nativeInitialized) LocalLlmNative.clearCancel()
+                checkStop()
+                if (!state.value.ready || state.value.gpu || state.value.selected != e2b.id) {
+                    mutable.update { it.copy(selected = e2b.id, ready = false) }
+                    loadNative(false)
+                    mutable.update { it.copy(ready = true, gpu = false) }
+                }
+                fun bytes(turns: List<LocalTurn>) = JSONArray().apply {
+                    turns.forEach { put(JSONObject().put("role", it.role).put("content", it.text)) }
+                }.toString().toByteArray(Charsets.UTF_8)
+                val messages = prompt { LocalLlmNative.countTokens(bytes(it), thinking) }
+                checkStop()
+                LocalLlmNative.begin(bytes(messages), maxTokens, thinking, cacheKey)
+                val output = ByteArrayOutputStream()
+                if (JSONObject(LocalLlmNative.report()).optBoolean("reasoning_prefill"))
+                    output.write("<|channel>thought\n".toByteArray())
+                while (true) {
+                    checkStop()
+                    val piece = LocalLlmNative.next() ?: break
+                    output.write(piece); onText(output.toString(Charsets.UTF_8.name()))
+                }
+                result.complete(output.toString(Charsets.UTF_8.name()) to LocalLlmNative.report())
+            } catch (error: Throwable) {
+                if (error is VirtualMachineError) throw error
+                if (nativeInitialized) LocalLlmNative.unload()
+                mutable.update { it.copy(ready = false) }
+                result.completeExceptionally(error)
+            } finally { mutable.update { it.copy(busy = false) } }
+        }
+        return result
+    }
     private fun observation(): JSONObject {
         val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val memory = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }

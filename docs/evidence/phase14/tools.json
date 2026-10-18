@@ -1,0 +1,51 @@
+{
+  "answer": "The project meeting for Blue Lantern takes place in Cobalt Orchard. [m1:0]",
+  "tools": [
+    "search_chat",
+    "search_chat"
+  ],
+  "metrics": {
+    "backend": "CPU (0 GPU layers)",
+    "model": "gemma4 E2B Q4_0",
+    "offloaded_layers": 0,
+    "load_ms": 2237.776,
+    "prompt_tokens": 161,
+    "generated_tokens": 18,
+    "prompt_ms": 1354.29,
+    "generation_ms": 2964.526,
+    "reused_tokens": 60,
+    "prompt_tps": 74.57782306596076,
+    "prefill_tokens": 101,
+    "thinking": false,
+    "thinking_marker": false,
+    "reasoning_prefill": false,
+    "generation_tps": 6.071796975300605,
+    "finish": "complete",
+    "token_ids": [
+      818,
+      2203,
+      5395,
+      573,
+      9595,
+      116550,
+      4716,
+      1977,
+      528,
+      148695,
+      105065,
+      236761,
+      870,
+      236757,
+      236770,
+      236787,
+      236771,
+      236842,
+      106
+    ],
+    "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+    "total_generated_tokens": 42,
+    "total_generation_ms": 6574.3949999999995,
+    "total_prompt_ms": 4303.977,
+    "generation_steps": 3
+  }
+}

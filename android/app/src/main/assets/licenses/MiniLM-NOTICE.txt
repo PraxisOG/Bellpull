@@ -1,0 +1,9 @@
+Bellpull bundles sentence-transformers/all-MiniLM-L6-v2 for local chat retrieval.
+Model and tokenizer: Apache License 2.0 (Apache-MiniLM.txt).
+Upstream: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+Pinned revision: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+ONNX asset: onnx/model_qint8_arm64.onnx
+SHA-256: 4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474
+Vocabulary SHA-256: 07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3
+The upstream weights are unmodified. Bellpull supplies WordPiece tokenization,
+mean pooling, normalization, chunking and a profile-scoped encrypted search index.

@@ -65,9 +65,17 @@ def build(folder):
     for name in ("release-password", "release.p12", "preview.keystore", "preview-to-release.lineage"):
         if not (folder / name).is_file():
             raise SystemExit("Signing material is incomplete; run init first")
-    run(ROOT / "android/gradlew", "-p", ROOT / "android", ":app:assembleRelease")
+    run("bash", ROOT / "tools/build-local-lab.sh", ":app:assembleRelease", "--max-workers=4")
     output = ROOT / "android/app/build/outputs/apk/release"
-    source = output / "app-release-unsigned.apk"
+    output.mkdir(parents=True, exist_ok=True)
+    # AGP 9.4 writes the APK under intermediates; an older outputs APK can still
+    # exist after an upgrade. Prefer the current variant's generated artifact.
+    generated = ROOT / "android/app/build/intermediates/apk/release"
+    source = generated / "app-release-unsigned.apk"
+    if not source.exists():
+        source = generated / "app-release.apk"
+    if not source.exists():
+        source = output / "app-release-unsigned.apk"
     if not source.exists():
         source = output / "app-release.apk"
     aligned, signed = output / "Bellpull-aligned.apk", output / "Bellpull.apk"

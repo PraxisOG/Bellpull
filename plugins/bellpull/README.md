@@ -326,3 +326,15 @@ plain-prompt persistence parameters, native reasoning transport, branches, artif
 migration/rotation, admission races, restart recovery, approvals and paging.
 Live deployment and physical device acceptance are recorded separately in
 [`docs/HANDOFF.md`](../../docs/HANDOFF.md).
+
+## Offline conversation endpoints (0.5.0)
+
+`bellpull_offline` advertises authenticated, profile-scoped memory snapshots and
+atomic plain-text handoff. GET `/api/bellpull/offline/memory` respects memory enable
+flags and propagates deletions. POST `/api/bellpull/offline/handoff` accepts
+`operation_id` (32 lowercase hex), optional `source_id`, `title`, `brief`, and
+`messages` containing only `role` (user/assistant) and `content`. The same operation
+and payload returns the same session; changed payload returns 409. Source history
+stays unchanged, and import executes no agent or tools. This narrow SessionDB
+contract is exercised on Hermes 0.21.1 and 0.21.5 without requiring run host hooks.
+See [Phase 14](../../docs/PHASE-14-OFFLINE.md) for limits and device evidence.

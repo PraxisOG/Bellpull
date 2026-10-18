@@ -7,7 +7,8 @@ object LocalLlmNative {
     external fun clearCancel()
     external fun cancel()
     external fun load(path: String, gpu: Boolean): String
-    external fun begin(messagesUtf8: ByteArray, maxTokens: Int)
+    external fun begin(messagesUtf8: ByteArray, maxTokens: Int, thinking: Boolean = false, cacheKey: String = "")
+    external fun countTokens(messagesUtf8: ByteArray, thinking: Boolean): Int
     external fun next(): ByteArray?
     private external fun reportUtf8(): ByteArray
     fun report(): String = reportUtf8().toString(Charsets.UTF_8)

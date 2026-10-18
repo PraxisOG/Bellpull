@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, streaming, projects, planning
+from . import VERSION, branches, models_files, streaming, projects, planning, offline
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -30,6 +30,7 @@ def wire(app, adapter):
         ("_expected_api_key", "_check_auth", "_get_existing_session_or_404"))
     projects_ready = files_ready and all(callable(getattr(adapter, key, None)) for key in
         ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
+    offline_ready = projects_ready and offline.supported()
     try:
         from gateway.platforms import api_server_extensions as host
         host_ready = compatible and mode == "after" and host.API_VERSION == 1
@@ -99,6 +100,7 @@ def wire(app, adapter):
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,
+                "bellpull_offline": offline_ready,
                 "bellpull_speech": True,
                 "bellpull_routines": projects_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
@@ -180,6 +182,8 @@ def wire(app, adapter):
             ("DELETE", "/api/bellpull/artifacts/{artifact_id}", storage),
         ])
         routes.extend(models_files.routes(adapter, include_models=host_ready))
+    if offline_ready:
+        routes.extend(offline.routes(adapter))
     if compatible:
         routes.extend([
             ("POST", "/api/sessions/{session_id}/fork-at-message", partial(branches._handle_fork_at_message, adapter)),

@@ -228,11 +228,18 @@ Measure quality, startup, prompt processing, generation, memory, thermal/battery
 behavior, cancellation, and lifecycle. Give a usable-scope or no-go result before
 building a full local agent. Do not quietly substitute a model or cloud fallback.
 
-### Phase 14 · Offline conversations and reconnection — MUCH, MUCH LATER
-Conditional on Phase 13 proving useful. Local chats/drafts and explicit routing;
-preserve branches and synchronize history without replaying completed tools.
-Reuse local storage from earlier phases. No broad memory/wiki/config merge engine
-is implied. Existing offline inbox/calendar/reminder support ships much earlier.
+### Phase 14 · Offline conversations and reconnection — EXPERIMENTAL
+The 0.14.0 experiment uses Gemma 4 E2B on CPU with a per-chat thinking toggle,
+persistent encrypted local forks, source-only semantic/keyword retrieval and
+bounded local search/read tools. Viewed server transcripts are cached; deliberate
+preparation downloads a full chat and builds its embedding index. Compact Hermes
+memory snapshots sync locally without summarizing all conversations. Explicit,
+idempotent handoff creates a separate server conversation and imports no executable
+tool calls. See [implementation and acceptance](PHASE-14-OFFLINE.md).
+
+Further acceptance: very large histories, sustained thermals/battery, richer local
+tool adherence, and long-term storage controls. Optional briefs are user-written in
+this version; server-generated summaries and automatic branch merging are deferred.
 
 ### Phase 15 · Phone assistant replacement and device actions — LATER BUCKET
 Long-term goal: Bellpull replaces the user's phone assistant. Combine default-

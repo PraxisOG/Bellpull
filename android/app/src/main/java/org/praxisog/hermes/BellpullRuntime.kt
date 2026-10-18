@@ -34,6 +34,25 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var client: HermesClient? = null
         private set
+    var offlineWorkspace: OfflineWorkspace? = null
+        private set
+    private var memorySync: Job? = null
+    private var memorySyncedAt = 0L
+    private fun syncOfflineMemory() {
+        val id = profileId ?: return
+        val api = client ?: return
+        val saved = cache ?: return
+        if (capabilities?.features?.get("bellpull_offline") != true || memorySync?.isActive == true ||
+            System.currentTimeMillis() - memorySyncedAt < 60000) return
+        memorySync = scope.launch(Dispatchers.IO) {
+            when (val result = api.offlineMemory()) {
+                is org.praxisog.hermes.model.HermesResult.Ok -> if (profileId == id && client === api) {
+                    saved.writeOfflineMemory(result.value); memorySyncedAt = System.currentTimeMillis()
+                }
+                else -> Unit
+            }
+        }
+    }
     var phase3 by mutableStateOf<Phase3Workspace?>(null)
         private set
     var projects by mutableStateOf<ProjectWorkspace?>(null)
@@ -67,6 +86,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         disconnect()
         cache = SessionCache(context, id)
         profileId = id
+        offlineWorkspace = OfflineWorkspace(context, id) { client.takeIf { profileId == id } }
         loadDrafts()
     }
 
@@ -74,6 +94,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         store?.let { return it }
         this.client = client
         this.capabilities = capabilities
+        syncOfflineMemory()
         client.configureCapabilities(capabilities)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
@@ -112,6 +133,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
         notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId || voice?.sessionId == it }
         next.onReply = { id, message ->
+            syncOfflineMemory()
             delivery?.receive(org.praxisog.hermes.model.InboxEntry("reply:$id:${message.id}", "reply",
                 "Reply", message.content.orEmpty(), System.currentTimeMillis(), id))
             notifications?.reply(id, message.id); phase3?.refreshArtifacts()
@@ -127,6 +149,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             val profileDelivery = delivery
             catchUp.archive = { id, message -> profileDelivery?.archiveReply(id, message) ?: false }
             next.onSessions = { sessions ->
+                syncOfflineMemory()
                 catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true })
                 projects?.refresh()
             }
@@ -146,6 +169,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
+            syncOfflineMemory()
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
             delivery?.supported = result.value.features["bellpull_planning"]==true
@@ -198,6 +222,8 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun disconnect() {
+        offlineWorkspace?.close(); offlineWorkspace = null
+        memorySync?.cancel(); memorySync = null; memorySyncedAt = 0
         delivery?.close(); delivery = null
         coding?.close(); coding = null
         voice?.close()

@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.13.0-59091e?style=flat-square)](docs/PHASE-13-LOCAL-LLM.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.14.0-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -47,6 +47,7 @@ the project, coding and calendar panels show the development preview.*
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
 | **Today overview** | See today's calendar, due reminders, pending decisions, tracked work and unread replies from existing local records. |
 | **Calendar** | Opt into selected phone calendars, view day/week blocks, and separately enable writes. Hermes proposals require a phone Apply action. |
+| **Offline conversations** | Encrypted local forks, source-only semantic search, Gemma E2B CPU with optional thinking, and explicit Hermes handoff. |
 | **Local chat lab** | Import a GGUF, run CPU text chat, measure performance and validate Vulkan against CPU. No automatic server fallback. |
 | **Files and profiles** | Preview/share persistent files and keep credentials, caches, drafts and organization scoped to each Hermes connection. |
 
@@ -55,17 +56,17 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.13.0-experimental / build 31**
-> pairs with Bellpull plugin **0.4.3-integration-preview**. Server features need
+> **This branch is experimental:** Android **0.14.0-experimental / build 32**
+> pairs with Bellpull plugin **0.5.0-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
-> and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, and the Phase 13 local LLM lab.
+> and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > Real Doze/reboot, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
 > failures are reported separately in the evidence.
 
 ## Get started
 
-1. [Build this branch](docs/BUILDING.md) for the 0.13.0 local LLM experiment, or [download 0.12.0 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.12.0-experimental.1) for the preceding tested notification-context release.
+1. [Build this branch](docs/BUILDING.md) for the 0.14.0 offline conversation experiment, or [download 0.12.0 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.12.0-experimental.1) for the preceding tested notification-context release.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -81,9 +82,9 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.4.3) from the same source checkout.
-The [matching 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
-also ships with the published 0.12.0 release. Back up the data home, then preview the installer:
+For this branch, use `plugins/bellpull` (0.5.0) from the same source checkout.
+The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
+ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
 
 ```bash
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME

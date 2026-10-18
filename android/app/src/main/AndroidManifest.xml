@@ -44,6 +44,7 @@
         <!-- Use Bellpull's explicit microphone permission and capture lifecycle. -->
         <activity android:name="ai.moonshine.voice.MicrophonePermissionActivity" tools:node="remove" />
         <activity android:name=".LocalLlmActivity" android:exported="false" />
+        <activity android:name=".OfflineChatActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"

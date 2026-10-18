@@ -26,6 +26,11 @@ static std::string backend = "Unloaded", description, finish;
 static int position = 0, prompt_count = 0, generated = 0, limit = 0;
 static int64_t load_us = 0, prompt_us = 0, generation_us = 0;
 static std::vector<int> token_ids;
+static std::vector<llama_token> cached_tokens;
+static std::string cache_key;
+static int reused = 0;
+static int64_t generation_started = 0;
+static bool thinking_requested = false, thinking_marker = false, reasoning_prefill = false;
 constexpr int context_size = 2048, batch_size = 128;
 
 static void log_capture(enum ggml_log_level level, const char *message, void *) {
@@ -42,6 +47,7 @@ static bool abort_decode(void *) { return cancelled.load(); }
 static bool load_progress(float, void *) { return !cancelled.load(); }
 static void check_cancel() { if (cancelled.load()) throw std::runtime_error("Stopped"); }
 static void cleanup() {
+    cached_tokens.clear(); cache_key.clear();
     templates.reset();
     if (sampler) llama_sampler_free(sampler);
     if (context) llama_free(context);
@@ -134,58 +140,93 @@ static void decode(const std::vector<llama_token> &tokens) {
         check_cancel();
         if (result) throw std::runtime_error("Local inference failed while decoding. Unload and retry; no remote fallback was used.");
         position += count;
+        cached_tokens.insert(cached_tokens.end(), tokens.begin() + start, tokens.begin() + start + count);
     }
 }
-extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_begin(JNIEnv *env, jobject, jbyteArray messages, jint max_tokens) {
+static std::vector<llama_token> prompt_tokens(JNIEnv *env, jbyteArray messages, bool thinking) {
+    if (!context) throw std::runtime_error("Load a model first.");
+    common_chat_templates_inputs input;
+    input.use_jinja = true; input.enable_thinking = thinking; input.add_generation_prompt = true;
+    for (const auto &item : common_json::parse(from_bytes(env, messages))) {
+        common_chat_msg msg;
+        msg.role = item.at("role").get<std::string>(); msg.content = item.at("content").get<std::string>();
+        if (msg.role != "system" && msg.role != "user" && msg.role != "assistant")
+            throw std::runtime_error("Unsupported local message role.");
+        input.messages.push_back(std::move(msg));
+    }
+    auto rendered = common_chat_templates_apply(templates.get(), input).prompt;
+    const std::string thought_prefix = "<|channel>thought\n";
+    thinking_requested = thinking;
+    thinking_marker = rendered.find("<|think|>") != std::string::npos;
+    // Gemma's embedded template enables thinking in the system turn but leaves
+    // the model channel undecided. Prefill its documented thought channel when
+    // the user explicitly enables it, including after earlier non-thinking turns.
+    const std::string model_prefix = "<|turn>model\n";
+    if (thinking && thinking_marker && rendered.size() >= model_prefix.size() &&
+        rendered.compare(rendered.size() - model_prefix.size(), model_prefix.size(), model_prefix) == 0)
+        rendered += thought_prefix;
+    reasoning_prefill = rendered.size() >= thought_prefix.size() &&
+        rendered.compare(rendered.size() - thought_prefix.size(), thought_prefix.size(), thought_prefix) == 0;
+    return common_tokenize(context, rendered, true, true);
+}
+extern "C" JNIEXPORT jint JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_countTokens(JNIEnv *env, jobject, jbyteArray messages, jboolean thinking) {
+    try { return prompt_tokens(env, messages, thinking).size(); }
+    catch (const std::exception &e) { fail(env, e); return 0; }
+}
+extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_begin(JNIEnv *env, jobject, jbyteArray messages, jint max_tokens, jboolean thinking, jstring key) {
     try {
         check_cancel();
         if (!context) throw std::runtime_error("Load a model first.");
         const int64_t started = ggml_time_us();
-        common_chat_templates_inputs input;
-        input.use_jinja = true; input.enable_thinking = false; input.add_generation_prompt = true;
-        const auto parsed = common_json::parse(from_bytes(env, messages));
-        for (const auto &item : parsed) {
-            common_chat_msg msg;
-            msg.role = item.at("role").get<std::string>(); msg.content = item.at("content").get<std::string>();
-            if (msg.role != "user" && msg.role != "assistant") throw std::runtime_error("Unsupported local message role.");
-            input.messages.push_back(std::move(msg));
-        }
-        auto formatted = common_chat_templates_apply(templates.get(), input).prompt;
-        const auto tokens = common_tokenize(context, formatted, true, true);
-        limit = std::clamp<int>(max_tokens, 1, 512);
+        const auto tokens = prompt_tokens(env, messages, thinking);
+        limit = std::clamp<int>(max_tokens, 1, 768);
         if (tokens.empty() || tokens.size() + limit > context_size)
             throw std::runtime_error("This conversation exceeds the 2048-token experiment. Start a new local chat or shorten the prompt.");
-        llama_memory_clear(llama_get_memory(context), true);
+        const char *key_chars = env->GetStringUTFChars(key, nullptr);
+        std::string next_key(key_chars); env->ReleaseStringUTFChars(key, key_chars);
+        reused = 0;
+        if (!next_key.empty() && next_key == cache_key) {
+            while (reused < (int) std::min(tokens.size() - 1, cached_tokens.size()) && tokens[reused] == cached_tokens[reused]) ++reused;
+        }
+        auto memory = llama_get_memory(context);
+        if (!reused || !llama_memory_seq_rm(memory, 0, reused, -1)) {
+            llama_memory_clear(memory, true); reused = 0;
+        }
+        cached_tokens.resize(reused); cache_key = next_key;
         llama_sampler_reset(sampler);
-        position = 0; generated = 0; token_ids.clear(); finish.clear(); generation_us = 0; prompt_us = 0;
+        position = reused; generated = 0; token_ids.clear(); finish.clear(); generation_us = 0; prompt_us = 0;
         prompt_count = tokens.size();
-        decode(tokens);
+        decode(std::vector<llama_token>(tokens.begin() + reused, tokens.end()));
         prompt_us = ggml_time_us() - started;
-    } catch (const std::exception &e) { fail(env, e); }
+        generation_started = ggml_time_us();
+    } catch (const std::exception &e) { cache_key.clear(); fail(env, e); }
 }
 extern "C" JNIEXPORT jbyteArray JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_next(JNIEnv *env, jobject) {
     try {
         check_cancel();
         if (!context) throw std::runtime_error("Model unloaded.");
         if (generated >= limit) { finish = "token limit"; return nullptr; }
+        if (ggml_time_us() - generation_started > 120000000) { finish = "time limit"; return nullptr; }
         const int64_t started = ggml_time_us();
         const auto token = llama_sampler_sample(sampler, context, -1);
         token_ids.push_back(token);
         if (llama_vocab_is_eog(llama_model_get_vocab(model), token)) { finish = "complete"; return nullptr; }
-        auto piece = common_token_to_piece(context, token);
+        auto piece = common_token_to_piece(context, token, true);
         decode({token});
         ++generated;
         generation_us += ggml_time_us() - started;
         return to_bytes(env, piece);
-    } catch (const std::exception &e) { fail(env, e); return nullptr; }
+    } catch (const std::exception &e) { cache_key.clear(); fail(env, e); return nullptr; }
 }
 extern "C" JNIEXPORT jbyteArray JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_reportUtf8(JNIEnv *env, jobject) {
     try {
         std::lock_guard<std::mutex> guard(log_mutex);
         common_json report = {{"backend", backend}, {"model", description}, {"offloaded_layers", offloaded},
             {"load_ms", load_us / 1000.0}, {"prompt_tokens", prompt_count}, {"generated_tokens", generated},
-            {"prompt_ms", prompt_us / 1000.0}, {"generation_ms", generation_us / 1000.0},
-            {"prompt_tps", prompt_us ? prompt_count * 1e6 / prompt_us : 0.0},
+            {"prompt_ms", prompt_us / 1000.0}, {"generation_ms", generation_us / 1000.0}, {"reused_tokens", reused},
+            {"prompt_tps", prompt_us ? (prompt_count - reused) * 1e6 / prompt_us : 0.0},
+            {"prefill_tokens", prompt_count - reused}, {"thinking", thinking_requested},
+            {"thinking_marker", thinking_marker}, {"reasoning_prefill", reasoning_prefill},
             {"generation_tps", generation_us ? generated * 1e6 / generation_us : 0.0},
             {"finish", cancelled ? "stopped" : finish}, {"token_ids", token_ids}, {"load_log", load_log}};
         return to_bytes(env, report.dump());

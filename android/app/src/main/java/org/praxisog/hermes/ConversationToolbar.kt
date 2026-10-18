@@ -33,6 +33,7 @@ internal fun ConversationToolbar(
     onSettings: () -> Unit = {},
     onShare: (() -> Unit)? = null,
     onArtifacts: () -> Unit = {},
+    onOffline: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -74,6 +75,8 @@ internal fun ConversationToolbar(
                             onClick = { menuOpen = false; onPrompts() })
                         DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
                             onClick = { menuOpen = false; onSearch() })
+                        if (onOffline != null) DropdownMenuItem(text = { Text("Use on phone") }, enabled = hasSession,
+                            onClick = { menuOpen = false; onOffline() })
                         DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
                             onClick = { menuOpen = false; onArtifacts() })
                         HorizontalDivider()
