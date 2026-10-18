@@ -6,6 +6,8 @@ import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -308,15 +310,17 @@ private fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.syst
     FilterChip(showDismissed, { showDismissed = !showDismissed }, label={ Text("Show dismissed") })
     val visible = entries.asReversed().filter { showDismissed || it.dismissedAt == null }
     if (visible.isEmpty()) Text("No saved inbox items yet.")
-    visible.forEach { entry -> PlanningCard {
+    LazyColumn(Modifier.fillMaxWidth().heightIn(max=600.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    items(visible, key={ it.id }) { entry -> PlanningCard {
         Text(entry.title, style=MaterialTheme.typography.titleSmall)
         Text("${entry.kind} · ${displayInstant(entry.receivedAt)} · ${if (entry.dismissedAt != null) "Dismissed" else if (entry.openedAt == null) "Unread" else "Opened"}", style=MaterialTheme.typography.bodySmall)
-        Text(entry.body, maxLines=3, overflow=TextOverflow.Ellipsis)
+        Text(entry.body.take(500), maxLines=3, overflow=TextOverflow.Ellipsis)
         FlowRow {
             TextButton(onClick={ mark(entry.id, false); selected=entry }) { Text("Read saved item") }
             if (entry.dismissedAt == null) TextButton(onClick={ mark(entry.id, true) }) { Text("Dismiss inbox item") }
         }
     } }
+    }
     selected?.let { entry -> AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
         text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
             Text(entry.body)

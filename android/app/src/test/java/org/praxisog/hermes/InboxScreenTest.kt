@@ -20,6 +20,9 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk=[35],qualifiers="w393dp-h850dp")
 class InboxScreenTest {
     @get:Rule val compose = createComposeRule()
+    private lateinit var previousZone: java.util.TimeZone
+    @Before fun setZone() { previousZone=java.util.TimeZone.getDefault(); java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC")) }
+    @After fun restoreZone() { java.util.TimeZone.setDefault(previousZone) }
     private fun checkInbox() {
         val marks = mutableListOf<Pair<String,Boolean>>()
         compose.setContent { HermesTheme { Surface {

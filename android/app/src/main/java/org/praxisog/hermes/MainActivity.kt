@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
     private var focusTodayRevision by mutableStateOf(0)
     private var focusChatRevision by mutableStateOf(0)
     private var pendingNewChat = false
+    private var pendingInboxProfile: String? = null
     private var pendingShare by mutableStateOf<IncomingShare?>(null)
     private var shareBusy by mutableStateOf(false)
     private var shareError by mutableStateOf<String?>(null)
@@ -79,6 +80,7 @@ class MainActivity : ComponentActivity() {
             voiceOpen = false
             pendingNotification = null
             pendingNewChat = false
+            pendingInboxProfile = null
         }, onConnected = ::connected)
         handleIntent(intent)
 
@@ -198,7 +200,7 @@ class MainActivity : ComponentActivity() {
                         runLabels = current?.runLabels.orEmpty(), onRetryRun = { current?.retryRun() },
                         onAbandonRun = { current?.abandonRunAfterReview() },
                         onApproval = { id, choice -> current?.respondToApproval(id, choice) },
-                        notificationsAvailable = current != null && runtime.notificationEventsAvailable,
+                        notificationsAvailable = current != null && (runtime.notificationEventsAvailable || runtime.delivery?.supported == true),
                         onNotificationsChange = ::requestNotifications,
                         focusChatRevision = focusChatRevision,
                         onVisibleSession = { runtime.visibleSessionId = it.takeIf { current != null } },
@@ -280,6 +282,8 @@ class MainActivity : ComponentActivity() {
             if (profile == runtime.profileId) { current.openSession(session); focusChatRevision++ }
         }
         pendingNotification = null
+        if (pendingInboxProfile == runtime.profileId && pendingInboxProfile != null) focusTodayRevision++
+        pendingInboxProfile = null
         if (pendingNewChat) { pendingNewChat = false; current.newSession() }
         scope.launch {
             val apps = withContext(Dispatchers.IO) { InstalledApps.load(this@MainActivity) }
@@ -290,7 +294,9 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         if (intent?.getBooleanExtra(ReminderAlerts.OPEN_INBOX, false) == true) {
-            if (intent.getStringExtra(ReminderAlerts.PROFILE) == profiles.activeId) focusTodayRevision++
+            if (intent.getStringExtra(ReminderAlerts.PROFILE) == profiles.activeId) {
+                if (store != null) focusTodayRevision++ else pendingInboxProfile = profiles.activeId
+            }
             else profiles.showSettings()
             return
         }

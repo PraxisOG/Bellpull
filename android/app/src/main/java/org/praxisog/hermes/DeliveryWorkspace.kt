@@ -148,6 +148,7 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
         }) } }; sync(true) } catch (error: Exception) { failed(error) } }
     }
     fun close() {
+        if (closed) return
         closed = true
         if (registered) network.unregisterNetworkCallback(callback)
         alerts.cancel()

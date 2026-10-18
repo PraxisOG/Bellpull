@@ -24,10 +24,11 @@ internal class ReminderAlerts(private val context: Context, private val profileI
     fun cancel() { alarms.cancel(alarmIntent()); manager.cancel("reminders:$profileId", 0) }
     fun schedule(state: DeliveryState, now: Long = System.currentTimeMillis()) {
         alarms.cancel(alarmIntent())
+        if (state.reminders().none { it.state == "pending" && it.dueMs <= now }) manager.cancel("reminders:$profileId", 0)
         if (!enabled()) return
         val next = state.reminders().filter { it.state == "pending" && DeliveryState.occurrence(it) !in state.displayed }.minOfOrNull { it.dueMs } ?: return
         val time = maxOf(next, now + 1000)
-        if (exact()) {
+        if (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()) {
             try { alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, alarmIntent()); return }
             catch (_: SecurityException) { /* permission may have changed since the check */ }
         }
