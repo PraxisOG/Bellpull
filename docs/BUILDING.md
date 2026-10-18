@@ -1,15 +1,15 @@
-## Phase 13 local LLM branch
+## Phase 14 integrated local fallback branch
 
-This branch builds **0.13.0-experimental / build 31**. Initialize submodules
+This branch builds **0.14.1-experimental / build 33**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
-See [Phase 13](PHASE-13-LOCAL-LLM.md) for limits and validation.
+See [Phase 14](PHASE-14-OFFLINE.md) for limits and validation.
 
 # Build the experimental preview
 
-This branch builds **0.13.0-experimental / build 31**, with the unchanged 0.4.3
-plugin from the car experimental base. See [Phase 12](PHASE-12-NOTIFICATION-CONTEXT.md) and
+This branch builds **0.14.1-experimental / build 33**, with the 0.5.1
+integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
@@ -18,7 +18,7 @@ versions; use the exact branch or revision to reproduce this build.
 Use a recursive clone of this experimental branch:
 
 ```bash
-git clone --recurse-submodules --branch feature/phase13-local-llm-0130 \
+git clone --recurse-submodules --branch feature/phase14-integrated-fallback \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
@@ -36,14 +36,14 @@ To reproduce a release, fetch and check out its tag, then run
 | [Sherpa-ONNX](https://github.com/k2-fsa/sherpa-onnx) | `11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf` (1.13.8) |
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
-**not** include submodule contents. Use the recursive clone above, or download the preceding
-release's **Bellpull-source-0.12.0.tar.gz**, which includes that release's tracked
-source and native trees (without Phase 13). That archive also contains
+**not** include submodule contents. Use the recursive clone above, or download
+**Bellpull-source-0.14.1.tar.gz**, which includes this release's tracked
+source and native trees. That archive also contains
 `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.12.0.tar.gz
-cd Bellpull-0.12.0
+tar -xzf Bellpull-source-0.14.1.tar.gz
+cd Bellpull-source-0.14.1
 ```
 
 ## Toolchain
@@ -72,12 +72,12 @@ required to compile. Speech weights are downloaded separately inside the app.
 From the repository/archive root:
 
 ```bash
-./android/gradlew -p android assembleDebug lintDebug
-./android/gradlew -p android test verifyRoborazziDebug
+bash tools/build-local-lab.sh assembleDebug lintDebug --max-workers=4
+bash tools/build-local-lab.sh test verifyRoborazziDebug --max-workers=4
 ```
 
 The debug APK is `android/app/build/outputs/apk/debug/app-debug.apk`.
-`./android/gradlew -p android assembleRelease` builds an unsigned release when
+`bash tools/build-local-lab.sh assembleRelease --max-workers=4` builds an unsigned release when
 private signing configuration is absent. Use your own signing key for your own
 installation. Official signing keys, passwords, local SDK paths and caches are
 deliberately excluded; they are not missing build source. A debug/independently

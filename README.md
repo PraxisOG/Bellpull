@@ -66,7 +66,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Build this branch](docs/BUILDING.md) for the 0.14.1 offline conversation experiment, or [download 0.12.0 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.12.0-experimental.1) for the preceding tested notification-context release.
+1. [Download 0.14.1 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.1-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
