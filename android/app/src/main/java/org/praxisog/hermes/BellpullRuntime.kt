@@ -40,6 +40,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var coding by mutableStateOf<CodingActivityWorkspace?>(null)
         private set
+    var delivery by mutableStateOf<DeliveryWorkspace?>(null)
+        private set
     var planning by mutableStateOf<PlanningWorkspace?>(null)
         private set
     var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
@@ -89,7 +91,9 @@ internal class BellpullRuntime private constructor(context: Context) {
             override fun readCoding(id: String) = saved.readCoding(id)
             override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
         } }, capabilities.features["bellpull_coding_activity"] == true)
-        planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true) }
+        delivery = cache?.let { DeliveryWorkspace(context, profileId.orEmpty(), scope, it, client,
+            capabilities.features["bellpull_planning"] == true) { snapshot -> planning?.acceptSnapshot(snapshot) } }
+        planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true, delivery) }
         projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true,
             capabilities.features["bellpull_conversation_pins"] == true) }
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
@@ -101,11 +105,22 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
-        notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId }
-        next.onReply = { id, message -> notifications?.reply(id, message.id); phase3?.refreshArtifacts() }
-        next.onAttention = { id, identity -> notifications?.attention(id, identity) }
+        notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId || voice?.sessionId == it }
+        next.onReply = { id, message ->
+            delivery?.receive(org.praxisog.hermes.model.InboxEntry("reply:$id:${message.id}", "reply",
+                "Reply", message.content.orEmpty(), System.currentTimeMillis(), id))
+            notifications?.reply(id, message.id); phase3?.refreshArtifacts()
+        }
+        next.onAttention = { id, identity ->
+            delivery?.receive(org.praxisog.hermes.model.InboxEntry(identity, "attention", "Needs attention",
+                if (identity.startsWith("approval:")) "Open the conversation to review the current approval request." else "Open the conversation to review the current run status.",
+                System.currentTimeMillis(), id))
+            notifications?.attention(id, identity)
+        }
         cache?.let {
             val catchUp = ReplyCatchUp(scope, client, it, receipts, next::discoveredReply)
+            val profileDelivery = delivery
+            catchUp.archive = { id, message -> profileDelivery?.archiveReply(id, message) ?: false }
             next.onSessions = { sessions ->
                 catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true })
                 projects?.refresh()
@@ -128,6 +143,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             capabilities = result.value
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
+            delivery?.supported = result.value.features["bellpull_planning"]==true
             projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true
@@ -143,12 +159,14 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun wake(runId: String, sessionId: String) {
+        delivery?.tick()
         val current = store ?: return
         current.runs?.observe(runId, sessionId, current.readState.snapshot()[sessionId]?.readThrough ?: 0)
         current.loadSessions()
     }
 
     fun catchUpNotifications() {
+        delivery?.tick()
         val current = store ?: return
         current.readState.snapshot().forEach { (id, receipt) ->
             if (receipt.unreadReply > receipt.readThrough) notifications?.reply(id, receipt.unreadReply)
@@ -175,6 +193,7 @@ internal class BellpullRuntime private constructor(context: Context) {
     }
 
     fun disconnect() {
+        delivery?.close(); delivery = null
         coding?.close(); coding = null
         voice?.close()
         voice = null

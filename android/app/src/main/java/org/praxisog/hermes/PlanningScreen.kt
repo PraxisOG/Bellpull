@@ -26,7 +26,8 @@ import java.util.UUID
 
 @Composable internal fun PlanningScreen(workspace: PlanningWorkspace, foreground: Boolean, requestPermission: (Boolean) -> Unit) {
     DisposableEffect(workspace,foreground) { workspace.open(foreground); onDispose { workspace.open(false) } }
-    var tab by remember { mutableStateOf("Reminders") }
+    val delivery = workspace.delivery
+    var tab by remember { mutableStateOf(if (delivery != null) "Inbox" else "Reminders") }
     var editor by remember { mutableStateOf<String?>(null) }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var editingRoutine by remember { mutableStateOf<Routine?>(null) }
@@ -39,35 +40,58 @@ import java.util.UUID
             Text("Today",style=MaterialTheme.typography.titleLarge)
             TextButton(onClick=workspace::refresh,enabled=!workspace.loading) { Text("Refresh") }
         }
-        Text("Planning prototype · reminders need this view for now; background/offline alerts belong to Phase 10.",style=MaterialTheme.typography.bodySmall)
+        if (delivery == null) Text("Planning prototype · reminders need this view for now; background/offline alerts belong to Phase 10.",style=MaterialTheme.typography.bodySmall)
+        else {
+            Text(delivery.alertStatus, style=MaterialTheme.typography.bodySmall)
+            Text(if (delivery.state.lastSync == 0L) "Not yet synced" else "Last synced ${displayInstant(delivery.state.lastSync)}", style=MaterialTheme.typography.bodySmall)
+            delivery.problem?.let { Text("Sync pending: $it", color=MaterialTheme.colorScheme.error) }
+            if (delivery.syncing) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (android.os.Build.VERSION.SDK_INT >= 31 && !context.getSystemService(android.app.AlarmManager::class.java).canScheduleExactAlarms()) {
+                TextButton(onClick={ runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))) } }) { Text("Allow precise reminder timing") }
+            }
+            delivery.state.operations.forEach { operation ->
+                PlanningCard {
+                    Text("${operation.action.replaceFirstChar { it.uppercase() }} · ${operation.status}")
+                    Text(operation.problem ?: "Saved on this phone; waiting for Hermes confirmation.", style=MaterialTheme.typography.bodySmall)
+                    if (operation.status == "blocked") TextButton(onClick={ delivery.discardBlocked(operation.operationId) }) { Text("Discard rejected action and refresh") }
+                }
+            }
+        }
         if (!workspace.supported) Text("Reminders and routines need this branch’s Bellpull planning plugin. Phone calendar stays local until sharing is enabled.")
         if (workspace.disconnected) Text("Saved planning data · Hermes has not refreshed.",color=MaterialTheme.colorScheme.error)
         workspace.problem?.let { Text(it,color=MaterialTheme.colorScheme.error) }
         workspace.result?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
         if (workspace.loading || workspace.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) { listOf("Reminders","Routines","Calendar").forEach { label ->
+        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) { (if (delivery != null) listOf("Inbox","Reminders","Routines","Calendar") else listOf("Reminders","Routines","Calendar")).forEach { label ->
             FilterChip(tab==label,{ tab=label },label={ Text(label) })
         } }
         when(tab) {
+            "Inbox" -> if (delivery != null) InboxContent(delivery.state.entries, delivery::mark) { entry ->
+                entry.sessionId?.let { context.startActivity(Intent(context, MainActivity::class.java)
+                    .putExtra(ReplyNotifications.EXTRA_SESSION, it)
+                    .putExtra(ReplyNotifications.EXTRA_PROFILE, BellpullRuntime.get(context).profileId)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }
+            }
             "Reminders" -> {
                 Button(onClick={ editingReminder=null; editor="Reminder" },enabled=workspace.supported && !workspace.busy) { Text("Add reminder") }
-                val values=workspace.snapshot?.reminders.orEmpty().sortedBy { it.dueMs }
+                val values=(delivery?.state?.reminders() ?: workspace.snapshot?.reminders.orEmpty()).sortedBy { it.dueMs }
                 val now=System.currentTimeMillis()
                 if (values.isEmpty()) Text("No reminders saved.")
                 listOf("Needs attention","Upcoming","Finished").forEach { group ->
                     val reminders=values.filter { when(group) { "Needs attention" -> it.state=="pending" && it.dueMs<now; "Upcoming" -> it.state=="pending" && it.dueMs>=now; else -> it.state!="pending" } }
                     if (reminders.isNotEmpty()) Text(group,style=MaterialTheme.typography.titleMedium)
                     reminders.forEach { reminder -> PlanningCard {
+                        val pending = delivery?.state?.operations?.any { it.reminderId == reminder.id } == true
                         Text(reminder.title,style=MaterialTheme.typography.titleSmall)
                         Text("${displayInstant(reminder.dueMs)} · ${reminder.state}",style=MaterialTheme.typography.bodySmall)
                         FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                             if (reminder.state=="pending") {
-                                TextButton(onClick={ workspace.reminder(reminder,"complete") },enabled=!workspace.busy) { Text("Complete") }
-                                TextButton(onClick={ workspace.reminder(reminder,"snooze",now+3600000) },enabled=!workspace.busy) { Text("Snooze 1h") }
-                                TextButton(onClick={ workspace.reminder(reminder,"dismiss") },enabled=!workspace.busy) { Text("Dismiss") }
-                            } else TextButton(onClick={ workspace.reminder(reminder,"reopen") },enabled=!workspace.busy) { Text("Reopen") }
-                            TextButton(onClick={ editingReminder=reminder; editor="Reminder" },enabled=!workspace.busy) { Text("Edit") }
-                            TextButton(onClick={ workspace.reminder(reminder,"delete") },enabled=!workspace.busy) { Text("Delete") }
+                                TextButton(onClick={ workspace.reminder(reminder,"complete") },enabled=!workspace.busy && !pending) { Text("Complete") }
+                                TextButton(onClick={ workspace.reminder(reminder,"snooze",now+3600000) },enabled=!workspace.busy && !pending) { Text("Snooze 1h") }
+                                TextButton(onClick={ workspace.reminder(reminder,"dismiss") },enabled=!workspace.busy && !pending) { Text("Dismiss") }
+                            } else TextButton(onClick={ workspace.reminder(reminder,"reopen") },enabled=!workspace.busy && !pending) { Text("Reopen") }
+                            TextButton(onClick={ editingReminder=reminder; editor="Reminder" },enabled=!workspace.busy && !pending) { Text("Edit") }
+                            TextButton(onClick={ workspace.reminder(reminder,"delete") },enabled=!workspace.busy && !pending) { Text("Delete") }
                         }
                     } }
                 }
@@ -275,3 +299,28 @@ import java.util.UUID
 
 private fun newOperation()=UUID.randomUUID().toString().replace("-","")
 private fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm z"))
+
+
+@Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit) {
+    var selected by remember { mutableStateOf<InboxEntry?>(null) }
+    var showDismissed by remember { mutableStateOf(false) }
+    Text("Received on this phone · newest 200 items. Opening or dismissing an inbox item never approves a request or completes a reminder.", style=MaterialTheme.typography.bodySmall)
+    FilterChip(showDismissed, { showDismissed = !showDismissed }, label={ Text("Show dismissed") })
+    val visible = entries.asReversed().filter { showDismissed || it.dismissedAt == null }
+    if (visible.isEmpty()) Text("No saved inbox items yet.")
+    visible.forEach { entry -> PlanningCard {
+        Text(entry.title, style=MaterialTheme.typography.titleSmall)
+        Text("${entry.kind} · ${displayInstant(entry.receivedAt)} · ${if (entry.dismissedAt != null) "Dismissed" else if (entry.openedAt == null) "Unread" else "Opened"}", style=MaterialTheme.typography.bodySmall)
+        Text(entry.body, maxLines=3, overflow=TextOverflow.Ellipsis)
+        FlowRow {
+            TextButton(onClick={ mark(entry.id, false); selected=entry }) { Text("Read saved item") }
+            if (entry.dismissedAt == null) TextButton(onClick={ mark(entry.id, true) }) { Text("Dismiss inbox item") }
+        }
+    } }
+    selected?.let { entry -> AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
+        text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
+            Text(entry.body)
+            if (entry.truncated) Text("Saved preview truncated. Open the conversation online for the complete response.")
+        } }, confirmButton={ TextButton(onClick={ selected=null }) { Text("Close") } },
+        dismissButton={ if (entry.sessionId != null) TextButton(onClick={ openChat(entry); selected=null }) { Text("Open conversation") } }) }
+}

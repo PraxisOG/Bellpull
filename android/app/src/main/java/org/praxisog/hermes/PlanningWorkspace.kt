@@ -29,7 +29,7 @@ internal interface PlanningCache {
 
 /** Deterministic UI operations. No run admission, auto-apply, cloud sync or inference. */
 internal class PlanningWorkspace(private val scope: CoroutineScope, private val client: HermesClient,
-    private val cache: PlanningCache, context: Context, var supported: Boolean) {
+    private val cache: PlanningCache, context: Context, var supported: Boolean, val delivery: DeliveryWorkspace? = null) {
     private val phone=PhoneCalendar(context.applicationContext)
     val device=cache.calendarDevice()
     var snapshot by mutableStateOf(cache.readPlanning()); private set
@@ -65,14 +65,16 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
             refresh()
         } else if (observed) { resolver.unregisterContentObserver(observer); observed=false }
     }
+    fun acceptSnapshot(value: PlanningSnapshot) { snapshot=value; disconnected=false; problem=null }
     fun selectDay(value: LocalDate) { day=value; refresh() }
     fun refresh() {
         if (closed || refreshJob?.isActive==true) return
         refreshJob=scope.launch {
             delay(200); loading=true
             try {
-                if (supported) when (val response=withContext(Dispatchers.IO) { client.planning() }) {
-                    is HermesResult.Ok -> { if (closed) return@launch; snapshot=response.value; cache.writePlanning(response.value); disconnected=false; problem=null }
+                if (delivery != null) { delivery.sync(true); disconnected=delivery.problem != null }
+                else if (supported) when (val response=withContext(Dispatchers.IO) { client.planning() }) {
+                    is HermesResult.Ok -> { if (closed) return@launch; snapshot=response.value; withContext(Dispatchers.IO) { cache.writePlanning(response.value) }; disconnected=false; problem=null }
                     is HermesResult.Err -> { disconnected=true; problem=response.error.toUserMessage() }
                 }
                 readPhone()
@@ -177,9 +179,12 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
             } finally { busy=false }
         }
     }
-    fun reminder(value: Reminder, action: String, due: Long?=null) = this.action("reminders",buildJsonObject {
-        put("action",action); put("id",value.id); put("revision",value.revision); due?.let { put("due_ms",it) }
-    })
+    fun reminder(value: Reminder, action: String, due: Long?=null) {
+        if (delivery != null && action in setOf("complete", "dismiss", "snooze")) delivery.action(value, action, due)
+        else this.action("reminders",buildJsonObject {
+            put("action",action); put("id",value.id); put("revision",value.revision); due?.let { put("due_ms",it) }
+        })
+    }
     fun routine(value: Routine, action: String) = this.action("routines",buildJsonObject {
         put("action",action); put("id",value.id); put("fingerprint",value.fingerprint)
     })

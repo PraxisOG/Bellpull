@@ -20,13 +20,13 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY, testPreferences: android.content.SharedPreferences? = null) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
     @Synchronized fun close() { closed = true }
 
-    private val preferences = EncryptedSharedPreferences.create(
+    private val preferences = testPreferences ?: EncryptedSharedPreferences.create(
         context,
         fileName(profileId),
         MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
@@ -73,6 +73,22 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
             edit.remove(oldest).remove("calendar-op-at:${oldest.removePrefix("calendar-op:")}")
         }
         check(!closed && edit.putString("calendar-op:$id",result).putLong("calendar-op-at:$id",System.currentTimeMillis()).commit())
+    }
+
+    fun readDelivery(): org.praxisog.hermes.model.DeliveryState = synchronized(deliveryLock) {
+        preferences.getString("delivery-v1", null)?.let {
+            json.decodeFromString<org.praxisog.hermes.model.DeliveryState>(it)
+        } ?: org.praxisog.hermes.model.DeliveryState(planning = readPlanning())
+    }
+    /** One transaction boundary shared by UI, sync and alarm receiver instances. Call on IO. */
+    fun updateDelivery(change: (org.praxisog.hermes.model.DeliveryState) -> org.praxisog.hermes.model.DeliveryState): org.praxisog.hermes.model.DeliveryState = synchronized(deliveryLock) {
+        check(!closed) { "Connection closed." }
+        val previous = readDelivery()
+        val value = change(previous)
+        if (previous != value) check(preferences.edit().putString("delivery-v1", json.encodeToString(value)).commit()) {
+            "Could not save inbox. Free some storage and retry."
+        }
+        value
     }
 
     /** Sessions and the wall-clock time they were fetched, or null if nothing is cached. */
@@ -229,6 +245,7 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
         preferences.edit().clear().commit()
 
     companion object {
+        private val deliveryLock = Any()
         fun fileName(profileId: String): String {
             require(profileId.matches(Regex("[a-zA-Z0-9_-]{1,80}")))
             return if (profileId == SecureConnectionStore.LEGACY) "hermes_session_cache"

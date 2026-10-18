@@ -78,6 +78,7 @@ internal fun HermesApp(
     notificationsAvailable: Boolean = false,
     onNotificationsChange: (Boolean) -> Unit = {},
     focusChatRevision: Int = 0,
+    focusTodayRevision: Int = 0,
     onVisibleSession: (String?) -> Unit = {},
     onAbandonRun: () -> Unit = {},
     disconnected: Boolean = false,
@@ -140,6 +141,9 @@ internal fun HermesApp(
         previousSessionId = openSessionId
     }
     val open: (String) -> Unit = { mode = WorkspaceMode.CHATS; drawerOnCover = false; expandedSearch = false; onOpenSession(it) }
+    LaunchedEffect(focusTodayRevision) {
+        if (focusTodayRevision > 0) { mode = WorkspaceMode.TODAY; drawerOnCover = false; expandedSearch = false; infoSheet = false; navigation = null }
+    }
     LaunchedEffect(focusChatRevision) {
         if (focusChatRevision > 0) {
             mode = WorkspaceMode.CHATS; drawerOnCover = false; expandedSearch = false; infoSheet = false; navigation = null

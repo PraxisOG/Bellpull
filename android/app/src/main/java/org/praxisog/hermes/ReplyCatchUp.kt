@@ -21,7 +21,11 @@ internal class ReplyCatchUp(
     private val onReply: (String, Message) -> Unit,
 ) {
     private val lock = Mutex()
-    fun sync(sessions: List<Session>) = scope.launch {
+    var archive: suspend (String, Message) -> Boolean = { _, _ -> true }
+    private var job: Job? = null
+    fun sync(sessions: List<Session>): Job {
+        job?.takeIf { it.isActive }?.let { return it }
+        return scope.launch {
         lock.withLock {
             for (session in sessions) {
                 ensureActive()
@@ -35,9 +39,15 @@ internal class ReplyCatchUp(
                 // receipt positions can establish that baseline after the feature upgrade.
                 val receipt = receipts.snapshot()[session.id]
                 val previous = old?.replyId ?: receipt?.let { maxOf(it.readThrough, it.unreadReply) }
+                val received = if (previous == null) listOfNotNull(latest) else result.value.data.filter {
+                    it.role == "assistant" && !it.content.isNullOrBlank() && it.id > previous
+                }.takeLast(200)
+                // Save bodies before advancing the cursor; a failed write must be retried.
+                if (received.any { !archive(session.id, it) }) continue
                 if (latest != null && previous != null && latest.id > previous) onReply(session.id, latest)
                 withContext(Dispatchers.IO) { cursors.writeCursor(session.id, ReplyCursor(activity, session.messageCount, latest?.id ?: 0)) }
             }
         }
+        }.also { job = it }
     }
 }

@@ -22,10 +22,13 @@ internal class ReplyNotifications(private val context: Context, private val scop
     fun reply(id: String, messageId: Int) {
         pending[id]?.cancel()
         pending[id] = scope.launch {
+            try {
             delay(800) // let a visible transcript advance its read receipt first
+            if (isVisible(id)) { cache?.rememberNotifiedReply(id, messageId); return@launch }
             if (id !in store.readState.unreadIds || !enabled() || (cache?.notifiedReply(id) ?: 0) >= messageId) return@launch
             post(id, "reply", "New reply is ready", REPLIES)
             cache?.rememberNotifiedReply(id, messageId)
+            } finally { if (pending[id] === currentCoroutineContext()[Job]) pending.remove(id) }
         }
     }
     fun attention(id: String, identity: String) {
@@ -34,7 +37,7 @@ internal class ReplyNotifications(private val context: Context, private val scop
         post(id, "attention", if (identity.startsWith("approval:")) "Hermes needs your approval" else "A run needs your attention", ATTENTION)
         cache?.rememberNotified(identity)
     }
-    fun read(id: String) { manager.cancel("reply:$id", 0) }
+    fun read(id: String) { manager.cancel("$profileId:reply:$id", 0) }
     private fun enabled(): Boolean = BellpullSettings(context).value.notifications && manager.areNotificationsEnabled() &&
         (Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
     private fun post(id: String, kind: String, text: String, channel: String) {
@@ -44,7 +47,7 @@ internal class ReplyNotifications(private val context: Context, private val scop
             .setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Bellpull").setContentText(text).build()).build()
-        manager.notify("$kind:$id", 0, notification)
+        manager.notify("$profileId:$kind:$id", 0, notification)
     }
     companion object {
         const val REPLIES = "bellpull_replies"

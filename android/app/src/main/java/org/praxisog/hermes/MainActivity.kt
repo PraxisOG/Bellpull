@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private var messageReader: MessageReader? = null
     private var foreground by mutableStateOf(false)
     private var windowCutouts by mutableStateOf(emptyList<androidx.compose.ui.geometry.Rect>())
+    private var focusTodayRevision by mutableStateOf(0)
     private var focusChatRevision by mutableStateOf(0)
     private var pendingNewChat = false
     private var pendingShare by mutableStateOf<IncomingShare?>(null)
@@ -126,6 +127,7 @@ class MainActivity : ComponentActivity() {
                         onDispose { reader.stop() }
                     }
                     HermesApp(
+                        focusTodayRevision = focusTodayRevision,
                         planningView = runtime.planning?.let { planning -> {
                             PlanningScreen(planning,foreground) { write ->
                                 calendarPermissionProfile=runtime.profileId
@@ -287,6 +289,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(ReminderAlerts.OPEN_INBOX, false) == true) {
+            if (intent.getStringExtra(ReminderAlerts.PROFILE) == profiles.activeId) focusTodayRevision++
+            else profiles.showSettings()
+            return
+        }
         if (intent?.action == VoiceService.OPEN) {
             runtime.voice?.let { store?.openSession(it.sessionId) }
             voiceOpen = preferences.value.debuggingVoiceInterface
@@ -354,6 +361,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        runtime.delivery?.refresh()
         store?.loadSessions(); store?.refreshHistory(); runtime.refreshCapabilities()
         if (preferences.value.notifications && store != null) setNotifications(true)
     }
@@ -434,6 +442,7 @@ class MainActivity : ComponentActivity() {
     private fun setNotifications(enabled: Boolean) {
         val allow = enabled && store != null && runtime.notificationEventsAvailable
         preferences.update(preferences.value.copy(notifications = allow))
+        runtime.delivery?.refresh()
         val listener = Intent(this, NotificationListenerService::class.java)
         if (allow) {
             runCatching { startForegroundService(listener) }.onFailure {
