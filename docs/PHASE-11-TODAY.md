@@ -55,6 +55,14 @@ Today acceptance at its unfolded size and a simulated 1080×2400 narrow size, wi
 the existing 440-dpi override retained. The original display size was restored.
 These are fixture results, not personal-server or physical hinge/car acceptance.
 
+The signed build 29 was then installed in place over 0.8.6-car-experimental/build28,
+retaining the application UID and existing data. The installed APK matches the
+prepared artifact byte for byte and passes signature and 16-KiB alignment checks.
+Both disposable test packages were removed; the app launches successfully.
+Source implementation: `26d8b9c`. APK SHA-256:
+`2053c473911633287ce7193ef18208cc78642dcc26ed2762b4fe32296ed6799b`.
+Local artifacts and logs: `~/Bellpull-builds/0.11.0-experimental/`.
+
 Tests cover date overlap/DST, calendar permission and selection, optimistic
 reminder actions, current decisions versus old notices, unread receipts, source
 links, repeated-action prevention, missing versus empty sources, and same-chat

@@ -1,3 +1,15 @@
+# October 17: Phase 11 / 0.11.0 experimental installed
+
+`feature/phase11-today-0110`, implementation `26d8b9c`, adds the Today overview to
+car experimental `cc7e523`. Android 0.11.0-experimental/build29; plugin remains
+0.4.3. See [behavior, tests and installation evidence](PHASE-11-TODAY.md).
+655 tests passed with one opt-in skip; 178 screenshots verified; release/lint
+passed with no lint errors. Eight phone tests passed across unfolded and simulated
+narrow layouts. The signed update is installed with the same UID/data, its bytes
+match the prepared APK, and disposable test packages/display overrides are cleaned
+up. Existing density override is retained. Source is committed locally; no GitHub
+publication or server deployment was performed. MOSS/car acceptance limits remain.
+
 # Current development: master — app 0.8.4 / plugin 0.4.2
 
 The owner requested one clear default and a clean GitHub repository. `master`
