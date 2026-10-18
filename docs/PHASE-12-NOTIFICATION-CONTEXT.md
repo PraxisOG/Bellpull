@@ -7,6 +7,12 @@ server endpoint, migration, on-device model, dependency, or server deployment is
 required. The app module now applies the serialization compiler plugin already
 used by core-model/core-hermes.
 
+Installed in place on the Pixel 10 Pro Fold with UID 10308 preserved. The pulled
+installed APK matches SHA-256
+`c554930ef859b18db9d0c2bc54e8bcbaa45a6f7ee1881f47459c3d5c797ba772`.
+Production source commit: `9e3491d`. Capture/sharing remain off. APK and detailed
+install metadata are in the evidence directory below.
+
 ## Using it
 
 Open **Settings → Phone notification context**. Enable capture and grant Android

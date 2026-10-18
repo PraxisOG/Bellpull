@@ -1,3 +1,34 @@
+# October 17: Phase 12 / 0.12.0 experimental installed
+
+Branch `feature/phase12-notification-context-0120`; production source `9e3491d`,
+based on Phase 11 `04fe8c6`. Android 0.12.0-experimental/build30, installed in
+place with the same signing lineage and UID 10308. Capturing/sharing phone
+notifications is off until enabled in Settings → Phone notification context.
+See [Phase 12 behavior, privacy boundaries and evidence](PHASE-12-NOTIFICATION-CONTEXT.md).
+
+Encrypted device-wide notification history, Android listener lifecycle, update and
+removal tracking, bounded revisions, search, app exclusions, retention and clearing
+are implemented. Separate per-server sharing attaches bounded relevant context to
+existing chat and voice submissions. No notification actions, new endpoint,
+server migration, or on-device model. Matching is lexical; longer idle/OEM/storm
+acceptance remains open. The inherited MOSS streaming issue is unchanged.
+
+676 Android tests passed, one opt-in JVM test skipped; 182 screenshots verified;
+lint zero errors and release assembly passed. Plugin source remains 0.4.3: 153
+passed/one skipped on the compatibility host, 71 passed/one skipped on the exact
+stock image used by local Hermes. Four phone tests passed at each width. The
+additional live phone → local Hermes → phone test returned the synthetic location
+correctly without tool calls. Local Hermes 0.21.5/plugin 0.4.2 was exercised under
+the user's explicit local-server testing authorization; its configuration/plugin
+was not changed. The synthetic session and temporary credentials were removed.
+
+Evidence/APK: `/home/praxisog/Bellpull-builds/0.12.0-experimental/`.
+APK SHA-256 `c554930ef859b18db9d0c2bc54e8bcbaa45a6f7ee1881f47459c3d5c797ba772`.
+Original phone size/density restored; fixture packages and ADB reverse mapping
+removed. Local commits only; no push, merge or GitHub release.
+
+---
+
 # October 17: Phase 11 / 0.11.0 experimental installed
 
 `feature/phase11-today-0110`, implementation `26d8b9c`, adds the Today overview to

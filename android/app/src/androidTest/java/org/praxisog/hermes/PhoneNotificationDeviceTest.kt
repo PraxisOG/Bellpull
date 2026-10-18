@@ -45,6 +45,13 @@ class PhoneNotificationDeviceTest {
             repo.capture(true); idle(repo)
             requestPhoneNotificationBinding(context)
             ui.await("Android notification listener connected") { repo.state.value.connected }
+            // Clean only the precisely identified post left by the early shell-quoting fixture.
+            ui.main {
+                val listener = checkNotNull(PhoneContextListenerService.fixtureInstance)
+                listener.activeNotifications.filter { it.packageName == "com.android.shell" && it.tag == "12" &&
+                    it.notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString() == "'Phase" }
+                    .forEach { listener.cancelNotification(it.key) }
+            }
             shell("cmd notification post -t Phase12-synthetic-Alice $tag Workshop-at-noon")
             ui.await("Synthetic notification captured") { repo.state.value.records.any { it.title == "Phase12-synthetic-Alice" } }
             val first = repo.state.value.records.first { it.title == "Phase12-synthetic-Alice" }
