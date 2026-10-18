@@ -43,8 +43,14 @@ class OfflineChatActivity : ComponentActivity() {
 
 @Composable
 internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sourceTitle: String, workspace: OfflineWorkspace,
-    onSetup: () -> Unit, onRemote: (String) -> Unit, onClose: () -> Unit) {
+    onSetup: () -> Unit, onRemote: (String) -> Unit, onClose: () -> Unit, embedded: Boolean = false) {
     val fork = state.current
+    val view = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(view, state.busy) {
+        val previous = view.keepScreenOn
+        if (state.busy) view.keepScreenOn = true
+        onDispose { view.keepScreenOn = previous }
+    }
     var setup by rememberSaveable(fork?.id) { mutableStateOf(false) }
     var query by rememberSaveable(fork?.id) { mutableStateOf("") }
     var brief by rememberSaveable(fork?.id) { mutableStateOf(fork?.brief.orEmpty()) }
@@ -63,14 +69,15 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
     }
     LaunchedEffect(state.searchResults) { if (state.searchResults.isNotEmpty()) list.scrollToItem(0) }
     Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.safeDrawingPadding()).imePadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!embedded) Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(if (fork == null) "Offline chats" else fork.title, style = MaterialTheme.typography.titleLarge, maxLines = 2)
                     Text("On this phone • Gemma 4 E2B • CPU", style = MaterialTheme.typography.labelSmall)
                 }
                 TextButton(onClick = { if (fork == null) onClose() else workspace.back() }, enabled = !state.busy) { Text(if (fork == null) "Close" else "Chats") }
             }
+            if (embedded) Text("Local · Gemma 4 E2B · saved on this phone", style = MaterialTheme.typography.labelMedium)
             Text(state.status, style = MaterialTheme.typography.bodySmall)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -99,7 +106,7 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = fork.thinking, onCheckedChange = { workspace.configure(it, fork.brief) }, enabled = !state.busy && fork.pending == null)
+                    Switch(checked = fork.thinking, onCheckedChange = { workspace.configure(it, fork.brief) }, enabled = !state.busy && fork.pending == null && fork.remoteId == null)
                     Text("Thinking", Modifier.padding(start = 8.dp).weight(1f))
                     TextButton(onClick = { setup = !setup }) { Text(if (setup) "Hide details" else "Details") }
                 }
@@ -107,11 +114,15 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
                   Column(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
                     Text("${fork.source?.messages?.size ?: 0} source messages saved • memory ${if (fork.memory.syncedAt == 0L) "not synced" else java.text.DateFormat.getDateTimeInstance().format(java.util.Date(fork.memory.syncedAt))}", style = MaterialTheme.typography.bodySmall)
                     Text("Thinking is slower and capped. Stop at any time. Each reply uses recent local turns and relevant source excerpts.", style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(brief, { brief = it.take(12000) }, label = { Text("Optional offline brief") }, maxLines = 3, modifier = Modifier.fillMaxWidth(), enabled = !state.busy && fork.pending == null)
+                    if (fork.summary.isNotBlank()) Text("Compacted context: ${fork.summary}", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = workspace::compactCurrent, enabled = !state.busy && fork.pending == null && fork.remoteId == null) {
+                        Text(if (fork.compaction != null || (fork.source != null && !fork.sourcePrepared)) "Compact / resume preparation" else "Compact now")
+                    }
+                    OutlinedTextField(brief, { brief = it.take(12000) }, label = { Text("Optional offline brief") }, maxLines = 3, modifier = Modifier.fillMaxWidth(), enabled = !state.busy && fork.pending == null && fork.remoteId == null)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { workspace.configure(fork.thinking, brief) }, enabled = !state.busy && fork.pending == null) { Text("Save brief") }
-                        TextButton(onClick = workspace::prepareCurrent, enabled = !state.busy && fork.source != null) { Text("Index source") }
-                        TextButton(onClick = workspace::refreshMemory, enabled = !state.busy && fork.pending == null) { Text("Refresh memory") }
+                        TextButton(onClick = { workspace.configure(fork.thinking, brief) }, enabled = !state.busy && fork.pending == null && fork.remoteId == null) { Text("Save brief") }
+                        TextButton(onClick = workspace::prepareCurrent, enabled = !state.busy && (fork.source != null || fork.summarizedTurns > 0)) { Text("Index saved chat") }
+                        TextButton(onClick = workspace::refreshMemory, enabled = !state.busy && fork.pending == null && fork.remoteId == null) { Text("Refresh memory") }
                         TextButton(onClick = onSetup, enabled = !state.busy) { Text("Model setup") }
                         TextButton(onClick = { review = true }, enabled = !state.busy && fork.turns.isNotEmpty() && fork.remoteId == null) { Text(if (fork.pending == null) "Continue in Hermes" else "Retry handoff") }
                         fork.remoteId?.let { id -> TextButton(onClick = { onRemote(id) }) { Text("Open Hermes branch") } }
@@ -119,8 +130,11 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
                     }
                   }
                 }
-                if (fork.source != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(query, { query = it }, label = { Text("Search this source chat") }, singleLine = true, modifier = Modifier.weight(1f), enabled = !state.busy)
+                if (fork.compaction != null && !state.busy) OutlinedButton(onClick = workspace::compactCurrent, enabled = fork.pending == null && fork.remoteId == null) {
+                    Text("Resume compaction")
+                }
+                if (fork.source != null || fork.summarizedTurns > 0) Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(query, { query = it }, label = { Text("Search saved chat") }, singleLine = true, modifier = Modifier.weight(1f), enabled = !state.busy)
                     TextButton(onClick = { workspace.search(query) }, enabled = !state.busy && query.isNotBlank()) { Text("Search") }
                 }
                 LazyColumn(Modifier.weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -129,7 +143,7 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
                     }
                     items(fork.turns, key = { it.id }) { turn ->
                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(if (turn.role == "user") "You" else "Gemma · ${turn.status}", style = MaterialTheme.typography.labelMedium)
+                            Text(if (turn.role == "user") "You" else when (turn.status) { "complete" -> "Gemma"; "generating" -> "Gemma · writing…"; else -> "Gemma · incomplete" }, style = MaterialTheme.typography.labelMedium)
                             if (turn.thought.isNotEmpty()) {
                                 var expanded by remember(turn.id) { mutableStateOf(false) }
                                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide thinking" else "Show thinking") }
@@ -143,16 +157,25 @@ internal fun OfflineScreen(state: OfflineWorkspaceState, sourceId: String?, sour
                         } }
                     }
                 }
-                OutlinedTextField(fork.draft, workspace::draft, label = { Text("Message Gemma on this phone") }, modifier = Modifier.fillMaxWidth(), maxLines = 4, enabled = !state.busy && fork.pending == null)
+                OutlinedTextField(fork.draft, workspace::draft, label = { Text("Message Gemma on this phone") }, modifier = Modifier.fillMaxWidth(), maxLines = 4, enabled = !state.busy && fork.pending == null && fork.remoteId == null)
+                fork.remoteId?.let { id ->
+                    TextButton(onClick = { onRemote(id) }) { Text("Synced · open Hermes conversation") }
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     if (state.busy) Button(onClick = workspace::stop) { Text("Stop") }
-                    else Button(onClick = workspace::send, enabled = fork.draft.isNotBlank() && fork.pending == null) { Text("Send locally") }
+                    else Button(onClick = workspace::send, enabled = fork.draft.isNotBlank() && fork.pending == null && fork.remoteId == null && state.forkReview == null) { Text("Send locally") }
                 }
             }
         }
     }
+    state.forkReview?.let { warning ->
+        AlertDialog(onDismissRequest = workspace::dismissForkReview, title = { Text("This will take a hot minute") },
+            text = { Text("This chat has ${warning.tokens} tokens, longer than Gemma’s ${warning.contextTokens}-token context. Gemma will compact it aggressively in chunks on your phone. A long chat may take several minutes or more. Keep Bellpull open; you can stop and resume. The original stays saved and searchable.") },
+            confirmButton = { TextButton(onClick = workspace::compactCurrent) { Text("Compact local fork") } },
+            dismissButton = { TextButton(onClick = workspace::dismissForkReview) { Text("Later") } })
+    }
     if (review && fork != null) AlertDialog(onDismissRequest = { review = false }, title = { Text("Continue in Hermes?") },
-        text = { Text("Send ${fork.turns.count { it.role == "user" || it.status == "complete" }} local messages and the saved brief to this server profile as a new conversation. Thinking and unfinished answers are omitted. The original chat stays separate. No tools run during import.") },
+        text = { Text("Save ${fork.turns.count { it.role == "user" || it.status == "complete" }} local messages and compacted context into Hermes’s searchable chat history as a new conversation. The app will show one synced entry. Thinking and unfinished answers are omitted. This does not rewrite Hermes’s permanent memory notes. The original chat stays separate. No tools run during import.") },
         confirmButton = { TextButton(onClick = { review = false; workspace.handoff(onRemote) }) { Text("Create Hermes branch") } },
         dismissButton = { TextButton(onClick = { review = false }) { Text("Cancel") } })
     if (remove) AlertDialog(onDismissRequest = { remove = false }, title = { Text("Delete this local fork?") },

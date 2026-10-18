@@ -93,6 +93,46 @@ class MainActivity : ComponentActivity() {
                 // Discard all saved UI navigation/selection when the account changes.
                 key(profiles.activeId) {
                     val current = store
+                    val offlineWorkspace = runtime.offlineWorkspace
+                    val emptyOffline = remember { kotlinx.coroutines.flow.MutableStateFlow(OfflineWorkspaceState(busy = false)) }
+                    val offlineState by (offlineWorkspace?.state ?: emptyOffline).collectAsState()
+                    val localModel by runtime.localModel.state.collectAsState()
+                    var localSelected by rememberSaveable { mutableStateOf(false) }
+                    val isOffline = current != null && (runtime.fallbackOffline || current.offline != null || current.sessions is UiState.Failed)
+                    val configuration = runtime.localSettings.value
+                    val localReady = localModel.ready && !localModel.gpu && localModel.contextTokens == configuration.contextTokens &&
+                        localModel.models.any { it.id == localModel.selected && it.sha256 == LocalLlmLab.E2B_SHA }
+                    LaunchedEffect(foreground, current) { if (foreground && current != null) runtime.monitorConnection() }
+                    LaunchedEffect(foreground, isOffline, configuration.autoLoad, configuration.contextTokens, localModel.scanned, localModel.models) {
+                        if (foreground && isOffline && configuration.autoLoad && !localReady) runtime.warmLocal()
+                    }
+                    val newLocal: () -> Unit = {
+                        if (offlineWorkspace != null && !offlineState.busy) {
+                            runtime.voice?.close(); reader.stop()
+                            offlineWorkspace.create(null); localSelected = true; focusChatRevision++
+                        }
+                    }
+                    val forkLocal: (org.praxisog.hermes.model.Session) -> Unit = { session ->
+                        if (offlineWorkspace != null && !offlineState.busy) {
+                            runtime.voice?.close(); reader.stop()
+                            offlineWorkspace.requestFork(session.id, session.title ?: "Conversation", download = !isOffline)
+                            localSelected = true; focusChatRevision++
+                        }
+                    }
+                    val remoteFromLocal: (String) -> Unit = { id ->
+                        localSelected = false; current?.loadSessions(); current?.openSession(id); focusChatRevision++
+                    }
+                    val setupLocal: () -> Unit = {
+                        runtime.voice?.close(); reader.stop()
+                        startActivity(Intent(this@MainActivity, LocalLlmActivity::class.java))
+                    }
+                    val shownSessions = remember(current?.sessions, offlineState.forks) {
+                        val remote = current?.sessions
+                        if (offlineState.forks.isEmpty()) remote
+                        else UiState.Ready(mergeLocalSessions((remote as? UiState.Ready)?.value.orEmpty(), offlineState.forks))
+                    }
+                    val selectedLocal = offlineState.current.takeIf { localSelected }
+
                     val savedVoiceSettings = remember(profiles.activeId) { profiles.activeId?.let { VoiceSettings(applicationContext, it) } }
                     var voiceConfig by remember(savedVoiceSettings) { mutableStateOf(savedVoiceSettings?.read() ?: VoiceConfiguration()) }
                     if (voiceOpen && profiles.activeId != null) {
@@ -150,21 +190,25 @@ class MainActivity : ComponentActivity() {
                                 profiles.profiles.firstOrNull { it.id == profiles.activeId })
                         },
                         localLlmSettings = {
-                            androidx.compose.material3.Button(onClick = {
-                                runtime.voice?.close(); reader.stop()
-                                startActivity(android.content.Intent(this@MainActivity, OfflineChatActivity::class.java))
-                            }, enabled = runtime.profileId != null) { androidx.compose.material3.Text("Open offline chats") }
-                            androidx.compose.material3.Text("Import a local GGUF, chat offline and compare CPU/GPU correctness and speed.")
-                            androidx.compose.material3.Button(onClick = {
-                                runtime.voice?.close(); reader.stop()
-                                startActivity(android.content.Intent(this@MainActivity, LocalLlmActivity::class.java))
-                            }) { androidx.compose.material3.Text("Open local chat lab") }
+                            LocalFallbackSettingsEditor(runtime.localSettings, localModel, setupLocal,
+                                { scope.launch { runtime.warmLocal() } }, runtime.localModel::unload)
+                            androidx.compose.material3.TextButton(onClick = newLocal, enabled = offlineWorkspace != null && !offlineState.busy) {
+                                androidx.compose.material3.Text("New local chat")
+                            }
                         },
                         pluginVersions = profiles::pluginVersions,
-                        onOffline = if (current?.openSessionId != null) ({
-                            runtime.voice?.close(); reader.stop()
-                            startActivity(android.content.Intent(this@MainActivity, OfflineChatActivity::class.java)
-                                .putExtra("sourceId", current.openSessionId).putExtra("sourceTitle", current.openSession?.title ?: "Conversation"))
+                        onOffline = current?.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } },
+                        onForkSession = if (offlineWorkspace != null) forkLocal else null,
+                        onNewLocal = if (offlineWorkspace != null) newLocal else null,
+                        localChat = if (localSelected && offlineWorkspace != null) ({
+                            OfflineScreen(offlineState, null, "Conversation", offlineWorkspace, setupLocal, remoteFromLocal,
+                                onClose = { localSelected = false }, embedded = true)
+                        }) else null,
+                        fallbackBanner = if (isOffline) ({
+                            LocalFallbackBanner(localReady, localModel.busy && !localReady,
+                                localModel.error ?: runtime.fallbackProblem,
+                                { scope.launch { runtime.warmLocal() } }, profiles::showSettings,
+                                current.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } })
                         }) else null,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
@@ -195,19 +239,24 @@ class MainActivity : ComponentActivity() {
                             runtime.cache?.rememberSessionSource(source)
                             currentStore.chooseSessionSource(source)
                         } },
-                        sessions = current?.sessions ?: UiState.Ready(listOf(BellpullExample.session)),
+                        sessions = shownSessions ?: UiState.Ready(listOf(BellpullExample.session)),
                         history = current?.history ?: UiState.Ready(if (exampleId == null) emptyList() else BellpullExample.messages),
                         turn = current?.turn ?: TurnState.Idle,
                         messageStats = current?.messageStats.orEmpty(),
-                        openSessionId = current?.openSessionId ?: exampleId.takeIf { current == null },
-                        openSession = current?.openSession ?: BellpullExample.session.takeIf { current == null && exampleId != null },
+                        openSessionId = if (localSelected) localSessionId(selectedLocal?.id ?: "new") else current?.openSessionId ?: exampleId.takeIf { current == null },
+                        openSession = if (localSelected) org.praxisog.hermes.model.Session(localSessionId(selectedLocal?.id ?: "new"), title = selectedLocal?.title ?: "Local chat")
+                            else current?.openSession ?: BellpullExample.session.takeIf { current == null && exampleId != null },
                         now = System.currentTimeMillis() / 1000.0,
-                        onOpenSession = { preview = null; if (current == null) exampleId = BellpullExample.ID else current.openSession(it) },
+                        onOpenSession = { id ->
+                            preview = null
+                            if (id.startsWith("local:")) { offlineWorkspace?.open(id.removePrefix("local:")); localSelected = true }
+                            else { localSelected = false; if (current == null) exampleId = BellpullExample.ID else current.openSession(id) }
+                        },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
                         onSend = { text -> current?.let { if (files != null) files.send(it, text) else it.send(text) } ?: false }, onStop = { current?.stop() },
                         onRetrySessions = { current?.loadSessions() }, onRetryHistory = { current?.refreshHistory() },
-                        onNewSession = { preview = null; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },
-                        creatingSession = current?.creatingSession ?: false,
+                        onNewSession = { preview = null; if (isOffline) newLocal() else { localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() } },
+                        creatingSession = if (isOffline) offlineState.busy else current?.creatingSession ?: false,
                         createError = current?.createError, offline = current?.offline,
                         onDisconnect = profiles::showSettings,
                         query = current?.searchQuery ?: exampleQuery,

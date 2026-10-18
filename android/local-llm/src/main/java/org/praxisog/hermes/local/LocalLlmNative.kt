@@ -6,7 +6,7 @@ object LocalLlmNative {
     external fun initialize()
     external fun clearCancel()
     external fun cancel()
-    external fun load(path: String, gpu: Boolean): String
+    external fun load(path: String, gpu: Boolean, contextTokens: Int = 2048): String
     external fun begin(messagesUtf8: ByteArray, maxTokens: Int, thinking: Boolean = false, cacheKey: String = "")
     external fun countTokens(messagesUtf8: ByteArray, thinking: Boolean): Int
     external fun next(): ByteArray?

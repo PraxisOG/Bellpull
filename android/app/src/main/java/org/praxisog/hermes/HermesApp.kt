@@ -107,6 +107,10 @@ internal fun HermesApp(
     coding: CodingActivityWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
     onOffline: (() -> Unit)? = null,
+    onNewLocal: (() -> Unit)? = null,
+    onForkSession: ((Session) -> Unit)? = null,
+    localChat: (@Composable () -> Unit)? = null,
+    fallbackBanner: (@Composable () -> Unit)? = null,
 ) {
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
@@ -170,9 +174,14 @@ internal fun HermesApp(
             }
             if (artifactsOpen) ConversationArtifactsDialog(artifacts, onDownloadArtifact,
                 onView = { artifactsOpen = false; onViewArtifact(it) }, onClose = { artifactsOpen = false })
-            organizing?.let { session -> projects?.let { workspace ->
-                ProjectChatDialog(workspace, session) { organizing = null }
-            } }
+            organizing?.let { session ->
+                if (projects != null && session.source != "local") ProjectChatDialog(projects, session,
+                    onLocalFork = onForkSession?.let { fork -> { organizing = null; fork(session) } }) { organizing = null }
+                else AlertDialog(onDismissRequest = { organizing = null }, title = { Text(session.title ?: "Conversation") },
+                    text = { if (session.source == "local") TextButton(onClick = { organizing = null; open(session.id) }) { Text("Open local chat") }
+                        else TextButton(onClick = { organizing = null; onForkSession?.invoke(session) }) { Text("Create local fork") } },
+                    confirmButton = { TextButton(onClick = { organizing = null }) { Text("Close") } })
+            }
             if (expandedSearch) WorkspaceSearch(
                 projectSessions, apps, now, openSessionId,
                 query, onQueryChange, open, onLaunchApp,
@@ -219,7 +228,8 @@ internal fun HermesApp(
                         Column(paneModifier) {
                             SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
-                                creating = creatingSession, createError = createError, offline = offline,
+                                creating = creatingSession, createError = createError, offline = offline.takeUnless { sideBySide && fallbackBanner != null },
+                                onNewLocal = onNewLocal, fallbackBanner = fallbackBanner.takeUnless { sideBySide },
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
                                 unreadIds = projectUnread, completionRevision = completionRevision,
                                 runLabels = projectLabels,
@@ -227,7 +237,7 @@ internal fun HermesApp(
                                 recentOrder = projects?.selectedProject != null,
                                 projectFilters = projects?.let { workspace -> { closeFilters -> ProjectFilterItems(workspace, unreadIds, runningIds,
                                     { id -> closeFilters(); selectProjectScope(id) }, { closeFilters(); mode = WorkspaceMode.PROJECTS; drawerOnCover = false }) } },
-                                onOrganize = projects?.let { { session -> organizing = session } },
+                                onOrganize = if (projects != null || onForkSession != null) ({ session -> organizing = session }) else null,
                                 titleOnly = preferences.titleOnlyConversations,
                                 source = sessionSource, onSourceChange = onSessionSourceChange,
                                 filterSummary = listOfNotNull(projects?.scopeTitle?.takeIf { projects.selectedScope != ALL_PROJECT_CHATS }, sessionSource).takeIf { it.isNotEmpty() }?.joinToString(" · "),
@@ -243,19 +253,20 @@ internal fun HermesApp(
                                 showList = sideBySide && showList, sideBySide = sideBySide,
                                 onNavigate = { if (sideBySide) showList = !showList else drawerOnCover = true },
                                 onNewSession = { mode = WorkspaceMode.CHATS; drawerOnCover = false; onNewSession() }, creatingSession = creatingSession,
-                                hasSession = mode == WorkspaceMode.CHATS && openSessionId != null,
+                                hasSession = mode == WorkspaceMode.CHATS && openSessionId != null && localChat == null,
                                 hasHistory = mode == WorkspaceMode.CHATS && history is UiState.Ready,
                                 onPrompts = { navigation = ChatNavigation.PROMPTS },
                                 onSearch = { navigation = ChatNavigation.SEARCH },
                                 onSettings = openSettings,
                                 onArtifacts = { artifactsOpen = true },
-                                onOffline = onOffline,
+                                onOffline = onOffline, onNewLocal = onNewLocal,
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
                                     ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }
                                         .joinToString("\n\n") { "${if (it.role == "user") "You" else "Hermes"}:\n${it.content}" })
                                 }) else null,
                                 showContext = sideBySide && showContext,
                                 onContext = { if (sideBySide) showContext = !showContext else infoSheet = true })
+                            if (mode == WorkspaceMode.CHATS) fallbackBanner?.invoke()
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
@@ -270,7 +281,7 @@ internal fun HermesApp(
                                     Text("Connect to Hermes to see your calendar, reminders and agent activity.")
                                     TextButton(onClick=openSettings) { Text("Open Settings") }
                                 }
-                                WorkspaceMode.CHATS -> if (openSessionId == null) {
+                                WorkspaceMode.CHATS -> if (localChat != null) localChat() else if (openSessionId == null) {
                                     if (disconnected) DisconnectedWelcome({ open(BellpullExample.ID) }, openSettings)
                                     else EmptyDetail()
                                 } else {
@@ -293,7 +304,7 @@ internal fun HermesApp(
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
                                             denseChatWindow = preferences.denseChatWindow,
                                             pendingUserText = pendingUserText,
-                                            sendBlocked = disconnected || runPresentation?.busy == true || uploading,
+                                            sendBlocked = disconnected || fallbackBanner != null || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
                                             readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewDialog == null && previewPane == null,
@@ -317,7 +328,7 @@ internal fun HermesApp(
                                 }
                             }
                             detailPane(Modifier.weight(1f).fillMaxHeight())
-                            SlidingPane(previewPane != null || (showContext && openSessionId != null && mode == WorkspaceMode.CHATS),
+                            SlidingPane(previewPane != null || (showContext && openSessionId != null && mode == WorkspaceMode.CHATS && localChat == null),
                                 fromLeft = false, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     VerticalDivider()

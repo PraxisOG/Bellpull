@@ -11,6 +11,9 @@ import org.praxisog.hermes.core.HermesClient
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
     private val context = context.applicationContext
+    private val fallbackLifecycle = LocalFallbackLifecycle(this.context as android.app.Application) {
+        offlineWorkspace?.background()
+    }
     fun speechConnection(): ServerConnection = checkNotNull(profileId?.let { SecureConnectionStore(context).connection(it) }) {
         "Select a server profile before using server speech."
     }
@@ -34,8 +37,38 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var client: HermesClient? = null
         private set
-    var offlineWorkspace: OfflineWorkspace? = null
+    var offlineWorkspace by mutableStateOf<OfflineWorkspace?>(null)
         private set
+    val localSettings = LocalFallbackSettings(this.context)
+    val localModel by lazy { LocalLlmLab.get(this.context) }
+    var fallbackOffline by mutableStateOf(false)
+        private set
+    var fallbackProblem by mutableStateOf<String?>(null)
+        private set
+    suspend fun monitorConnection() {
+        while (currentCoroutineContext().isActive) {
+            val api = client
+            if (api != null) {
+                val result = withContext(Dispatchers.IO) { api.checkConnection() }
+                currentCoroutineContext().ensureActive()
+                if (api === client) {
+                    val wasOffline = fallbackOffline
+                    fallbackOffline = result !is org.praxisog.hermes.model.HermesResult.Ok
+                    fallbackProblem = (result as? org.praxisog.hermes.model.HermesResult.Err)?.error?.toUserMessage()
+                    if (wasOffline && !fallbackOffline) { store?.loadSessions(); store?.refreshHistory(); syncOfflineMemory() }
+                }
+            }
+            delay(12000)
+        }
+    }
+    suspend fun warmLocal() {
+        val lab = localModel
+        if (!lab.state.value.scanned || lab.state.value.busy) return
+        val task = lab.prepareOffline(localSettings.value.contextTokens)
+        try { task.await() } catch (e: CancellationException) {
+            lab.stop(); withContext(NonCancellable) { runCatching { task.await() } }; throw e
+        } catch (_: Exception) { /* The lab exposes the actionable loading error. */ }
+    }
     private var memorySync: Job? = null
     private var memorySyncedAt = 0L
     private fun syncOfflineMemory() {
@@ -223,6 +256,7 @@ internal class BellpullRuntime private constructor(context: Context) {
 
     fun disconnect() {
         offlineWorkspace?.close(); offlineWorkspace = null
+        fallbackOffline = false; fallbackProblem = null
         memorySync?.cancel(); memorySync = null; memorySyncedAt = 0
         delivery?.close(); delivery = null
         coding?.close(); coding = null

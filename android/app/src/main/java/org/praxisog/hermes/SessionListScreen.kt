@@ -66,6 +66,8 @@ internal fun SessionListScreen(
     creating: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
     offline: OfflineState? = null,
+    onNewLocal: (() -> Unit)? = null,
+    fallbackBanner: (@Composable () -> Unit)? = null,
     now2: Double = now,
     query: String = "",
     onQueryChange: (String) -> Unit = {},
@@ -139,7 +141,7 @@ internal fun SessionListScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         filters()
                         NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
-                        if (showNewChatButton) NewChatButton(onNewSession, creating)
+                        if (showNewChatButton) NewChatButton(onNewSession, creating, onNewLocal = onNewLocal)
                     }
                 })
             } else Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -154,9 +156,10 @@ internal fun SessionListScreen(
                     filters()
                     NavigationAction("Search", onExpandedSearch, description = "Search conversations") { SearchGlyph() }
                 }
-                if (showNewChatButton) NewChatButton(onNewSession, creating)
+                if (showNewChatButton) NewChatButton(onNewSession, creating, onNewLocal = onNewLocal)
             }
-            offline?.let { state ->
+            fallbackBanner?.invoke()
+            offline?.takeIf { fallbackBanner == null }?.let { state ->
                 // Names the staleness AND which layer failed, because "offline" alone does not
                 // tell the user whether to check their network or the server.
                 Surface(
@@ -426,6 +429,7 @@ internal fun SessionRow(session: Session, now: Double, selected: Boolean, unread
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (session.source == "local") Text("Local", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             if (titleOnly && pinned) Text("◆", style = MaterialTheme.typography.labelSmall, modifier = Modifier.semantics { contentDescription = "Pinned conversation" })
             if (titleOnly && runLabel != null) Text("•", color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { contentDescription = runLabel })
             if (titleOnly && unread) UnreadDot(session.id)

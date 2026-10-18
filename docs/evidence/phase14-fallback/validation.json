@@ -1,0 +1,41 @@
+{
+  "app": "0.14.1-experimental",
+  "build": 33,
+  "plugin": "0.5.1-integration-preview",
+  "device": "Pixel 10 Pro Fold / Android 17",
+  "jvm": {
+    "app": {
+      "tests": 622,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-model": {
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-hermes": {
+      "tests": 45,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  },
+  "screenshot_baselines": 187,
+  "physical_distinct_tests_passed": 10,
+  "plugin_tests": 161,
+  "plugin_skipped": 1,
+  "live_hermes_offline_profile_tests": 8,
+  "live_hermes_version": "0.21.5",
+  "lint": "passed",
+  "release_abis": [
+    "arm64-v8a",
+    "x86_64"
+  ],
+  "limits": "Synthetic controlled examples; large-history quality and sustained thermals/battery are not established. Context 4K/8K tests use short prompts.",
+  "installed_package": "org.praxisog.hermes",
+  "installed_apk_sha256": "a2c4d5b05bb5446bb917c258ca381f682142fbba789061f749eeec302e0cbe6d",
+  "upgrade": "In-place upgrade from build 32, no app data cleared; installed APK digest matches signed artifact."
+}

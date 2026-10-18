@@ -1,3 +1,14 @@
+## Integrated local fallback — 0.14.1 / build 33
+
+Local chats now share the normal conversation list and shell. Automatic foreground
+loading, red/yellow readiness, offline + and online long-press +, configurable
+2K/4K/8K contexts, resumable chunk compaction and automatic local-history compaction.
+Approved resync remains idempotent and imported text is searchable in Hermes;
+the main conversation list shows one entry per synced chat. Source and local
+originals remain saved. Plugin 0.5.1 keeps the existing 0.5 handoff contract.
+This is a locally installed experiment, not a published GitHub release.
+See [implementation and acceptance](PHASE-14-OFFLINE.md).
+
 ## Local Phase 14 experiment — 0.14.0 / build 32
 
 Persistent encrypted local forks, Gemma 4 E2B CPU with a thinking toggle,

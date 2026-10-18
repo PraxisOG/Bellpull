@@ -22,10 +22,12 @@ internal fun digest(text: String) = MessageDigest.getInstance("SHA-256").digest(
 @Serializable internal data class OfflineTurn(val id: String = offlineId(), val role: String, val text: String = "",
     val thought: String = "", val status: String = "complete", val citations: List<String> = emptyList(),
     val tools: List<String> = emptyList(), val metrics: String = "")
+@Serializable internal data class CompactionCheckpoint(val key: String, val offset: Int = 0, val summary: String = "", val chunks: Int = 0)
 @Serializable internal data class OfflineFork(val id: String = offlineId(), val title: String = "Local conversation",
     @Transient val source: OfflineSource? = null, val sourceId: String? = source?.id, val sourceRevision: String? = source?.revision,
     val memory: OfflineMemory = OfflineMemory(), val brief: String = "",
-    val thinking: Boolean = false, val turns: List<OfflineTurn> = emptyList(), val draft: String = "",
+    val thinking: Boolean = false, val summary: String = "", val summarizedTurns: Int = 0,
+    val sourcePrepared: Boolean = false, val sourcePreparationRequired: Boolean = false, val compaction: CompactionCheckpoint? = null, val turns: List<OfflineTurn> = emptyList(), val draft: String = "",
     val updatedAt: Long = System.currentTimeMillis(), val pending: OfflineHandoff? = null, val remoteId: String? = null)
 @Serializable internal data class OfflineChunk(val id: String, val messageId: Int, val role: String, val text: String,
     val vector: List<Float> = emptyList())
@@ -80,6 +82,7 @@ internal class OfflineStorage(context: Context, profile: String) {
         .map { json.decodeFromString<OfflineFork>(checkNotNull(read(it.name))) }.sortedByDescending { it.updatedAt }
     fun delete(fork: OfflineFork) = synchronized(records) {
         file("fork-${digest(fork.id)}").delete(); file("index-${digest(fork.id)}").delete()
+        file("index-${digest("${fork.id}:local")}").delete()
         if (forks().none { it.sourceId == fork.sourceId && it.sourceRevision == fork.sourceRevision }) file(snapshotName(fork)).delete()
     }
     fun memory(): OfflineMemory = read("memory")?.let { json.decodeFromString(it) } ?: OfflineMemory()

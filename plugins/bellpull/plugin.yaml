@@ -1,5 +1,5 @@
 name: bellpull
-version: 0.5.0-integration-preview
+version: 0.5.1-integration-preview
 description: Bellpull authenticated Android API, atomic branches, files, models, wake hints and optional GPU telemetry.
 author: Bellpull
 kind: standalone

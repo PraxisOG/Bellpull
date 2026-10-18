@@ -31,7 +31,8 @@ static std::string cache_key;
 static int reused = 0;
 static int64_t generation_started = 0;
 static bool thinking_requested = false, thinking_marker = false, reasoning_prefill = false;
-constexpr int context_size = 2048, batch_size = 128;
+static int context_size = 2048;
+constexpr int batch_size = 128;
 
 static void log_capture(enum ggml_log_level level, const char *message, void *) {
     if (!message) return;
@@ -85,9 +86,12 @@ extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_
 extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_clearCancel(JNIEnv *, jobject) { cancelled = false; }
 extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_cancel(JNIEnv *, jobject) { cancelled = true; }
 
-extern "C" JNIEXPORT jstring JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_load(JNIEnv *env, jobject, jstring path, jboolean gpu) {
+extern "C" JNIEXPORT jstring JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_load(JNIEnv *env, jobject, jstring path, jboolean gpu, jint requested_context) {
     try {
         cleanup(); check_cancel();
+        if (requested_context != 2048 && requested_context != 4096 && requested_context != 8192)
+            throw std::runtime_error("Unsupported local context size.");
+        context_size = requested_context;
         const int64_t started = ggml_time_us();
         { std::lock_guard<std::mutex> guard(log_mutex); offloaded = 0; load_log.clear(); }
         auto params = llama_model_default_params();
@@ -118,7 +122,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_org_praxisog_hermes_local_LocalLlmNati
         cp.abort_callback = abort_decode;
         context = llama_init_from_model(model, cp);
         check_cancel();
-        if (!context) throw std::runtime_error("Cannot allocate the 2048-token context. Unload other models and retry.");
+        if (!context) throw std::runtime_error("Cannot allocate the selected context. Choose a smaller context in Settings and retry.");
         templates = common_chat_templates_init(model, "");
         sampler = llama_sampler_init_greedy();
         char desc[256]; llama_model_desc(model, desc, sizeof(desc)); description = desc;
@@ -181,7 +185,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_praxisog_hermes_local_LocalLlmNative_
         const auto tokens = prompt_tokens(env, messages, thinking);
         limit = std::clamp<int>(max_tokens, 1, 768);
         if (tokens.empty() || tokens.size() + limit > context_size)
-            throw std::runtime_error("This conversation exceeds the 2048-token experiment. Start a new local chat or shorten the prompt.");
+            throw std::runtime_error("This conversation exceeds the selected context. Compact the chat or shorten the prompt.");
         const char *key_chars = env->GetStringUTFChars(key, nullptr);
         std::string next_key(key_chars); env->ReleaseStringUTFChars(key, key_chars);
         reused = 0;

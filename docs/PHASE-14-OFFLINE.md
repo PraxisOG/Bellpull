@@ -1,25 +1,44 @@
 # Phase 14: offline conversations and reconnection
 
-Android **0.14.0-experimental / build 32**, Bellpull plugin **0.5.0-integration-preview**.
+Android **0.14.1-experimental / build 33**, Bellpull plugin **0.5.1-integration-preview**.
 Gemma 4 E2B Q4_0 runs on CPU. Thinking defaults off and is saved per local chat.
 
 ## Use
 
-Open a server chat's **More → Use on phone**. **Fork saved chat** uses its cached
-transcript; **Prepare for offline** downloads the complete transcript and builds
-semantic search. Settings' local chat section also opens the saved fork list or a
-fresh local conversation. Import the existing Gemma E2B GGUF in Model setup if needed.
+Settings → **Local fallback** configures the installed Gemma E2B CPU model,
+automatic loading, default thinking and 2K/4K/8K contexts (2K remains the default).
+When the server becomes unreachable while Bellpull is visible, loading happens on
+the native worker. The red unavailable/loading banner becomes yellow with
+**Local model ready · limited functionality** only after successful loading.
+The authenticated foreground probe runs every 12 seconds with a 5-second deadline.
+Backgrounding the app cancels local work and unloads the model; navigation within
+the app and Activity recreation retain the conversation.
 
-Local messages and drafts are separate from the source. Search, citation buttons,
-and the model's `search_chat` / `read_chunk` tools access only that fork's immutable
-source snapshot. Indexing can also run offline and resumes completed chunks after
-interruption. Keyword search covers chunks whose embeddings are not yet available.
+Offline **+** creates a local chat. Online, long-press **+ → New local chat**.
+Local and server chats share the normal conversation list and adaptive shell.
+An existing chat's toolbar or row menu offers **Create local fork**. Online it
+fetches complete history; offline it uses the saved transcript. Gemma compacts
+conversation data in chunks, with thinking disabled during compaction. Sources
+longer than the selected context display **This will take a hot minute** before
+inference begins. Stop preserves completed chunks; **Resume compaction** continues.
+The original transcript remains encrypted and searchable through semantic/keyword
+retrieval and bounded read-only tools. No bulk chat summarization is scheduled.
 
-Details includes an optional user-written brief, memory refresh, and **Continue in
-Hermes**. Review that handoff to create a new server conversation. A lost response
-leaves a persistent pending operation: retry recovers the same conversation. Thinking,
-incomplete replies and executable tool calls are excluded. Import does not run an
-agent. The source stays unchanged; there is no automatic merging or tool replay.
+Before a local reply would require trimming older turns, Gemma compacts those
+turns into a rolling continuation note. Original local messages remain visible and
+searchable. Exact template token counts control chunk and reply budgets. Summaries
+are lossy; retrieval can recover omitted details. Settings can increase the context
+at a CPU prefill/RAM cost. Large single messages may still need shortening.
+
+Details includes the generated note, optional user brief, memory refresh and
+**Continue in Hermes**. Review before resync. The plugin imports complete local
+messages and the note into Hermes's conversation database, where normal session
+search can find them. It does not rewrite permanent MEMORY/USER notes or execute
+an agent. An imported local copy is read-only; use **Open Hermes conversation**
+to continue. The list hides its local row once the matching server row arrives,
+retaining the local copy as a fallback until then. Lost responses retry the same
+persistent operation; a second handoff of a synced fork returns its existing ID.
+The original server chat remains a distinct, unchanged source.
 
 ## Implementation boundaries
 
@@ -36,8 +55,8 @@ agent. The source stays unchanged; there is no automatic merging or tool replay.
   is reused. `tools/prepare-search-model.py` fetches and verifies assets during build.
   See the packaged MiniLM notice for exact revision/checksums. Chunks have at most
   220 UTF-16 units, overlap, and stable message/offset citations.
-- Native context remains 2,048 tokens with exact template token accounting. Recent
-  local history, memory and retrieved excerpts are reduced to fit. Answers are capped
+- Native context is 2,048, 4,096 or 8,192 tokens with exact template accounting.
+  Rolling compaction retains older local context; memory/excerpts are reduced to fit. Answers are capped
   at 384 generated tokens; thinking at 768, shared across all local tool rounds,
   with a 120-second deadline for each generation step.
   Prefill is separate from that deadline. Stop cancels prefill and generation.
@@ -58,7 +77,35 @@ agent. The source stays unchanged; there is no automatic merging or tool replay.
   imports the branch plus fingerprint in one SessionDB transaction. Its narrow
   contract is tested on Hermes 0.21.1 and 0.21.5 independently of optional run hooks.
 
-## Acceptance evidence
+## 0.14.1 acceptance
+
+The expanded synthetic summary test used 3,148 source tokens with a 2K context.
+The generated note retained the corrected $720 budget and 11:15 train, November 12
+travel date, wheelchair/step-free constraint, final lunch decision and Lee's
+unfinished taxi confirmation. Rejected options were discarded. This is one
+controlled example, not general summary-quality proof. The repeated “Cobalt
+Orchard” venue in the structural test is deliberately seeded synthetic data;
+no personal conversation is used in these fixtures.
+
+Device coverage includes foreground automatic loading, offline + into the normal
+chat shell, first-message readiness during model loading, Activity recreation,
+background unload, native loading/replies at all
+three context sizes, long-source warning, chunk checkpoint/resume and automatic
+local-history compaction. Larger context tests establish allocation and short
+inference, not full-window latency or sustained battery behavior. The 2K default
+is retained. See the machine-readable reports in `docs/evidence/phase14-fallback`.
+
+All ten distinct physical-device checks passed. JVM verification ran 694 tests
+with no failures (one opt-in live test skipped), and all 187 existing screenshot
+baselines passed. Android lint and release assembly passed for arm64-v8a and
+x86_64. The signed build upgrades the existing installation without clearing data.
+
+The plugin's 161-test suite passed (one existing skip) on the pinned host. Eight
+offline/profile tests passed on local Hermes 0.21.5, including FTS search of the
+imported conversation and exactly-once retry. The test gateway is updated to
+0.5.1. The 0.5 protocol remains compatible with 0.5.0 servers.
+
+## Original 0.14.0 acceptance evidence
 
 The physical Pixel 10 Pro Fold fixture tested encryption/AAD profile isolation,
 interrupted-state recovery, actual ONNX retrieval, E2B CPU replies, Activity recreation,
@@ -85,7 +132,7 @@ generated tokens over three steps. These synthetic short prompts do
 not establish quality over arbitrary long chats or prove that intermittent CPU stalls
 are eliminated. Thinking can still exhaust its budget without a final answer.
 
-Preparation currently caches/indexes and accepts a manual brief; it does not request
+Preparation in 0.14.1 uses local Gemma compaction plus indexing. It does not request
 a server-generated summary. The bundled embedding model is strongest in English.
 Images, attachments, voice routing and arbitrary Hermes tools are outside this local
 text experiment. Moe requires the matching plugin for memory/handoff; local forks

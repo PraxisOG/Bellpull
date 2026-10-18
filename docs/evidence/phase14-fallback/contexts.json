@@ -1,0 +1,77 @@
+[
+  {
+    "backend": "CPU (0 GPU layers)",
+    "model": "gemma4 E2B Q4_0",
+    "offloaded_layers": 0,
+    "load_ms": 2873.591,
+    "prompt_tokens": 22,
+    "generated_tokens": 1,
+    "prompt_ms": 420.315,
+    "generation_ms": 113.287,
+    "reused_tokens": 0,
+    "prompt_tps": 52.34169610887073,
+    "prefill_tokens": 22,
+    "thinking": false,
+    "thinking_marker": false,
+    "reasoning_prefill": false,
+    "generation_tps": 8.827138153539241,
+    "finish": "complete",
+    "token_ids": [
+      236810,
+      106
+    ],
+    "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+    "configured_context": 2048,
+    "wall_ms": 544
+  },
+  {
+    "backend": "CPU (0 GPU layers)",
+    "model": "gemma4 E2B Q4_0",
+    "offloaded_layers": 0,
+    "load_ms": 2128.828,
+    "prompt_tokens": 22,
+    "generated_tokens": 1,
+    "prompt_ms": 439.924,
+    "generation_ms": 108.334,
+    "reused_tokens": 0,
+    "prompt_tps": 50.00863785562961,
+    "prefill_tokens": 22,
+    "thinking": false,
+    "thinking_marker": false,
+    "reasoning_prefill": false,
+    "generation_tps": 9.230712426385068,
+    "finish": "complete",
+    "token_ids": [
+      236810,
+      106
+    ],
+    "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+    "configured_context": 4096,
+    "wall_ms": 3205
+  },
+  {
+    "backend": "CPU (0 GPU layers)",
+    "model": "gemma4 E2B Q4_0",
+    "offloaded_layers": 0,
+    "load_ms": 2125.143,
+    "prompt_tokens": 22,
+    "generated_tokens": 1,
+    "prompt_ms": 444.626,
+    "generation_ms": 109.457,
+    "reused_tokens": 0,
+    "prompt_tps": 49.47978750680347,
+    "prefill_tokens": 22,
+    "thinking": false,
+    "thinking_marker": false,
+    "reasoning_prefill": false,
+    "generation_tps": 9.13600774733457,
+    "finish": "complete",
+    "token_ids": [
+      236810,
+      106
+    ],
+    "load_log": "load_tensors: offloaded 0\/36 layers to GPU\nload_tensors:   CPU_Mapped model buffer size =  3179.05 MiB\nload_tensors: CPU_KLEIDIAI model buffer size =   999.44 MiB\n",
+    "configured_context": 8192,
+    "wall_ms": 3191
+  }
+]

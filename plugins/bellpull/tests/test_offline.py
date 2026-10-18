@@ -41,6 +41,15 @@ class OfflineTests(unittest.TestCase):
         self.assertEqual("source", config["_branched_from"])
         self.assertEqual("source", self.db.resolve_resume_session_id("source"))
 
+    def test_import_is_searchable_and_retries_do_not_duplicate_memory_results(self):
+        body = {**self.body, "messages": [{"role": "user", "content": "Nebular mango protocol 4827"}]}
+        first = handoff(self.db, body)
+        handoff(self.db, body)
+        results = self.db.search_messages("Nebular mango")
+        self.assertEqual(1, len(results))
+        self.assertEqual(first["session_id"], results[0]["session_id"])
+        self.assertEqual(2, len(self.db.get_messages(first["session_id"])))
+
     def test_changed_retry_conflicts_and_no_partial_import(self):
         handoff(self.db, self.body)
         with self.assertRaises(OfflineError) as error:

@@ -103,7 +103,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             }
         }
         phoneNotificationSettings?.let { SettingsSection("Phone notification context", "Local history and sharing with Hermes") { it() } }
-        localLlmSettings?.let { SettingsSection("Local chat lab", "Experimental on-device LLM") { it() } }
+        localLlmSettings?.let { SettingsSection("Local fallback", "Gemma on this phone") { it() } }
         SettingsSection("Appearance", "Theme, colors and preview") {
             Text("Appearance", style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

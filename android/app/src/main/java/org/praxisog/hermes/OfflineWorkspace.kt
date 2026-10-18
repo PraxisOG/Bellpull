@@ -9,13 +9,15 @@ import org.praxisog.hermes.model.*
 
 internal data class OfflineWorkspaceState(val forks: List<OfflineFork> = emptyList(), val current: OfflineFork? = null,
     val busy: Boolean = true, val status: String = "Opening saved chats…", val error: String? = null,
-    val searchResults: List<OfflineChunk> = emptyList())
+    val searchResults: List<OfflineChunk> = emptyList(), val forkReview: ForkReview? = null)
+internal data class ForkReview(val tokens: Int, val contextTokens: Int)
 
 /** Separate route: local Send has no network path. Network use is explicit preparation or handoff. */
 internal class OfflineWorkspace(private val context: Context, val profile: String, private val client: () -> HermesClient?) {
     private val storage = OfflineStorage(context, profile)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val lab = LocalLlmLab.get(context)
+    private fun configuration() = LocalFallbackSettings(context).value
     private var encoder: SearchEncoder? = null
     @Volatile private var active = true
     private var operation: Job? = null
@@ -36,7 +38,8 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         mutable.update { it.copy(busy = true, error = null, status = label) }
         operation = scope.launch {
             try { task() } catch (e: Exception) {
-                mutable.update { it.copy(error = e.message ?: "Operation failed", status = "Saved local chat retained") }
+                mutable.update { it.copy(error = if (e is CancellationException) null else e.message ?: "Operation failed",
+                    status = if (e is CancellationException) "Stopped · progress saved; resume when ready" else "Saved local chat retained") }
             } finally { mutable.update { it.copy(busy = false) } }
         }
     }
@@ -47,13 +50,13 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
     }
     @Synchronized private fun write(block: () -> Unit) { check(active) { "Profile closed" }; block() }
     fun open(id: String) = action("Opening local chat…") {
-        val fork = checkNotNull(storage.fork(id)); mutable.update { it.copy(current = fork, searchResults = emptyList(), status = "Local • source and server chat are separate") }
+        val fork = checkNotNull(storage.fork(id)); mutable.update { it.copy(current = fork, searchResults = emptyList(), forkReview = null, status = "Local • source and server chat are separate") }
     }
-    fun back() { if (!state.value.busy) mutable.update { it.copy(current = null, searchResults = emptyList()) } }
+    fun back() { if (!state.value.busy) mutable.update { it.copy(current = null, searchResults = emptyList(), forkReview = null) } }
     fun create(sourceId: String?, title: String = "Local conversation") = action("Creating local fork…") {
         val source = sourceId?.let { storage.source(it) ?: error("Open this chat online once or choose Prepare for offline to save its history.") }
-        save(OfflineFork(title = source?.title ?: title, source = source, memory = storage.memory()))
-        mutable.update { it.copy(status = "Fork saved. Search works now; Prepare for offline adds semantic search.") }
+        save(OfflineFork(title = source?.title ?: title, source = source, memory = storage.memory(), thinking = configuration().thinking))
+        mutable.update { it.copy(searchResults = emptyList(), forkReview = null, status = if (source == null) "Local chat ready" else "Local fork saved") }
     }
     fun prepare(sourceId: String, title: String) = action("Saving full conversation…") {
         val api = client() ?: error("Connect to this profile to prepare its chat.")
@@ -65,34 +68,138 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         currentCoroutineContext().ensureActive()
         write { storage.save(source) }
         when (val result = api.offlineMemory()) { is HermesResult.Ok -> write { storage.save(result.value) }; else -> Unit }
-        val fork = OfflineFork(title = title, source = source, memory = storage.memory())
-        save(fork); index(fork)
+        val fork = OfflineFork(title = title, source = source, memory = storage.memory(), thinking = configuration().thinking)
+        save(fork); mutable.update { it.copy(searchResults = emptyList(), forkReview = null) }; index(fork)
         mutable.update { it.copy(status = "Prepared ${source.messages.size} messages for offline use. Add a brief if useful.") }
+    }
+    /** User-facing fork flow: get the best available transcript, measure, then review expensive work. */
+    fun requestFork(sourceId: String, title: String, download: Boolean = true) = action("Preparing local fork…") {
+        val downloaded = client()?.takeIf { download }?.let { api -> withContext(Dispatchers.IO) { api.completeHistory(sourceId) } }
+        val source = if (downloaded is HermesResult.Ok) OfflineSource(sourceId, title, downloaded.value.data).also { write { storage.save(it) } }
+            else storage.source(sourceId) ?: error("This chat has not been saved on this phone. Open it online first.")
+        var fork = OfflineFork(title = title, source = source, sourcePreparationRequired = true, memory = storage.memory(), thinking = configuration().thinking)
+        save(fork)
+        mutable.update { it.copy(searchResults = emptyList(), forkReview = null) }
+        val contextTokens = configuration().contextTokens
+        val text = OfflineCompaction.sourceText(source)
+        val tokens = measure(contextTokens) { count -> count(listOf(LocalTurn("user", text)), false) }
+        if (tokens > contextTokens) {
+            mutable.update { it.copy(forkReview = ForkReview(tokens, contextTokens), status = "Ready to compact the saved source") }
+        } else {
+            fork = compactSource(fork, contextTokens)
+            index(fork)
+            mutable.update { it.copy(status = "Local fork ready · original chat is searchable") }
+        }
+    }
+    fun dismissForkReview() { mutable.update { it.copy(forkReview = null, status = "Fork saved · compaction can be resumed from Details") } }
+    fun compactCurrent() = action("Compacting conversation…") {
+        mutable.update { it.copy(forkReview = null) }
+        val fork = checkNotNull(state.value.current)
+        check(fork.pending == null && fork.remoteId == null) { "This chat is awaiting sync or has already been synced." }
+        val contextTokens = configuration().contextTokens
+        if (fork.source != null && !fork.sourcePrepared) {
+            val prepared = compactSource(fork, contextTokens)
+            index(prepared)
+        } else compactTurns(fork, fork.turns.size, contextTokens)
+        mutable.update { it.copy(status = "Compacted · original messages remain saved and searchable") }
+    }
+    private suspend fun <T> awaitNative(work: Deferred<T>): T = try {
+        val value = work.await(); currentCoroutineContext().ensureActive(); value
+    } catch (e: CancellationException) {
+        lab.stop()
+        withContext(NonCancellable) { runCatching { work.await() } }
+        throw e
+    }
+    private suspend fun <T> measure(contextTokens: Int, task: ((List<LocalTurn>, Boolean) -> Int) -> T): T {
+        lab.state.first { it.scanned && !it.busy }
+        return awaitNative(lab.measureOffline(contextTokens, task))
+    }
+    private suspend fun compactSource(fork: OfflineFork, contextTokens: Int): OfflineFork {
+        val text = fork.source?.let(OfflineCompaction::sourceText).orEmpty()
+        val result = compact(fork, "source", text, contextTokens)
+        return result.copy(sourcePrepared = true, compaction = null).also(::save)
+    }
+    private suspend fun compactTurns(fork: OfflineFork, through: Int, contextTokens: Int): OfflineFork {
+        if (through <= fork.summarizedTurns) return fork
+        val text = OfflineCompaction.turnText(fork.turns.subList(fork.summarizedTurns, through))
+        val result = compact(fork, "turns:$through", text, contextTokens)
+        val compacted = result.copy(summarizedTurns = through, compaction = null).also(::save)
+        indexSource("${fork.id}:local", localSource(compacted))
+        return compacted
+    }
+    private suspend fun compact(initial: OfflineFork, kind: String, text: String, contextTokens: Int): OfflineFork {
+        var fork = initial
+        val key = digest("$kind:$text")
+        var progress = fork.compaction?.takeIf { it.key == key } ?: CompactionCheckpoint(key, summary = fork.summary)
+        while (progress.offset < text.length) {
+            currentCoroutineContext().ensureActive()
+            val end = measure(contextTokens) { count -> OfflineCompaction.nextEnd(text, progress.offset, progress.summary, contextTokens) { count(it, false) } }
+            val prompt = OfflineCompaction.prompt(progress.summary, text.substring(progress.offset, end))
+            mutable.update { it.copy(status = "Compacting ${if (kind == "source") "source" else "local history"} · chunk ${progress.chunks + 1} · ${progress.offset * 100L / text.length}%") }
+            val result = awaitNative(lab.offlineReply("$profile:${fork.id}:compact", false, OfflineCompaction.OUTPUT_TOKENS,
+                contextTokens, { prompt }, {}))
+            val note = OfflinePrompt.output(result.first).answer
+            val finish = JSONObject(result.second).getString("finish")
+            check(note.isNotBlank() && finish in setOf("complete", "token limit")) { "Compaction did not finish. Resume to retry this chunk." }
+            progress = progress.copy(offset = end, summary = note, chunks = progress.chunks + 1)
+            fork = fork.copy(compaction = progress)
+            save(fork)
+        }
+        return fork.copy(summary = progress.summary)
+    }
+    private suspend fun compactIfNeeded(initial: OfflineFork, question: String, contextTokens: Int): OfflineFork {
+        var fork = initial
+        // Complete an interrupted source preparation before continuing the local fork.
+        if ((fork.compaction != null || fork.sourcePreparationRequired) && !fork.sourcePrepared && fork.source != null) fork = compactSource(fork, contextTokens)
+        if (fork.turns.size <= fork.summarizedTurns) return fork
+        val probe = fork.copy(turns = fork.turns + OfflineTurn(role = "user", text = question))
+        val hits = search(fork, question)
+        val tooLong = measure(contextTokens) { count ->
+            var fullPromptTokens: Int? = null
+            OfflinePrompt.build(probe, hits, null, fork.source != null || fork.summarizedTurns > 0, contextTokens) { prompt ->
+                count(prompt, fork.thinking).also { if (fullPromptTokens == null) fullPromptTokens = it }
+            }
+            checkNotNull(fullPromptTokens) > contextTokens - (if (fork.thinking) 768 else 384)
+        }
+        if (tooLong || fork.compaction != null) {
+            mutable.update { it.copy(status = "This chat is filling its context · compacting older messages…") }
+            fork = compactTurns(fork, fork.turns.size, contextTokens)
+        }
+        return fork
     }
     fun prepareCurrent() = action("Building semantic search…") {
         index(checkNotNull(state.value.current)); mutable.update { it.copy(status = "Semantic search ready on this phone") }
     }
     private suspend fun index(fork: OfflineFork) {
-        val source = fork.source ?: return
-        val old = storage.index(fork.id)?.takeIf { it.model == SearchEncoder.VERSION && it.revision == source.revision }
-        val byId = old?.chunks.orEmpty().associateBy { it.id }
+        fork.source?.let { indexSource(fork.id, it) }
+        if (fork.summarizedTurns > 0) indexSource("${fork.id}:local", localSource(fork))
+    }
+    private suspend fun indexSource(key: String, source: OfflineSource) {
+        // Stable message/offset IDs and exact text comparison reuse old local vectors as history grows.
+        val byId = storage.index(key)?.takeIf { it.model == SearchEncoder.VERSION }?.chunks.orEmpty().associateBy { it.id }
         val chunks = mutableListOf<OfflineChunk>()
         OfflineSearch.chunks(source).forEachIndexed { i, chunk ->
             currentCoroutineContext().ensureActive()
             check(active)
-            val saved = byId[chunk.id]?.takeIf { it.text == chunk.text && it.vector.isNotEmpty() }
+            val saved = byId[chunk.id]?.takeIf { it.text == chunk.text && it.role == chunk.role && it.vector.isNotEmpty() }
             val indexed = saved ?: chunk.copy(vector = encode(chunk.text))
-            if (i % 16 == 0) mutable.update { it.copy(status = "Indexing source excerpt ${i + 1}…") }
+            if (i % 16 == 0) mutable.update { it.copy(status = "Indexing saved excerpt ${i + 1}…") }
             chunks.add(indexed)
-            if (i % 32 == 31) write { storage.save(fork.id, OfflineIndex(source.revision, chunks = chunks.toList())) }
+            if (i % 32 == 31) write { storage.save(key, OfflineIndex(source.revision, chunks = chunks.toList())) }
         }
-        write { storage.save(fork.id, OfflineIndex(source.revision, chunks = chunks)) }
+        write { storage.save(key, OfflineIndex(source.revision, chunks = chunks)) }
     }
     @Synchronized private fun encode(text: String) = (encoder ?: SearchEncoder(context).also { encoder = it }).encode(text)
-    private fun chunks(fork: OfflineFork): List<OfflineChunk> = fork.source?.let { source ->
-        val indexed = storage.index(fork.id)?.takeIf { it.model == SearchEncoder.VERSION && it.revision == source.revision }?.chunks.orEmpty().associateBy { it.id }
-        OfflineSearch.chunks(source).map { indexed[it.id]?.takeIf { saved -> saved.text == it.text } ?: it }
-    }.orEmpty()
+    private fun localSource(fork: OfflineFork) = OfflineSource("local", fork.title,
+        fork.turns.take(fork.summarizedTurns).mapIndexedNotNull { i, turn ->
+            if (turn.role == "user" || turn.status == "complete") Message(-i - 1, role = turn.role, content = turn.text) else null
+        })
+    private fun indexedChunks(key: String, source: OfflineSource): List<OfflineChunk> {
+        val indexed = storage.index(key)?.takeIf { it.model == SearchEncoder.VERSION }?.chunks.orEmpty().associateBy { it.id }
+        return OfflineSearch.chunks(source).map { indexed[it.id]?.takeIf { saved -> saved.text == it.text && saved.role == it.role } ?: it }
+    }
+    private fun chunks(fork: OfflineFork): List<OfflineChunk> =
+        fork.source?.let { indexedChunks(fork.id, it) }.orEmpty() + indexedChunks("${fork.id}:local", localSource(fork))
     private fun search(fork: OfflineFork, query: String): List<OfflineChunk> {
         val chunks = chunks(fork)
         return OfflineSearch.search(chunks, query, if (chunks.any { it.vector.isNotEmpty() }) encode(query) else emptyList())
@@ -125,9 +232,16 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
     }
     fun send() = action("Retrieving context…") {
         var fork = checkNotNull(state.value.current)
-        check(fork.pending == null) { "Retry the pending handoff before adding more messages." }
+        check(fork.pending == null && fork.remoteId == null) { "Open the synced Hermes conversation or finish the pending handoff first." }
         val text = fork.draft.trim(); require(text.isNotEmpty())
-        fork = fork.copy(turns = fork.turns + OfflineTurn(role = "user", text = text) + OfflineTurn(role = "assistant", status = "generating"),
+        val contextTokens = configuration().contextTokens
+        mutable.update { it.copy(status = "Preparing local model…") }
+        // A first question may arrive while foreground fallback loading is still
+        // running. Keep the draft until the shared native owner is ready.
+        measure(contextTokens) { Unit }
+        fork = compactIfNeeded(fork, text, contextTokens)
+        fork = fork.copy(title = if (fork.source == null && fork.turns.isEmpty() && fork.title == "Local conversation") text.lineSequence().first().take(72) else fork.title,
+            turns = fork.turns + OfflineTurn(role = "user", text = text) + OfflineTurn(role = "assistant", status = "generating"),
             draft = "", remoteId = null, updatedAt = System.currentTimeMillis())
         save(fork)
         try {
@@ -139,8 +253,8 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
             var totalPromptMs = 0.0
             for (round in 0..2) {
                 var persistedAt = 0L
-                val generating = lab.offlineReply("$profile:${fork.id}", fork.thinking, remaining, { count ->
-                    OfflinePrompt.build(fork, hits, resultText, round < 2 && fork.source != null, count)
+                val generating = lab.offlineReply("$profile:${fork.id}", fork.thinking, remaining, contextTokens, { count ->
+                    OfflinePrompt.build(fork, hits, resultText, round < 2 && (fork.source != null || fork.summarizedTurns > 0), contextTokens, count)
                 }) { raw ->
                     val output = OfflinePrompt.output(raw)
                     val turn = fork.turns.last().copy(text = output.answer, thought = output.thought,
@@ -187,6 +301,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
     fun background() { stop(); lab.background() }
     fun handoff(onComplete: (String) -> Unit) = action("Sending reviewed local conversation to Hermes…") {
         var fork = checkNotNull(state.value.current)
+        fork.remoteId?.let { id -> withContext(Dispatchers.Main) { onComplete(id) }; return@action }
         val api = client() ?: error("Reconnect to this server profile before handing off.")
         if (fork.pending == null) {
             val discovery = api.capabilities()
@@ -197,7 +312,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         }
         val request = fork.pending ?: OfflineHandoff(offlineId(), fork.source?.id, fork.title.take(200),
             fork.turns.filter { it.role == "user" || it.status == "complete" }.filter { it.text.isNotBlank() }
-                .map { OfflineHandoffMessage(it.role, it.text) }, fork.brief).also { fork = fork.copy(pending = it); save(fork) }
+                .map { OfflineHandoffMessage(it.role, it.text) }, listOf(fork.summary, fork.brief).filter { it.isNotBlank() }.joinToString("\n\n").take(12000)).also { fork = fork.copy(pending = it); save(fork) }
         when (val result = api.offlineHandoff(request)) {
             is HermesResult.Ok -> {
                 check(result.value.operationId == request.operationId)

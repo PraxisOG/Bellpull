@@ -69,6 +69,19 @@ class HermesClient(
         snapshotPaging = value.features["bellpull_snapshot_paging"] == true
     }
 
+    /** Short authenticated foreground probe. It never retries or changes run transports. */
+    fun checkConnection(): HermesResult<Unit> {
+        val call = trackedCall(httpClient, authed("/v1/capabilities").get().build())
+        call.timeout().timeout(5, TimeUnit.SECONDS)
+        return try {
+            call.execute().use { response ->
+                if (response.isSuccessful) HermesResult.Ok(Unit)
+                else HermesResult.Err(mapHttpError(response, null))
+            }
+        } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+        finally { finished(call) }
+    }
+
     /** Ends this profile's transports without requesting that remote runs stop. */
     fun close() = synchronized(calls) {
         closed = true

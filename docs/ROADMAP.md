@@ -1,12 +1,12 @@
 # Bellpull phase roadmap
 
-Updated **October 17, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 18, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.13.0-experimental / build 31**, plugin
-**0.4.3-integration-preview**, based on `2026-10-17-car-experimental`.
+This experimental branch: app **0.14.1-experimental / build 33**, plugin
+**0.5.1-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
@@ -27,7 +27,7 @@ This experimental branch: app **0.13.0-experimental / build 31**, plugin
 | 11 | Today dashboard | Implemented overview of calendar, reminders, decisions, tracked work and unread replies; see phase evidence |
 | 12 | Phone notification context | Early implementation: opt-in encrypted history, exclusions, retention and per-server bounded context |
 | 13 | On-device LLM feasibility | Experimental local chat lab; E2B CPU works, Vulkan fails correctness checks |
-| 14 | Offline conversations and reconnection | Deferred, conditional on Phase 13 |
+| 14 | Offline conversations and reconnection | Experimental integrated fallback, local compaction and reviewed resync |
 | 15 | Phone assistant replacement and device actions | Deferred |
 | 16 | Android Auto | Separate deferred investigation |
 | 17 | Public release polish, widgets and Quick Settings | Final polish |
@@ -49,14 +49,14 @@ supersede the original scope. Verify actual implementation status in the reposit
 ## Priorities
 
 Existing foundation: Phases 0–3. Preserve and repair rather than rebuild.
-Active roadmap: Phases 4–13. Phase 13 now has an explicitly authorized bounded experiment.
-Deferred work: Phases 14–16. These must not block the active roadmap.
+Active roadmap: Phases 4–14. Phase 14 is an authorized integrated fallback experiment.
+Deferred work: Phases 15–16. These must not block the active roadmap.
 Final polish: Phase 17. Widgets and Quick Settings belong here.
 
 The deferred numbering is organizational, not a strict dependency chain.
 Android Auto can be investigated once phone voice/background audio are reliable;
 it does not require an on-device LLM. Assistant replacement remains a long-term
-goal. Offline conversation is much later than the local caching needed now.
+goal. Offline conversation now builds on local caching and the measured CPU inference path.
 
 ## Existing foundation
 
@@ -229,17 +229,20 @@ behavior, cancellation, and lifecycle. Give a usable-scope or no-go result befor
 building a full local agent. Do not quietly substitute a model or cloud fallback.
 
 ### Phase 14 · Offline conversations and reconnection — EXPERIMENTAL
-The 0.14.0 experiment uses Gemma 4 E2B on CPU with a per-chat thinking toggle,
-persistent encrypted local forks, source-only semantic/keyword retrieval and
-bounded local search/read tools. Viewed server transcripts are cached; deliberate
-preparation downloads a full chat and builds its embedding index. Compact Hermes
-memory snapshots sync locally without summarizing all conversations. Explicit,
-idempotent handoff creates a separate server conversation and imports no executable
-tool calls. See [implementation and acceptance](PHASE-14-OFFLINE.md).
+The 0.14.1 experiment integrates Gemma E2B CPU into the conversation shell. Settings
+configure automatic loading, thinking defaults and 2K/4K/8K contexts. Losing the
+server connection while the app is visible loads the model; a red banner becomes
+yellow when ready. Offline + creates a local chat; long-press + offers one online.
+Chat menus create encrypted local forks with resumable chunk compaction and a
+warning for sources exceeding the selected context. Local history compacts as
+needed, while original messages remain searchable. Memory snapshots sync locally
+without bulk summarization. Approved, idempotent resync imports searchable Hermes
+history; the main list reconciles the local/server copies into one entry.
+See [implementation and acceptance](PHASE-14-OFFLINE.md).
 
-Further acceptance: very large histories, sustained thermals/battery, richer local
-tool adherence, and long-term storage controls. Optional briefs are user-written in
-this version; server-generated summaries and automatic branch merging are deferred.
+Further acceptance: very large histories, sustained thermals/battery, broader
+summary quality and local tool adherence. Automatic merging into the original chat
+and changes to Hermes permanent memory notes are outside this version.
 
 ### Phase 15 · Phone assistant replacement and device actions — LATER BUCKET
 Long-term goal: Bellpull replaces the user's phone assistant. Combine default-

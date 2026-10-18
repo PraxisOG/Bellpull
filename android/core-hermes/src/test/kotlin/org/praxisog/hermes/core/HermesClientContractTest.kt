@@ -29,6 +29,18 @@ class HermesClientContractTest {
 
     // ---- happy paths ----------------------------------------------------------
 
+    @Test fun foregroundConnectionProbeIsAuthenticatedAndProfileScoped() {
+        val good = MockHermes.client()
+        val bad = MockHermes.client(key = "synthetic-wrong-key")
+        try {
+            ok(good.checkConnection())
+            assertTrue(err(bad.checkConnection()) is HermesError.AuthFailed)
+            bad.close()
+            assertTrue(err(bad.checkConnection()) is HermesError.Unreachable)
+            ok(good.checkConnection())
+        } finally { good.close(); bad.close() }
+    }
+
     @Test fun capabilitiesReportsStreamingSupport() {
         val caps = ok(MockHermes.client().capabilities())
         assertTrue("session_chat_streaming should be advertised", caps.sessionChatStreaming)

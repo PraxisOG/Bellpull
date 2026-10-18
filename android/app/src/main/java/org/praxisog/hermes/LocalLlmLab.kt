@@ -32,7 +32,7 @@ internal data class LocalLabState(
     val status: String = "Import a GGUF instruction model to begin.", val error: String? = null,
     val messages: List<LocalTurn> = emptyList(), val draft: String = "",
     val metrics: String = "", val report: String = "", val validation: String = "GPU has not been validated.",
-    val gpuValidatedFor: String? = null,
+    val gpuValidatedFor: String? = null, val contextTokens: Int = 2048, val scanned: Boolean = false,
 )
 
 /** A single serialized native owner, independent of Hermes and its credentials. */
@@ -42,6 +42,7 @@ internal class LocalLlmLab private constructor(private val context: Context) {
         fun get(context: Context): LocalLlmLab = instance ?: synchronized(this) {
             instance ?: LocalLlmLab(context.applicationContext).also { instance = it }
         }
+        const val E2B_SHA = "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634"
         const val MAX_MODEL_BYTES = 10L * 1024 * 1024 * 1024
         val comparisonPrompts = listOf("Reply with exactly: one two three", "What is 2 plus 3? Answer with one number.")
         fun validationPass(cpu: List<List<Int>>, gpu: List<List<Int>>): Boolean =
@@ -66,7 +67,7 @@ internal class LocalLlmLab private constructor(private val context: Context) {
                         .takeIf { modelFile(it).length() == it.bytes }
                 }.getOrNull()
             }.orEmpty().sortedBy { it.name }
-            mutable.update { it.copy(models = models, selected = prefs.getString("selected", null)?.takeIf { id -> models.any { m -> m.id == id } } ?: models.firstOrNull()?.id,
+            mutable.update { it.copy(scanned = true, models = models, selected = prefs.getString("selected", null)?.takeIf { id -> models.any { m -> m.id == id } } ?: models.firstOrNull()?.id,
                 report = runCatching { File(folder, "last-report.json").readText() }.getOrDefault(""),
                 status = if (models.isEmpty()) it.status else "Choose a model, then load CPU.") }
         }
@@ -147,14 +148,15 @@ internal class LocalLlmLab private constructor(private val context: Context) {
             ready = false, messages = emptyList(), metrics = "", gpuValidatedFor = null, status = "Model removed.") }
         prefs.edit().putString("selected", state.value.selected).apply()
     }
-    private fun loadNative(gpu: Boolean) {
+    private fun loadNative(gpu: Boolean, contextTokens: Int = 2048) {
         checkStop()
         LocalLlmNative.initialize(); nativeInitialized = true
         checkStop()
         LocalLlmNative.clearCancel()
         // Recheck after clearing: a concurrent Stop must never be lost.
         if (stopped.get()) LocalLlmNative.cancel()
-        LocalLlmNative.load(modelFile(selected()).absolutePath, gpu)
+        LocalLlmNative.load(modelFile(selected()).absolutePath, gpu, contextTokens)
+        mutable.update { it.copy(contextTokens = contextTokens) }
         checkStop()
     }
     fun load(gpu: Boolean = false) = operation(if (gpu) "Loading validated Vulkan model…" else "Loading CPU model…") {
@@ -213,47 +215,61 @@ internal class LocalLlmLab private constructor(private val context: Context) {
         return output.toString(Charsets.UTF_8.name()) to JSONObject(LocalLlmNative.report())
     }
 
-    /** Shares the lab's admission lock and native owner. CPU only, verified E2B weights. */
-    @Synchronized fun offlineReply(cacheKey: String, thinking: Boolean, maxTokens: Int,
-        prompt: ((List<LocalTurn>) -> Int) -> List<LocalTurn>, onText: (String) -> Unit): Deferred<Pair<String, String>> {
+    private fun offlineReady(contextTokens: Int) {
+        val e2b = state.value.models.firstOrNull { it.sha256 == E2B_SHA }
+            ?: error("Import Gemma 4 E2B Q4_0 in Settings first.")
+        if (nativeInitialized) LocalLlmNative.clearCancel()
+        checkStop()
+        if (!state.value.ready || state.value.gpu || state.value.selected != e2b.id || state.value.contextTokens != contextTokens) {
+            mutable.update { it.copy(selected = e2b.id, ready = false, status = "Loading Gemma on CPU…") }
+            loadNative(false, contextTokens)
+            mutable.update { it.copy(ready = true, gpu = false, status = "Local model ready · limited functionality") }
+        }
+    }
+    private fun bytes(turns: List<LocalTurn>) = JSONArray().apply {
+        turns.forEach { put(JSONObject().put("role", it.role).put("content", it.text)) }
+    }.toString().toByteArray(Charsets.UTF_8)
+
+    /** Shares admission and the native owner with the lab. The deferred completes AFTER release. */
+    @Synchronized private fun <T> offlineOperation(contextTokens: Int, block: () -> T): Deferred<T> {
         check(!state.value.busy) { "The local model is busy. Stop the other operation first." }
-        val result = CompletableDeferred<Pair<String, String>>()
+        val result = CompletableDeferred<T>()
         stopped.set(false)
-        mutable.update { it.copy(busy = true, error = null, status = "Preparing offline reply…") }
+        mutable.update { it.copy(busy = true, error = null) }
         scope.launch {
             try {
-                val e2b = state.value.models.firstOrNull { it.sha256 == "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634" }
-                    ?: error("Import Gemma 4 E2B Q4_0 in Model setup first.")
-                if (nativeInitialized) LocalLlmNative.clearCancel()
-                checkStop()
-                if (!state.value.ready || state.value.gpu || state.value.selected != e2b.id) {
-                    mutable.update { it.copy(selected = e2b.id, ready = false) }
-                    loadNative(false)
-                    mutable.update { it.copy(ready = true, gpu = false) }
-                }
-                fun bytes(turns: List<LocalTurn>) = JSONArray().apply {
-                    turns.forEach { put(JSONObject().put("role", it.role).put("content", it.text)) }
-                }.toString().toByteArray(Charsets.UTF_8)
-                val messages = prompt { LocalLlmNative.countTokens(bytes(it), thinking) }
-                checkStop()
-                LocalLlmNative.begin(bytes(messages), maxTokens, thinking, cacheKey)
-                val output = ByteArrayOutputStream()
-                if (JSONObject(LocalLlmNative.report()).optBoolean("reasoning_prefill"))
-                    output.write("<|channel>thought\n".toByteArray())
-                while (true) {
-                    checkStop()
-                    val piece = LocalLlmNative.next() ?: break
-                    output.write(piece); onText(output.toString(Charsets.UTF_8.name()))
-                }
-                result.complete(output.toString(Charsets.UTF_8.name()) to LocalLlmNative.report())
+                offlineReady(contextTokens)
+                val value = block()
+                mutable.update { it.copy(busy = false) }
+                result.complete(value)
             } catch (error: Throwable) {
                 if (error is VirtualMachineError) throw error
                 if (nativeInitialized) LocalLlmNative.unload()
-                mutable.update { it.copy(ready = false) }
+                mutable.update { it.copy(ready = false, busy = false, error = if (stopped.get()) null else error.message) }
                 result.completeExceptionally(error)
-            } finally { mutable.update { it.copy(busy = false) } }
+            }
         }
         return result
+    }
+    fun prepareOffline(contextTokens: Int) = offlineOperation(contextTokens) { Unit }
+    fun <T> measureOffline(contextTokens: Int, task: ((List<LocalTurn>, Boolean) -> Int) -> T): Deferred<T> =
+        offlineOperation(contextTokens) { task { turns, thinking -> checkStop(); LocalLlmNative.countTokens(bytes(turns), thinking) } }
+
+    fun offlineReply(cacheKey: String, thinking: Boolean, maxTokens: Int,
+        contextTokens: Int = 2048, prompt: ((List<LocalTurn>) -> Int) -> List<LocalTurn>,
+        onText: (String) -> Unit): Deferred<Pair<String, String>> = offlineOperation(contextTokens) {
+        val messages = prompt { LocalLlmNative.countTokens(bytes(it), thinking) }
+        checkStop()
+        LocalLlmNative.begin(bytes(messages), maxTokens, thinking, cacheKey)
+        val output = ByteArrayOutputStream()
+        if (JSONObject(LocalLlmNative.report()).optBoolean("reasoning_prefill"))
+            output.write("<|channel>thought\n".toByteArray())
+        while (true) {
+            checkStop()
+            val piece = LocalLlmNative.next() ?: break
+            output.write(piece); onText(output.toString(Charsets.UTF_8.name()))
+        }
+        output.toString(Charsets.UTF_8.name()) to LocalLlmNative.report()
     }
     private fun observation(): JSONObject {
         val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))

@@ -34,6 +34,7 @@ internal fun ConversationToolbar(
     onShare: (() -> Unit)? = null,
     onArtifacts: () -> Unit = {},
     onOffline: (() -> Unit)? = null,
+    onNewLocal: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -58,7 +59,7 @@ internal fun ConversationToolbar(
     val actions: @Composable () -> Unit = {
         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                NewChatButton(onNewSession, creatingSession, highlighted = false)
+                NewChatButton(onNewSession, creatingSession, highlighted = false, onNewLocal = onNewLocal)
                 Box {
                     val actionTint = MaterialTheme.colorScheme.primary
                     NavigationAction("More", { menuOpen = true }, description = "More options") {
@@ -75,7 +76,7 @@ internal fun ConversationToolbar(
                             onClick = { menuOpen = false; onPrompts() })
                         DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
                             onClick = { menuOpen = false; onSearch() })
-                        if (onOffline != null) DropdownMenuItem(text = { Text("Use on phone") }, enabled = hasSession,
+                        if (onOffline != null) DropdownMenuItem(text = { Text("Create local fork") }, enabled = hasSession,
                             onClick = { menuOpen = false; onOffline() })
                         DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
                             onClick = { menuOpen = false; onArtifacts() })
@@ -105,15 +106,22 @@ internal fun ConversationToolbar(
 }
 
 @Composable
-internal fun NewChatButton(onClick: () -> Unit, creating: Boolean, highlighted: Boolean = true) {
+internal fun NewChatButton(onClick: () -> Unit, creating: Boolean, highlighted: Boolean = true, onNewLocal: (() -> Unit)? = null) {
+    var localMenu by remember { mutableStateOf(false) }
+    Box {
     val tint = MaterialTheme.colorScheme.primary.copy(alpha = if (creating) .38f else 1f)
     NavigationAction("New chat", onClick = onClick, enabled = !creating,
         modifier = Modifier.testTag("toolbar-new-chat")
             .then(if (highlighted) Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape) else Modifier)
-            , description = if (creating) "Starting new chat" else "New chat") {
+            , description = if (creating) "Starting new chat" else "New chat",
+            onLongClick = onNewLocal?.let { { localMenu = true } }) {
         Canvas(Modifier.size(20.dp)) {
             drawLine(tint, Offset(center.x, 0f), Offset(center.x, size.height), 2.dp.toPx(), StrokeCap.Round)
             drawLine(tint, Offset(0f, center.y), Offset(size.width, center.y), 2.dp.toPx(), StrokeCap.Round)
         }
+    }
+    DropdownMenu(expanded = localMenu, onDismissRequest = { localMenu = false }) {
+        DropdownMenuItem(text = { Text("New local chat") }, onClick = { localMenu = false; onNewLocal?.invoke() })
+    }
     }
 }

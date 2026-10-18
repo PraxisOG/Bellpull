@@ -203,7 +203,7 @@ internal fun ProjectEditor(initial: ConversationProject, creating: Boolean, enab
 }
 
 @Composable
-internal fun ProjectChatDialog(workspace: ProjectWorkspace, session: Session, onDismiss: () -> Unit) {
+internal fun ProjectChatDialog(workspace: ProjectWorkspace, session: Session, onLocalFork: (() -> Unit)? = null, onDismiss: () -> Unit) {
     val membership = workspace.snapshot.membership(session.id)
     val current = workspace.snapshot.projects.firstOrNull { it.id == membership?.projectId }
     AlertDialog(onDismissRequest = { if (!workspace.mutating) onDismiss() }, title = { Text("Organize conversation") },
@@ -211,6 +211,7 @@ internal fun ProjectChatDialog(workspace: ProjectWorkspace, session: Session, on
             Column(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(session.title ?: "Untitled conversation", style = MaterialTheme.typography.titleSmall)
                 Text("Current project: ${current?.name ?: "Unfiled"}")
+                if (onLocalFork != null) TextButton(onClick = onLocalFork) { Text("Create local fork") }
                 if (!workspace.canEdit) Text("Reconnect and refresh projects to make changes.", style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { workspace.pin(session.id, membership?.pinned != true) }, enabled = workspace.canPin(session.id)) {
                     Text(if (membership?.pinned == true) "Unpin conversation" else "Pin conversation")

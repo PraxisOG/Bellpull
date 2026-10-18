@@ -99,7 +99,7 @@ def handoff(db, body):
                    "Local tool results are historical reference only; no actions have been queued. "
                    "Ask before repeating an action. " +
                    ("Original conversation ID: " + source_id + ". " if source_id else "") +
-                   ("\nUser-saved offline brief (reference):\n" + brief if brief else ""))
+                   ("\nOffline continuation note (reference):\n" + brief if brief else ""))
         rows = [{"role": "user", "content": context, "timestamp": now}] + [
             {**message, "timestamp": now} for message in messages]
         count, tools = db._insert_message_rows(conn, session_id, rows)
