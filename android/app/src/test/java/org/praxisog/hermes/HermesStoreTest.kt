@@ -337,6 +337,51 @@ class HermesStoreTest {
         assertEquals("the query is consumed", "", store.searchQuery)
     }
 
+    @Test fun localProfileRequestCreatesAndSendsOnceWithoutReplacingAnExistingDraft() {
+        val submissions = AtomicInteger()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            if (chain.request().url.encodedPath.endsWith("/chat/stream")) submissions.incrementAndGet()
+            chain.proceed(chain.request())
+        }.build()
+        val store = store(httpClient = http)
+        val original = MockHermesLauncher.FIXTURE_SESSION_ID
+        store.openSession(original); awaitUntil("original history") { store.history is UiState.Ready }
+        store.drafts.set(original, androidx.compose.ui.text.input.TextFieldValue("Keep this unfinished draft."))
+        store.requestLocalSystemPrompt(); store.requestLocalSystemPrompt()
+        awaitUntil("profile reply") { store.turn is TurnState.Finished }
+        assertTrue(store.openSessionId != original)
+        assertEquals(1, submissions.get())
+        assertEquals("Keep this unfinished draft.", store.drafts[original].text)
+        store.refreshHistory(); awaitUntil("refreshed profile history") { store.history is UiState.Ready }
+        assertEquals(1, submissions.get())
+        store.close()
+    }
+
+    @Test fun editingTheProfileRequestWhileHistoryLoadsPreventsAutomaticSubmission() {
+        val waiting = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val firstHistory = AtomicBoolean(true)
+        val submissions = AtomicInteger()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            if (chain.request().url.encodedPath.endsWith("/messages") && firstHistory.compareAndSet(true, false)) {
+                waiting.countDown(); check(release.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            }
+            if (chain.request().url.encodedPath.endsWith("/chat/stream")) submissions.incrementAndGet()
+            chain.proceed(chain.request())
+        }.build()
+        val store = store(httpClient = http)
+        try {
+            store.requestLocalSystemPrompt()
+            assertTrue(waiting.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            store.drafts.set(store.openSessionId!!, androidx.compose.ui.text.input.TextFieldValue("I want to edit this first."))
+            release.countDown()
+            awaitUntil("loaded history") { store.history is UiState.Ready }
+            assertEquals(TurnState.Idle, store.turn)
+            assertEquals(0, submissions.get())
+            assertEquals("I want to edit this first.", store.drafts[store.openSessionId!!].text)
+        } finally { release.countDown(); store.close() }
+    }
+
     @Test fun sendingClearsThePrefillSoItDoesNotReappear() {
         val store = store()
         store.askHermes("prompt from search")

@@ -191,7 +191,13 @@ class MainActivity : ComponentActivity() {
                         },
                         localLlmSettings = {
                             LocalFallbackSettingsEditor(runtime.localSettings, localModel, setupLocal,
-                                { scope.launch { runtime.warmLocal() } }, runtime.localModel::unload)
+                                { scope.launch { runtime.warmLocal() } }, runtime.localModel::unload,
+                                onAskHermes = if (current != null && !isOffline && !current.branchingSession && current.turn !is TurnState.Streaming) ({
+                                    runtime.voice?.close(); reader.stop(); localSelected = false
+                                    current.requestLocalSystemPrompt()
+                                }) else null, askingHermes = current?.creatingSession == true,
+                                hermesName = profiles.profiles.firstOrNull { it.id == profiles.activeId }?.name,
+                                hermesError = current?.createError?.toUserMessage())
                             androidx.compose.material3.TextButton(onClick = newLocal, enabled = offlineWorkspace != null && !offlineState.busy) {
                                 androidx.compose.material3.Text("New local chat")
                             }

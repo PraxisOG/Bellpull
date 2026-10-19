@@ -1,0 +1,45 @@
+{
+  "app": "0.14.2-experimental",
+  "build": 34,
+  "plugin": "0.5.1-integration-preview (unchanged)",
+  "device": "Pixel 10 Pro Fold / Android 17",
+  "jvm": {
+    "app": {
+      "tests": 627,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-model": {
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core-hermes": {
+      "tests": 45,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  },
+  "screenshot_baselines": 187,
+  "lint": "passed",
+  "release_abis": [
+    "arm64-v8a",
+    "x86_64"
+  ],
+  "physical_distinct_tests_passed": 4,
+  "physical_checks": [
+    "Encrypted prompt edit/save/recreation, real E2B reply at 4K, oversized-prompt draft/history retention",
+    "Main Settings button to live Hermes, one submitted request, reply received, local prompt unchanged",
+    "First local question during model loading",
+    "Real E2B bounded source-search tool"
+  ],
+  "live_hermes_version": "0.21.5",
+  "live_generated_profile_saved_in_artifacts": false,
+  "limits": "Profile quality is reviewed manually; token target is an instruction to Hermes, not a hard output limit. Context choices remain 2K/4K/8K.",
+  "installed_package": "org.praxisog.hermes",
+  "installed_apk_sha256": "ed837d0f661ade781bd255fb50296e46673b9b6a0d2a982d943db2fcf50fbc0d",
+  "upgrade": "In-place upgrade from build 33; no app data cleared; installed APK bytes match release artifact."
+}

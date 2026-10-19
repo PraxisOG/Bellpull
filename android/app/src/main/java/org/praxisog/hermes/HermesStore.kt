@@ -97,7 +97,10 @@ internal class HermesStore(
         }
     }
     private val legacyRecoveryJobs = mutableMapOf<String, Job>()
-    fun close() { runs?.close(); legacyRecoveryJobs.values.forEach { it.cancel() }; legacyRecoveryJobs.clear() }
+    private var closed = false
+    private data class InitialPrompt(val sessionId: String, val text: String, val draftRevision: Long)
+    private var initialPrompt: InitialPrompt? = null
+    fun close() { closed = true; initialPrompt = null; runs?.close(); legacyRecoveryJobs.values.forEach { it.cancel() }; legacyRecoveryJobs.clear() }
     fun retryRun() { openSessionId?.let { runs?.retry(it) } }
     fun abandonRunAfterReview() { openSessionId?.let { runs?.abandonAfterReview(it) } }
     fun respondToApproval(requestId: String, choice: String) { openSessionId?.let { runs?.respond(it, requestId, choice) } }
@@ -323,20 +326,31 @@ internal class HermesStore(
      * inference cost, and possibly a shell command) off one keystroke too many would be
      * hostile. The user still presses Send.
      */
-    fun askHermes(prompt: String) {
-        if (prompt.isBlank() || creatingSession) return
+    fun askHermes(prompt: String) = createPromptChat(prompt, prompt.take(60), false)
+
+    fun requestLocalSystemPrompt() = createPromptChat(OfflinePrompt.HERMES_PROFILE_REQUEST, "Local assistant profile", true)
+
+    private fun createPromptChat(prompt: String, title: String, sendAutomatically: Boolean) {
+        if (closed || prompt.isBlank() || creatingSession) return
         creatingSession = true
         createError = null
-        val request = newSessionRequest(prompt.take(60), defaultModel())
+        val revision = sessionRevision
+        val request = newSessionRequest(title, defaultModel())
         scope.launch {
-            when (val result = request()) {
+            val result = request()
+            if (closed) return@launch
+            when (result) {
                 is HermesResult.Ok -> {
                     creatingSession = false
                     drafts.set(result.value.id, androidx.compose.ui.text.input.TextFieldValue(
                         prompt, androidx.compose.ui.text.TextRange(prompt.length)))
+                    loadSessions()
+                    // A deliberate settings action may submit once, after fresh history is known.
+                    // If the user navigated away meanwhile, leave a normal unsent draft instead.
+                    if (sendAutomatically && revision != sessionRevision) return@launch
+                    initialPrompt = if (sendAutomatically) InitialPrompt(result.value.id, prompt, drafts.revision(result.value.id)) else null
                     pendingPrompt = prompt
                     searchQuery = ""
-                    loadSessions()
                     openSession(result.value.id)
                 }
                 is HermesResult.Err -> {
@@ -348,6 +362,7 @@ internal class HermesStore(
     }
 
     fun openSession(sessionId: String) {
+        if (initialPrompt?.sessionId != sessionId) initialPrompt = null
         pendingUserText = null
         sessionRevision++
         historyRequest++
@@ -363,6 +378,7 @@ internal class HermesStore(
     }
 
     fun closeSession() {
+        initialPrompt = null
         pendingUserText = null
         sessionRevision++
         historyRequest++
@@ -418,6 +434,11 @@ internal class HermesStore(
                     // refresh. Opening an unreadable session still presents its retry UI.
                     if (history !is UiState.Ready) history = UiState.Failed(result.error)
                 }
+            }
+            initialPrompt?.takeIf { it.sessionId == sessionId }?.let { initial ->
+                initialPrompt = null // Never replay on refresh, failure, or a lost stream response.
+                if (!closed && result is HermesResult.Ok && result.value.data.none { it.role == "user" } &&
+                    drafts.revision(sessionId) == initial.draftRevision) sendPrepared(initial.text, null)
             }
         }
     }

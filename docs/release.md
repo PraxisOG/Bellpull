@@ -1,3 +1,13 @@
+## Local prompt settings — 0.14.2 / build 34
+
+Local fallback settings now expose the editable system prompt, encrypted storage,
+Save/default controls, and clearly labeled 2K/4K/8K context choices. An explicit
+button asks the selected Hermes server for a short personal profile in a separate
+chat; the user reviews and copies the reply into local settings. Existing drafts
+remain intact, and the request is submitted once after successful history loading.
+Oversized local prompts preserve both the message draft and saved conversation.
+Plugin 0.5.1 is unchanged. See [implementation and acceptance](PHASE-14-OFFLINE.md).
+
 ## Integrated local fallback — 0.14.1 / build 33
 
 Local chats now share the normal conversation list and shell. Automatic foreground

@@ -1,0 +1,7 @@
+{
+  "custom_prompt_answer": "Rowan",
+  "context_tokens": 4096,
+  "settings_recreated": true,
+  "oversized_prompt_preserved_draft_and_history": true,
+  "prompt_encrypted_at_rest": true
+}

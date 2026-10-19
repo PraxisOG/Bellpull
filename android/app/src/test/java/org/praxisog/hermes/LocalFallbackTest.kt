@@ -3,6 +3,11 @@ package org.praxisog.hermes
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Modifier
+import org.robolectric.RuntimeEnvironment
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -16,6 +21,52 @@ import org.praxisog.hermes.model.OfflineHandoffMessage
 @RunWith(RobolectricTestRunner::class) @Config(sdk = [35])
 class LocalFallbackTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun localPromptAndContextCanBeEditedSavedAndRestoredWithoutApplyingHermesReply() {
+        val context = RuntimeEnvironment.getApplication()
+        val promptPrefs = context.getSharedPreferences("test-local-prompt", 0).apply { edit().clear().commit() }
+        val settings = LocalFallbackSettings(context, promptPrefs)
+        settings.update(LocalFallbackConfiguration())
+        var requests = 0
+        compose.setContent { HermesTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
+            LocalFallbackSettingsEditor(settings, LocalLabState(scanned = true), {}, {}, {}, onAskHermes = { requests++ })
+        } } }
+        compose.onNodeWithTag("local-system-prompt").performScrollTo().performTextReplacement("Call the user Rowan. Keep replies short.")
+        compose.onNodeWithTag("save-local-prompt").performScrollTo().performClick()
+        compose.onNodeWithTag("local-context-4096").performScrollTo().performClick()
+        compose.runOnIdle {
+            val restored = LocalFallbackSettings(context, promptPrefs).value
+            assertEquals("Call the user Rowan. Keep replies short.", restored.systemPrompt)
+            assertEquals(4096, restored.contextTokens)
+        }
+        compose.onNodeWithTag("ask-hermes-local-prompt").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, requests); assertEquals("Call the user Rowan. Keep replies short.", settings.value.systemPrompt) }
+        compose.onNodeWithTag("local-system-prompt").performScrollTo().performTextReplacement("")
+        compose.onNodeWithTag("save-local-prompt").assertIsNotEnabled()
+        compose.onNodeWithText("Restore default").performScrollTo().performClick()
+        compose.onNodeWithTag("save-local-prompt").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(OfflinePrompt.DEFAULT_SYSTEM_PROMPT, settings.value.systemPrompt) }
+    }
+    @Test fun disconnectedSettingsCannotStartAProfileRequest() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = LocalFallbackSettings(context, context.getSharedPreferences("test-disconnected-prompt", 0))
+        compose.setContent { HermesTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
+            LocalFallbackSettingsEditor(settings, LocalLabState(), {}, {}, {})
+        } } }
+        compose.onNodeWithTag("ask-hermes-local-prompt").performScrollTo().assertIsNotEnabled()
+    }
+    @Test fun customSystemPromptReachesInferenceAndCountsAgainstTheContextBudget() {
+        val fork = OfflineFork(turns = listOf(OfflineTurn(role = "user", text = "Hello")))
+        val custom = "Call the user Rowan. They maintain a community garden."
+        val prompt = OfflinePrompt.build(fork, emptyList(), null, true, systemPrompt = custom) { turns -> turns.sumOf { it.text.length } }
+        assertTrue(prompt.first().text.startsWith(custom))
+        assertTrue(prompt.first().text.contains("search_chat"))
+        assertFalse(prompt.first().text.contains("You are Bellpull"))
+        val error = runCatching {
+            OfflinePrompt.build(fork, emptyList(), null, false, systemPrompt = "profile ".repeat(500)) { turns -> turns.sumOf { it.text.length } }
+        }.exceptionOrNull()
+        assertTrue(error?.message.orEmpty().contains("increase context length"))
+        assertEquals(1, fork.turns.size)
+    }
     @Test fun longPressOffersLocalWithoutCreatingServerChat() {
         var remote = 0; var local = 0
         compose.setContent { HermesTheme { NewChatButton({ remote++ }, false, onNewLocal = { local++ }) } }

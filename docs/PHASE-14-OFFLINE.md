@@ -1,12 +1,28 @@
 # Phase 14: offline conversations and reconnection
 
-Android **0.14.1-experimental / build 33**, Bellpull plugin **0.5.1-integration-preview**.
+Android **0.14.2-experimental / build 34**, Bellpull plugin **0.5.1-integration-preview**.
 Gemma 4 E2B Q4_0 runs on CPU. Thinking defaults off and is saved per local chat.
 
 ## Use
 
 Settings → **Local fallback** configures the installed Gemma E2B CPU model,
 automatic loading, default thinking and 2K/4K/8K contexts (2K remains the default).
+The editable **Local system prompt** is encrypted on this device and applies to
+subsequent replies in all local chats after **Save prompt**. **Restore default**
+loads the default into the editor; save to apply it. The app appends instructions
+for the actually available local tools. Compaction retains its dedicated prompt.
+A prompt that cannot fit alongside the question and answer allowance is rejected
+before consuming the draft or compacting history. Increase context or shorten the
+prompt; prompt text is never silently truncated.
+
+**Ask Hermes for a short prompt** creates a separate chat on the selected online
+server and sends a request for a 150–250-token personal profile using Hermes's
+saved knowledge. The result is a normal copyable reply. Review it, copy it into
+the settings field and save manually. Nothing automatically replaces the local
+prompt. The request uses existing chat APIs; plugin 0.5.1 is unchanged. If creation
+or history loading fails, the ordinary error/draft flow remains available; an
+edited draft or navigation away cancels automatic sending.
+
 When the server becomes unreachable while Bellpull is visible, loading happens on
 the native worker. The red unavailable/loading banner becomes yellow with
 **Local model ready · limited functionality** only after successful loading.
@@ -76,6 +92,21 @@ The original server chat remains a distinct, unchanged source.
   `/api/bellpull/offline/handoff`. Handoff validates plain role/content pairs and
   imports the branch plus fingerprint in one SessionDB transaction. Its narrow
   contract is tested on Hermes 0.21.1 and 0.21.5 independently of optional run hooks.
+
+## 0.14.2 acceptance
+
+699 JVM tests completed without failures (one opt-in live test skipped), all 187
+existing screenshot baselines passed, and lint/release assembly passed for ARM64
+and x86_64. Four distinct phone tests covered prompt editing/persistence, real E2B
+inference at 4K, draft/history preservation on oversized prompts, the Settings
+button's live Hermes round trip, first-send loading, and local retrieval.
+
+The live test submitted one request, received a normal assistant reply, and
+verified that local settings stayed unchanged. Its temporary chat was removed;
+the generated personal profile is not included in the evidence. Encrypted storage
+was checked using a fictional name. The unchanged 0.5.1 plugin was exercised by
+this real-Hermes test; its full suite results remain those recorded below.
+Reports: `docs/evidence/phase14-prompts`.
 
 ## 0.14.1 acceptance
 

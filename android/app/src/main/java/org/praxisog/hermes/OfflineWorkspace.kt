@@ -147,7 +147,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         }
         return fork.copy(summary = progress.summary)
     }
-    private suspend fun compactIfNeeded(initial: OfflineFork, question: String, contextTokens: Int): OfflineFork {
+    private suspend fun compactIfNeeded(initial: OfflineFork, question: String, contextTokens: Int, systemPrompt: String): OfflineFork {
         var fork = initial
         // Complete an interrupted source preparation before continuing the local fork.
         if ((fork.compaction != null || fork.sourcePreparationRequired) && !fork.sourcePrepared && fork.source != null) fork = compactSource(fork, contextTokens)
@@ -156,7 +156,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         val hits = search(fork, question)
         val tooLong = measure(contextTokens) { count ->
             var fullPromptTokens: Int? = null
-            OfflinePrompt.build(probe, hits, null, fork.source != null || fork.summarizedTurns > 0, contextTokens) { prompt ->
+            OfflinePrompt.build(probe, hits, null, fork.source != null || fork.summarizedTurns > 0, contextTokens, systemPrompt) { prompt ->
                 count(prompt, fork.thinking).also { if (fullPromptTokens == null) fullPromptTokens = it }
             }
             checkNotNull(fullPromptTokens) > contextTokens - (if (fork.thinking) 768 else 384)
@@ -234,12 +234,17 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         var fork = checkNotNull(state.value.current)
         check(fork.pending == null && fork.remoteId == null) { "Open the synced Hermes conversation or finish the pending handoff first." }
         val text = fork.draft.trim(); require(text.isNotEmpty())
-        val contextTokens = configuration().contextTokens
+        val settings = configuration()
+        val contextTokens = settings.contextTokens
         mutable.update { it.copy(status = "Preparing local model…") }
         // A first question may arrive while foreground fallback loading is still
         // running. Keep the draft until the shared native owner is ready.
-        measure(contextTokens) { Unit }
-        fork = compactIfNeeded(fork, text, contextTokens)
+        measure(contextTokens) { count ->
+            // Reject an oversized prompt before consuming the draft or compacting any history.
+            OfflinePrompt.build(OfflineFork(thinking = fork.thinking, turns = listOf(OfflineTurn(role = "user", text = text))),
+                emptyList(), null, fork.source != null || fork.summarizedTurns > 0, contextTokens, settings.systemPrompt) { count(it, fork.thinking) }
+        }
+        fork = compactIfNeeded(fork, text, contextTokens, settings.systemPrompt)
         fork = fork.copy(title = if (fork.source == null && fork.turns.isEmpty() && fork.title == "Local conversation") text.lineSequence().first().take(72) else fork.title,
             turns = fork.turns + OfflineTurn(role = "user", text = text) + OfflineTurn(role = "assistant", status = "generating"),
             draft = "", remoteId = null, updatedAt = System.currentTimeMillis())
@@ -254,7 +259,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
             for (round in 0..2) {
                 var persistedAt = 0L
                 val generating = lab.offlineReply("$profile:${fork.id}", fork.thinking, remaining, contextTokens, { count ->
-                    OfflinePrompt.build(fork, hits, resultText, round < 2 && (fork.source != null || fork.summarizedTurns > 0), contextTokens, count)
+                    OfflinePrompt.build(fork, hits, resultText, round < 2 && (fork.source != null || fork.summarizedTurns > 0), contextTokens, settings.systemPrompt, count)
                 }) { raw ->
                     val output = OfflinePrompt.output(raw)
                     val turn = fork.turns.last().copy(text = output.answer, thought = output.thought,
