@@ -2,6 +2,10 @@ package org.praxisog.hermes
 
 import org.praxisog.hermes.model.HermesError
 
+/** Match transport whitespace normalization without matching older repeated prompts. */
+internal fun samePrompt(saved: String?, sent: String?): Boolean = saved != null && sent != null &&
+    saved.trim().replace(Regex("\\s+"), " ") == sent.trim().replace(Regex("\\s+"), " ")
+
 /**
  * State of the turn currently being streamed.
  *
@@ -53,7 +57,7 @@ internal fun reconcileTurn(
 ): TurnState {
     if (prompt == null || turn is TurnState.Streaming || turn is TurnState.Idle) return turn
     val fresh = messages.filter { it.id !in previousIds }
-    val start = fresh.indexOfLast { it.role == "user" && it.content?.trim() == prompt.trim() }
+    val start = fresh.indexOfLast { it.role == "user" && samePrompt(it.content, prompt) }
     if (start < 0) return turn
     val replies = fresh.drop(start + 1).filter { it.role == "assistant" && !it.content.isNullOrBlank() }
     if (replies.isEmpty()) return turn

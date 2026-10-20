@@ -31,6 +31,28 @@ class SessionTitleRepairTest {
     @Before fun setUp() { scope = CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     @After fun tearDown() = scope.cancel()
 
+    @Test fun pendingVoiceTitleUsesConditionalEndpointEvenAfterAutomaticTitleAppears() {
+        val cache = TestSnapshots()
+        cache.pendingTitles["voice-chat"] = "Inspect turbine blades"
+        val requests = CopyOnWriteArrayList<String>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            requests += request.method + " " + request.url.encodedPath
+            val body = if (request.url.encodedPath.endsWith("/voice-title")) """{"updated":true}"""
+                else """{"data":[{"id":"voice-chat","title":"Reply in spoken paragraphs"}]}"""
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val client = HermesClient("https://fixture.invalid", { "fixture" }, httpClient = http)
+        val store = HermesStore(scope, client, cache = cache, supportsVoiceTitles = true)
+        try {
+            store.loadSessions()
+            awaitUntil("conditional title recovery") { !cache.pendingTitles.containsKey("voice-chat") }
+            assertEquals(1, requests.count { it == "POST /api/bellpull/sessions/voice-chat/voice-title" })
+            assertTrue(requests.none { it.startsWith("PATCH") })
+        } finally { store.close(); client.close() }
+    }
+
     /** Server-shaped fixture: PATCH honored or refused per switch; titles are the truth. */
     private class TitleFixture {
         val titles = ConcurrentHashMap<String, String>()

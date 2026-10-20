@@ -42,6 +42,7 @@ internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> Local
         selectedId = model.id; settings.select(model.id); tuning = settings.tuning(model.id); actualBackend = null
         withContext(Dispatchers.IO) {
             runtime.close()
+            runtime.allowRetry()
             if (files.installed(model)) runtime.withModel(model) { engine, _ -> engine.actualBackend } else null
         }.let { actualBackend = it }
     }
@@ -50,6 +51,7 @@ internal class SpeechLab(context: Context, create: ((SpeechModel, File) -> Local
     }
     fun tune(value: SpeechTuning) = perform("Saving ${selected.label} settings") {
         withContext(Dispatchers.IO) { runtime.close() }
+        runtime.allowRetry()
         settings.tune(selectedId, value); tuning = value; actualBackend = null
         notice = "Saved. The next load uses these settings."
     }

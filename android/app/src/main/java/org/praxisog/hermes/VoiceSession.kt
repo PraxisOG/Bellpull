@@ -82,6 +82,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     },
     private val onClosed: () -> Unit = {},
     private val beforeResume: () -> Boolean = { true },
+    private val onExplicitRetry: () -> Unit = {},
     private val onPlayback: (String, Boolean) -> Unit = { _, _ -> },
     private val priorInterruptedPlayback: String? = null,
     private val onTranscript: (String) -> Unit = {},
@@ -311,6 +312,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         }
     }
     fun retryTranscription() {
+        onExplicitRetry()
         if (closed || !canRetryTranscription || transcriptionJob?.isActive == true) return
         if (!conversation.selected) { notice = "Reopen the voice conversation before retrying transcription."; return }
         if (!beforeResume()) { notice = "Audio is still unavailable. Retry transcription after the call or audio interruption finishes."; return }
@@ -502,9 +504,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (!conversation.selected) { notice = "Reopen the voice conversation before resuming."; return }
         listeningBlock(conversation.run())?.let { pause(it); return }
         if (!beforeResume()) { notice = "Audio is still unavailable. Resume after the call or audio interruption finishes."; return }
+        onExplicitRetry()
         notice = null; queuedText = ""
         if (!readyOutput) {
             state = VoiceState.STARTING
+            output.retryPreparation()
             prepareOutput(::readyToListen)
         } else readyToListen()
     }

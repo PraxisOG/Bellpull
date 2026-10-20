@@ -118,7 +118,8 @@ class VoiceService : Service() {
                     else HttpVoiceTranscriber(config)
                 }, onClosed = { stopSelf() }, beforeResume = {
                     acquireAudio()
-                }, onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
+                }, onExplicitRetry = { runtime.speechLab.runtime.allowRetry() },
+                onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
                 onTranscript = { savedVoice.saveTranscript(id, it); if (config.transcribeViaServer || config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
                 initialTranscript = savedVoice.pending(id),

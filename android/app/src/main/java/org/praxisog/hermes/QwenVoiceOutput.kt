@@ -41,6 +41,7 @@ internal class NativeQwenEngine(files: VoiceOutputFiles) : LocalTtsEngine {
 /** Never release a native context during compute. Unload also invalidates its active lease. */
 internal class LocalTtsRuntime(private val verify: () -> Unit,
     private val owner: ReentrantLock = ReentrantLock(), private val beforeLoad: () -> Unit = {},
+    private val loadCooldown: ModelLoadCooldown = ModelLoadCooldown(),
     private val create: () -> LocalTtsEngine) {
     private val lock = ReentrantLock()
     private var engine: LocalTtsEngine? = null
@@ -52,6 +53,7 @@ internal class LocalTtsRuntime(private val verify: () -> Unit,
             check(lease == revision.get()) { "Voice operation cancelled." }
             var loadMs = 0.0
             if (engine == null) {
+                check(loadCooldown.begin()) { "Voice model load was attempted recently. Wait 10 seconds or tap Resume to retry." }
                 val start = System.nanoTime()
                 beforeLoad(); verify(); engine = create(); loaded = true
                 loadMs = (System.nanoTime() - start) / 1e6
@@ -60,9 +62,10 @@ internal class LocalTtsRuntime(private val verify: () -> Unit,
         } }
     }
     fun invalidate() { revision.incrementAndGet() }
+    fun allowRetry() { loadCooldown.reset() }
     fun unload() {
         invalidate()
-        owner.withLock { lock.withLock { engine?.close(); engine = null; loaded = false } }
+        owner.withLock { lock.withLock { engine?.close(); engine = null; loaded = false; loadCooldown.reset() } }
     }
 }
 
@@ -161,6 +164,7 @@ internal class LocalVoiceOutput(
             }
         }
     }
+    override fun retryPreparation() { runtime.allowRetry() }
     private fun synthesize(text: String, token: Long, after: Deferred<Unit>? = null): PreparedSpeech {
         val queue = Channel<FloatArray>(16) // At most 1.6 seconds of 24 kHz PCM per phrase.
         val producer = scope.async(Dispatchers.IO) {
@@ -349,6 +353,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
     }
     fun load(engine: VoiceOutputEngine = VoiceOutputEngine.QWEN) = perform {
         check(!thermals.severe) { "Let the phone cool before loading a voice model." }
+        modelRuntime(engine).allowRetry()
         val ms = withContext(Dispatchers.IO) { modelRuntime(engine).withModel { _, duration, _ -> duration } }
         notice = "${name(engine)} loaded on CPU in ${ms.toLong()} ms (includes verification)."
     }
@@ -357,6 +362,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
         try {
             preview = output(config).also { voice ->
                 busy = true; notice = "Loading preview…"
+                voice.retryPreparation()
                 voice.prepare({
                     refresh(); notice = "Generating preview…"
                     voice.speak(if (config.output.engine == VoiceOutputEngine.SERVER_MOSS)

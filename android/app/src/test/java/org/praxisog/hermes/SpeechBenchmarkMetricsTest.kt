@@ -97,6 +97,8 @@ class SpeechBenchmarkMetricsTest {
             runtime.withModel(tiny) { _, _ -> throw kotlinx.coroutines.CancellationException() }
         }
         assertNull(runtime.loadedModel)
+        assertThrows(IllegalStateException::class.java) { runtime.withModel(tiny) { _, _ -> } }
+        runtime.allowRetry() // Explicit Resume / Retry bypasses the automatic load cooldown.
         runtime.withModel(tiny) { _, _ -> }
         assertEquals(2, loads); assertEquals(1, closes)
         runtime.close()

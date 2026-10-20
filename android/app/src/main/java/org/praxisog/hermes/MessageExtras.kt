@@ -30,7 +30,7 @@ internal fun ThinkingBlock(text: String, collapseByDefault: Boolean) {
         shape = if (LocalInResponseBubble.current) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth()) {
             CompactDisclosure(if (expanded) "Thinking ▴" else "Thinking ▾") { expanded = !expanded }
-            if (expanded) SelectionContainer {
+            if (expanded) SelectionContainer(Modifier.collapseOnTap { expanded = false }) {
                 Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
             }
         }

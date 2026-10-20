@@ -61,12 +61,34 @@ internal class BellpullRuntime private constructor(context: Context) {
             delay(12000)
         }
     }
-    suspend fun warmLocal() {
+    private val localLoadCooldown = ModelLoadCooldown()
+    suspend fun warmLocal(automatic: Boolean = false) {
+        // A healthy connection returning cancels this delay before any native work.
+        if (automatic) {
+            delay(10_000)
+            // The periodic monitor may not have observed a quick recovery yet.
+            // Confirm the outage before spending CPU and memory on a native load.
+            val api = client ?: return
+            val connection = withContext(Dispatchers.IO) { api.checkConnection() }
+            currentCoroutineContext().ensureActive()
+            if (api !== client) return
+            if (connection is org.praxisog.hermes.model.HermesResult.Ok) {
+                fallbackOffline = false; fallbackProblem = null
+                store?.loadSessions(); store?.refreshHistory()
+                return
+            }
+        }
         val lab = localModel
         if (!lab.state.value.scanned || lab.state.value.busy) return
+        val state = lab.state.value
+        if (state.ready && !state.gpu && state.contextTokens == localSettings.value.contextTokens &&
+            state.models.any { it.id == state.selected && it.sha256 == LocalLlmLab.E2B_SHA }) return
+        if (!localLoadCooldown.begin(explicit = !automatic)) return
         val task = lab.prepareOffline(localSettings.value.contextTokens)
         try { task.await() } catch (e: CancellationException) {
-            lab.stop(); withContext(NonCancellable) { runCatching { task.await() } }; throw e
+            // Connectivity changes do not cancel a native load already in flight.
+            // The foreground/background lifecycle still owns release and cancellation.
+            throw e
         } catch (_: Exception) { /* The lab exposes the actionable loading error. */ }
     }
     private var memorySync: Job? = null
@@ -135,7 +157,8 @@ internal class BellpullRuntime private constructor(context: Context) {
             sessionSource = cache?.sessionSource(),
             supportsMessageBranching = capabilities.sessionForkAtMessage,
             supportsPromptEditing = capabilities.sessionForkBeforeMessage,
-            durableRetention = capabilities.durableRunRetention, journal = cache)
+            durableRetention = capabilities.durableRunRetention, journal = cache,
+            supportsVoiceTitles = capabilities.features["bellpull_voice_titles"] == true)
         receipts.onChange = { id, receipt -> if (store === next) {
             cache?.writeReceipt(id, receipt)
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)

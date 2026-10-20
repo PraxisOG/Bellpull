@@ -1,6 +1,6 @@
 # Phase 14: offline conversations and reconnection
 
-Android **0.14.2-experimental / build 34**, Bellpull plugin **0.5.1-integration-preview**.
+Android **0.14.3-experimental / build 35**, Bellpull plugin **0.5.2-integration-preview**.
 Gemma 4 E2B Q4_0 runs on CPU. Thinking defaults off and is saved per local chat.
 
 ## Use
@@ -19,12 +19,13 @@ prompt; prompt text is never silently truncated.
 server and sends a request for a 150–250-token personal profile using Hermes's
 saved knowledge. The result is a normal copyable reply. Review it, copy it into
 the settings field and save manually. Nothing automatically replaces the local
-prompt. The request uses existing chat APIs; plugin 0.5.1 is unchanged. If creation
+prompt. The request uses existing chat APIs. Plugin 0.5.2 additionally repairs automatic voice chat titles. If creation
 or history loading fails, the ordinary error/draft flow remains available; an
 edited draft or navigation away cancels automatic sending.
 
-When the server becomes unreachable while Bellpull is visible, loading happens on
-the native worker. The red unavailable/loading banner becomes yellow with
+When the server becomes unreachable while Bellpull is visible, automatic loading starts on
+the native worker after 10 seconds of continuous disconnection. Explicit Load is immediate.
+A connection change does not cancel an already-started load; backgrounding still does. The red unavailable/loading banner becomes yellow with
 **Local model ready · limited functionality** only after successful loading.
 The authenticated foreground probe runs every 12 seconds with a 5-second deadline.
 Backgrounding the app cancels local work and unloads the model; navigation within
@@ -93,7 +94,7 @@ The original server chat remains a distinct, unchanged source.
   imports the branch plus fingerprint in one SessionDB transaction. Its narrow
   contract is tested on Hermes 0.21.1 and 0.21.5 independently of optional run hooks.
 
-## 0.14.2 acceptance
+## 0.14.3 acceptance
 
 699 JVM tests completed without failures (one opt-in live test skipped), all 187
 existing screenshot baselines passed, and lint/release assembly passed for ARM64

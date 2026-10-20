@@ -10,7 +10,7 @@ internal fun matchedCompletion(record: RunSubmission, messages: List<Message>): 
     val output = record.completionOutput?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     val observed = record.requestId.startsWith("observed:")
     val fresh = if (observed) messages else messages.filter { it.id > (record.previousIds.maxOrNull() ?: 0) }
-    val prompts = fresh.withIndex().filter { (_, row) -> row.role == "user" && row.content?.trim() == record.text.trim() }
+    val prompts = fresh.withIndex().filter { (_, row) -> row.role == "user" && samePrompt(row.content, record.text) }
     if (!observed && prompts.size > 1) return null // Concurrent/repeated identical prompts are ambiguous.
     val prompt = prompts.singleOrNull()?.index
     val segment = if (prompt != null) fresh.drop(prompt + 1).takeWhile { it.role != "user" } else fresh

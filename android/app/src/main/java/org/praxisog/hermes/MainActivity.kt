@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
                         localModel.models.any { it.id == localModel.selected && it.sha256 == LocalLlmLab.E2B_SHA }
                     LaunchedEffect(foreground, current) { if (foreground && current != null) runtime.monitorConnection() }
                     LaunchedEffect(foreground, isOffline, configuration.autoLoad, configuration.contextTokens, localModel.scanned, localModel.models) {
-                        if (foreground && isOffline && configuration.autoLoad && !localReady) runtime.warmLocal()
+                        if (foreground && isOffline && configuration.autoLoad && !localReady) runtime.warmLocal(automatic = true)
                     }
                     val newLocal: () -> Unit = {
                         if (offlineWorkspace != null && !offlineState.busy) {

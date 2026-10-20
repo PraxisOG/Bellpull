@@ -26,8 +26,9 @@ class VoiceSessionTest {
         var completion: (() -> Unit)? = null
         var failure: ((String) -> Unit)? = null
         var chimes = 0
+        var preparations = 0
         override fun chime() { chimes++ }
-        override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { failure = onError; onReady("offline-fixture") }
+        override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { preparations++; failure = onError; onReady("offline-fixture") }
         override fun speak(text: String, started: () -> Unit, complete: () -> Unit) { said += text; completion = complete; started() }
         fun complete() { val callback = completion; completion = null; callback?.invoke(); tick() }
         override fun stop() { completion = null }
@@ -61,6 +62,19 @@ class VoiceSessionTest {
         await { voice.state != VoiceState.TRANSCRIBING }
     }
     @After fun close() { voice.close(); scope.cancel() }
+    @Test fun repeatedConnectionBlipsAndExplicitResumesReusePreparedOutput() {
+        voice.start()
+        repeat(5) {
+            target.value = VoiceRun(connectionLost = true)
+            await { voice.state == VoiceState.PAUSED }
+            target.value = VoiceRun()
+            tick()
+            voice.resume()
+            assertEquals(VoiceState.LISTENING, voice.state)
+        }
+        assertEquals(1, output.preparations)
+        assertTrue(target.sent.isEmpty())
+    }
     @Test fun confirmedSpeechUsesChatStopWhilePlaybackStopsBeforeTranscriptionFinishes() {
         voice.start(); assertEquals(1, output.chimes)
         utterance(); output.complete()

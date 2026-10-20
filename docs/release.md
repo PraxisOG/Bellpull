@@ -1,3 +1,39 @@
+## Open-issue repairs — 0.14.3 / build 35
+
+App **0.14.3-experimental**, plugin **0.5.2-integration-preview**.
+
+- #20: publish durable history and retire temporary response/prompt rows together;
+  subsequent status updates cannot restore an already-saved response. Matching
+  tolerates transport whitespace while excluding pre-existing repeated prompts.
+- #21/#22: thinking disclosures respond inside tall bubbles; a short body tap
+  collapses expanded thinking. Native selection/copy and ordinary message actions
+  retain distinct touch handling, including during recomposition.
+- #23: automatic Gemma warm-up waits for 10 seconds of continuous disconnection;
+  the connection is rechecked before native loading, and reconnecting does not cancel a load already in flight. TTS/STT load attempts have
+  a monotonic 10-second cooldown, cached engines remain reusable, and explicit
+  Resume/Retry/Settings actions can retry immediately.
+- #14: the plugin atomically repairs an untitled/automatically derived voice title
+  without overwriting a manual, legacy, or LLM-generated title. Pending repairs
+  survive the appearance of a server-generated wrapper title. The new behavior
+  requires the advertised `bellpull_voice_titles` capability; older plugins retain
+  the previous title path.
+
+Validation: 705 JVM tests (one existing live-server skip), 187 unchanged screenshot
+baselines, lint and ARM64/x86_64 release assembly. Plugin: 165 checks (one existing
+skip), plus seven checks against modern stock Hermes. Two physical Pixel fixture
+checks cover tall response taps/native selection/copy/message actions and real
+Pin/Unpin touches plus Activity recreation. The pin control passed; no new pin
+implementation or diagnosis of the earlier personal-server failure is claimed.
+
+PowerMac's local Hermes was upgraded to plugin 0.5.2 after verifying no active work.
+Live authenticated discovery/title repair/manual-rename protection passed, rejected
+unauthenticated repair, and the disposable test chat was deleted. The phone's saved
+**PowermacG3 Test** profile is selected. Moe was not changed.
+
+Car routing, acoustic cutoff, sustained TTS quality/heat, and the separate server
+STT quantization/streaming requests remain open. See
+[issue evidence](evidence/issues-20261019/validation.json).
+
 ## Local prompt settings — 0.14.2 / build 34
 
 Local fallback settings now expose the editable system prompt, encrypted storage,

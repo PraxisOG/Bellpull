@@ -1,12 +1,12 @@
 # Bellpull phase roadmap
 
-Updated **October 18, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 19, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.14.2-experimental / build 34**, plugin
-**0.5.1-integration-preview**, based on `2026-10-17-car-experimental`.
+This experimental branch: app **0.14.3-experimental / build 35**, plugin
+**0.5.2-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
@@ -230,7 +230,7 @@ building a full local agent. Do not quietly substitute a model or cloud fallback
 
 ### Phase 14 · Offline conversations and reconnection — EXPERIMENTAL
 The 0.14.1 experiment integrates Gemma E2B CPU into the conversation shell. Settings
-configure automatic loading, thinking defaults and 2K/4K/8K contexts. The 0.14.2
+configure automatic loading, thinking defaults and 2K/4K/8K contexts. The 0.14.3
 update exposes the editable local system prompt and an explicit Hermes request
 for a short personal profile that the user can copy into it. Losing the
 server connection while the app is visible loads the model; a red banner becomes

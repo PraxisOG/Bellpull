@@ -1,5 +1,19 @@
 # Experimental issue repairs — 2026-10-13
 
+## October 19 experimental follow-up
+
+App 0.14.3 / build 35 and plugin 0.5.2 address #14 and #20–23 on the current
+experimental line. The new title endpoint uses a compare-and-swap transaction
+against Hermes title provenance; it never treats an unknown legacy title as
+permission to rename. Transcript reconciliation and gesture/runtime regressions
+are covered in JVM tests and physical fixture-phone tests. #13's Pin/Unpin control
+passed real touch, mutation and recreation checks on the Pixel; the historical
+personal-server failure was not reproduced. #1/#3/#7/#16 still require physical
+car/acoustic/thermal acceptance; #18/#19 concern a separate speech server whose
+implementation is not in this repository. Details and test counts are in the
+[current release record](release.md) and
+[machine-readable evidence](evidence/issues-20261019/validation.json).
+
 ## October 15 re-audit
 
 Audited all 15 open GitHub issues against `695f399`, their acceptance criteria,

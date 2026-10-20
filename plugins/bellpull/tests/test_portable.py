@@ -130,6 +130,17 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
                     session = await client.post(origin + "/api/sessions", headers=headers, json={})
                     session_id = (await session.json())["session"]["id"]
                     database = await adapter._ensure_session_db_async()
+                    if features.get("bellpull_voice_titles"):
+                        title_url = origin + f"/api/bellpull/sessions/{session_id}/voice-title"
+                        self.assertEqual(401, (await client.post(title_url, json={"title": "Unauthorized"})).status)
+                        database.set_auto_title(session_id, "Voice instructions", source="derived")
+                        response = await client.post(title_url, headers=headers, json={"title": "Synthetic voice question"})
+                        self.assertEqual(200, response.status, await response.text())
+                        self.assertEqual("Synthetic voice question", database.get_session_title(session_id))
+                        database.set_session_title(session_id, "Manual title")
+                        response = await client.post(title_url, headers=headers, json={"title": "Retry"})
+                        self.assertEqual(200, response.status, await response.text())
+                        self.assertEqual("Manual title", database.get_session_title(session_id))
                     for source in ("cli", "tui", "telegram"):
                         database.create_session(session_id="external_" + source, source=source, model="fixture")
                     all_sessions = await client.get(origin + "/api/sessions", headers=headers)

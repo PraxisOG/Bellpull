@@ -281,7 +281,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
@@ -362,6 +362,11 @@ class HermesClient(
         return execute(authed("/api/sessions/${urlPart(sessionId)}")
             .patch(payload.toRequestBody(JSON_MEDIA)).build(), sessionId) { Unit }
     }
+
+    /** Plugin atomically preserves manual titles, including concurrent renames. */
+    fun repairVoiceTitle(sessionId: String, title: String): HermesResult<Unit> =
+        post("/api/bellpull/sessions/${urlPart(sessionId)}/voice-title",
+            buildJsonObject { put("title", title) }.toString(), sessionId) { Unit }
 
     /** Requires the explicitly advertised session_fork_at_message server extension. */
     fun branchSession(sessionId: String, throughMessageId: Int): HermesResult<Session> {

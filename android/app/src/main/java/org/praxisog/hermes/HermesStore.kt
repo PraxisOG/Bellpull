@@ -39,7 +39,9 @@ internal class HermesStore(
     val readState: ConversationReadState = ConversationReadState(),
     durableRetention: Long? = null,
     journal: RunJournal? = null,
+    supportsVoiceTitles: Boolean = false,
 ) {
+    private var supportsVoiceTitles = supportsVoiceTitles
     var supportsMessageBranching by mutableStateOf(supportsMessageBranching)
         private set
     var supportsPromptEditing by mutableStateOf(supportsPromptEditing)
@@ -47,6 +49,7 @@ internal class HermesStore(
     fun updateCapabilities(value: HermesClient.Capabilities) {
         supportsMessageBranching = value.sessionForkAtMessage
         supportsPromptEditing = value.sessionForkBeforeMessage
+        supportsVoiceTitles = value.features["bellpull_voice_titles"] == true
         runs?.interactiveApprovals = value.interactiveApprovals
     }
     var sessionSource by mutableStateOf(sessionSource)
@@ -74,8 +77,10 @@ internal class HermesStore(
         runs?.onChanged = { id -> if (id == openSessionId) showDurableRun(id) }
         runs?.onHistory = { id, messages ->
             if (id == openSessionId) {
-                history = UiState.Ready(messages)
-                pendingUserText = null
+                Snapshot.withMutableSnapshot {
+                    history = UiState.Ready(messages)
+                    showDurableRun(id)
+                }
             }
         }
         runs?.onCompleted = { id, reply ->
@@ -106,12 +111,16 @@ internal class HermesStore(
     fun respondToApproval(requestId: String, choice: String) { openSessionId?.let { runs?.respond(it, requestId, choice) } }
     private fun showDurableRun(id: String) {
         val run = runs?.states?.get(id) ?: return
-        turn = run.turn
         val saved = (history as? UiState.Ready)?.value.orEmpty()
-        pendingUserText = run.submission.text.takeIf { it.isNotBlank() && run.submission.runId != null &&
-            !run.submission.historySynced && !run.submission.trackingDismissed && saved.none { message ->
-            message.id !in run.submission.previousIds && message.role == "user" && message.content?.trim() == it.trim()
-        } }
+        Snapshot.withMutableSnapshot {
+            // A journal write or subsequent status update must not resurrect a live
+            // copy after its canonical reply has already reached the conversation.
+            turn = reconcileDurableTurn(run.turn, saved, run.submission)
+            pendingUserText = run.submission.text.takeIf { it.isNotBlank() && run.submission.runId != null &&
+                !run.submission.historySynced && !run.submission.trackingDismissed && saved.none { message ->
+                message.id !in run.submission.previousIds && message.role == "user" && samePrompt(message.content, it)
+            } }
+        }
     }
     /** A list reveal request, including a new reply in the chat already at index zero. */
     var completionRevision by mutableStateOf(0L)
@@ -414,7 +423,7 @@ internal class HermesStore(
                     // one snapshot, so there is no frame with two copies of the answer.
                     submittedDrafts[sessionId]?.let { submitted ->
                         if (result.value.data.any { it.id !in submitted.previousIds && it.role == "user" &&
-                                it.content?.trim() == submitted.text.trim() }) {
+                                samePrompt(it.content, submitted.text) }) {
                             drafts.accepted(sessionId, submitted.revision)
                             submittedDrafts.remove(sessionId)
                         }
@@ -426,7 +435,7 @@ internal class HermesStore(
                         if (record != null) turn = reconcileDurableTurn(turn, result.value.data, record)
                     }
                     if (result.value.data.any { it.id !in turnHistoryIds && it.role == "user" &&
-                            it.content?.trim() == pendingUserText?.trim() }) pendingUserText = null
+                            samePrompt(it.content, pendingUserText) }) pendingUserText = null
                     turn = reconcileTurn(turn, result.value.data, turnHistoryIds, sentPrompt)
                 }
                 is HermesResult.Err -> {
@@ -463,6 +472,10 @@ internal class HermesStore(
     private fun recoverSessionTitles(sessions: List<Session>) {
         if (pendingTitles.isEmpty()) return
         pendingTitles.keys.toList().forEach { id ->
+            if (supportsVoiceTitles) {
+                deliverSessionTitle(id, pendingTitles.getValue(id))
+                return@forEach
+            }
             // A blank server title means our PATCH never landed (or died mid-flight); any
             // non-blank title is either our applied title or a manual rename, which wins.
             val current = sessions.firstOrNull { it.id == id }?.title.orEmpty()
@@ -476,7 +489,10 @@ internal class HermesStore(
         if (sessionId in titleAttempts) return
         titleAttempts.add(sessionId)
         scope.launch {
-            val delivered = io { client.setSessionTitle(sessionId, title) } is HermesResult.Ok
+            val delivered = io {
+                if (supportsVoiceTitles) client.repairVoiceTitle(sessionId, title)
+                else client.setSessionTitle(sessionId, title)
+            } is HermesResult.Ok
             titleAttempts.remove(sessionId)
             if (delivered) {
                 pendingTitles.remove(sessionId)
@@ -540,7 +556,7 @@ internal class HermesStore(
                             drafts.accepted(sessionId, submitted.revision)
                             submittedDrafts.remove(sessionId)
                             if (revision == sessionRevision && (history as? UiState.Ready)?.value.orEmpty().none {
-                                    it.id !in submitted.previousIds && it.role == "user" && it.content?.trim() == text.trim()
+                                    it.id !in submitted.previousIds && it.role == "user" && samePrompt(it.content, text)
                                 }) pendingUserText = text
                         }
                     }
@@ -589,7 +605,7 @@ internal class HermesStore(
                 val saved = io { client.completeHistory(sessionId) }
                 if (saved is HermesResult.Ok) {
                     val fresh = saved.value.data.filter { it.id !in submitted.previousIds }
-                    val promptIndex = fresh.indexOfLast { it.role == "user" && it.content?.trim() == submitted.text.trim() }
+                    val promptIndex = fresh.indexOfLast { it.role == "user" && samePrompt(it.content, submitted.text) }
                     if (promptIndex >= 0) fresh.drop(promptIndex + 1).lastOrNull {
                         it.role == "assistant" && !it.content.isNullOrBlank()
                     }?.let { reply ->
@@ -634,7 +650,7 @@ internal class HermesStore(
                 if (saved !is HermesResult.Ok) continue
                 val messages = saved.value.data
                 val fresh = messages.filter { it.id !in submitted.previousIds }
-                val prompt = fresh.indexOfLast { it.role == "user" && it.content?.trim() == submitted.text.trim() }
+                val prompt = fresh.indexOfLast { it.role == "user" && samePrompt(it.content, submitted.text) }
                 val reply = if (prompt < 0) null else fresh.drop(prompt + 1).lastOrNull {
                     it.role == "assistant" && it.toolCalls.isNullOrEmpty() && !it.content.isNullOrBlank()
                 }

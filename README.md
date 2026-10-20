@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.14.2-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.14.3-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -56,8 +56,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.14.2-experimental / build 34**
-> pairs with Bellpull plugin **0.5.1-integration-preview**. Server features need
+> **This branch is experimental:** Android **0.14.3-experimental / build 35**
+> pairs with Bellpull plugin **0.5.2-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > Real Doze/reboot, car audio and cloud calendar sync
@@ -66,7 +66,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download 0.14.2 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.2-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download 0.14.3 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.3-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.

@@ -1,7 +1,6 @@
 package org.praxisog.hermes
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -49,9 +48,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
             contentColor = if (user) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
             shape = if (user) RoundedCornerShape(18.dp) else ResponseBubbleShape,
             border = if (user) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {},
-                onLongClickLabel = "Message actions",
-                onLongClick = { selected = message })
+            modifier = Modifier.fillMaxWidth().messageLongPress { selected = message }
                 .semantics { contentDescription = if (user) "Your message" else "Hermes response" }) {
             if (!user && content != null) CompositionLocalProvider(LocalInResponseBubble provides true) {
                 content()

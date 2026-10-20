@@ -1,6 +1,6 @@
 ## Phase 14 integrated local fallback branch
 
-This branch builds **0.14.2-experimental / build 34**. Initialize submodules
+This branch builds **0.14.3-experimental / build 35**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -8,7 +8,7 @@ See [Phase 14](PHASE-14-OFFLINE.md) for limits and validation.
 
 # Build the experimental preview
 
-This branch builds **0.14.2-experimental / build 34**, with the 0.5.1
+This branch builds **0.14.3-experimental / build 35**, with the 0.5.2
 integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
@@ -37,13 +37,13 @@ To reproduce a release, fetch and check out its tag, then run
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
 **not** include submodule contents. Use the recursive clone above, or download
-**Bellpull-source-0.14.2.tar.gz**, which includes this release's tracked
+**Bellpull-source-0.14.3.tar.gz**, which includes this release's tracked
 source and native trees. That archive also contains
 `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.14.2.tar.gz
-cd Bellpull-source-0.14.2
+tar -xzf Bellpull-source-0.14.3.tar.gz
+cd Bellpull-source-0.14.3
 ```
 
 ## Toolchain

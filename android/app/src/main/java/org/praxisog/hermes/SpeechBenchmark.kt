@@ -15,14 +15,21 @@ import kotlin.concurrent.withLock
 
 /** One native model in memory. Switching and inference use the same exclusive lock. */
 internal class SpeechModelRuntime(private val verify: (SpeechModel) -> Unit,
+    private val loadCooldown: ModelLoadCooldown = ModelLoadCooldown(),
     private val create: (SpeechModel) -> LocalSpeechEngine) : AutoCloseable {
+    constructor(verify: (SpeechModel) -> Unit, create: (SpeechModel) -> LocalSpeechEngine) :
+        this(verify, ModelLoadCooldown(), create)
     private val lock = ReentrantLock()
     private var current: Pair<String, LocalSpeechEngine>? = null
+    private var attemptedModel: String? = null
     @Volatile var loadedModel: String? = null
         private set
     fun <T> withModel(model: SpeechModel, block: (LocalSpeechEngine, Double) -> T): T = lock.withLock {
         var loadMs = 0.0
         if (current?.first != model.id) {
+            if (attemptedModel != model.id) loadCooldown.reset()
+            check(loadCooldown.begin()) { "Speech model load was attempted recently. Wait 10 seconds or load it again in Settings." }
+            attemptedModel = model.id
             val old = current
             current = null
             loadedModel = null
@@ -42,6 +49,7 @@ internal class SpeechModelRuntime(private val verify: (SpeechModel) -> Unit,
             throw failure
         }
     }
+    fun allowRetry() { loadCooldown.reset() }
     override fun close() = lock.withLock {
         val old = current
         current = null

@@ -1,8 +1,10 @@
-> Branch note: this checkout contains plugin **0.4.3-integration-preview** and
-> Android **0.12.0-experimental / build 30**. Phase 12 notification context uses
-> existing native chat/run input and requires no plugin migration. See the
-> [current release record](../../docs/release.md). The integration-release
-> instructions below describe the older published 0.4.2 package.
+> Current experimental pair: **Android 0.14.3 / build 35**, plugin
+> **0.5.2-integration-preview**. This adds authenticated conditional voice-title
+> repair (`bellpull_voice_titles`) using Hermes title provenance and an atomic
+> transaction. Manual, legacy unknown-provenance, and LLM titles are preserved.
+> Install the complete plugin and restart Hermes; refresh the app's server connection.
+> Offline memory and reviewed handoff remain available. See the
+> [release record](../../docs/release.md). Historical setup follows below.
 
 # Bellpull integration plugin 0.4.2-integration-preview
 
