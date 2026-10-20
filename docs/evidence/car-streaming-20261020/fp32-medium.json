@@ -1,0 +1,89 @@
+{
+  "engine": "fp32-medium",
+  "cpu_only": true,
+  "cpu": "x86_64",
+  "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+  "load_ms_including_download": 4285.106618015561,
+  "peak_rss_mib": 1463.69140625,
+  "metadata": {
+    "runtime": "transformers",
+    "version": "5.20.2",
+    "torch": "2.14.1+cpu",
+    "model": "moonshine-ai/moonshine-streaming-medium",
+    "revision": "57b843633a8c183cadf6699ffa761377a933a866",
+    "precision": "float32",
+    "threads": 6,
+    "device": "cpu"
+  },
+  "fixtures": [
+    {
+      "fixture": "clean",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "milliseconds": [
+        1121.9991740072146,
+        1134.8406309843995,
+        1140.280288993381
+      ],
+      "median_ms": 1134.8406309843995,
+      "rtf": 0.09038953651807244,
+      "text": "The dull light fell more faintly upon the page, whereon another equation began to unfold itself slowly, and to spread abroad its widening tail.",
+      "repeat_stable": true,
+      "word_errors": 0,
+      "reference_words": 24,
+      "wer": 0.0
+    },
+    {
+      "fixture": "numbers-measurements",
+      "sha256": "2686ad71ab8015a99b22d42e6ae893f07e3384ff07c077fbd500714d1eae6d4a",
+      "audio_seconds": 6.74,
+      "milliseconds": [
+        720.0664459960535,
+        718.5766450129449,
+        760.6341409846209
+      ],
+      "median_ms": 720.0664459960535,
+      "rtf": 0.1068347842724115,
+      "text": "Fairview was twelve miles away, but by ten o'clock they drew up at the county drail.",
+      "repeat_stable": true,
+      "word_errors": 1,
+      "reference_words": 16,
+      "wer": 0.0625
+    },
+    {
+      "fixture": "natural-pauses",
+      "sha256": "a4ddd06c78a1c045b168e7a94d35b0af79f46e5b281723c0952c0d68601c8f3c",
+      "audio_seconds": 16.65,
+      "milliseconds": [
+        1749.8477200279012,
+        1750.052646966651,
+        1741.7147450032644
+      ],
+      "median_ms": 1749.8477200279012,
+      "rtf": 0.10509595916083492,
+      "text": "It may be that a great colorless will use his utmost force of color as a singer, his full power of voice, but loud or low, the virtue is in both cases, always in refinement, never in loudness.",
+      "repeat_stable": true,
+      "word_errors": 1,
+      "reference_words": 38,
+      "wer": 0.02631578947368421
+    },
+    {
+      "fixture": "road-noise",
+      "sha256": "cf4949a15422c7d60ba16b49a62c197e9d1fa793c03880f4483a0d674c1c96f2",
+      "audio_seconds": 12.555,
+      "milliseconds": [
+        1090.289796993602,
+        1118.2926959590986,
+        1098.5930849565193
+      ],
+      "median_ms": 1098.5930849565193,
+      "rtf": 0.08750243607777931,
+      "text": "The dull light fell more faintly upon the page whereon another equation began to unfold itself slowly and to spread abroad its widening tail.",
+      "repeat_stable": true,
+      "word_errors": 0,
+      "reference_words": 24,
+      "wer": 0.0
+    }
+  ],
+  "limitations": "Four short public clips, including one traffic mix. Not a car microphone or broad accuracy benchmark."
+}

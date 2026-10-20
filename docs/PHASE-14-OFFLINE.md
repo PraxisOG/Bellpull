@@ -1,6 +1,7 @@
 # Phase 14: offline conversations and reconnection
 
-Android **0.14.3-experimental / build 35**, Bellpull plugin **0.5.2-integration-preview**.
+Android **0.14.4-experimental / build 36**, Bellpull plugin **0.6.0-integration-preview**.
+The current increment adds [car audio and server streaming](evidence/car-streaming-20261020/README.md); the offline feature acceptance below is historical.
 Gemma 4 E2B Q4_0 runs on CPU. Thinking defaults off and is saved per local chat.
 
 ## Use

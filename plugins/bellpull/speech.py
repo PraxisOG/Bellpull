@@ -26,7 +26,12 @@ class SpeechProxy:
 
     async def start(self, _app):
         self.loop = asyncio.get_running_loop()
-        self.session = aiohttp.ClientSession(headers=self.headers, auto_decompress=False)
+        # WebSocket upgrades must not follow a redirect carrying helper credentials.
+        trace = aiohttp.TraceConfig()
+        async def no_redirect(session, context, params):
+            raise aiohttp.ClientConnectionError("Speech helper redirects are disabled")
+        trace.on_request_redirect.append(no_redirect)
+        self.session = aiohttp.ClientSession(headers=self.headers, auto_decompress=False, trace_configs=[trace])
 
     def stop(self):
         if self.loop is not None and not self.loop.is_closed():
@@ -70,6 +75,63 @@ class SpeechProxy:
         return await self.proxy(request, "stt", timeout=self.stt_timeout, data=body,
             headers={"Content-Type": request.headers["Content-Type"]})
 
+    async def stt_stream(self, request):
+        upstream = None
+        downstream = web.WebSocketResponse(max_msg_size=64 * 1024, heartbeat=10)
+        tasks = []
+        try:
+            # Authenticate/open upstream before upgrading: old helpers produce an
+            # ordinary 404, which lets the phone deliberately use the batch route.
+            upstream = await asyncio.wait_for(self.session.ws_connect(self.url + "/stt/stream",
+                heartbeat=10, max_msg_size=64 * 1024, receive_timeout=30), 10)
+            await downstream.prepare(request)
+
+            async def upload():
+                count = 0
+                async for message in downstream:
+                    if message.type == aiohttp.WSMsgType.BINARY:
+                        count += len(message.data)
+                        if len(message.data) % 2 or count > 16000 * 2 * 60:
+                            raise ValueError("Audio limit exceeded")
+                        await upstream.send_bytes(message.data)
+                    elif message.type == aiohttp.WSMsgType.TEXT:
+                        if len(message.data) > 1024:
+                            raise ValueError("Control frame too large")
+                        await upstream.send_str(message.data)
+                    else:
+                        break
+
+            async def download():
+                async for message in upstream:
+                    if message.type == aiohttp.WSMsgType.TEXT:
+                        await downstream.send_str(message.data)
+                    else:
+                        break
+
+            tasks = [asyncio.create_task(upload()), asyncio.create_task(download())]
+            async with asyncio.timeout(90):
+                done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    task.result()
+        except aiohttp.WSServerHandshakeError as exc:
+            return error(exc.status if exc.status in (401, 403, 404, 405, 429, 501, 503) else 502,
+                         "Streaming transcription is unavailable")
+        except (TimeoutError, aiohttp.ClientError, OSError, ValueError):
+            if not downstream.prepared:
+                return error(503, "Speech helper unavailable")
+            if not downstream.closed:
+                await downstream.send_json({"type": "error", "message": "Speech stream interrupted. Retry the recording."})
+        finally:
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            if upstream is not None:
+                await upstream.close()
+            if downstream.prepared:
+                await downstream.close()
+        return downstream
+
     async def proxy(self, request, endpoint, timeout, **kwargs):
         response = None
         try:
@@ -103,4 +165,5 @@ class SpeechProxy:
     def routes(self):
         return [("GET", "/api/bellpull/speech/health", self.health),
                 ("POST", "/api/bellpull/speech/tts", self.tts),
-                ("POST", "/api/bellpull/speech/stt", self.stt)]
+                ("POST", "/api/bellpull/speech/stt", self.stt),
+                ("GET", "/api/bellpull/speech/stt/stream", self.stt_stream)]

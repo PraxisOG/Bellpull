@@ -17,6 +17,17 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-20):** the user requested stronger persistent car
+audio, potentially Android Telecom, CPU STT measurements and streaming audio to
+the server. They then selected FP32 because it was faster. This increment uses
+`feature/car-telecom-streaming-speech`, Android 0.14.4/build36, plugin 0.6.0.
+AndroidX Core Telecom 1.0.0 implements the requested platform integration.
+The local PowerMac Hermes and CPU helper are authorized test/deployment targets;
+Moe is unchanged. Phone installation/testing and experimental publication continue
+the existing authorization. Keep personal app data/signing, use disposable fixture
+packages for instrumentation, and never commit private credentials or weights.
+See `docs/evidence/car-streaming-20261020/README.md` for actual acceptance and limits.
+
 - **No launcher shell.** This is a normal app. No home-screen-replacement code.
 - **No silent model substitution.** If the primary inference path is unavailable, fail with
   a scoped, visible error. Never quietly downgrade to a local or smaller model.

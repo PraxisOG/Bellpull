@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-20",
+  "app_version": "0.14.4-experimental",
+  "version_code": 36,
+  "plugin_version": "0.6.0-integration-preview",
+  "android": {
+    "jvm_checks": 714,
+    "skipped": 1,
+    "failures": 0,
+    "screenshot_baselines": 187,
+    "lint": "passed",
+    "release_abis": [
+      "arm64-v8a",
+      "x86_64"
+    ]
+  },
+  "plugin": {
+    "full_checks": 168,
+    "skipped": 1,
+    "failures": 0,
+    "modern_stock_checks": 15
+  },
+  "helper_checks": 6,
+  "phone": {
+    "device": "Pixel 10 Pro Fold",
+    "os": "GrapheneOS Android 17",
+    "fixture_tests_passed": 2,
+    "telecom_screen_off_seconds": 10,
+    "streaming_engine": "moonshine-medium-fp32-cpu",
+    "first_partial_ms": 1254,
+    "partial_count": 17,
+    "final_after_uploaded_audio_ms": 59,
+    "transport": "ADB reverse; public pinned WAV through actual Android client and plugin proxy",
+    "server_transcription_setting": "Not changed: personal phone remained locked during final setup"
+  },
+  "server": {
+    "host": "PowerMac",
+    "gateway_plugin": "0.6.0-integration-preview",
+    "engine": "moonshine-medium-fp32-cpu",
+    "loopback_helper": true,
+    "authenticated": true,
+    "tts_implemented": false,
+    "additional_https_probe": "Historical hostname did not resolve on this host; tailnet/cellular transport not validated"
+  },
+  "limits": [
+    "No physical car/headset acceptance",
+    "No actual SIM call or navigation interruption test",
+    "No sustained thermal test",
+    "No cellular transport latency claim"
+  ]
+}

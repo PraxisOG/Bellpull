@@ -93,8 +93,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 35
-        versionName = "0.14.3-experimental"
+        versionCode = 36
+        versionName = "0.14.4-experimental"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -182,6 +182,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-telecom:1.0.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.security:security-crypto:1.1.0")
@@ -210,6 +211,7 @@ dependencies {
 
     testImplementation(composeBom)
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.0")
     // Test-only. core-hermes keeps OkHttp as `implementation` so the app's production code
     // cannot see it; HermesStoreTest needs the type to inject mock-hermes' X-Mock-Fail header
     // without the production client exposing any way to request a failure.

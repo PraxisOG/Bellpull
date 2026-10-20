@@ -1,0 +1,15 @@
+[Unit]
+Description=Bellpull CPU streaming speech recognition
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/bellpull/speech.env
+ExecStart=%h/.local/share/bellpull-speech-venv/bin/python %h/.local/share/bellpull-speech/server.py --model medium --precision fp32
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

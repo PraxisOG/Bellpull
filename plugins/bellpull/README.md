@@ -1,10 +1,10 @@
-> Current experimental pair: **Android 0.14.3 / build 35**, plugin
-> **0.5.2-integration-preview**. This adds authenticated conditional voice-title
-> repair (`bellpull_voice_titles`) using Hermes title provenance and an atomic
-> transaction. Manual, legacy unknown-provenance, and LLM titles are preserved.
-> Install the complete plugin and restart Hermes; refresh the app's server connection.
-> Offline memory and reviewed handoff remain available. See the
-> [release record](../../docs/release.md). Historical setup follows below.
+> Current experimental pair: **Android 0.14.4 / build 36**, plugin
+> **0.6.0-integration-preview**. Adds authenticated WebSocket PCM transcription
+> proxying, scoped to the existing profile credential. Install the complete plugin
+> and restart Hermes when idle. The optional [CPU speech helper](../../server-speech/README.md)
+> runs separately; its key stays on the server. Voice-title repair, offline memory
+> and reviewed handoff remain available. See the [release record](../../docs/release.md).
+> Historical setup follows below.
 
 # Bellpull integration plugin 0.4.2-integration-preview
 

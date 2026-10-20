@@ -1,0 +1,11 @@
+test_cancel_during_creation_closes_native_result (test_server.NativeOwnershipTest.test_cancel_during_creation_closes_native_result) ... ok
+test_audio_before_start_and_invalid_format_fail (test_server.ServerTest.test_audio_before_start_and_invalid_format_fail) ... ok
+test_authentication_before_upgrade (test_server.ServerTest.test_authentication_before_upgrade) ... ok
+test_cleanup_failure_still_releases_capacity (test_server.ServerTest.test_cleanup_failure_still_releases_capacity) ... ok
+test_invalid_audio_fails_and_releases_slot (test_server.ServerTest.test_invalid_audio_fails_and_releases_slot) ... ok
+test_two_streams_keep_separate_state_and_overload_is_bounded (test_server.ServerTest.test_two_streams_keep_separate_state_and_overload_is_bounded) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.073s
+
+OK

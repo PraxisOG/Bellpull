@@ -149,6 +149,23 @@ class CallModeTest {
         assertEquals(0, output.chimes)
     }
 
+    @Test fun telecomMuteDiscardsPartialUtteranceWithoutRestartingCapture() {
+        voice.start(VoiceMode.CALL)
+        repeat(25) { voice.frame(ShortArray(320) { 2500 }, 320) }
+        assertEquals(VoiceState.RECORDING, voice.state)
+        voice.updateMicrophoneMute(true)
+        record()
+        assertEquals(0, conversation.sends)
+        assertTrue(capture.active)
+        voice.updateMicrophoneMute(false)
+        repeat(90) { voice.frame(ShortArray(320), 320) }
+        assertEquals(0, conversation.sends)
+        record()
+        await { conversation.sends == 1 }
+        assertEquals(1, capture.starts)
+        assertEquals(0, capture.stops)
+    }
+
     @Test fun softHeldSpeechReachesRecognitionWithoutHandsFreeVolumeThreshold() {
         voice.start(VoiceMode.PUSH_TO_TALK)
         voice.beginPushToTalk()

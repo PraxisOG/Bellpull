@@ -1,0 +1,43 @@
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.StreamingSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.StreamingSpeechDeviceTest:
+INSTRUMENTATION_STATUS: test=publicSpeechStreamsThroughPluginAndFinalizesWithoutBatchReplay
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: final_after_audio_ms=59
+INSTRUMENTATION_STATUS: first_partial_ms=1254
+INSTRUMENTATION_STATUS: partial_count=17
+INSTRUMENTATION_STATUS: path=phone -> plugin proxy -> CPU medium (precision recorded by helper health)
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.StreamingSpeechDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=publicSpeechStreamsThroughPluginAndFinalizesWithoutBatchReplay
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.TelecomVoiceDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.TelecomVoiceDeviceTest:
+INSTRUMENTATION_STATUS: test=systemCallSurvivesScreenOffHoldsResumesAndDisconnects
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.TelecomVoiceDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=systemCallSurvivesScreenOffHoldsResumesAndDisconnects
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 27.276
+
+OK (2 tests)
+
+
+INSTRUMENTATION_CODE: -1

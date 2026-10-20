@@ -1,3 +1,26 @@
+## Telecom call mode and streaming speech — 0.14.4 / build 36
+
+App **0.14.4-experimental**, plugin **0.6.0-integration-preview**.
+
+Call mode now registers a persistent Android Telecom call, with platform audio
+routing and hold/resume/end/mute integration. Server recognition streams PCM while
+recording and displays partials; only finalized text reaches the existing
+voice-turn logic. Cancellation, bounded queues and explicit Retry preserve the
+recording without silently replaying an accepted stream to the server.
+
+PowerMac runs the authenticated CPU helper with **FP32 Moonshine medium**, selected
+after CPU measurements. The original FP32 export supports true incremental
+decoding; it was about 2.1× faster than native INT8 on four public clips. This
+helper is STT-only. Existing TTS settings remain user-owned.
+
+Validation: 714 JVM checks (one existing skip), 187 unchanged screenshot baselines,
+lint, signed ARM64/x86_64 release assembly, 168 plugin checks (one existing skip),
+15 modern stock-host checks, six helper checks and two physical-phone tests.
+The phone tests exercise system Telecom with screen off/hold/resume/hang-up and
+public audio through Android → plugin → CPU. Actual car acoustics, incoming SIM
+calls, navigation interruptions, extended heat and cellular reconnection remain
+open. See [measurements, installation and limits](evidence/car-streaming-20261020/README.md).
+
 ## Open-issue repairs — 0.14.3 / build 35
 
 App **0.14.3-experimental**, plugin **0.5.2-integration-preview**.

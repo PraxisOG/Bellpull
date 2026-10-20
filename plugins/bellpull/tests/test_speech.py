@@ -15,6 +15,30 @@ class SpeechTest(unittest.IsolatedAsyncioTestCase):
         self.streaming = False
         self.finish = asyncio.Event()
         self.seen = []
+        self.stream_closed = asyncio.Event()
+        self.stream_audio = bytearray()
+        self.redirect_stream = False
+        async def speech_stream(request):
+            self.seen.append((request.path, request.headers.get("Authorization"), b""))
+            if self.redirect_stream:
+                raise web.HTTPFound("/health")
+            if self.status != 200:
+                return web.Response(status=self.status)
+            ws = web.WebSocketResponse()
+            await ws.prepare(request)
+            try:
+                await ws.send_json({"type": "ready", "sample_rate": 16000})
+                async for message in ws:
+                    if message.type == 2:
+                        self.stream_audio.extend(message.data)
+                        await ws.send_json({"type": "partial", "text": "Live words"})
+                    elif message.json().get("type") == "finish":
+                        await ws.send_json({"type": "final", "text": "Live words complete"})
+                        break
+            finally:
+                self.stream_closed.set()
+                await ws.close()
+            return ws
         async def helper(request):
             self.seen.append((request.path, request.headers.get("Authorization"), await request.read()))
             await asyncio.sleep(self.delay)
@@ -34,6 +58,7 @@ class SpeechTest(unittest.IsolatedAsyncioTestCase):
             return web.Response(body=b'\x00\x00\xff\x7f', content_type='application/octet-stream',
                 headers={'X-Audio-Seconds': '1', 'X-Took-Ms': '12'})
         app = web.Application()
+        app.router.add_get('/stt/stream', speech_stream)
         app.router.add_route('*', '/{path}', helper)
         self.helper = TestServer(app)
         await self.helper.start_server()
@@ -105,6 +130,33 @@ class SpeechTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(413, (await self.client.post('/api/bellpull/speech/tts', data=b'x' * (TTS_LIMIT + 1))).status)
         self.assertEqual(413, (await self.client.post('/api/bellpull/speech/stt',
             data=b'x' * (STT_LIMIT + 1), headers={'Content-Type': 'multipart/form-data; boundary=fixture'})).status)
+
+    async def test_streamed_input_returns_partial_before_finish_and_uses_helper_key(self):
+        async with self.client.ws_connect('/api/bellpull/speech/stt/stream') as ws:
+            self.assertEqual("ready", (await ws.receive_json())["type"])
+            await ws.send_json({"type": "start", "sample_rate": 16000, "channels": 1, "format": "pcm_s16le"})
+            await ws.send_bytes(b"\x00\x00" * 1600)
+            self.assertEqual("Live words", (await ws.receive_json())["text"])
+            self.assertFalse(self.stream_closed.is_set())
+            await ws.send_json({"type": "finish"})
+            self.assertEqual("final", (await ws.receive_json())["type"])
+        self.assertEqual(b"\x00\x00" * 1600, self.stream_audio)
+        self.assertEqual("Bearer synthetic-helper", self.seen[-1][1])
+
+    async def test_stream_cancel_closes_helper_and_old_helper_preserves_404(self):
+        ws = await self.client.ws_connect('/api/bellpull/speech/stt/stream')
+        await ws.receive_json()
+        await ws.close()
+        await asyncio.wait_for(self.stream_closed.wait(), 2)
+        self.status = 404
+        response = await self.client.get('/api/bellpull/speech/stt/stream')
+        self.assertEqual(404, response.status)
+
+    async def test_websocket_redirect_never_reaches_redirect_target(self):
+        self.redirect_stream = True
+        response = await self.client.get('/api/bellpull/speech/stt/stream')
+        self.assertEqual(503, response.status)
+        self.assertEqual(['/stt/stream'], [row[0] for row in self.seen])
 
     async def test_wire_auth_and_capability(self):
         # Gateway modules are supplied by the pinned stock-Hermes test image.

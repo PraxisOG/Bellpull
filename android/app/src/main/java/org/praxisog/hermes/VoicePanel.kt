@@ -73,6 +73,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                         TextButton(onClick = { editing = true }) { Text("Voice settings") }
                     } else {
                         Text(voice.state.label, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { contentDescription = "Voice state: ${voice.state.label}" })
+                        if (voice.microphoneMuted) Text("Microphone muted")
+                        if (voice.partialTranscript.isNotBlank()) Text(voice.partialTranscript)
                         if (voice.state in setOf(VoiceState.STARTING, VoiceState.TRANSCRIBING, VoiceState.WORKING, VoiceState.WAITING)) LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("${when (voice.mode) { VoiceMode.CALL -> "Call mode"; VoiceMode.CONVERSATION -> "Hands-free"; VoiceMode.DICTATION -> "Review before sending"; VoiceMode.PUSH_TO_TALK -> "Push to talk" }} · ${voice.voiceName}", style = MaterialTheme.typography.labelMedium)
                         voice.notice?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }

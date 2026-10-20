@@ -1,0 +1,16 @@
+{
+  "before": {
+    "uid": "10308",
+    "version": "0.14.3-experimental",
+    "code": "35",
+    "data_dir": "/data/user/0/org.praxisog.hermes"
+  },
+  "after": {
+    "uid": "10308",
+    "version": "0.14.4-experimental",
+    "code": "36",
+    "data_dir": "/data/user/0/org.praxisog.hermes"
+  },
+  "in_place": true,
+  "installed_apk_sha256": "d3ab1a6f517788c7cae1576285ee6391a291b3630d410ba7d171a6058f1661d0"
+}

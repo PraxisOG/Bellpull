@@ -26,6 +26,8 @@ class VoiceService : Service() {
     private var wakeRenewal: Job? = null
     private var routePending = false
     private var routeTimeout: Job? = null
+    private var telecomCall: TelecomVoiceCall? = null
+    private var usingTelecom = false
     @get:androidx.annotation.RequiresApi(31)
     private val routeChanged by lazy {
         AudioManager.OnCommunicationDeviceChangedListener {
@@ -84,6 +86,8 @@ class VoiceService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         val config = VoiceSettings(this, profile).read()
+        usingTelecom = runtime.voiceRequestedMode == VoiceMode.CALL &&
+            packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TELECOM)
         if (runtime.voiceDictationToDraft && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }
         runtime.voiceProblem(config)?.let { problem ->
             runtime.voiceStartError = problem
@@ -95,24 +99,36 @@ class VoiceService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val open = PendingIntent.getActivity(this, 51, Intent(this, MainActivity::class.java).setAction(OPEN),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        fun notification(text: String, paused: Boolean = false) = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
+        fun notification(text: String, paused: Boolean = false): Notification {
+            val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(if ((runtime.voice?.mode ?: runtime.voiceRequestedMode) == VoiceMode.CALL) "Bellpull call mode" else "Bellpull voice")
             .setContentText(text).setContentIntent(open).setOngoing(true)
             .addAction(Notification.Action.Builder(null, if (paused) "Resume voice" else "Pause microphone", action(if (paused) RESUME else PAUSE, 52)).build())
-            .addAction(Notification.Action.Builder(null, "End voice", action(STOP, 53)).build()).build()
+            if (usingTelecom && Build.VERSION.SDK_INT >= 31) builder.setStyle(Notification.CallStyle.forOngoingCall(
+                Person.Builder().setName("Bellpull").setImportant(true).build(), action(STOP, 53)))
+            else builder.addAction(Notification.Action.Builder(null, "End voice", action(STOP, 53)).build())
+            return builder.build()
+        }
         try {
             val serviceTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
-                if (Build.VERSION.SDK_INT >= 30) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
+                (if (Build.VERSION.SDK_INT >= 30) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0) or
+                (if (usingTelecom) ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL else 0)
             startForeground(2405, notification("Starting microphone and speech"), serviceTypes)
             oldMode = audio.mode
-            check(oldMode == AudioManager.MODE_NORMAL)
-            check(acquireAudio())
+            if (!usingTelecom) {
+                check(oldMode == AudioManager.MODE_NORMAL)
+                check(acquireAudio())
+            }
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
                 runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
-                    if (config.transcribeViaServer) ServerVoiceTranscriber(ProfileSpeechTransport(runtime.speechConnection()),
-                        allowLocalFallback = config.allowLocalTranscriptionFallback) {
-                        runtime.speechLab.fallbackTranscriber()
+                    if (config.transcribeViaServer) {
+                        val connection = runtime.speechConnection()
+                        StreamingServerTranscriber(connection,
+                            ServerVoiceTranscriber(ProfileSpeechTransport(connection),
+                                allowLocalFallback = config.allowLocalTranscriptionFallback) {
+                                runtime.speechLab.fallbackTranscriber()
+                            }, local = if (config.allowLocalTranscriptionFallback) ({ runtime.speechLab.fallbackTranscriber() }) else null)
                     }
                     else if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
                     else HttpVoiceTranscriber(config)
@@ -141,12 +157,29 @@ class VoiceService : Service() {
             }
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 voice.showNotice("Android is hiding the voice notification. Return here to end voice, or use Android's active-app controls.")
-            voice.start(runtime.voiceRequestedMode)
-            if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
+            if (usingTelecom) {
+                telecomCall = TelecomVoiceCall(this,
+                    onReady = { acquireWakeLock(); voice.start(VoiceMode.CALL) },
+                    onActive = { acquireWakeLock(); if (voice.state == VoiceState.PAUSED) voice.resume() },
+                    onHeld = { voice.pause("Call on hold. Resume from Bellpull or your call controls.") },
+                    onMuted = voice::updateMicrophoneMute,
+                    onEnded = { voice.close() },
+                    onError = { message ->
+                        if (voice.state == VoiceState.STARTING) {
+                            runtime.voiceStartError = message; voice.close()
+                        } else voice.pause(message)
+                    }).also { it.start() }
+            } else {
+                voice.start(runtime.voiceRequestedMode)
+                if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
+            }
             scope.launch {
                 androidx.compose.runtime.snapshotFlow { voice.state to voice.mode }.collect { (state, _) ->
                     val paused = state == VoiceState.PAUSED
-                    if (paused) releaseAudio()
+                    if (paused) {
+                        if (usingTelecom) { telecomCall?.setHeld(true); releaseWakeLock() }
+                        else releaseAudio()
+                    }
                     media?.setPlaybackState(PlaybackState.Builder()
                         .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP)
                         .setState(if (paused) PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING, 0, if (paused) 0f else 1f).build())
@@ -161,6 +194,11 @@ class VoiceService : Service() {
     }
     /** Never reclaim a call's mode or restart capture without explicit Resume. */
     private fun acquireAudio(): Boolean {
+        if (usingTelecom) {
+            if (telecomCall?.active == true) { acquireWakeLock(); return true }
+            telecomCall?.setHeld(false)
+            return false
+        }
         if (ownsAudio) return audio.mode == AudioManager.MODE_IN_COMMUNICATION
         if (audio.mode != AudioManager.MODE_NORMAL) return false
         val cycle = ++audioCycle
@@ -186,7 +224,14 @@ class VoiceService : Service() {
             check(selectRoute())
             // The user-started foreground session must continue capturing and
             // receiving speech while the screen is off, even between phrases.
-            wakeLock = getSystemService(PowerManager::class.java)
+            acquireWakeLock()
+            true
+        } catch (_: Exception) { releaseAudio(); false }
+        finally { acquiring = false }
+    }
+    private fun acquireWakeLock() {
+        if (wakeLock != null) return
+        wakeLock = getSystemService(PowerManager::class.java)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Bellpull:voice").also {
                     it.setReferenceCounted(false)
                     it.acquire(10 * 60_000L)
@@ -194,13 +239,14 @@ class VoiceService : Service() {
             wakeRenewal = scope.launch {
                 while (isActive) {
                     delay(5 * 60_000L)
-                    if (!ownsAudio) break
+                    if (!ownsAudio && telecomCall?.active != true) break
                     wakeLock?.acquire(10 * 60_000L)
                 }
             }
-            true
-        } catch (_: Exception) { releaseAudio(); false }
-        finally { acquiring = false }
+    }
+    private fun releaseWakeLock() {
+        wakeRenewal?.cancel(); wakeRenewal = null
+        wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
     }
     private fun releaseAudio() {
         // Fence the old focus listener before abandoning focus or changing our own route.
@@ -208,8 +254,7 @@ class VoiceService : Service() {
         val owned = ownsAudio
         ownsAudio = false; requestedRoute = null
         routePending = false; routeTimeout?.cancel(); routeTimeout = null
-        wakeRenewal?.cancel(); wakeRenewal = null
-        wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null
+        releaseWakeLock()
         focus?.let(audio::abandonAudioFocusRequest); focus = null
         if (owned && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
         if (owned && audio.mode == AudioManager.MODE_IN_COMMUNICATION) audio.mode = oldMode
@@ -245,6 +290,7 @@ class VoiceService : Service() {
     }
     override fun onDestroy() {
         started = false
+        telecomCall?.close(); telecomCall = null
         runtime.voice?.close(); runtime.voice = null; runtime.voiceRequestedSession = null
         runtime.voiceDictationToDraft = false; runtime.voiceButtonHeld = false
         media?.release(); audio.unregisterAudioDeviceCallback(routes); unregisterReceiver(noisy)

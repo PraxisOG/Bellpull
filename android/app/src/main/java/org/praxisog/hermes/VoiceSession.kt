@@ -94,8 +94,10 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     var state by mutableStateOf(VoiceState.STARTING); private set
     var mode by mutableStateOf(VoiceMode.CONVERSATION); private set
     var transcript by mutableStateOf(initialTranscript); private set
+    var partialTranscript by mutableStateOf(""); private set
     var notice by mutableStateOf<String?>(null); private set
     var voiceName by mutableStateOf(""); private set
+    var microphoneMuted by mutableStateOf(false); private set
     var playedText by mutableStateOf(""); private set
     var transcriptionMs by mutableStateOf<Long?>(null); private set
     var firstTextMs by mutableStateOf<Long?>(null); private set
@@ -216,7 +218,28 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         micOpen = capture.start(::frame, ::pause)
         if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output.chime()
     }
-    private fun closeMic() { micOpen = false; capture.close(); gate.reset() }
+    private fun closeMic(keepTranscriber: Boolean = false) {
+        micOpen = false; capture.close(); gate.reset()
+        if (!keepTranscriber) cancelLiveTranscription()
+    }
+    private fun cancelLiveTranscription() {
+        if (currentTranscriber is StreamingVoiceTranscriber) {
+            currentTranscriber?.close(); currentTranscriber = null
+        }
+        partialTranscript = ""
+    }
+    private fun startLiveTranscription() {
+        if (!config.transcribeViaServer) return
+        cancelLiveTranscription()
+        val provider = runCatching { transcriber() }.getOrNull() ?: return
+        currentTranscriber = provider
+        if (provider is StreamingVoiceTranscriber) {
+            provider.begin { text -> scope.launch {
+                if (!closed && currentTranscriber === provider &&
+                    state in setOf(VoiceState.RECORDING, VoiceState.TRANSCRIBING)) partialTranscript = text
+            } }
+        }
+    }
     private fun listen() {
         if (closed || !readyOutput || !conversation.selected) return
         if (conversation.run().busy) { state = VoiceState.WAITING; openMic(); return }
@@ -228,7 +251,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     /** Public to the capture port; deterministic PCM tests exercise the same path as AudioRecord. */
     fun frame(pcm: ShortArray, count: Int) {
-        if (closed || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
+        if (closed || microphoneMuted || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
         val result = gate.accept(pcm, count, holdTurn, manual = mode == VoiceMode.PUSH_TO_TALK && pushHeld)
         if (result.began) {
             val now = System.nanoTime()
@@ -238,12 +261,22 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             ownShortPhrases = recent.filter { it.trim().split(Regex("\\s+")).size <= 2 }
             if (speaking || submitted) { tentative = true; suspendPlayback() }
             state = VoiceState.RECORDING
+            startLiveTranscription()
         }
+        result.audio?.let { (currentTranscriber as? StreamingVoiceTranscriber)?.audio(it) }
         if (result.complete != null && !holdTurn) transcribe(result.complete)
         // Holding a turn prevents end-of-turn inference. At the bounded recording limit,
         // keep the captured utterance for transcription rather than growing indefinitely.
         else if (result.complete != null) transcribe(result.complete)
         else if (!gate.active && state == VoiceState.RECORDING) recoverTentative()
+    }
+    fun updateMicrophoneMute(muted: Boolean) {
+        if (microphoneMuted == muted) return
+        microphoneMuted = muted
+        // Discard an unfinished utterance when muted; never submit it after unmute.
+        gate.reset()
+        if (muted) cancelLiveTranscription()
+        if (muted && state == VoiceState.RECORDING) recoverTentative()
     }
     fun beginPushToTalk(toDraft: Boolean = false) {
         if (closed || (!toDraft && mode != VoiceMode.PUSH_TO_TALK) || state in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) return
@@ -257,7 +290,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (!pushHeld) return
         pushHeld = false; holdTurn = false
         val bytes = if (canceled) null else gate.finish()
-        closeMic()
+        closeMic(keepTranscriber = bytes != null)
         if (bytes != null) transcribe(bytes) else if (dictationToDraft) close() else listen()
     }
     fun hold(value: Boolean) { holdTurn = value }
@@ -277,11 +310,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         // A call keeps the same AudioRecord (and Bluetooth communication route)
         // alive across recognition and playback. Frames are drained, not buffered,
         // while TRANSCRIBING. Pause, route loss and End still release capture.
-        if (mode == VoiceMode.CALL) gate.reset() else closeMic()
+        if (mode == VoiceMode.CALL) gate.reset() else closeMic(keepTranscriber = true)
         state = VoiceState.TRANSCRIBING
         endedAt = System.nanoTime(); transcriptionMs = null; firstTextMs = null; firstPlaybackMs = null
         val token = generation
-        val provider = try { transcriber() } catch (error: Exception) {
+        val provider = try { currentTranscriber ?: transcriber() } catch (error: Exception) {
             canRetryTranscription = true; pause(error.message ?: "Could not start the selected recognizer."); return
         }
         currentTranscriber = provider
@@ -292,6 +325,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 provider.close(); if (currentTranscriber === provider) currentTranscriber = null
             }
             if (closed || token != generation) return@launch
+            partialTranscript = ""
             transcriptionMs = (System.nanoTime() - endedAt) / 1_000_000
             result.fold({ text ->
                 pendingAudio = null; canRetryTranscription = false
@@ -447,6 +481,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         generation++; output.stop(); speaking = false; audible = false
     }
     private fun recoverTentative() {
+        cancelLiveTranscription()
         tentative = false
         if (closed || state == VoiceState.PAUSED || audioSuspended) return
         state = VoiceState.WORKING

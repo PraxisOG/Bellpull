@@ -71,6 +71,8 @@ internal fun VoiceInlineStatus(voice: VoiceSession?, error: String?, onSettings:
     if (voice == null && error == null) return
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         Text(voice?.let { "Voice on · ${it.state.label}" } ?: "Voice unavailable", style = MaterialTheme.typography.labelMedium)
+        if (voice?.microphoneMuted == true) Text("Microphone muted", style = MaterialTheme.typography.bodySmall)
+        if (!voice?.partialTranscript.isNullOrBlank()) Text(voice!!.partialTranscript, style = MaterialTheme.typography.bodyMedium)
         (voice?.notice ?: error)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (voice == null) TextButton(onClick = onSettings) { Text("Voice settings") }

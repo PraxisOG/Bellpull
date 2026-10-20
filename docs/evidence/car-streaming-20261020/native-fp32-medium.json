@@ -1,0 +1,96 @@
+{
+  "engine": "native-fp32-medium",
+  "cpu_only": true,
+  "cpu": "x86_64",
+  "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+  "load_ms_including_download": 1535.8893849770539,
+  "peak_rss_mib": 2488.73046875,
+  "metadata": {
+    "runtime": "moonshine-voice",
+    "version": "0.1.5",
+    "model_directory": "fp32-medium",
+    "weights_sha256": {
+      "streaming_config.json": "28e83b7a28e91472692a035e0dae3116422ae43aeb2bef5ed822c44ce89b88af",
+      "frontend.ort": "4e5d5fc62ef1230466ead9c8b00505381fdab51ee0c65a64320e0ee9bbad53ba",
+      "encoder.ort": "a6db1fd21861e4835f25662adbf72422a9e09fc26966a78cb723180daaa0808e",
+      "decoder_kv.ort": "f7a63a6e257528f9c44b03cad9061b9783e643c55db5748aece7debe4f7b7ee6",
+      "tokenizer.bin": "6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d",
+      "cross_kv.ort": "e0cc49fe19dc5433ee611e039281f94eccac396e647cbebe48d0491189b991ed",
+      "model-manifest.json": "1a8bb2bb0c7dc3d5ff832842e37058403210918eefbffbbe4f8448facff132fc",
+      "adapter.ort": "f43ca21769aa57507ef9eb96bc0eb5c2374c4e6ac852b86161f97c4cbfec0dad"
+    },
+    "precision": "float32 export",
+    "threads": "runtime default"
+  },
+  "fixtures": [
+    {
+      "fixture": "clean",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "milliseconds": [
+        1013.6249299976043,
+        860.8858240186237,
+        857.3759259888902
+      ],
+      "median_ms": 860.8858240186237,
+      "rtf": 0.06856916161040412,
+      "text": "The dull light fell more faintly upon the page, whereon another equation began to unfold itself slowly. And to spread abroad its widening tale.",
+      "repeat_stable": true,
+      "word_errors": 1,
+      "reference_words": 24,
+      "wer": 0.041666666666666664
+    },
+    {
+      "fixture": "numbers-measurements",
+      "sha256": "2686ad71ab8015a99b22d42e6ae893f07e3384ff07c077fbd500714d1eae6d4a",
+      "audio_seconds": 6.74,
+      "milliseconds": [
+        493.3182630338706,
+        489.88834902411327,
+        541.918812028598
+      ],
+      "median_ms": 493.3182630338706,
+      "rtf": 0.07319262062817071,
+      "text": "Fairview was twelve miles away, but by ten o'clock they drew up at the county drail.",
+      "repeat_stable": true,
+      "word_errors": 1,
+      "reference_words": 16,
+      "wer": 0.0625
+    },
+    {
+      "fixture": "natural-pauses",
+      "sha256": "a4ddd06c78a1c045b168e7a94d35b0af79f46e5b281723c0952c0d68601c8f3c",
+      "audio_seconds": 16.65,
+      "milliseconds": [
+        1406.8774690385908,
+        1385.9127340256236,
+        1399.250268994365
+      ],
+      "median_ms": 1399.250268994365,
+      "rtf": 0.08403905519485676,
+      "text": "It may be that a great colorless. Will use his utmost force of color As a singer, his full power of voice. But... Loud or low. The virtue is in both cases always in refinement. Never in loudness.",
+      "repeat_stable": true,
+      "word_errors": 1,
+      "reference_words": 38,
+      "wer": 0.02631578947368421
+    },
+    {
+      "fixture": "road-noise",
+      "sha256": "cf4949a15422c7d60ba16b49a62c197e9d1fa793c03880f4483a0d674c1c96f2",
+      "audio_seconds": 12.555,
+      "milliseconds": [
+        844.38548295293,
+        840.4501469922252,
+        907.9551760223694
+      ],
+      "median_ms": 844.38548295293,
+      "rtf": 0.06725491700142812,
+      "text": "The dull light fell more faintly upon the page whereon another equation began to unfold itself slowly. And to spread abroad its widening tail.",
+      "repeat_stable": true,
+      "word_errors": 0,
+      "reference_words": 24,
+      "wer": 0.0
+    }
+  ],
+  "limitations": "Four short public clips, including one traffic mix. Not a car microphone or broad accuracy benchmark."
+}

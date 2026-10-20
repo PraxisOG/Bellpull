@@ -1,0 +1,46 @@
+{
+  "fixtures": [
+    {
+      "fixture": "clean",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "first_partial_ms": 1224.9532519490458,
+      "partial_count": 17,
+      "final_after_last_audio_ms": 25.000394030939788,
+      "final_after_annotated_last_word_ms": 2490.28509397991,
+      "text": "The dull light fell more faintly upon the page, whereon another equation began to unfold itself slowly. And to spread abroad its widening tale."
+    },
+    {
+      "fixture": "numbers-measurements",
+      "sha256": "2686ad71ab8015a99b22d42e6ae893f07e3384ff07c077fbd500714d1eae6d4a",
+      "audio_seconds": 6.74,
+      "first_partial_ms": 608.8523879880086,
+      "partial_count": 9,
+      "final_after_last_audio_ms": 6.310819007921964,
+      "final_after_annotated_last_word_ms": 2417.426909976639,
+      "text": "Fairview was twelve miles away, but by ten o'clock they drew up at the county drail."
+    },
+    {
+      "fixture": "natural-pauses",
+      "sha256": "a4ddd06c78a1c045b168e7a94d35b0af79f46e5b281723c0952c0d68601c8f3c",
+      "audio_seconds": 16.65,
+      "first_partial_ms": 1221.267927030567,
+      "partial_count": 23,
+      "final_after_last_audio_ms": 19.91413696669042,
+      "final_after_annotated_last_word_ms": 2530.265079999808,
+      "text": "It may be that a great colorless. Will use his utmost force of color As a singer, his full power of voice. But... Loud or low. The virtue is in both cases always in refinement. Never in loudness."
+    },
+    {
+      "fixture": "road-noise",
+      "sha256": "cf4949a15422c7d60ba16b49a62c197e9d1fa793c03880f4483a0d674c1c96f2",
+      "audio_seconds": 12.555,
+      "first_partial_ms": 1230.1628590212204,
+      "partial_count": 16,
+      "final_after_last_audio_ms": 24.716820975299925,
+      "final_after_annotated_last_word_ms": 2490.0081089837477,
+      "text": "The dull light fell more faintly upon the page whereon another equation began to unfold itself slowly. And to spread abroad its widening tail."
+    }
+  ],
+  "conditions": "100ms chunks replayed at microphone speed. Includes appended fixture silence; excludes Bellpull's separate turn-end gate and Hermes/TTS latency.",
+  "transport_url": "http://127.0.0.1:8642/api/bellpull/speech/stt/stream"
+}

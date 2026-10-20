@@ -1,0 +1,16 @@
+{
+  "fixtures": [
+    {
+      "fixture": "clean",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "first_partial_ms": 1450.7715679937974,
+      "partial_count": 17,
+      "final_after_last_audio_ms": 27.691026974935085,
+      "final_after_annotated_last_word_ms": 2493.0959149752744,
+      "text": "The dull light fell more faintly upon the page, whereon another equation began to unfold itself slowly. And to spread abroad its widening tail."
+    }
+  ],
+  "conditions": "100ms chunks replayed at microphone speed. Includes appended fixture silence; excludes Bellpull's separate turn-end gate and Hermes/TTS latency.",
+  "transport_url": "http://127.0.0.1:8642/api/bellpull/speech/stt/stream"
+}

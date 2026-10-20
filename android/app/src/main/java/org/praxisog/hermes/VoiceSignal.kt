@@ -18,7 +18,7 @@ internal class VoiceGate(private val silenceMs: Int = 1600, private val sampleRa
     private val recording = ByteArrayOutputStream()
     var active = false
         private set
-    data class Frame(val began: Boolean = false, val complete: ByteArray? = null)
+    data class Frame(val began: Boolean = false, val complete: ByteArray? = null, val audio: ByteArray? = null)
     fun accept(pcm: ShortArray, count: Int, hold: Boolean = false, manual: Boolean = false): Frame {
         if (count <= 0) return Frame()
         require(count <= pcm.size)
@@ -46,9 +46,9 @@ internal class VoiceGate(private val silenceMs: Int = 1600, private val sampleRa
         } else {
             recording.write(bytes); totalMs += ms
             if (speech) { voicedMs += ms; quietMs = 0 } else quietMs += ms
-            if ((!hold && quietMs >= silenceMs) || totalMs >= 55_000) return Frame(complete = finish())
+            if ((!hold && quietMs >= silenceMs) || totalMs >= 55_000) return Frame(complete = finish(), audio = bytes)
         }
-        return Frame(began = began)
+        return Frame(began = began, audio = if (began) recording.toByteArray() else if (active) bytes else null)
     }
     fun finish(): ByteArray? {
         val enoughAudio = if (manualRecording) totalMs >= 160 && manualSignal else voicedMs >= 300

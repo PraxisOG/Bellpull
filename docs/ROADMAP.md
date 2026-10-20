@@ -1,12 +1,12 @@
 # Bellpull phase roadmap
 
-Updated **October 19, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 20, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.14.3-experimental / build 35**, plugin
-**0.5.2-integration-preview**, based on `2026-10-17-car-experimental`.
+This experimental branch: app **0.14.4-experimental / build 36**, plugin
+**0.6.0-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
@@ -33,7 +33,8 @@ This experimental branch: app **0.14.3-experimental / build 35**, plugin
 | 17 | Public release polish, widgets and Quick Settings | Final polish |
 
 Phase 5 does not yet establish reliable tool-announcement playback ordering,
-Bluetooth/car echo behavior or screen-lock acceptance. Phase 6 observes verified
+Bluetooth/car echo behavior or sustained screen-lock acceptance. Telecom screen-off,
+hold/resume/end and streaming CPU transcription now have [experimental evidence](evidence/car-streaming-20261020/README.md). Phase 6 observes verified
 Hermes-owned children; it does not provide arbitrary terminal access or an OpenCode
 approval API. Phase 8 has not verified real scheduled inference. Phase 9's local
 CalendarContract tests do not establish account/cloud synchronization; complex

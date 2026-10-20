@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "stt": "moonshine-medium-fp32-cpu",
+  "stt_loaded": true,
+  "stt_streaming": true,
+  "tts": null,
+  "tts_loaded": false,
+  "proxy": true
+}

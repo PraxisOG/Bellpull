@@ -1,0 +1,23 @@
+{
+  "model": "moonshine-ai/moonshine-streaming-medium",
+  "revision": "57b843633a8c183cadf6699ffa761377a933a866",
+  "precision": "fp32",
+  "device": "cpu",
+  "packages": {
+    "moonshine-voice": "0.1.5",
+    "torch": "2.14.1+cpu",
+    "transformers": "5.20.2",
+    "onnx": "1.23.2",
+    "onnxscript": "0.7.2",
+    "onnxruntime": "1.31.0"
+  },
+  "sha256": {
+    "frontend.ort": "4e5d5fc62ef1230466ead9c8b00505381fdab51ee0c65a64320e0ee9bbad53ba",
+    "encoder.ort": "a6db1fd21861e4835f25662adbf72422a9e09fc26966a78cb723180daaa0808e",
+    "adapter.ort": "f43ca21769aa57507ef9eb96bc0eb5c2374c4e6ac852b86161f97c4cbfec0dad",
+    "cross_kv.ort": "e0cc49fe19dc5433ee611e039281f94eccac396e647cbebe48d0491189b991ed",
+    "decoder_kv.ort": "f7a63a6e257528f9c44b03cad9061b9783e643c55db5748aece7debe4f7b7ee6",
+    "streaming_config.json": "28e83b7a28e91472692a035e0dae3116422ae43aeb2bef5ed822c44ce89b88af",
+    "tokenizer.bin": "6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d"
+  }
+}

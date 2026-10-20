@@ -89,6 +89,35 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 ## Bellpull speech proxy — 0.4.3-integration-preview
 
+### Experimental streaming input — 0.6.0
+
+`GET /api/bellpull/speech/stt/stream` upgrades to WebSocket, with the same
+profile bearer authentication as the existing speech routes. The plugin connects
+to the helper's `/stt/stream` using its server-only credential. One connection
+transcribes one utterance; it does not create a Hermes message.
+
+1. Server sends `{"type":"ready","sample_rate":16000}` once a recognizer slot is available.
+2. Client sends `{"type":"start","sample_rate":16000,"channels":1,"format":"pcm_s16le"}`.
+3. Client sends binary mono 16 kHz signed little-endian PCM16 frames (at most 64 KiB
+   each, at most 60 seconds total). Server sends cumulative
+   `{"type":"partial","text":"..."}` updates. Replace the preceding partial; do not
+   append or submit it.
+4. Client sends `{"type":"finish"}`. Server sends
+   `{"type":"final","text":"...","seconds":1.2,"took_ms":123}` and closes normally.
+   Empty final text represents silence. Only the final transcript can become a turn.
+5. Disconnect cancels the utterance and releases its recognition state. Errors use
+   `{"type":"error","message":"..."}` and close. Idle limit 30 seconds; total lifetime
+   90 seconds. Overload is HTTP 429 before upgrade. No unbounded send queue.
+
+An old plugin/helper may reject upgrade with 404/405/501. The app then uploads the
+retained WAV through the existing batch endpoint. A connection that fails after
+accepting audio does not silently replay: preserve the recording for explicit
+Retry. An app-configured local fallback remains a separate explicit preference.
+Transport partials never overwrite a saved transcript and never trigger a chat
+submission. Stale partial/final events after cancel, mute, or a different turn are
+ignored. The helper's health response includes `stt_streaming:true` when available;
+plugin route support alone does not claim a healthy recognizer.
+
 All routes below use the existing profile base URL and native bearer key, guarded
 by `adapter._check_auth` exactly like capabilities. Both root and `/p/{profile}`
 route forms are registered. No speech-service URL or second key is needed on the phone.

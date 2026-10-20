@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.14.3-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.14.4-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -41,7 +41,7 @@ the project, coding and calendar panels show the development preview.*
 | :--- | :--- |
 | **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
-| **Voice input** | Use downloaded Moonshine Tiny, Small or Medium Streaming locally; tap for conversation mode or hold for dictation. |
+| **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, or experiment with on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
 | **Coding activity** | Open a chat → **Activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
@@ -56,8 +56,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.14.3-experimental / build 35**
-> pairs with Bellpull plugin **0.5.2-integration-preview**. Server features need
+> **This branch is experimental:** Android **0.14.4-experimental / build 36**
+> pairs with Bellpull plugin **0.6.0-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > Real Doze/reboot, car audio and cloud calendar sync
@@ -66,7 +66,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download 0.14.3 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.3-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download 0.14.4 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.4-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -75,14 +75,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/Bellpull-source-0.12.0.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.4-experimental.1/Bellpull-source-0.14.4.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.4-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.5.1) from the same source checkout.
+For this branch, use `plugins/bellpull` (0.6.0) from the same source checkout.
 The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
 ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
 
@@ -104,17 +104,18 @@ core-overlay installations need the documented migration rather than an overlay.
 
 ## Verification and scope
 
-The [current reliability audit](docs/EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit)
-records ten closed issues and six remaining open issues. Recent repairs cover
-calendar revocation, transcription Retry, Stop feedback, streaming follow and
-standalone Read aloud routing. Car/headset acceptance, sustained speech heat,
-pin-button behavior and voice-title recovery remain open.
+The [car and streaming evidence](docs/evidence/car-streaming-20261020/README.md)
+records Android Telecom screen-off/hold/resume/end checks on a physical phone,
+CPU STT comparisons, and live audio through the plugin. The server defaults to an
+FP32 Moonshine medium export after it outperformed INT8 on the test host.
+Physical car/headset acoustics, navigation interruptions and sustained heat remain
+open; this is an experimental voice increment, not Android Auto.
 
-Validation: **598 Android tests passed with one expected skip**, **172 unchanged
-screenshot baselines**, debug/release builds and lint. The full plugin suite passed
-**148 tests with one expected skip**; supported stock-host checks also passed.
-See [release and installation evidence](docs/release.md) and the
-[open issues](https://github.com/PraxisOG/Bellpull/issues).
+Validation: **714 JVM checks, one expected skip**, **187 unchanged screenshot
+baselines**, lint and signed release assembly. The plugin suite ran **168 checks,
+one expected skip**, plus 15 modern stock-host checks. Six helper tests cover
+isolation, malformed audio, overload, authentication and cleanup. See the
+[release record](docs/release.md) for physical-device evidence and limitations.
 
 ## For contributors and agents
 
