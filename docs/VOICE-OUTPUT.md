@@ -1,6 +1,6 @@
 ## 0.5.5 launch repair — October 12
 
-## Current: Kokoro 82M, Android 0.14.5
+## Current: Kokoro 82M, Android 0.14.6
 
 Settings → Voice output → Kokoro 82M → Kokoro model → Download Kokoro.
 Choose Heart, Bella, Michael or Fenrir, preview, then Save voice output.
@@ -22,6 +22,18 @@ unknown words use neural G2P. Generation is divided into bounded phrases,
 playback overlaps subsequent synthesis, and Stop clears queued audio immediately.
 An active ONNX operator finishes before the native worker can release its context.
 No reference-voice cloning, GPU, TPU or non-English presets are exposed.
+
+Sentence streaming (0.14.6): live voice and Read aloud use the same sentence
+splitter, with common English abbreviations, decimals and closing quotes kept
+together. Long sentences can start at clause boundaries; very long text is split
+into bounded requests without dropping the ending. Complete sentences start while
+Hermes is still generating; an unfinished final fragment waits for completion.
+Kokoro generates one sentence ahead while the current audio plays. Its PCM queue
+holds up to 60 seconds per request (about 11.5 MB across active and ahead queues),
+instead of blocking synthesis behind a 1.6-second buffer. Only one future request
+is prepared. Stop cancels both queues. Each native inference still generates a
+whole bounded phrase: this is sentence-based playback, not token-by-token audio.
+[Phone timing comparison and tests](evidence/kokoro-sentences-20261022/README.md).
 
 The earlier release notes below are historical.
 

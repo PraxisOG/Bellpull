@@ -90,6 +90,26 @@ class VoiceSignalTest {
         assertEquals(listOf("More detail."), chunks.take("Hello there. More detail.", true))
         assertTrue(chunks.take("Hello there. More detail.", true).isEmpty())
     }
+    @Test fun streamingQuotesAbbreviationsAndDecimalsKeepTheirSentenceTogether() {
+        val chunks = VoiceSentences()
+        assertTrue(chunks.take("Dr. ").isEmpty())
+        assertTrue(chunks.take("Dr. J. Smith said, “It costs 3.").isEmpty())
+        assertTrue(chunks.take("Dr. J. Smith said, “It costs 3.14.”").isEmpty())
+        assertEquals(listOf("Dr. J. Smith said, “It costs 3.14.”"),
+            chunks.take("Dr. J. Smith said, “It costs 3.14.” Next"))
+        assertEquals(listOf("Next sentence!", "Final fragment"),
+            chunks.take("Dr. J. Smith said, “It costs 3.14.” Next sentence! Final fragment", true))
+    }
+    @Test fun longSentencesStartAtClausesAndUnbrokenFinalTextIsBoundedWithoutLoss() {
+        val first = "A long sentence with useful details ".repeat(4).trimEnd() + ","
+        val chunks = VoiceSentences()
+        assertEquals(listOf(first), chunks.take("$first and more"))
+        assertEquals(listOf("and more detail."), chunks.take("$first and more detail.", true))
+        val unbroken = "abc😀".repeat(1000)
+        val parts = VoiceSentences().take(unbroken, true)
+        assertEquals(unbroken, parts.joinToString(""))
+        assertTrue(parts.all { it.length <= 260 && !it.last().isHighSurrogate() })
+    }
     @Test fun codeAndLinksAreConvertedToSpeakableText() {
         val chunks = VoiceSentences()
         assertEquals(listOf("See the answer.", "Code is available in the chat."),

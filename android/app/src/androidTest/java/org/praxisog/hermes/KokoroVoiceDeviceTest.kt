@@ -17,6 +17,103 @@ import java.nio.ByteOrder
 
 @RunWith(AndroidJUnit4::class)
 class KokoroVoiceDeviceTest {
+    /** Public fixture text only; compare the old 1.6s queue with sentence lookahead
+     * using the same warmed Kokoro engine and the real phone AudioTrack.
+     */
+    @Test fun sentenceLookaheadStartsBeforePlaybackFinishes() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Context>()
+        check(app.packageName == "org.praxisog.hermes.fixture")
+        val files = VoiceOutputFiles(app, KokoroModel.model)
+        val phrases = listOf(
+            "The little boat crossed the quiet lake before the sun went down.",
+            "We watched the birds return to their nests in the trees.",
+            "Then we walked home together and made a warm cup of tea.")
+        val rows = JSONArray()
+        var epoch = 0L
+        val generationStarts = java.util.concurrent.CopyOnWriteArrayList<Double>()
+        val generationEnds = java.util.concurrent.CopyOnWriteArrayList<Double>()
+        val runtime = LocalTtsRuntime(files::verify) {
+            val native = NativeKokoroEngine(files)
+            object : LocalTtsEngine {
+                override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
+                    generationStarts += (System.nanoTime() - epoch) / 1e6
+                    return native.synthesize(text, config, sink).also { generationEnds += (System.nanoTime() - epoch) / 1e6 }
+                }
+                override fun close() = native.close()
+            }
+        }
+        try {
+            withContext(Dispatchers.IO) { runtime.withModel { engine, _, _ ->
+                engine.synthesize("A short warm up.", VoiceOutputConfiguration(engine = VoiceOutputEngine.KOKORO), object : LocalTtsSink {
+                    override fun isCancelled() = false
+                    override fun onChunk(samples: FloatArray) = true
+                })
+            } }
+            for (sentenceBuffer in listOf(false, true)) {
+                generationStarts.clear(); generationEnds.clear()
+                val starts = mutableListOf<Double>(); val ends = mutableListOf<Double>()
+                val ready = CompletableDeferred<Unit>(); val done = CompletableDeferred<Unit>()
+                // QWEN selects the previous generic buffer only. The actual native
+                // engine remains Kokoro, with the identical voice and sample rate.
+                val output = LocalVoiceOutput(runtime, VoiceOutputConfiguration(
+                    engine = if (sentenceBuffer) VoiceOutputEngine.KOKORO else VoiceOutputEngine.QWEN, volume = .10f), 1f, { false })
+                try {
+                    withContext(Dispatchers.Main) { output.prepare({ ready.complete(Unit) }, {
+                        val error = IllegalStateException(it); ready.completeExceptionally(error); done.completeExceptionally(error)
+                    }) }
+                    withTimeout(30_000) { ready.await() }
+                    epoch = System.nanoTime()
+                    fun speak(index: Int) {
+                        output.speak(phrases[index], { starts += (System.nanoTime() - epoch) / 1e6 }) {
+                            ends += (System.nanoTime() - epoch) / 1e6
+                            if (index == phrases.lastIndex) done.complete(Unit) else speak(index + 1)
+                        }
+                        phrases.getOrNull(index + 1)?.let(output::prefetch)
+                    }
+                    withContext(Dispatchers.Main) { speak(0) }
+                    withTimeout(90_000) { done.await() }
+                    assertEquals(3, starts.size); assertEquals(3, generationStarts.size)
+                    if (sentenceBuffer) {
+                        assertTrue("Second sentence generated while first plays", generationStarts[1] < ends[0])
+                        assertTrue("Third sentence generated while second plays", generationStarts[2] < ends[1])
+                    }
+                    val row = JSONObject().put("buffer", if (sentenceBuffer) "sentence_lookahead" else "previous_1.6s")
+                        .put("first_audio_ms", starts.first()).put("playback_starts_ms", JSONArray(starts))
+                        .put("playback_ends_ms", JSONArray(ends)).put("generation_starts_ms", JSONArray(generationStarts))
+                        .put("generation_ends_ms", JSONArray(generationEnds))
+                        .put("sentence_gaps_ms", JSONArray((1..phrases.lastIndex).map { starts[it] - ends[it - 1] }))
+                    rows.put(row)
+                    File(app.filesDir, "kokoro-sentence-streaming.json").writeText(rows.toString(2))
+                    InstrumentationRegistry.getInstrumentation().sendStatus(0, Bundle().apply { putString("kokoro_streaming", row.toString()) })
+                } finally { withContext(Dispatchers.Main) { output.close() } }
+            }
+            val ready = CompletableDeferred<Unit>(); val started = CompletableDeferred<Unit>(); val resumed = CompletableDeferred<Unit>()
+            val staleCompletion = java.util.concurrent.atomic.AtomicBoolean(false)
+            val output = LocalVoiceOutput(runtime, VoiceOutputConfiguration(engine = VoiceOutputEngine.KOKORO, volume = .10f), 1f, { false })
+            try {
+                withContext(Dispatchers.Main) { output.prepare({ ready.complete(Unit) }, {
+                    val error = IllegalStateException(it); ready.completeExceptionally(error); resumed.completeExceptionally(error)
+                }) }
+                withTimeout(30_000) { ready.await() }
+                withContext(Dispatchers.Main) {
+                    output.speak(phrases[0], { started.complete(Unit) }, { staleCompletion.set(true) })
+                    output.prefetch(phrases[1])
+                }
+                withTimeout(30_000) { started.await() }
+                delay(300)
+                val stopMs = withContext(Dispatchers.Main) {
+                    val begin = System.nanoTime(); output.stop(); (System.nanoTime() - begin) / 1e6
+                }
+                assertTrue("Stop must not wait for native synthesis: $stopMs ms", stopMs < 500)
+                withContext(Dispatchers.Main) { output.speak("The new answer is ready.", {}, { resumed.complete(Unit) }) }
+                withTimeout(30_000) { resumed.await() }
+                assertFalse("Stopped sentence must not complete later", staleCompletion.get())
+                rows.put(JSONObject().put("stop_ms", stopMs).put("reused_after_stop", true))
+                File(app.filesDir, "kokoro-sentence-streaming.json").writeText(rows.toString(2))
+            } finally { withContext(Dispatchers.Main) { output.close() } }
+        } finally { withContext(Dispatchers.IO) { runtime.unload() } }
+    }
+
     @Test fun compareThreadsAndPrecision() {
         val app = ApplicationProvider.getApplicationContext<Context>()
         check(app.packageName == "org.praxisog.hermes.fixture")

@@ -29,8 +29,9 @@ internal class MessageReader(private val context: Context,
         val token = generation
         try {
             val voice = create(AudioAttributes.USAGE_MEDIA); output = voice
-            // Bound each inference phrase while preserving the full written answer.
-            val parts = speechChunks(text, 240)
+            // Share the live reply's sentence boundaries and code/link cleanup.
+            // Start the first sentence and prepare one ahead during playback.
+            val parts = VoiceSentences().take(text, final = true)
             fun speak(index: Int) {
                 if (token != generation || closed) return
                 if (index >= parts.size) { stop(); return }

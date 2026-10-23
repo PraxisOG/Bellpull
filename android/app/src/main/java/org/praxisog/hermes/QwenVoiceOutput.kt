@@ -167,7 +167,12 @@ internal class LocalVoiceOutput(
     }
     override fun retryPreparation() { runtime.allowRetry() }
     private fun synthesize(text: String, token: Long, after: Deferred<Unit>? = null): PreparedSpeech {
-        val queue = Channel<FloatArray>(16) // At most 1.6 seconds of 24 kHz PCM per phrase.
+        // Kokoro returns a whole sentence at once. Hold up to its native 60-second
+        // audio limit so the model can start the next sentence immediately, instead
+        // of spending most of this sentence blocked behind realtime playback.
+        // Only active and one prefetched request exist: about 11.5 MB queued PCM.
+        // Token-streaming engines keep their smaller 1.6-second buffer.
+        val queue = Channel<FloatArray>(if (config.engine == VoiceOutputEngine.KOKORO) 600 else 16)
         val producer = scope.async(Dispatchers.IO) {
             var problem: Throwable? = null
             try {

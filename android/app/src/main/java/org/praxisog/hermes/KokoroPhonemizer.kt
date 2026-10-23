@@ -77,24 +77,27 @@ internal class KokoroPhonemizer(metadata: String) {
     }
     fun chunks(text: String, cancelled: () -> Boolean = { false }, predict: (LongArray) -> IntArray): Sequence<LongArray> = sequence {
         require(text.length <= 32_000) { "This passage is too long for a single Kokoro request." }
-        val tokens = Regex("[A-Za-z]+(?:'[A-Za-z]+)*|[^\\sA-Za-z]").findAll(normalize(text)).map { it.value }.toList()
+        val normalized = normalize(text)
+        val tokens = Regex("[A-Za-z]+(?:'[A-Za-z]+)*|[^\\sA-Za-z]").findAll(normalized).toList()
         var current = mutableListOf<Long>()
         suspend fun SequenceScope<LongArray>.flush() {
             while (current.lastOrNull() == 16L) current.removeAt(current.lastIndex)
             if (current.any { it > 16 }) yield(longArrayOf(0) + current.toLongArray() + 0L)
             current = mutableListOf()
         }
-        for ((index, token) in tokens.withIndex()) {
+        for ((index, match) in tokens.withIndex()) {
             if (cancelled()) throw CancellationException("Kokoro stopped")
+            val token = match.value
             val isWord = token.first() in 'a'..'z' || token.first() in 'A'..'Z'
-            val next = tokens.getOrNull(index + 1)?.takeIf { it.first().isLetter() }
+            val next = tokens.getOrNull(index + 1)?.value?.takeIf { it.first().isLetter() }
             val ps = if (isWord) word(token, next, predict) else token
             val ids = ps.mapNotNull { c -> if (vocab.has(c.toString())) vocab.getLong(c.toString()) else null }
             // Work in short phrases for bounded latency and interruption. Never truncate a long word.
             if (current.size + ids.size + 1 > 160) flush()
             if (isWord && current.isNotEmpty()) current.add(16)
             for (id in ids) { if (current.size >= 160) flush(); current.add(id) }
-            if (token in listOf(".", "!", "?", ";", ":") || token == "," && current.size >= 64) flush()
+            if (speechSentenceEnd(normalized, match.range.first, final = true) != null ||
+                token in listOf(",", ";", ":") && current.size >= 64) flush()
         }
         flush()
     }

@@ -9,6 +9,39 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class QwenVoiceOutputTest {
     private fun await(latch: CountDownLatch) { assertTrue("Timed out", latch.await(3, TimeUnit.SECONDS)) }
+    @Test fun kokoroPreparesNextSentenceWhileCurrentAudioIsStillPlayingAndStopDiscardsBoth() {
+        val playing = CountDownLatch(1); val releasePlayback = CountDownLatch(1)
+        val next = CountDownLatch(1); val cancelled = CountDownLatch(1)
+        val done = AtomicBoolean(false); val stopped = AtomicBoolean(false)
+        val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
+            override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
+                if (text == "First sentence.") return if (sink.onChunk(FloatArray(24000 * 5) { .1f })) 0 else 1
+                next.countDown()
+                // Even Kokoro's larger lookahead remains bounded and cancellable.
+                assertFalse(sink.onChunk(FloatArray(24000 * 70) { .2f }))
+                cancelled.countDown(); return 1
+            }
+            override fun close() {}
+        } }
+        val voice = LocalVoiceOutput(runtime, VoiceOutputConfiguration(engine = VoiceOutputEngine.KOKORO), 1f, { false },
+            player = { _, _ -> object : VoicePcmPlayer {
+                override fun write(samples: FloatArray) {
+                    assertEquals(.1f, samples[0]); playing.countDown(); await(releasePlayback)
+                }
+                override suspend fun drain() { fail("Stopped audio must not drain") }
+                override fun stop() { stopped.set(true); releasePlayback.countDown() }
+                override fun close() {}
+            } }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), callbacks = Dispatchers.Unconfined)
+        try {
+            val ready = CountDownLatch(1)
+            voice.prepare({ ready.countDown() }, { fail(it) }); await(ready)
+            voice.speak("First sentence.", {}, { done.set(true) }); await(playing)
+            voice.prefetch("Second sentence."); await(next)
+            assertEquals("Next sentence must start before playback finishes", 1L, releasePlayback.count)
+            voice.stop(); await(cancelled)
+            assertTrue(stopped.get()); assertFalse(done.get())
+        } finally { releasePlayback.countDown(); voice.close(); runtime.unload() }
+    }
     @Test fun pcmStartsDuringSynthesisButCompletionWaitsForPlaybackDrain() {
         val first = CountDownLatch(1); val allowFinish = CountDownLatch(1); val drained = CompletableDeferred<Unit>()
         val generating = AtomicBoolean(true); val done = CountDownLatch(1)

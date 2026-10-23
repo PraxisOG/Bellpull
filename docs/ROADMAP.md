@@ -5,12 +5,13 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.14.5-experimental / build 37**, plugin
+This experimental branch: app **0.14.6-experimental / build 38**, plugin
 **0.6.0-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
 [Voice, image and reconnect repairs](evidence/voice-media-20261022/README.md).
+[Kokoro sentence streaming](evidence/kokoro-sentences-20261022/README.md).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance

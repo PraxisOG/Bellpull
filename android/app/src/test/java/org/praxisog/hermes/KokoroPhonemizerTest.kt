@@ -38,4 +38,14 @@ class KokoroPhonemizerTest {
             assertTrue(uri.path.contains(if (file.name.startsWith("misaki")) KokoroModel.g2pRevision else KokoroModel.revision))
         }
     }
+    @Test fun sentencesAreLazyAndAbbreviationsDoNotCreateTinyInferenceRequests() {
+        val g2p = KokoroPhonemizer(meta)
+        var unknown = 0
+        val chunks = g2p.chunks("hello world. unlisted world.") { unknown++; intArrayOf(4, 5, 6, 7) }.iterator()
+        assertTrue(chunks.hasNext()); chunks.next()
+        assertEquals("Later sentences must not delay first audio", 0, unknown)
+        assertTrue(chunks.hasNext()); chunks.next(); assertFalse(chunks.hasNext())
+        assertEquals(1, unknown)
+        assertEquals(1, g2p.chunks("Dr. hello world.") { intArrayOf(4, 5, 6, 7) }.count())
+    }
 }

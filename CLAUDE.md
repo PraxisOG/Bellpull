@@ -17,6 +17,13 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22, sentence streaming):** make Kokoro generate
+sentences to mimic streaming. Branch `fix/kokoro-sentence-streaming-0146`, Android
+0.14.6/build38; plugin stays 0.6.0. Share sentence boundaries between live voice
+and Read aloud, prepare one sentence ahead, preserve bounded queues and immediate
+Stop. Continue existing isolated phone testing, signed in-place installation and
+experimental publication authorization. Keep personal settings/models/data.
+
 **Current task authority (2026-10-22):** fix voice-mode exit, move OpenCode activity
 into the conversation menu, add adjustable image thumbnails, repair reconnect
 response duplication, and implement Kokoro as the small on-device TTS model.

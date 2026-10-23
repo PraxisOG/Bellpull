@@ -446,6 +446,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 else if (submitted) state = VoiceState.WORKING
             }
         }
+        // Refill after every handoff, even when Hermes already finished and no
+        // further text update will arrive to trigger collectPlayback().
+        prefetchNext()
     }
     private fun turnDone() {
         if (closed || tentative || audioSuspended || state in setOf(VoiceState.TRANSCRIBING, VoiceState.RECORDING, VoiceState.REVIEW, VoiceState.PAUSED)) return

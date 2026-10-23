@@ -23,13 +23,16 @@ class MessageReaderTest {
         var ready: (String) -> Unit = {}
         var failure: (String) -> Unit = {}
         var plays = 0
+        val said = mutableListOf<String>()
+        val prefetched = mutableListOf<String>()
         var closed = false
         override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
             ready = onReady; failure = onError
         }
         override fun speak(text: String, started: () -> Unit, complete: () -> Unit) {
-            plays++; this.complete = complete; started()
+            plays++; said += text; this.complete = complete; started()
         }
+        override fun prefetch(text: String) { prefetched += text }
         override fun stop() {}
         override fun close() { closed = true }
     }
@@ -54,6 +57,19 @@ class MessageReaderTest {
         assertNull(reader.readingMessageId)
         assertTrue(outputs.single().closed)
         assertSame(request, shadow.lastAbandonedAudioFocusRequest)
+    }
+    @Test fun readerPlaysSentencesWithOneAheadAndStopsBeforeTheRest() {
+        reader.read(1, "Dr. Smith is ready. “The price is 3.14.” Last sentence.")
+        val voice = outputs.single()
+        voice.ready("Kokoro")
+        assertEquals(listOf("Dr. Smith is ready."), voice.said)
+        assertEquals(listOf("“The price is 3.14.”"), voice.prefetched)
+        voice.complete()
+        assertEquals(listOf("Dr. Smith is ready.", "“The price is 3.14.”"), voice.said)
+        assertEquals("Last sentence.", voice.prefetched.last())
+        reader.stop(); voice.complete()
+        assertEquals(2, voice.said.size)
+        assertTrue(voice.closed)
     }
 
     @Test fun deniedFocusDoesNotPlayAndKeepsAnActionableError() {

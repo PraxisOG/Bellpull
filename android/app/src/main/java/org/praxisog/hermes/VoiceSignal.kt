@@ -83,24 +83,51 @@ internal class VoiceSentences {
         if (text.length < consumed) return emptyList()
         val tail = text.substring(consumed)
         val result = mutableListOf<String>()
+        fun emit(value: String) {
+            val spoken = speechText(value)
+            if (spoken.isNotBlank()) result.addAll(speechChunks(spoken, 260).map(String::trim).filter(String::isNotBlank))
+        }
         var start = 0
         var fence = false
         var i = 0
         while (i < tail.length) {
             if (tail.startsWith("```", i)) { fence = !fence; i += 3; continue }
-            val boundary = !fence && (tail[i] in ".!?\n") && (i + 1 < tail.length && tail[i + 1].isWhitespace())
-            if (boundary || (!fence && i - start >= 260 && tail[i].isWhitespace())) {
-                speechText(tail.substring(start, i + 1)).takeIf { it.isNotBlank() }?.let(result::add)
-                start = i + 1
+            val boundary = if (fence) null else speechSentenceEnd(tail, i, final)
+            val clause = !fence && i - start >= 120 && tail[i] in ",;:" &&
+                i + 1 < tail.length && tail[i + 1].isWhitespace()
+            if (boundary != null || clause || (!fence && i - start >= 260 && tail[i].isWhitespace())) {
+                val end = boundary ?: (i + 1)
+                emit(tail.substring(start, end))
+                start = end; i = end - 1
             }
             i++
         }
-        if (final) { speechText(tail.substring(start)).takeIf { it.isNotBlank() }?.let(result::add); start = tail.length }
+        if (final) { emit(tail.substring(start)); start = tail.length }
         consumed += start
         return result
     }
     fun reset() { consumed = 0; previous = "" }
 }
+
+/** Wait for a separator (or final text), including closing quotes in the sentence.
+ * Conservative English abbreviation handling keeps names and decimals together.
+ */
+internal fun speechSentenceEnd(text: String, index: Int, final: Boolean): Int? {
+    val c = text[index]
+    if (c == '\n') return index + 1
+    if (c !in ".!?") return null
+    if (c == '.') {
+        if (index > 0 && text[index - 1].isDigit() && text.getOrNull(index + 1)?.isDigit() == true) return null
+        val word = text.substring(0, index).takeLastWhile { it.isLetter() || it == '.' }
+        if (word.lowercase() in speechAbbreviations || word.length == 1 && word[0].isUpperCase() ||
+            speechInitials.matches(word)) return null
+    }
+    var end = index + 1
+    while (end < text.length && text[end] in ".!?\"'”’)]}") end++
+    return end.takeIf { end < text.length && text[end].isWhitespace() || end == text.length && final }
+}
+private val speechAbbreviations = setOf("mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "e.g", "i.e")
+private val speechInitials = Regex("(?:[A-Za-z]\\.)+[A-Za-z]")
 internal fun speechText(value: String): String = value
     .replace(Regex("```[\\s\\S]*?(?:```|$)"), " Code is available in the chat. ")
     .replace(Regex("!\\[([^]]*)]\\([^)]*\\)"), "$1")

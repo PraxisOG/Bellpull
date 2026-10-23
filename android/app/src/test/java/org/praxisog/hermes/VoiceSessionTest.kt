@@ -23,6 +23,7 @@ class VoiceSessionTest {
     }
     private val output = object : VoiceOutput {
         val said = CopyOnWriteArrayList<String>()
+        val prefetched = CopyOnWriteArrayList<String>()
         var completion: (() -> Unit)? = null
         var failure: ((String) -> Unit)? = null
         var chimes = 0
@@ -30,6 +31,7 @@ class VoiceSessionTest {
         override fun chime() { chimes++ }
         override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) { preparations++; failure = onError; onReady("offline-fixture") }
         override fun speak(text: String, started: () -> Unit, complete: () -> Unit) { said += text; completion = complete; started() }
+        override fun prefetch(text: String) { prefetched += text }
         fun complete() { val callback = completion; completion = null; callback?.invoke(); tick() }
         override fun stop() { completion = null }
         override fun close() = stop()
@@ -218,6 +220,20 @@ class VoiceSessionTest {
         await { voice.state == VoiceState.LISTENING }
         assertEquals(1, target.sent.size)
         assertEquals(1, transcriptions)
+    }
+    @Test fun finishedReplyKeepsPreparingOneSentenceAheadWithoutMoreServerUpdates() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", false, "First sentence. Second sentence. Third sentence. Fourth sentence.", final = true)
+        await { output.prefetched.contains("Second sentence.") }
+        output.complete()
+        assertEquals("Second sentence.", output.said.last())
+        assertEquals("Third sentence.", output.prefetched.last())
+        output.complete()
+        assertEquals("Third sentence.", output.said.last())
+        assertEquals("Fourth sentence.", output.prefetched.last())
+        output.complete(); output.complete()
+        await { voice.state == VoiceState.LISTENING }
+        assertEquals(5, output.said.size) // Working plus all four sentences, once each.
     }
     @Test fun reviewModeAllowsCorrectionAndNeverAutoSends() {
         voice.start(VoiceMode.DICTATION); utterance()
