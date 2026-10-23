@@ -15,6 +15,10 @@ from aiohttp import web
 from .artifacts import (
     ArtifactError, ArtifactStore, MAX_BYTES, MAX_ATTACHMENTS, checked_name, checked_session, checked_type)
 
+QWEN_THINKING_ERROR = (
+    "Unsupported thinking choice for this Qwen model. Open Thinking level and choose "
+    "Default, Off, On, Low, Medium or XHigh.")
+
 
 def error(exc):
     return web.json_response({"error": {"message": str(exc), "code": "bellpull_rejected"}}, status=exc.status)
@@ -49,8 +53,11 @@ def local_qwen_efforts(provider, model):
     # Exact known alias and official model IDs, not a guess for every Qwen model.
     # https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/main/chat_template.jinja
     # Its template accepts precisely low/medium/xhigh (default), plus thinking off.
-    if provider == "custom" and model in (
-            "qwen38-flash-next", "Qwen/Qwen3.8-Flash-Next", "Qwen/Qwen3.8-Flash-Next-FP8"):
+    # Issue #27 verified this named-provider/relay alias against the same backend.
+    # Keep the pair exact: "moe" is not a reasoning contract for every model, nor
+    # does an arbitrary custom endpoint's "moe-local" alias identify this model.
+    if (provider, model) == ("moe", "moe-local") or (provider == "custom" and model in (
+            "qwen38-flash-next", "Qwen/Qwen3.8-Flash-Next", "Qwen/Qwen3.8-Flash-Next-FP8")):
         return ("low", "medium", "xhigh")
     return None
 
@@ -83,7 +90,7 @@ def request_overrides(provider, model, options):
         if enabled is not None and not isinstance(enabled, bool):
             raise ArtifactError("Thinking must be enabled or disabled.", 409)
         if effort is not None and (effort not in efforts or enabled is False):
-            raise ArtifactError("This Qwen model supports Off, On, Low, Medium or XHigh.", 409)
+            raise ArtifactError(QWEN_THINKING_ERROR, 409)
         kwargs = {"enable_thinking": enabled is not False}
         result = {"extra_body": {"chat_template_kwargs": kwargs}}
         if effort is not None:
@@ -152,6 +159,8 @@ def validate_selection(value, available):
         elif effort is None and enabled is True and caps.get("can_enable"):
             pass
         elif effort not in caps["efforts"]:
+            if local_qwen_efforts(route["provider"], route["model"]):
+                raise ArtifactError(QWEN_THINKING_ERROR, 409)
             raise ArtifactError("This runtime does not support the requested reasoning effort.", 409)
     return {"model": route["model"], "provider": route["provider"], "model_options": options}, route
 

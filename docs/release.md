@@ -1,3 +1,11 @@
+## Moe thinking controls — plugin 0.6.2, app 0.14.9 unchanged
+
+The named `moe/moe-local` route now advertises the verified Qwen controls and
+keeps that identity when Hermes resolves its transport to `custom`. Minimal,
+High and Max are rejected before saving. Old invalid choices have a clear reset
+instruction; Default repairs the existing conversation without changing its model.
+See [release notes and installation](RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md).
+
 ## Startup replay repair — 0.14.9 / build 41
 
 Restoring a long live reply could retain a native regex matcher for every word,

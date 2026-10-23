@@ -8,7 +8,7 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.14.9-experimental / build 41**, with the 0.6.1
+This branch builds **0.14.9-experimental / build 41**, with the 0.6.2
 integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
@@ -18,7 +18,7 @@ versions; use the exact branch or revision to reproduce this build.
 Use a recursive clone of this experimental branch:
 
 ```bash
-git clone --recurse-submodules --branch fix/live-history-memory-0149 \
+git clone --recurse-submodules --branch fix/moe-reasoning-062 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive

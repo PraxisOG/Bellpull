@@ -1,0 +1,105 @@
+[
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "default",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": "medium",
+      "chat_template_kwargs": null
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  },
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "off",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": "none",
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  },
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "on",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": null,
+      "chat_template_kwargs": {
+        "enable_thinking": true
+      }
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  },
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "low",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": "low",
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "reasoning_effort": "low"
+      }
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  },
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "medium",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": "medium",
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "reasoning_effort": "medium"
+      }
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  },
+  {
+    "provider": "moe",
+    "model": "moe-local",
+    "effort": "xhigh",
+    "wire": {
+      "model": "moe-local",
+      "reasoning_effort": "xhigh",
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "reasoning_effort": "xhigh"
+      }
+    },
+    "persisted": true,
+    "completed": true,
+    "answer": "391",
+    "replayed_without_inference": true,
+    "changed_effort_rejected_for_same_key": true
+  }
+]

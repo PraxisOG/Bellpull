@@ -198,6 +198,37 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
         response = await self.upload("5" * 32, b"x" * (25 * 1024 * 1024 + 1))
         self.assertEqual(413, response.status, await response.text())
 
+    async def test_moe_rejects_invalid_choices_without_poisoning_lock_and_resets_old_lock(self):
+        choice = {"provider": "moe", "model": "moe-local", "model_options": {"reasoning": {"effort": "low"}}}
+        available = {"version": 1, "default": dict(choice, model_options={}), "models": [
+            dict(choice, configured=True, reasoning=phase3.reasoning_capabilities("moe", "moe-local"))]}
+        phase3.catalog.return_value = available
+        url = f"/api/bellpull/sessions/{self.session}/model"
+        self.assertEqual(200, (await self.client.put(url, headers=self.headers, json=choice)).status)
+        for effort in ("minimal", "high", "max"):
+            bad = dict(choice, model_options={"reasoning": {"effort": effort}})
+            response = await self.client.put(url, headers=self.headers, json=bad)
+            self.assertEqual(409, response.status, await response.text())
+            self.assertIn("Thinking level", (await response.json())["error"]["message"])
+            stored = await (await self.client.get(url, headers=self.headers)).json()
+            self.assertEqual(choice, stored["selection"])
+        self.assertEqual([], self.executed)
+        # Seed a real native lock as 0.6.1 did, then repair the same conversation
+        # through Default. Never delete its history or change its provider/model.
+        old = dict(choice, model_options={"reasoning": {"effort": "high"}})
+        native = self.adapter._session_runtime_request_from_body(dict(old, require_model_lock=True))
+        self.assertTrue(self.adapter._persist_session_runtime_lock(self.session, native))
+        self.assertEqual(old, (await (await self.client.get(url, headers=self.headers)).json())["selection"])
+        reset = dict(choice, model_options={})
+        response = await self.client.put(url, headers=self.headers, json=reset)
+        self.assertEqual(200, response.status, await response.text())
+        self.assertEqual(reset, (await (await self.client.get(url, headers=self.headers)).json())["selection"])
+        response = await self.client.post("/v1/runs", headers=self.headers, json={"session_id": self.session, "input": "After reset"})
+        self.assertEqual("completed", (await self.settle((await response.json())["run_id"]))["status"])
+        self.assertEqual({}, self.created[-1]["model_options"])
+        self.assertEqual("moe", self.created[-1]["requested_provider"])
+        self.assertEqual("moe-local", self.created[-1]["requested_model"])
+
     def test_reasoning_controls_reach_real_hermes_transport(self):
         from agent.transports.chat_completions import ChatCompletionsTransport
         from providers import get_provider_profile
@@ -217,6 +248,24 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
 
 
 class CatalogTest(unittest.TestCase):
+    def test_named_moe_catalog_keeps_route_identity_and_limits_efforts(self):
+        inventory = {"providers": [
+            {"slug": "moe", "authenticated": True, "models": ["moe-local"]},
+            {"slug": "custom", "authenticated": False, "models": ["moe-local"]}]}
+        with patch("hermes_cli.inventory.load_picker_context", return_value={}), \
+             patch("hermes_cli.inventory.build_model_options_payload", return_value=inventory), \
+             patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"provider": "moe"}), \
+             patch("gateway.run._resolve_gateway_model", return_value="moe-local"), \
+             patch("agent.models_dev.get_model_capabilities", return_value=None):
+            result = phase3.catalog(None)
+        named, duplicate = result["models"]
+        self.assertEqual("moe", named["provider"])
+        self.assertTrue(named["configured"])
+        self.assertEqual(["low", "medium", "xhigh"], named["reasoning"]["efforts"])
+        self.assertTrue(named["reasoning"]["can_enable"])
+        self.assertTrue(named["reasoning"]["can_disable"])
+        self.assertFalse(duplicate["configured"])
+
     def test_native_capability_dataclass_and_unconfigured_routes(self):
         from agent.models_dev import ModelCapabilities
         model = "accounts/fireworks/models/deepseek-v4p1-flash"

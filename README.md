@@ -57,7 +57,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 > [!IMPORTANT]
 > **This branch is experimental:** Android **0.14.9-experimental / build 41**
-> pairs with Bellpull plugin **0.6.1-integration-preview**. Server features need
+> pairs with Bellpull plugin **0.6.2-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > Kokoro CPU speech, voice-exit repairs, image previews and reconnect fixes are
@@ -66,13 +66,15 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 > [Thinking menu release notes](docs/RELEASE-0.14.8-EXPERIMENTAL.md).
 > 0.14.9 fixes startup freezes and memory exhaustion while restoring long replies.
 > [Startup repair and device evidence](docs/RELEASE-0.14.9-EXPERIMENTAL.md).
+> Plugin 0.6.2 fixes thinking controls for Moe’s named `moe/moe-local` route.
+> [Plugin update and installation](docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md).
 > Real Doze/reboot, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
 > failures are reported separately in the evidence.
 
 ## Get started
 
-1. [Download 0.14.9 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.9-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download the current experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.6.2-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -81,14 +83,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.9-experimental.1/Bellpull-source-0.14.9.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.6.2-experimental.1/Bellpull-source-plugin-0.6.2.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.9-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.6.2-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.6.1) from the same source checkout.
+For this branch, use `plugins/bellpull` (0.6.2) from the same source checkout.
 The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
 ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
 
@@ -118,8 +120,9 @@ Physical car/headset acoustics, navigation interruptions and sustained heat rema
 open; this is an experimental voice increment, not Android Auto.
 
 Current validation: **740 JVM checks, one expected skip**, lint and signed release
-assembly. The plugin suite ran **171 checks, one expected skip**, plus targeted
-modern stock-host checks and live Moe inference in 0.14.7. The preceding 0.14.8 UI increment
+assembly. Plugin 0.6.2 passes **176 checks, one expected skip**, eight targeted
+stock-host checks and seven live Moe inferences through an isolated named-route fixture.
+The app’s four thinking-menu regression checks also pass for the plugin update. The preceding 0.14.8 UI increment
 verified 191 screenshot baselines, including four new menu views. This repair
 adds long-replay regression checks and a physical Android memory/latency test. Six helper tests cover
 isolation, malformed audio, overload, authentication and cleanup. See the

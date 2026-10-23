@@ -68,8 +68,9 @@ selection. The existing Fireworks translations are also usable on the native pat
   failed one legacy-capability assertion. The corrected final tree passed the
   complete suite. No failed check is waived.
 
-Reproduce the live check with an explicitly chosen backend; it performs four
-inferences. `HERMES_TEST_IMAGE` is the tested stock image below. This command starts
+Reproduce with an explicitly chosen backend. The current probe also checks
+Default/On and invalid-lock recovery, performing seven inferences; the historical
+results above contain the original four. `HERMES_TEST_IMAGE` is the tested stock image below. This command starts
 an isolated home and never mounts the personal Hermes data directory:
 
 ```bash

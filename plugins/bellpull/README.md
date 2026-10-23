@@ -1,12 +1,11 @@
 > Current experimental pair: **Android 0.14.9 / build 41**, plugin
-> **0.6.1-integration-preview**. Adds model/reasoning controls on supported stock
-> Hermes and Low/Medium/XHigh/Off for the configured Qwen3.8 Flash Next vLLM model.
-> Plugin code is unchanged from 0.14.7/0.14.8; existing 0.6.1 installs need no update.
-> For older installs, install the complete plugin and restart Hermes when idle. The Android update
-> recognizes the new `bellpull_native_model_controls` capability. Existing
-> streaming speech, offline memory and reviewed handoff remain available.
-> See [reasoning setup and evidence](../../docs/evidence/vllm-reasoning-20261022/README.md)
-> and the [release record](../../docs/release.md). Historical setup follows below.
+> **0.6.2-integration-preview**. Fixes #27: the verified named route `moe/moe-local`
+> advertises Low/Medium/XHigh and Off/On; unsupported choices are rejected before
+> saving. An older invalid lock reports how to reset Thinking level to Default.
+> Update the complete plugin, restart the Hermes gateway when idle and reopen
+> Bellpull to refresh the catalog. The existing 0.14.9 APK works unchanged.
+> [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
+> [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
 # Bellpull integration plugin 0.4.2-integration-preview
 

@@ -1,0 +1,14 @@
+[
+  {
+    "unsupported_saves_rejected": [
+      "minimal",
+      "high",
+      "max"
+    ],
+    "previous_selection_preserved": true,
+    "old_invalid_lock_has_reset_instruction": true
+  },
+  {
+    "old_locked_session_recovered_through_native_chat_stream": true
+  }
+]

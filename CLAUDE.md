@@ -17,6 +17,15 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22, issue #27):** fix the named Moe route's
+unsupported thinking controls first. Branch `fix/moe-reasoning-062`, plugin
+0.6.2; Android stays 0.14.9/build41. Verify catalog, persistence, native provider
+normalization, actual wire controls and recovery from an old invalid choice.
+Continue authorized isolated Hermes/backend testing and experimental publication.
+Preserve personal data and server defaults; do not restart/reconfigure vLLM.
+The user will install the fixed plugin on Moe and explicitly requested GitHub
+publication. No personal-server deployment is part of this increment.
+
 **Current task authority (2026-10-22, crash repair):** investigate and fix the
 reported app crashes. Phone exit history shows 0.14.8 ANRs and a low-memory kill;
 both ANR stacks point to replay deduplication's retained regex matchers. Branch
