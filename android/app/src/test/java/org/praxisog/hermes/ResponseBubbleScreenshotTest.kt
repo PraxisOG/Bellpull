@@ -23,6 +23,18 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], qualifiers = "w393dp-h850dp")
 class ResponseBubbleScreenshotTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun reconnectAppendsLiveSuffixInsideTheCanonicalResponse() {
+        val messages = listOf(Message(1, role = "user", content = "Check"), Message(2, role = "assistant", content = "Saved prefix."))
+        val record = RunSubmission("request", "s", "Check", 1.0, 1, emptySet(), runId = "run")
+        val turn = TurnState.Streaming("Saved prefix. New suffix.", canStop = true,
+            parts = listOf(LivePart.Prose("p", "Saved prefix. New suffix.")))
+        compose.setContent { HermesTheme { SessionDetailScreen(UiState.Ready(messages), turn, { false }, {}, {},
+            runSubmission = record, denseChatWindow = true) } }
+        compose.onAllNodes(hasContentDescription("Hermes response")).assertCountEquals(1)
+        compose.onAllNodesWithText("Saved prefix.").assertCountEquals(1)
+        compose.onNodeWithText("New suffix.").assertIsDisplayed()
+        compose.onNodeWithText("Stop").assertExists()
+    }
     private val history = listOf(
         Message(1, role = "user", content = "Check my reading nook plan."),
         Message(2, role = "assistant", content = "I'll check the plan and find a few ideas."),

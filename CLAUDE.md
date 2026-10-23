@@ -17,6 +17,17 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22):** fix voice-mode exit, move OpenCode activity
+into the conversation menu, add adjustable image thumbnails, repair reconnect
+response duplication, and implement Kokoro as the small on-device TTS model.
+This increment uses `fix/voice-media-reconnect-0145`, Android 0.14.5/build37.
+Plugin remains 0.6.0. Phone fixture tests, in-place signed installation and
+experimental publication continue existing authorization. Preserve personal app
+settings/data, Moonshine input and the PowerMac connection; leave Moe untouched.
+Kokoro uses pinned Apache-2.0 Misaki dictionaries/neural G2P and the existing ORT
+CPU runtime. No eSpeak/Piper or all-model Sherpa AAR is introduced.
+See `docs/evidence/voice-media-20261022/README.md` for acceptance and limits.
+
 **Current task authority (2026-10-20):** the user requested stronger persistent car
 audio, potentially Android Telecom, CPU STT measurements and streaming audio to
 the server. They then selected FP32 because it was faster. This increment uses

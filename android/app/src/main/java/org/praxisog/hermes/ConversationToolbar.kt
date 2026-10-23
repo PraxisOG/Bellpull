@@ -35,6 +35,7 @@ internal fun ConversationToolbar(
     onArtifacts: () -> Unit = {},
     onOffline: (() -> Unit)? = null,
     onNewLocal: (() -> Unit)? = null,
+    onActivity: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -80,6 +81,9 @@ internal fun ConversationToolbar(
                             onClick = { menuOpen = false; onOffline() })
                         DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
                             onClick = { menuOpen = false; onArtifacts() })
+                        if (onActivity != null) DropdownMenuItem(text = { Text("OpenCode activity") }, enabled = hasSession,
+                            modifier = Modifier.testTag("open-coding-activity"),
+                            onClick = { menuOpen = false; onActivity() })
                         HorizontalDivider()
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onSettings() })
                         DropdownMenuItem(enabled = onShare != null, onClick = { menuOpen = false; onShare?.invoke() },

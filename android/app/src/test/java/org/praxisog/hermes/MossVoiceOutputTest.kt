@@ -38,7 +38,7 @@ class MossVoiceOutputTest {
     }
 
     @Test fun mossReplacesPocketInSelectableEnginesAndDecodesLegacyIds() {
-        assertEquals(listOf("system", "qwen", "moss", "server-moss"), VoiceOutputEngine.entries.map { it.id })
+        assertEquals(listOf("system", "kokoro", "qwen", "moss", "server-moss"), VoiceOutputEngine.entries.map { it.id })
         assertEquals("MOSS-TTS-Nano · on device", VoiceOutputEngine.MOSS.label)
         for (engine in VoiceOutputEngine.entries) assertEquals(engine, VoiceOutputEngine.decode(engine.id))
         for (id in listOf("pocket", "POCKET", "moss", "MOSS"))

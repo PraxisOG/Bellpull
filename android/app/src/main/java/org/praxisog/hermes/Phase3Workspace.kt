@@ -16,6 +16,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     val filesSupported: Boolean, val modelsSupported: Boolean, val lifecycleSupported: Boolean = false,
     val runAttachmentsSupported: Boolean = filesSupported && modelsSupported) {
     val root = File(context.filesDir, "bellpull-files/$profileId").apply { mkdirs() }
+    val thumbnails = ArtifactThumbnails(File(context.cacheDir, "artifact-thumbnails/$profileId"), client)
     var catalog by mutableStateOf<ModelCatalog?>(null); private set
     val selections = mutableStateMapOf<String, ModelSelection>()
     var defaultSelection by mutableStateOf(cache.defaultModel()); private set
@@ -226,7 +227,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         } finally { temporary.delete(); transfers.remove(item.id) }
     }
     fun cancelDownload(id: String) { transfers[id]?.cancel() }
-    fun close() { closed = true; transfers.values.forEach { it.cancel() }; transfers.clear() }
+    fun close() { closed = true; thumbnails.close(); transfers.values.forEach { it.cancel() }; transfers.clear() }
     companion object {
         const val LIMIT = 25L * 1024 * 1024
         val ALLOWED = setOf("image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain", "text/markdown",

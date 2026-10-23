@@ -17,7 +17,7 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
     val validSeed = seed.toLongOrNull()?.takeIf { it >= -1 }
     val editable = enabled && !lab.busy
     Text("Speech synthesis", style = MaterialTheme.typography.titleMedium)
-    Text("Spoken answers and Read aloud use the selection saved for this server profile. On-device Qwen and MOSS need a one-time model download; server offload uses your existing connection.", style = MaterialTheme.typography.bodySmall)
+    Text("Spoken answers and Read aloud use the selection saved for this server profile. On-device Kokoro, Qwen and MOSS need a one-time model download; server offload uses your existing connection.", style = MaterialTheme.typography.bodySmall)
     VoiceOutputEngine.entries.forEach { engine ->
         FilterChip(output.engine == engine, { output = output.copy(engine = engine) }, enabled = editable,
             label = { Text(engine.label) })
@@ -28,6 +28,11 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
             style = MaterialTheme.typography.bodySmall)
     }
     Slider(rate, { rate = it }, enabled = editable, valueRange = .7f..1.5f)
+    if (output.engine == VoiceOutputEngine.KOKORO) {
+        Text("82M parameters · English · CPU", style = MaterialTheme.typography.labelLarge)
+        OutputChoice("Voice", output.kokoroVoice, KokoroModel.voices, editable) { output = output.copy(kokoroVoice = it) }
+        Text("Heart and Bella are female voices; Michael and Fenrir are male voices. Pronunciation uses an offline English dictionary and a small model for unfamiliar words.", style = MaterialTheme.typography.bodySmall)
+    }
     if (output.engine == VoiceOutputEngine.MOSS) {
         Text("Backend: CPU · ONNX Runtime · 2 threads", style = MaterialTheme.typography.labelLarge)
         Text("Built-in voice: ${MossModel.voice}. MOSS-TTS-Nano has not been tested on this phone. GPU and TPU are unavailable.", style = MaterialTheme.typography.bodySmall)
@@ -75,6 +80,17 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
     if (!canSave) Text("Select a server profile to save a voice selection.", style = MaterialTheme.typography.bodySmall)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     if (output.engine == VoiceOutputEngine.SERVER_MOSS) return
+    SettingsSection("Kokoro model", "${"%.2f".format(Locale.ROOT, KokoroModel.model.bytes / 1_000_000.0)} MB · ${if (lab.kokoroInstalled) "Installed" else if (lab.kokoroPartial) "Partial download" else "Not installed"}") {
+        Text("Kokoro v1.0 · FP32 · four US English voices · 24 kHz audio. Includes Misaki pronunciation data and neural fallback. Apache 2.0 weights; every file SHA-256 verified.", style = MaterialTheme.typography.bodySmall)
+        Text(if (lab.kokoroLoaded) "Loaded · CPU" else "Not loaded", style = MaterialTheme.typography.bodySmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!lab.kokoroInstalled) Button(enabled = editable, onClick = { beforeChange(); lab.download(VoiceOutputEngine.KOKORO) }) { Text(if (lab.kokoroPartial) "Retry Kokoro download" else "Download Kokoro") }
+            if (lab.kokoroInstalled && !lab.kokoroLoaded) OutlinedButton(enabled = editable, onClick = { beforeChange(); lab.load(VoiceOutputEngine.KOKORO) }) { Text("Load Kokoro") }
+            if (lab.kokoroLoaded) OutlinedButton(enabled = editable, onClick = { beforeChange(); lab.unload() }) { Text("Unload Kokoro") }
+            if (lab.kokoroInstalled || lab.kokoroPartial) OutlinedButton(enabled = editable, onClick = { beforeChange(); lab.delete(VoiceOutputEngine.KOKORO) }) { Text("Delete Kokoro") }
+        }
+        Text("Speech is generated in short phrases. On Pixel 10 Pro Fold, FP32 generated a 4.9-second sample in 2.3–2.5 seconds, faster than INT8. Words with multiple pronunciations use their default dictionary entry.", style = MaterialTheme.typography.bodySmall)
+    }
     SettingsSection("Qwen model", "859.85 MB · ${if (lab.installed) "Installed" else if (lab.partial) "Partial download" else "Not installed"}") {
         Text(QwenModel.label, style = MaterialTheme.typography.titleSmall)
         Text("${QwenModel.checkpoint} · Q4_K_M\nTalker 604.88 MB + shared audio tokenizer 254.97 MB. Apache 2.0 weights; SHA-256 verified. ${QwenModel.runtime}.", style = MaterialTheme.typography.bodySmall)
@@ -108,9 +124,9 @@ internal fun VoiceOutputSettings(initial: VoiceConfiguration, lab: VoiceOutputLa
         TextButton(onClick = lab::cancel) { Text("Stop voice output operation") }
     }
     lab.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-    Text("Local output receives phrases as Hermes replies. Qwen streams PCM; MOSS decodes growing audio prefixes during generation, retaining a tail for context. MOSS latency and audio continuity still need phone testing. Phone CPU speed determines latency; short activity announcements also need synthesis. Interruption cancels generation and clears queued audio. No server plugin update is needed.", style = MaterialTheme.typography.bodySmall)
+    Text("Local output receives phrases as Hermes replies. Kokoro emits short phrases; Qwen streams PCM; MOSS decodes growing audio prefixes during generation, retaining a tail for context. MOSS latency and audio continuity still need phone testing. Phone CPU speed determines latency; short activity announcements also need synthesis. Interruption cancels generation and clears queued audio. No server plugin update is needed.", style = MaterialTheme.typography.bodySmall)
     SettingsSection("Models to try later", "A short list; not installed or selectable") {
-        Text("• Qwen3-TTS 1.7B CustomVoice / VoiceDesign: natural-language style controls, higher memory cost.\n• Kokoro 82M: small multilingual preset voices.\n• Supertonic 3: lightweight multilingual output with speed and generation-step controls.", style = MaterialTheme.typography.bodySmall)
+        Text("• Qwen3-TTS 1.7B CustomVoice / VoiceDesign: natural-language style controls, higher memory cost.\n• Supertonic 3: lightweight multilingual output with speed and generation-step controls.", style = MaterialTheme.typography.bodySmall)
     }
 }
 @Composable

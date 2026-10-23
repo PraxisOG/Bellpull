@@ -93,6 +93,7 @@ internal fun HermesApp(
     previewPane: (@Composable (Modifier) -> Unit)? = null,
     previewDialog: (@Composable () -> Unit)? = null,
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
+    thumbnails: ArtifactThumbnails? = null,
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     projects: ProjectWorkspace? = null,
@@ -166,7 +167,8 @@ internal fun HermesApp(
         }
         coding?.let { CodingWorkspaceDialog(it) }
         CompositionLocalProvider(LocalImmersiveHeaders provides preferences.immersiveMode,
-            LocalLabeledControls provides preferences.labeledControls) {
+            LocalLabeledControls provides preferences.labeledControls,
+            LocalArtifactThumbnails provides thumbnails, LocalImagePreviewSize provides preferences.imagePreviewSize) {
             branchError?.let { error ->
                 AlertDialog(onDismissRequest = onDismissBranchError,
                     title = { Text("Could not create branch") }, text = { Text(error.toUserMessage()) },
@@ -259,6 +261,7 @@ internal fun HermesApp(
                                 onSearch = { navigation = ChatNavigation.SEARCH },
                                 onSettings = openSettings,
                                 onArtifacts = { artifactsOpen = true },
+                                onActivity = if (coding != null) ({ activityOpen = true }) else null,
                                 onOffline = onOffline, onNewLocal = onNewLocal,
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
                                     ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }
@@ -287,10 +290,6 @@ internal fun HermesApp(
                                 } else {
                                     if (disconnected) DisconnectedBanner(openSettings)
                                     RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
-                                    if (coding != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        FilterChip(selected = !activityOpen, onClick = { activityOpen = false }, label = { Text("Chat") })
-                                        FilterChip(selected = activityOpen, onClick = { activityOpen = true }, label = { Text("Activity") }, modifier = Modifier.testTag("open-coding-activity"))
-                                    }
                                     if (activityOpen && coding != null) CodingActivityPanel(coding.snapshot, coding.loading,
                                         coding.supported, coding.disconnected, coding.problem, runPresentation?.label,
                                         coding::retry, { coding.inspect(it) }, { activityOpen = false }, onStop,
@@ -298,6 +297,7 @@ internal fun HermesApp(
                                         modifier = Modifier.weight(1f))
                                     else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
+                                            runSubmission = runPresentation?.submission,
                                             messageStats = messageStats,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,

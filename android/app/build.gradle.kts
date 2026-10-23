@@ -93,8 +93,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 36
-        versionName = "0.14.4-experimental"
+        versionCode = 37
+        versionName = "0.14.5-experimental"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

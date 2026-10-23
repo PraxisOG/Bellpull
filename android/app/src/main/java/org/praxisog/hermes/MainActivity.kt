@@ -169,6 +169,7 @@ class MainActivity : ComponentActivity() {
                         onDispose { reader.stop() }
                     }
                     HermesApp(
+                        thumbnails = files?.thumbnails,
                         focusTodayRevision = focusTodayRevision,
                         planningView = runtime.planning?.let { planning -> {
                             PlanningScreen(planning,foreground,store=current,

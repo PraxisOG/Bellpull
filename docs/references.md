@@ -14,6 +14,17 @@ This file is the canonical borrow list. `ROADMAP.md` § Revised borrow list is t
 content in schedule context; if they drift, this file wins for *what* to borrow and the
 roadmap wins for *when*.
 
+## Kokoro output (October 22, 2026)
+
+Use the [Kokoro v1.0 ONNX export](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
+and four US English voice tensors with the existing isolated ONNX Runtime CPU library.
+[Misaki](https://github.com/hexgrad/misaki) provides Apache-2.0 English lexical rules;
+[the pinned ONNX G2P package](https://huggingface.co/nekwo/misaki-en-us-g2p-onnx)
+provides its dictionaries, Kokoro vocabulary and PeterReid's small BART fallback.
+No eSpeak/Piper dependency, all-model Sherpa AAR or Python interpreter. English-only
+frontend uses default heteronym pronunciations. Model URLs, revisions, sizes and
+hashes are in `KokoroVoiceOutput.kt`; licenses and attribution ship in APK assets.
+
 ## Borrow now (Tier 1)
 
 | Source | Take exactly this | Leave behind |

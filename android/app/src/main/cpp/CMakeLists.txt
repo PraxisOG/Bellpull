@@ -71,7 +71,7 @@ if(NOT POCKET_ORT_LIBS)
     message(FATAL_ERROR "Pinned Pocket ONNX Runtime static libraries missing")
 endif()
 set(POCKET_SOURCE "${SHERPA}/sherpa-onnx/csrc")
-add_library(bellpull_pocket SHARED pocket-jni.cpp
+add_library(bellpull_pocket SHARED pocket-jni.cpp kokoro-jni.cpp
     "${POCKET_SOURCE}/offline-tts-pocket-model.cc"
     "${POCKET_SOURCE}/sentence-piece-tokenizer.cc"
     "${POCKET_SOURCE}/normal-data-generator.cc"
@@ -82,7 +82,7 @@ add_library(bellpull_pocket SHARED pocket-jni.cpp
     "${POCKET_GENERATED}/pocket-generation.cc")
 target_include_directories(bellpull_pocket PRIVATE "${POCKET_GENERATED}" "${SHERPA}" "${pocket_json_SOURCE_DIR}/include" "${pocket_ort_SOURCE_DIR}/include")
 target_link_libraries(bellpull_pocket PRIVATE "-Wl,--start-group" ${POCKET_ORT_LIBS} "-Wl,--end-group" android log)
-set(POCKET_EXPORTS "Java_org_praxisog_hermes_PocketNative_*;")
+set(POCKET_EXPORTS "Java_org_praxisog_hermes_PocketNative_*; Java_org_praxisog_hermes_KokoroNative_*;")
 if(BELLPULL_TTS_CANDIDATE_BENCHMARK)
     target_sources(bellpull_pocket PRIVATE candidate-tts-benchmark.cpp)
     string(APPEND POCKET_EXPORTS " Java_org_praxisog_hermes_CandidateTtsNative_*;")

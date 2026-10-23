@@ -1,5 +1,31 @@
 ## 0.5.5 launch repair — October 12
 
+## Current: Kokoro 82M, Android 0.14.5
+
+Settings → Voice output → Kokoro 82M → Kokoro model → Download Kokoro.
+Choose Heart, Bella, Michael or Fenrir, preview, then Save voice output.
+The 336.78 MB verified download contains FP32 Kokoro v1.0, four voices and an
+English Misaki dictionary plus 0.75M neural pronunciation fallback. It generates
+24 kHz speech locally through the existing CPU runtime, with no server plugin
+change. Moonshine speech input is independent. Existing output selections are
+preserved until explicitly changed.
+
+On Pixel 10 Pro Fold, four-thread FP32 generated 4.9 seconds of speech in
+2.26–2.50 seconds versus 6.58–7.03 seconds for INT8. FP32 is therefore the initial
+choice despite its larger download. A separate five-phrase test measured RTF
+0.50–0.53, warm first audio 0.78–2.72 seconds, and cold verified load 4.53 seconds.
+These are short CPU samples, not a promise of universal conversational latency.
+[Measurements, acceptance checks and limits](evidence/voice-media-20261022/README.md).
+
+The frontend is US English only. Heteronyms use default dictionary entries;
+unknown words use neural G2P. Generation is divided into bounded phrases,
+playback overlaps subsequent synthesis, and Stop clears queued audio immediately.
+An active ONNX operator finishes before the native worker can release its context.
+No reference-voice cloning, GPU, TPU or non-English presets are exposed.
+
+The earlier release notes below are historical.
+
+
 The original 0.5.5 launch crash was repaired at `c913243`: the folder validator now
 accepts the shipped safe `qwen-0.6b` ID while rejecting traversal/unsafe paths.
 Eight focused JVM regressions and one isolated phone startup/preflight/Activity

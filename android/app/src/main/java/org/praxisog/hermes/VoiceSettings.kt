@@ -36,6 +36,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             ?: if (prefs.getString("endpoint", "").isNullOrBlank()) VoiceRecognition.LOCAL else VoiceRecognition.PRIVATE_SERVER,
         VoiceOutputConfiguration(
             engine = VoiceOutputEngine.decode(prefs.getString("output", null)),
+            kokoroVoice = prefs.getString("kokoro_voice", "af_heart").orEmpty(),
             speaker = prefs.getString("speaker", "ryan").orEmpty(), language = prefs.getString("language", "english").orEmpty(),
             temperature = prefs.getFloat("temperature", .9f), topP = prefs.getFloat("top_p", 1f), topK = prefs.getInt("top_k", 50),
             repetition = prefs.getFloat("repetition", 1.05f), seed = prefs.getLong("seed", -1), volume = prefs.getFloat("volume", 1f),
@@ -51,6 +52,7 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             require(value.model.isNotBlank() && value.model.length <= 200)
         }
         check(prefs.edit().putString("endpoint", value.endpoint.trim()).putString("key", value.key.trim()).putString("model", value.model.trim())
+            .putString("kokoro_voice", value.output.kokoroVoice)
             .putString("output", value.output.engine.id).putString("speaker", value.output.speaker).putString("language", value.output.language)
             .putFloat("temperature", value.output.temperature).putFloat("top_p", value.output.topP).putInt("top_k", value.output.topK)
             .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)

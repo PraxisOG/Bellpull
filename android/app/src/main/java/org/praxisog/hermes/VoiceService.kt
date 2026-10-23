@@ -17,6 +17,8 @@ class VoiceService : Service() {
     private var focus: AudioFocusRequest? = null
     private var media: MediaSession? = null
     private var started = false
+    private var stopping = false
+    private var notificationJob: Job? = null
     private var ownsAudio = false
     private var audioCycle = 0L
     private var acquiring = false
@@ -71,7 +73,8 @@ class VoiceService : Service() {
         else @Suppress("DEPRECATION") registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP) { runtime.voice?.close(); stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == STOP) { endSession(); return START_NOT_STICKY }
+        if (stopping) return START_NOT_STICKY
         if (intent?.action == PAUSE) { if (started) runtime.voice?.pause() else stopSelf(); return START_NOT_STICKY }
         if (intent?.action == RESUME) {
             if (!started) stopSelf() else if (runtime.voice?.state == VoiceState.PAUSED) runtime.voice?.resume()
@@ -132,7 +135,7 @@ class VoiceService : Service() {
                     }
                     else if (config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.voiceTranscriber()
                     else HttpVoiceTranscriber(config)
-                }, onClosed = { stopSelf() }, beforeResume = {
+                }, onClosed = { endSession() }, beforeResume = {
                     acquireAudio()
                 }, onExplicitRetry = { runtime.speechLab.runtime.allowRetry() },
                 onPlayback = { text, interrupted -> savedVoice.savePlayback(id, text, interrupted) },
@@ -173,8 +176,11 @@ class VoiceService : Service() {
                 voice.start(runtime.voiceRequestedMode)
                 if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
             }
-            scope.launch {
+            notificationJob = scope.launch {
                 androidx.compose.runtime.snapshotFlow { voice.state to voice.mode }.collect { (state, _) ->
+                    // close() changes Compose state before requesting service shutdown.
+                    // A queued emission must never repost CallStyle after foreground removal.
+                    if (stopping || !started || state == VoiceState.STOPPED) return@collect
                     val paused = state == VoiceState.PAUSED
                     if (paused) {
                         if (usingTelecom) { telecomCall?.setHeld(true); releaseWakeLock() }
@@ -188,7 +194,7 @@ class VoiceService : Service() {
             }
         } catch (_: Exception) {
             runtime.voiceStartError = "Voice could not start. Check microphone permission and try again with Bellpull open."
-            stopSelf()
+            endSession()
         }
         return START_NOT_STICKY
     }
@@ -288,8 +294,18 @@ class VoiceService : Service() {
         }
         return true
     }
+    private fun endSession() {
+        if (stopping) return
+        stopping = true; started = false
+        notificationJob?.cancel(); notificationJob = null
+        runtime.voice?.close()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
     override fun onDestroy() {
+        stopping = true
         started = false
+        notificationJob?.cancel(); notificationJob = null
         telecomCall?.close(); telecomCall = null
         runtime.voice?.close(); runtime.voice = null; runtime.voiceRequestedSession = null
         runtime.voiceDictationToDraft = false; runtime.voiceButtonHeld = false

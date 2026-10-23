@@ -1,0 +1,47 @@
+[
+  {
+    "text": "Hello. I'm Bellpull. Your voice stays on this device.",
+    "voice": "af_heart",
+    "load_ms": 4530.511566,
+    "first_audio_ms": 782.4846360000001,
+    "synthesis_ms": 2677.459325,
+    "audio_seconds": 5.225,
+    "rtf": 0.5124324066985646
+  },
+  {
+    "text": "Your answer is ready.",
+    "voice": "af_bella",
+    "load_ms": 0,
+    "first_audio_ms": 1022.010703,
+    "synthesis_ms": 1063.450365,
+    "audio_seconds": 2.075,
+    "rtf": 0.5125061999999999
+  },
+  {
+    "text": "The total is $12.50, including a 10% discount.",
+    "voice": "am_michael",
+    "load_ms": 0,
+    "first_audio_ms": 2717.974195,
+    "synthesis_ms": 2830.453284,
+    "audio_seconds": 5.675,
+    "rtf": 0.49875828792951543
+  },
+  {
+    "text": "Xylophonically speaking, the quasar was unusually bright.",
+    "voice": "am_fenrir",
+    "load_ms": 0,
+    "first_audio_ms": 1973.495027,
+    "synthesis_ms": 2052.003985,
+    "audio_seconds": 3.95,
+    "rtf": 0.5194946797468354
+  },
+  {
+    "text": "Your answer is ready.",
+    "voice": "af_heart",
+    "load_ms": 0,
+    "first_audio_ms": 997.026251,
+    "synthesis_ms": 1037.370235,
+    "audio_seconds": 1.975,
+    "rtf": 0.5252507518987343
+  }
+]

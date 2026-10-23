@@ -10,10 +10,11 @@ import java.net.URI
 import java.security.MessageDigest
 
 internal enum class VoiceOutputEngine(val id: String, val label: String) {
-    SYSTEM("system", "Default Android voice"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device"),
+    SYSTEM("system", "Default Android voice"), KOKORO("kokoro", "Kokoro 82M · on device"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device"),
     SERVER_MOSS("server-moss", "MOSS · server offload");
     companion object {
         fun decode(id: String?): VoiceOutputEngine = when (id?.lowercase(java.util.Locale.ROOT)) {
+            "kokoro" -> KOKORO
             "qwen" -> QWEN
             "server-moss" -> SERVER_MOSS
             "moss", "pocket" -> MOSS // Upgrade the former selectable engine; weights still need downloading.
@@ -27,8 +28,10 @@ internal data class VoiceOutputConfiguration(
     val temperature: Float = .9f, val topP: Float = 1f, val topK: Int = 50,
     val repetition: Float = 1.05f, val seed: Long = -1, val volume: Float = 1f,
     val pocketSteps: Int = 5, val pocketTemperature: Float = .7f, val pocketChunkFrames: Int = 15,
+    val kokoroVoice: String = "af_heart",
 ) {
     fun validated(): VoiceOutputConfiguration {
+        require(kokoroVoice in KokoroModel.voices)
         require(speaker in speakers && language in languages)
         require(temperature.isFinite() && temperature in 0f..1.5f && topP.isFinite() && topP in .1f..1f)
         require(topK in 0..100 && repetition.isFinite() && repetition in 1f..1.5f && seed >= -1)
@@ -88,7 +91,7 @@ internal class VoiceOutputFiles(private val root: File,
         require(model.id.matches(Regex("[a-z0-9][a-z0-9.-]*")) &&
             (model.revision.matches(Regex("[0-9a-f]{40}")) || model == MossModel.model))
         require(specs.isNotEmpty() && specs.map { it.name }.distinct().size == specs.size)
-        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav|model|data)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
+        require(specs.all { it.name.matches(Regex("[a-zA-Z0-9_.-]+\\.(gguf|onnx|json|wav|model|data|bin)")) && !it.name.startsWith('.') && it.bytes > 0 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
     }
     val directory get() = File(root, "${model.id}-${model.revision}")
     private val staging get() = File(root, ".${model.id}-${model.revision}.partial")
@@ -150,8 +153,9 @@ internal class VoiceOutputFiles(private val root: File,
 }
 private fun File.readTextOrNull(): String? = runCatching { takeIf { isFile }?.readText() }.getOrNull()
 internal fun voiceModelUri(spec: VoiceModelFile, model: OutputModel): URI {
-    require(model in listOf(qwenOutputModel, PocketModel.model, MossModel.model) && spec in model.files)
-    return if (model == MossModel.model) MossModel.uri(spec)
+    require(model in listOf(qwenOutputModel, PocketModel.model, MossModel.model, KokoroModel.model) && spec in model.files)
+    return if (model == KokoroModel.model) KokoroModel.uri(spec)
+        else if (model == MossModel.model) MossModel.uri(spec)
         else URI("https://huggingface.co/${model.repository}/resolve/${model.revision}/${spec.remoteName}")
 }
 private fun openVoiceModel(spec: VoiceModelFile, model: OutputModel): InputStream {

@@ -37,6 +37,7 @@ internal data class BellpullPreferences(
     val titleOnlyConversations: Boolean = true,
     val labeledControls: Boolean = false,
     val debuggingVoiceInterface: Boolean = false,
+    val imagePreviewSize: ImagePreviewSize = ImagePreviewSize.MEDIUM,
 )
 
 internal fun normalizedAccent(text: String): String? = text.trim().removePrefix("#")
@@ -57,6 +58,7 @@ internal class BellpullSettings(context: Context) {
         denseChatWindow = prefs.getBoolean("dense_chat_window", true),
         titleOnlyConversations = prefs.getBoolean("title_only_conversations", true),
         labeledControls = prefs.getBoolean("labeled_controls", false),
+        imagePreviewSize = ImagePreviewSize.decode(prefs.getString("image_preview_size", null)),
         debuggingVoiceInterface = prefs.getBoolean("debugging_voice_interface", false),
     ))
         private set
@@ -71,6 +73,7 @@ internal class BellpullSettings(context: Context) {
             .putBoolean("title_only_conversations", validated.titleOnlyConversations)
             .putBoolean("labeled_controls", validated.labeledControls)
             .putBoolean("debugging_voice_interface", validated.debuggingVoiceInterface)
+            .putString("image_preview_size", validated.imagePreviewSize.name)
             .putString("palette", validated.palette.name)
             .putString("custom_accent", validated.customAccent).apply()
         prefs.edit().putBoolean("notifications", validated.notifications).apply()
@@ -158,7 +161,15 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                 }
             }
         }
-        SettingsSection("Display", "Chat density, thinking, motion and system bars") {
+        SettingsSection("Display", "Chat density, image previews, thinking, motion and system bars") {
+            Text("Image preview size", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ImagePreviewSize.entries.forEach { size ->
+                    FilterChip(selected = preferences.imagePreviewSize == size,
+                        onClick = { onChange(preferences.copy(imagePreviewSize = size)) }, label = { Text(size.label) })
+                }
+            }
+            Text("Previews load for server images up to 8 MiB. Tap an image to view it full size.", style = MaterialTheme.typography.bodySmall)
             PreferenceSwitch("Dense chat window", "Hide speaker names and action bars. Long-press a message for its actions.",
                 preferences.denseChatWindow) { onChange(preferences.copy(denseChatWindow = it)) }
             PreferenceSwitch("Title-only conversations", "A compact list of chat titles. Turn off to include previews and statistics.",

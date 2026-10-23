@@ -78,7 +78,7 @@ internal fun voicePcmPlayer(engine: VoiceOutputEngine, rate: Float, volume: Floa
     usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION): VoicePcmPlayer =
     AndroidVoicePcmPlayer(rate, volume, usage = usage, sampleRate = when (engine) {
         VoiceOutputEngine.MOSS, VoiceOutputEngine.SERVER_MOSS -> MossModel.sampleRate
-        VoiceOutputEngine.QWEN -> 24000
+        VoiceOutputEngine.QWEN, VoiceOutputEngine.KOKORO -> 24000
         VoiceOutputEngine.SYSTEM -> error("The Android voice manages its own audio format.")
     })
 
@@ -141,6 +141,7 @@ internal class LocalVoiceOutput(
     private var failure: (String) -> Unit = {}
     private val name: String = when (config.engine) {
         VoiceOutputEngine.MOSS -> "MOSS-TTS-Nano"
+        VoiceOutputEngine.KOKORO -> "Kokoro"
         VoiceOutputEngine.QWEN -> "Qwen"
         VoiceOutputEngine.SYSTEM -> "Local TTS" // Direct runtime fixtures only.
         VoiceOutputEngine.SERVER_MOSS -> "MOSS · server offload"
@@ -154,7 +155,7 @@ internal class LocalVoiceOutput(
                 withContext(Dispatchers.IO) { runtime.withModel { _, _, _ -> Unit } }
                 check(!severe()) { "Phone is too warm. Let it cool before using $name." }
                 if (!closed && token == generation.get()) onReady(if (config.engine == VoiceOutputEngine.SERVER_MOSS) name
-                    else "$name · ${if (config.engine == VoiceOutputEngine.MOSS) MossModel.voice else config.speaker} · CPU")
+                    else "$name · ${if (config.engine == VoiceOutputEngine.MOSS) MossModel.voice else if (config.engine == VoiceOutputEngine.KOKORO) config.kokoroVoice else config.speaker} · CPU")
             } catch (error: CancellationException) {
                 if (!closed && token == generation.get()) throw error
             } catch (error: Throwable) {
@@ -268,17 +269,24 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
     private val app = context.applicationContext
     val files = VoiceOutputFiles(app)
     val mossFiles = VoiceOutputFiles(app, MossModel.model)
+    val kokoroFiles = VoiceOutputFiles(app, KokoroModel.model)
     private val owner = ReentrantLock()
-    val runtime: LocalTtsRuntime = LocalTtsRuntime(files::verify, owner, { mossRuntime.unload() }) {
+    val runtime: LocalTtsRuntime = LocalTtsRuntime(files::verify, owner, { mossRuntime.unload(); kokoroRuntime.unload() }) {
         create?.invoke() ?: NativeQwenEngine(files)
     }
-    val mossRuntime: LocalTtsRuntime = LocalTtsRuntime(mossFiles::verify, owner, { runtime.unload() }) {
+    val mossRuntime: LocalTtsRuntime = LocalTtsRuntime(mossFiles::verify, owner, { runtime.unload(); kokoroRuntime.unload() }) {
         NativeMossEngine(mossFiles)
+    }
+    val kokoroRuntime: LocalTtsRuntime = LocalTtsRuntime(kokoroFiles::verify, owner, { runtime.unload(); mossRuntime.unload() }) {
+        NativeKokoroEngine(kokoroFiles)
     }
     private val thermals = SpeechThermals(app)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     var installed by androidx.compose.runtime.mutableStateOf(files.installed); private set
     var partial by androidx.compose.runtime.mutableStateOf(files.partial); private set
+    var kokoroInstalled by androidx.compose.runtime.mutableStateOf(kokoroFiles.installed); private set
+    var kokoroPartial by androidx.compose.runtime.mutableStateOf(kokoroFiles.partial); private set
+    var kokoroLoaded by androidx.compose.runtime.mutableStateOf(false); private set
     var mossInstalled by androidx.compose.runtime.mutableStateOf(mossFiles.installed); private set
     var mossPartial by androidx.compose.runtime.mutableStateOf(mossFiles.partial); private set
     var busy by androidx.compose.runtime.mutableStateOf(false); private set
@@ -289,24 +297,27 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
     private var task: Job? = null
     private var preview: VoiceOutput? = null
     private fun modelFiles(engine: VoiceOutputEngine) = when (engine) {
+        VoiceOutputEngine.KOKORO -> kokoroFiles
         VoiceOutputEngine.MOSS -> mossFiles
         VoiceOutputEngine.QWEN -> files
         VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> error("This voice has no downloadable model.")
     }
     private fun modelRuntime(engine: VoiceOutputEngine) = when (engine) {
+        VoiceOutputEngine.KOKORO -> kokoroRuntime
         VoiceOutputEngine.MOSS -> mossRuntime
         VoiceOutputEngine.QWEN -> runtime
         VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> error("This voice has no local model runtime.")
     }
-    private fun name(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.MOSS) "MOSS-TTS-Nano" else "Qwen"
+    private fun name(engine: VoiceOutputEngine) = if (engine == VoiceOutputEngine.MOSS) "MOSS-TTS-Nano" else if (engine == VoiceOutputEngine.KOKORO) "Kokoro" else "Qwen"
     fun isInstalled(engine: VoiceOutputEngine) = when (engine) {
         VoiceOutputEngine.SYSTEM, VoiceOutputEngine.SERVER_MOSS -> true
         VoiceOutputEngine.QWEN -> installed
+        VoiceOutputEngine.KOKORO -> kokoroInstalled
         VoiceOutputEngine.MOSS -> mossInstalled
     }
     fun startProblem(config: VoiceConfiguration): String? = when {
         busy -> "Finish the Voice output operation before starting voice."
-        config.output.engine in listOf(VoiceOutputEngine.QWEN, VoiceOutputEngine.MOSS) && !modelFiles(config.output.engine).installed ->
+        config.output.engine in listOf(VoiceOutputEngine.QWEN, VoiceOutputEngine.MOSS, VoiceOutputEngine.KOKORO) && !modelFiles(config.output.engine).installed ->
             "Download ${name(config.output.engine)} in Settings → Voice output first."
         else -> null
     }
@@ -322,7 +333,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
                 private var prepareTask: Job? = null
                 override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
                     prepareTask = scope.launch {
-                        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload() }
+                        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload(); kokoroRuntime.unload() }
                         refresh(); voice.prepare(onReady, onError)
                     }
                 }
@@ -348,7 +359,7 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
         notice = "${name(engine)} deleted. Select an installed voice or download it again."
     }
     fun unload() = perform {
-        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload() }
+        withContext(Dispatchers.IO) { runtime.unload(); mossRuntime.unload(); kokoroRuntime.unload() }
         notice = "Local output models unloaded."
     }
     fun load(engine: VoiceOutputEngine = VoiceOutputEngine.QWEN) = perform {
@@ -374,8 +385,9 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
         } catch (error: Exception) { busy = false; notice = error.message }
     }
     fun stopPreview() { preview?.close(); preview = null; busy = task?.isActive == true }
-    fun cancel() { stopPreview(); task?.cancel(); runtime.invalidate(); mossRuntime.invalidate() }
+    fun cancel() { stopPreview(); task?.cancel(); runtime.invalidate(); mossRuntime.invalidate(); kokoroRuntime.invalidate() }
     private fun refresh() {
+        kokoroInstalled = kokoroFiles.installed; kokoroPartial = kokoroFiles.partial; kokoroLoaded = kokoroRuntime.loaded
         installed = files.installed; partial = files.partial; loaded = runtime.loaded
         mossInstalled = mossFiles.installed; mossPartial = mossFiles.partial; mossLoaded = mossRuntime.loaded
     }

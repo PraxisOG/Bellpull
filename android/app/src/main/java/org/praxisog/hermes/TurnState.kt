@@ -77,6 +77,9 @@ internal fun reconcileTurn(
 /** A notification-observed run has no phone-authored prompt to match. */
 internal fun reconcileDurableTurn(turn: TurnState, messages: List<org.praxisog.hermes.model.Message>,
     record: org.praxisog.hermes.model.RunSubmission): TurnState {
+    // A compacted prompt may no longer exist on reopen. Persisted sync evidence,
+    // or the exact final row fenced by server admission time, still retires the copy.
+    if (turn is TurnState.Finished && (record.historySynced || matchedCompletion(record, messages) != null)) return TurnState.Idle
     if (!record.requestId.startsWith("observed:")) return reconcileTurn(turn, messages, record.previousIds, record.text)
     val output = when (turn) {
         is TurnState.Finished -> turn.text

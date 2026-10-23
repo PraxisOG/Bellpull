@@ -1,0 +1,86 @@
+[
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 1,
+    "repeat": 0,
+    "synthesis_ms": 6523.102479,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 1,
+    "repeat": 1,
+    "synthesis_ms": 6438.054484,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 2,
+    "repeat": 0,
+    "synthesis_ms": 7658.871229,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 2,
+    "repeat": 1,
+    "synthesis_ms": 7452.97037,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 4,
+    "repeat": 0,
+    "synthesis_ms": 7027.104407,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model_quantized.onnx",
+    "threads": 4,
+    "repeat": 1,
+    "synthesis_ms": 6580.285943,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 1,
+    "repeat": 0,
+    "synthesis_ms": 6966.400239,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 1,
+    "repeat": 1,
+    "synthesis_ms": 6946.416281,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 2,
+    "repeat": 0,
+    "synthesis_ms": 3972.481722,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 2,
+    "repeat": 1,
+    "synthesis_ms": 3828.535888,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 4,
+    "repeat": 0,
+    "synthesis_ms": 2498.504429,
+    "audio_seconds": 4.9
+  },
+  {
+    "precision": "model.onnx",
+    "threads": 4,
+    "repeat": 1,
+    "synthesis_ms": 2259.390236,
+    "audio_seconds": 4.9
+  }
+]

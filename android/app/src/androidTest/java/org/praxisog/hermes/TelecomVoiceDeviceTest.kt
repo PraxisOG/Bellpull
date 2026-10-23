@@ -39,7 +39,9 @@ class TelecomVoiceDeviceTest {
         val audio = context.getSystemService(AudioManager::class.java)
         val client = HermesClient("http://127.0.0.1:18646", { "voice-device-hermes-key" })
         val capabilities = (client.capabilities() as HermesResult.Ok).value
-        settings.save(VoiceConfiguration("http://127.0.0.1:18647/transcriptions", "separate-speech-key", "fixture-whisper"))
+        settings.save(VoiceConfiguration("http://127.0.0.1:18647/transcriptions", "separate-speech-key", "fixture-whisper",
+            output = if (InstrumentationRegistry.getArguments().getString("kokoro") == "true")
+                VoiceOutputConfiguration(engine = VoiceOutputEngine.KOKORO) else VoiceOutputConfiguration()))
         instrumentation.uiAutomation.adoptShellPermissionIdentity(android.Manifest.permission.READ_PHONE_STATE)
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             try {
@@ -71,6 +73,23 @@ class TelecomVoiceDeviceTest {
                 await { !telecom.isInCall }
                 await { var ended = false; main { ended = runtime.voice == null }; ended }
                 assertEquals(AudioManager.MODE_NORMAL, audio.mode)
+                // The reported crash is the in-app close path, after STOPPED posts a
+                // Compose emission. Exercise it repeatedly while the activity survives.
+                instrumentation.uiAutomation.executeShellCommand("input keyevent 224").close()
+                repeat(3) {
+                    scene.onActivity {
+                        runtime.voiceRequestedSession = "fixture-id-1"
+                        runtime.voiceRequestedMode = VoiceMode.CALL
+                        it.startForegroundService(Intent(it, VoiceService::class.java))
+                    }
+                    await { var listening = false; main { listening = runtime.voice?.state == VoiceState.LISTENING }; listening }
+                    main { runtime.voice?.close() }
+                    await { var ended = false; main { ended = runtime.voice == null }; ended }
+                    await { !telecom.isInCall }
+                    main { assertTrue(context.getSystemService(android.app.NotificationManager::class.java).activeNotifications.none { it.id == 2405 }) }
+                    assertEquals(AudioManager.MODE_NORMAL, audio.mode)
+                }
+
             } finally {
                 instrumentation.uiAutomation.executeShellCommand("input keyevent 224").close()
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.STOP))

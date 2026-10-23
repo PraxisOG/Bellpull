@@ -27,6 +27,8 @@ internal fun ArtifactRow(item: Artifact, onDownload: (Artifact) -> Unit, onView:
         shape = if (embedded) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = if (embedded) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column {
+        ArtifactThumbnail(item, onView)
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             Row(Modifier.heightIn(min = 36.dp).padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -44,6 +46,7 @@ internal fun ArtifactRow(item: Artifact, onDownload: (Artifact) -> Unit, onView:
                     contentPadding = PaddingValues(horizontal = 4.dp)) { Text("View", style = MaterialTheme.typography.labelSmall) }
             }
         }
+    }
     }
 }
 

@@ -92,8 +92,11 @@ class CombinedWorkspaceScreenshotTest {
                     runLabels=mapOf("root" to "Running"),coding=coding,
                     planningView={ PlanningScreen(planning,true,clock={1791774000000L},requestPermission={}) })
             }
-            compose.onNodeWithText("Activity").performClick()
-            compose.waitUntil(5000) { coding.snapshot?.works?.singleOrNull()?.id == work.id }
+            compose.onNodeWithContentDescription("More options").performClick()
+            compose.onNodeWithText("OpenCode activity").performClick()
+            compose.onNodeWithTag("coding-activity").assertExists()
+            try { compose.waitUntil(5000) { coding.snapshot?.works?.singleOrNull()?.id == work.id } }
+            catch (error: Exception) { throw AssertionError("Coding=${coding.problem}; loading=${coding.loading}; requests=${requests.map { it.url.encodedPath }}", error) }
             compose.onNodeWithText("OpenCode · Running").assertExists()
             if (cover) compose.onNodeWithContentDescription("Back to sessions").performClick()
             compose.onNodeWithText("Today").performClick()
@@ -107,7 +110,7 @@ class CombinedWorkspaceScreenshotTest {
             if (cover) compose.onNodeWithContentDescription("Back to sessions").performClick()
             compose.onNodeWithText("Chats").performClick()
             compose.onNodeWithText("OpenCode · Running").assertExists()
-            compose.onNodeWithText("Chat").performClick()
+            compose.onNodeWithText("Chat / follow up").performClick()
             compose.onNodeWithText("Preserve this unsent follow-up").assertExists()
             assertTrue(runs.states["root"]!!.busy)
             assertEquals("run_combined",runs.states["root"]!!.submission.runId)

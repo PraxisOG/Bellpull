@@ -102,6 +102,7 @@ internal fun SessionDetailScreen(
     composerLeading: (@Composable () -> Unit)? = null,
     attachmentStrip: (@Composable () -> Unit)? = null,
     artifacts: List<org.praxisog.hermes.model.Artifact> = emptyList(),
+    runSubmission: org.praxisog.hermes.model.RunSubmission? = null,
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     messageStats: Map<Int, MessageInfo> = emptyMap(),
@@ -197,6 +198,10 @@ internal fun SessionDetailScreen(
     }
     val groups = remember(visibleMessages) { groupTranscript(visibleMessages) }
     val entries = remember(groups, artifacts) { responseBlocks(artifactTranscript(groups, artifacts)) }
+    val projection = remember(turn, visibleMessages, runSubmission) { projectLiveHistory(turn, visibleMessages, runSubmission) }
+    val liveInLastBubble = pendingUserText == null && entries.lastOrNull()?.let { block ->
+        block.assistant && block.messages.any { it.id == projection.appendTo }
+    } == true
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
     val mayRead = readEnabled && navigation == null && infoMessage == null && selectingMessage == null && quoteMessage == null && editingMessage == null && turn !is TurnState.Streaming
@@ -257,7 +262,7 @@ internal fun SessionDetailScreen(
                             }
                         } else {
                             val itemCount = entries.size + (if (pendingUserText == null) 0 else 1) +
-                                (if (turn is TurnState.Idle) 0 else 1)
+                                (if (turn is TurnState.Idle || liveInLastBubble) 0 else 1)
                             LaunchedEffect(entries, turn, pendingUserText) {
                                 if (itemCount > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
                                     listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
@@ -322,7 +327,12 @@ internal fun SessionDetailScreen(
                                         }
                                     }
                                     if (block.assistant) {
-                                        val message = block.actionMessage
+                                        val canonical = block.actionMessage
+                                        val liveText = if (liveInLastBubble && block == entries.last()) (projection.turn as? TurnState.Streaming)?.let { live ->
+                                            live.parts.filterIsInstance<LivePart.Prose>().filter { !it.thinking }.joinToString("\n\n") { it.text }.ifBlank { live.text }
+                                        }.orEmpty() else ""
+                                        val message = if (liveText.isNotBlank()) canonical.copy(content = listOf(canonical.content.orEmpty(), liveText)
+                                            .filter { it.isNotBlank() }.joinToString("\n\n")) else canonical
                                         val canBranch = branchingEnabled && !branchingSession && turn !is TurnState.Streaming &&
                                             block.messages.any { it.role == "assistant" }
                                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -336,6 +346,10 @@ internal fun SessionDetailScreen(
                                                     block.entries.forEach { entry ->
                                                         androidx.compose.runtime.key(entry.key) { renderEntry(entry) }
                                                     }
+                                                    if (liveInLastBubble && block == entries.last()) TurnView(projection.turn,
+                                                        onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
+                                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
+                                                        denseChatWindow, { selectingMessage = it }, embedded = true)
                                                 }
                                             }
                                             if (!denseChatWindow && !message.content.isNullOrBlank()) MessageActions(message,
@@ -347,8 +361,8 @@ internal fun SessionDetailScreen(
                                 if (pendingUserText != null) item(key = "pending-user") {
                                     PendingUserMessage(pendingUserText, denseChatWindow) { selectingMessage = it }
                                 }
-                                if (turn !is TurnState.Idle) {
-                                    item(key = "live-turn") { TurnView(turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
+                                if (turn !is TurnState.Idle && !liveInLastBubble) {
+                                    item(key = "live-turn") { TurnView(projection.turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
                                         seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
                                         denseChatWindow, { selectingMessage = it }) }
                                 }
@@ -445,7 +459,7 @@ private fun PendingUserMessage(text: String, dense: Boolean, onSelectText: (Mess
 /** The turn in flight, or how the last one ended. */
 @Composable
 private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolean, collapseThinking: Boolean, reduceMotion: Boolean,
-    seenToolRows: List<String>, onToolRowSeen: (String) -> Unit, dense: Boolean, onSelectText: (Message) -> Unit) {
+    seenToolRows: List<String>, onToolRowSeen: (String) -> Unit, dense: Boolean, onSelectText: (Message) -> Unit, embedded: Boolean = false) {
     val scheme = MaterialTheme.colorScheme
     val text = when (turn) {
         is TurnState.Streaming -> turn.parts.filterIsInstance<LivePart.Prose>().filter { !it.thinking && it.text.isNotBlank() }
@@ -464,9 +478,12 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp)
                     .semantics(mergeDescendants = true) {})
         }
-        if (!dense && (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed)) AssistantHeading()
-        MessageBubble(Message(Int.MIN_VALUE, role = "assistant", content = text), dense, onSelectText,
-            reading = reading, onRead = onRead) {
+        if (!embedded && !dense && (text.isNotBlank() || turn is TurnState.Streaming || turn is TurnState.Failed)) AssistantHeading()
+        val wrap: @Composable (@Composable () -> Unit) -> Unit = { content ->
+            if (embedded) content() else MessageBubble(Message(Int.MIN_VALUE, role = "assistant", content = text), dense,
+                onSelectText, reading = reading, onRead = onRead, content = content)
+        }
+        wrap {
             Column {
                 when (turn) {
                     is TurnState.Idle -> Unit
@@ -505,7 +522,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                 }
             }
         }
-        if (!dense && turn !is TurnState.Streaming && text.isNotBlank()) {
+        if (!embedded && !dense && turn !is TurnState.Streaming && text.isNotBlank()) {
             MessageActions(Message(id = Int.MIN_VALUE, role = "assistant", content = text),
                 reading, onRead, {}, canBranch = false, onSelectText = onSelectText)
         }

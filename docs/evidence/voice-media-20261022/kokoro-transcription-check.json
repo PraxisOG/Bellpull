@@ -1,0 +1,17 @@
+{
+  "method": "Moonshine Medium FP32 CPU, 24kHz to 16kHz linear resample; automated intelligibility smoke, not a listening-quality rating",
+  "results": [
+    {
+      "sample": 0,
+      "transcribed": "Hello I'm Bellpoll. Your voice stays on this device."
+    },
+    {
+      "sample": 2,
+      "transcribed": "The total is $12.50. including a 10% discount."
+    },
+    {
+      "sample": 3,
+      "transcribed": "Xylophonically speaking, the quasar was unusually bright."
+    }
+  ]
+}
