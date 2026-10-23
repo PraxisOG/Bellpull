@@ -1,7 +1,8 @@
-> Current experimental pair: **Android 0.14.8 / build 40**, plugin
+> Current experimental pair: **Android 0.14.9 / build 41**, plugin
 > **0.6.1-integration-preview**. Adds model/reasoning controls on supported stock
 > Hermes and Low/Medium/XHigh/Off for the configured Qwen3.8 Flash Next vLLM model.
-> Install the complete plugin and restart Hermes when idle. The Android update
+> Plugin code is unchanged from 0.14.7/0.14.8; existing 0.6.1 installs need no update.
+> For older installs, install the complete plugin and restart Hermes when idle. The Android update
 > recognizes the new `bellpull_native_model_controls` capability. Existing
 > streaming speech, offline memory and reviewed handoff remain available.
 > See [reasoning setup and evidence](../../docs/evidence/vllm-reasoning-20261022/README.md)

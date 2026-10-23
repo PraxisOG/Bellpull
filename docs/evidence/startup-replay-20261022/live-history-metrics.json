@@ -1,0 +1,12 @@
+{
+  "legacy_sample_chars": 2560,
+  "legacy_sample_tokens": 512,
+  "legacy_native_growth_bytes": 7429888,
+  "legacy_elapsed_ms": 87.850234,
+  "stress_saved_chars": 600000,
+  "stress_saved_tokens": 120000,
+  "iterations": 20,
+  "max_projection_ms": 830.010469,
+  "median_projection_ms": 721.017761,
+  "peak_native_growth_bytes": 72560
+}

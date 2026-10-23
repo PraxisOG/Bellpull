@@ -1,3 +1,10 @@
+## Startup replay repair — 0.14.9 / build 41
+
+Restoring a long live reply could retain a native regex matcher for every word,
+freeze the main thread and exhaust memory. A bounded token-prefix scan removes
+that allocation pattern while preserving reconnect deduplication and raw streams.
+Plugin 0.6.1 is unchanged. See [release notes and device checks](RELEASE-0.14.9-EXPERIMENTAL.md).
+
 ## Thinking level menu — 0.14.8 / build 40
 
 The conversation’s top-right **⋮ → Thinking level** opens a submenu containing

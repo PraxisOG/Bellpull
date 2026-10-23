@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.14.8-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.14.9-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -56,7 +56,7 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.14.8-experimental / build 40**
+> **This branch is experimental:** Android **0.14.9-experimental / build 41**
 > pairs with Bellpull plugin **0.6.1-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
@@ -64,13 +64,15 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 > [documented with phone measurements](docs/evidence/voice-media-20261022/README.md).
 > Use **⋮ → Thinking level** to change the current model’s reasoning directly.
 > [Thinking menu release notes](docs/RELEASE-0.14.8-EXPERIMENTAL.md).
+> 0.14.9 fixes startup freezes and memory exhaustion while restoring long replies.
+> [Startup repair and device evidence](docs/RELEASE-0.14.9-EXPERIMENTAL.md).
 > Real Doze/reboot, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
 > failures are reported separately in the evidence.
 
 ## Get started
 
-1. [Download 0.14.8 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.8-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download 0.14.9 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.9-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -79,10 +81,10 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.8-experimental.1/Bellpull-source-0.14.8.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.9-experimental.1/Bellpull-source-0.14.9.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.8-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.9-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
@@ -115,10 +117,11 @@ FP32 Moonshine medium export after it outperformed INT8 on the test host.
 Physical car/headset acoustics, navigation interruptions and sustained heat remain
 open; this is an experimental voice increment, not Android Auto.
 
-Current validation: **737 JVM checks, one expected skip**, lint and signed release
+Current validation: **740 JVM checks, one expected skip**, lint and signed release
 assembly. The plugin suite ran **171 checks, one expected skip**, plus targeted
-modern stock-host checks and live Moe inference in 0.14.7. This UI increment
-verifies 191 screenshot baselines, including four new menu views. Six helper tests cover
+modern stock-host checks and live Moe inference in 0.14.7. The preceding 0.14.8 UI increment
+verified 191 screenshot baselines, including four new menu views. This repair
+adds long-replay regression checks and a physical Android memory/latency test. Six helper tests cover
 isolation, malformed audio, overload, authentication and cleanup. See the
 [release record](docs/release.md) for physical-device evidence and limitations.
 

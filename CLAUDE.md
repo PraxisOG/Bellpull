@@ -17,6 +17,14 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22, crash repair):** investigate and fix the
+reported app crashes. Phone exit history shows 0.14.8 ANRs and a low-memory kill;
+both ANR stacks point to replay deduplication's retained regex matchers. Branch
+`fix/live-history-memory-0149`, Android 0.14.9/build41; plugin stays 0.6.1.
+Replace the allocation-heavy prefix scan, verify long replay on the real Android
+runtime in the isolated fixture package, then install in place and publish the
+experimental repair under existing authorization. Preserve all personal data.
+
 **Current task authority (2026-10-22, thinking menu):** add a direct Thinking
 level submenu to the conversation's top-right overflow. Choosing an option
 closes both menus and saves that conversation's reasoning choice. Branch

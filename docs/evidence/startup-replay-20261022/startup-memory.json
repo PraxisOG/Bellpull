@@ -1,0 +1,22 @@
+[
+  {
+    "elapsed_seconds": 0,
+    "pss_kib": 312909,
+    "rss_kib": 481112
+  },
+  {
+    "elapsed_seconds": 15,
+    "pss_kib": 311897,
+    "rss_kib": 480100
+  },
+  {
+    "elapsed_seconds": 30,
+    "pss_kib": 307610,
+    "rss_kib": 475868
+  },
+  {
+    "elapsed_seconds": 45,
+    "pss_kib": 305278,
+    "rss_kib": 473736
+  }
+]

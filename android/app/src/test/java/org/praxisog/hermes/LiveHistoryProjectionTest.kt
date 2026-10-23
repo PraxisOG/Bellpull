@@ -48,4 +48,35 @@ class LiveHistoryProjectionTest {
         assertEquals(TurnState.Idle, reconcileDurableTurn(TurnState.Finished("Saved text."), compacted,
             finished.copy(historySynced = true, completionOutput = null)))
     }
+
+    @Test fun whitespaceAndMarkdownSuffixSurviveAcrossProseAndThinkingParts() {
+        val rows = messages.dropLast(1) + Message(4, role = "assistant", content = "Saved\ttext. More\u2003saved.", reasoningContent = "First thought.")
+        val turn = TurnState.Streaming("Saved text.\nMore saved.\n\n**New** suffix.", reasoning = "First\nthought. Next thought.", parts = listOf(
+            LivePart.Prose("first", "Saved text."), LivePart.Prose("thinking", "First thought. Next thought.", thinking = true),
+            LivePart.Prose("last", "More\r\nsaved.\n\n**New** suffix.")))
+        val result = projectLiveHistory(turn, rows, record).turn as TurnState.Streaming
+        assertEquals("**New** suffix.", result.text)
+        assertEquals("Next thought.", result.reasoning)
+        assertEquals(listOf(LivePart.Prose("thinking", "Next thought.", thinking = true), LivePart.Prose("last", "**New** suffix.")), result.parts)
+    }
+
+    @Test fun mismatchesAndPartialWordsKeepTheLiveText() {
+        for (text in listOf("Saved tex", "Saved different.", "Unrelated", "", "  ")) {
+            val result = projectLiveHistory(TurnState.Streaming(text), messages, record).turn as TurnState.Streaming
+            assertEquals(text, result.text)
+        }
+    }
+
+    @Test(timeout = 3000) fun longReplayAndReasoningLeaveOnlyTheNewSuffix() {
+        val saved = "A saved word.\n".repeat(30_000)
+        val rows = messages.dropLast(1) + Message(4, role = "assistant", content = saved, reasoningContent = saved)
+        val turn = TurnState.Streaming(saved + "**New answer**", reasoning = saved + "New thought", parts = listOf(
+            LivePart.Prose("reasoning", saved + "New thought", thinking = true), LivePart.Prose("answer", saved + "**New answer**")))
+        val result = projectLiveHistory(turn, rows, record).turn as TurnState.Streaming
+        assertEquals("**New answer**", result.text)
+        assertEquals("New thought", result.reasoning)
+        assertEquals(listOf("New thought", "**New answer**"), result.parts.filterIsInstance<LivePart.Prose>().map { it.text })
+        val mismatch = turn.copy(text = saved.dropLast(2) + "? Different")
+        assertEquals(mismatch.text, (projectLiveHistory(mismatch, rows, record).turn as TurnState.Streaming).text)
+    }
 }
