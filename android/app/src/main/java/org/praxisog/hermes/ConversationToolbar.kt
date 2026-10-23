@@ -36,8 +36,14 @@ internal fun ConversationToolbar(
     onOffline: (() -> Unit)? = null,
     onNewLocal: (() -> Unit)? = null,
     onActivity: (() -> Unit)? = null,
+    thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var thinkingOpen by remember { mutableStateOf(false) }
+    val dismissMenus = { thinkingOpen = false; menuOpen = false }
+    LaunchedEffect(hasSession, thinkingMenu != null) {
+        if (!hasSession || thinkingMenu == null) thinkingOpen = false
+    }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
     val navigate: @Composable () -> Unit = {
         NavigationAction("Chats", onNavigate, description = if (!sideBySide) "Back to sessions"
@@ -63,31 +69,42 @@ internal fun ConversationToolbar(
                 NewChatButton(onNewSession, creatingSession, highlighted = false, onNewLocal = onNewLocal)
                 Box {
                     val actionTint = MaterialTheme.colorScheme.primary
-                    NavigationAction("More", { menuOpen = true }, description = "More options") {
+                    NavigationAction("More", { thinkingOpen = false; menuOpen = true }, description = "More options") {
                         Canvas(Modifier.size(20.dp)) {
                             listOf(.15f, .5f, .85f).forEach { y -> drawCircle(actionTint, 1.8.dp.toPx(), Offset(center.x, size.height * y)) }
                         }
                     }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text(if (sideBySide && showContext && hasSession) "Hide session info" else "Session info") },
-                            enabled = hasSession, onClick = { menuOpen = false; onContext() },
-                        )
-                        DropdownMenuItem(text = { Text("Prompt history") }, enabled = hasSession && hasHistory,
-                            onClick = { menuOpen = false; onPrompts() })
-                        DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
-                            onClick = { menuOpen = false; onSearch() })
-                        if (onOffline != null) DropdownMenuItem(text = { Text("Create local fork") }, enabled = hasSession,
-                            onClick = { menuOpen = false; onOffline() })
-                        DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
-                            onClick = { menuOpen = false; onArtifacts() })
-                        if (onActivity != null) DropdownMenuItem(text = { Text("OpenCode activity") }, enabled = hasSession,
-                            modifier = Modifier.testTag("open-coding-activity"),
-                            onClick = { menuOpen = false; onActivity() })
-                        HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onSettings() })
-                        DropdownMenuItem(enabled = onShare != null, onClick = { menuOpen = false; onShare?.invoke() },
-                            text = { Text("Share conversation") })
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = dismissMenus) {
+                        if (thinkingOpen && thinkingMenu != null && hasSession) {
+                            DropdownMenuItem(text = { Text("Thinking level") },
+                                leadingIcon = { Text("‹") },
+                                modifier = Modifier.semantics { contentDescription = "Back to more options" },
+                                onClick = { thinkingOpen = false })
+                            HorizontalDivider()
+                            thinkingMenu(dismissMenus)
+                        } else {
+                            if (thinkingMenu != null) DropdownMenuItem(text = { Text("Thinking level") }, enabled = hasSession,
+                                trailingIcon = { Text("›") }, onClick = { thinkingOpen = true })
+                            DropdownMenuItem(
+                                text = { Text(if (sideBySide && showContext && hasSession) "Hide session info" else "Session info") },
+                                enabled = hasSession, onClick = { menuOpen = false; onContext() },
+                            )
+                            DropdownMenuItem(text = { Text("Prompt history") }, enabled = hasSession && hasHistory,
+                                onClick = { menuOpen = false; onPrompts() })
+                            DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
+                                onClick = { menuOpen = false; onSearch() })
+                            if (onOffline != null) DropdownMenuItem(text = { Text("Create local fork") }, enabled = hasSession,
+                                onClick = { menuOpen = false; onOffline() })
+                            DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
+                                onClick = { menuOpen = false; onArtifacts() })
+                            if (onActivity != null) DropdownMenuItem(text = { Text("OpenCode activity") }, enabled = hasSession,
+                                modifier = Modifier.testTag("open-coding-activity"),
+                                onClick = { menuOpen = false; onActivity() })
+                            HorizontalDivider()
+                            DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onSettings() })
+                            DropdownMenuItem(enabled = onShare != null, onClick = { menuOpen = false; onShare?.invoke() },
+                                text = { Text("Share conversation") })
+                        }
                     }
                 }
             }

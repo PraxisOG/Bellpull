@@ -306,6 +306,9 @@ class MainActivity : ComponentActivity() {
                         modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
                             { ModelControl(workspace, id) }
                         } },
+                        thinkingMenu = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
+                            { dismiss -> key(workspace, id) { ConversationThinkingMenu(workspace, id, dismiss) } }
+                        } },
                         composerLeading = current?.openSessionId?.let { id -> {
                             androidx.compose.foundation.layout.Row {
                                 val active = runtime.voice != null || runtime.voiceRequestedSession != null

@@ -87,6 +87,7 @@ internal fun HermesApp(
     extraTools: (@Composable () -> Unit)? = null,
     planningView: (@Composable () -> Unit)? = null,
     modelControl: (@Composable () -> Unit)? = null,
+    thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
     composerLeading: (@Composable () -> Unit)? = null,
     attachmentStrip: (@Composable () -> Unit)? = null,
     uploading: Boolean = false,
@@ -262,6 +263,7 @@ internal fun HermesApp(
                                 onSettings = openSettings,
                                 onArtifacts = { artifactsOpen = true },
                                 onActivity = if (coding != null) ({ activityOpen = true }) else null,
+                                thinkingMenu = if (mode == WorkspaceMode.CHATS && localChat == null) thinkingMenu else null,
                                 onOffline = onOffline, onNewLocal = onNewLocal,
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
                                     ArtifactSharing.text(androidContext, history.value.filter { it.role in setOf("user", "assistant") && !it.content.isNullOrBlank() }

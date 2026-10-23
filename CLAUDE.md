@@ -17,6 +17,13 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22, thinking menu):** add a direct Thinking
+level submenu to the conversation's top-right overflow. Choosing an option
+closes both menus and saves that conversation's reasoning choice. Branch
+`feature/thinking-menu-0148`, Android 0.14.8/build40; plugin stays 0.6.1.
+Continue existing signed in-place phone install and experimental publication
+authorization. Preserve personal app data, server profile and model choices.
+
 **Current task authority (2026-10-22, vLLM reasoning):** investigate Moe's running
 Qwen backend and wire Bellpull's reasoning choice through the plugin and Hermes.
 The user explicitly authorized SSH/API investigation and test inference on Moe.

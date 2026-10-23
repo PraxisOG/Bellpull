@@ -1,3 +1,12 @@
+## Thinking level menu — 0.14.8 / build 40
+
+The conversation’s top-right **⋮ → Thinking level** opens a submenu containing
+only the selected model’s supported controls, with its current choice marked.
+Selecting one closes the menu and saves it for that conversation. Model/provider
+selection stays intact; rejected saves retain the previous choice and report an
+inline error. Plugin 0.6.1 is unchanged. See
+[release notes and UI checks](RELEASE-0.14.8-EXPERIMENTAL.md).
+
 ## vLLM reasoning controls — 0.14.7 / build 39
 
 App **0.14.7-experimental**, plugin **0.6.1-integration-preview**. Model controls

@@ -7,11 +7,57 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.*
+
+@Composable
+internal fun ConversationThinkingMenu(workspace: Phase3Workspace, sessionId: String, onDismiss: () -> Unit) {
+    val selection = workspace.selections[sessionId]
+    val route = selection?.let { selected -> workspace.catalog?.models?.find {
+        it.model == selected.model && it.provider == selected.provider
+    } }
+    LaunchedEffect(workspace, sessionId) {
+        if (selection == null || workspace.catalog == null) workspace.refreshModels(sessionId)
+    }
+    ThinkingLevelMenuItems(selection, route, workspace.errors[sessionId] ?: workspace.errors["models"],
+        onRetry = { workspace.refreshModels(sessionId) }, onChoose = { value ->
+            onDismiss()
+            // Keep the captured conversation/model. Existing inline errors report save failures.
+            workspace.choose(sessionId, value) {}
+        })
+}
+
+@Composable
+internal fun ThinkingLevelMenuItems(selection: ModelSelection?, route: ModelRoute?, error: String?,
+    onRetry: () -> Unit, onChoose: (ModelSelection) -> Unit) {
+    if (selection == null || route == null || !route.configured) {
+        DropdownMenuItem(enabled = false, onClick = {}, text = {
+            Text(error ?: if (selection == null) "Loading thinking options…" else "Thinking options unavailable",
+                modifier = Modifier.widthIn(max = 260.dp))
+        })
+        DropdownMenuItem(text = { Text("Retry") }, onClick = onRetry)
+        return
+    }
+    val choices = buildList<Pair<String, ReasoningChoice?>> {
+        add("Default" to null)
+        if (route.reasoning.canDisable) add("Off" to ReasoningChoice(enabled = false))
+        if (route.reasoning.canEnable) add("On" to ReasoningChoice())
+        route.reasoning.efforts.forEach { effort ->
+            add((if (effort == "xhigh") "XHigh" else effort.replaceFirstChar { it.uppercase() }) to ReasoningChoice(effort = effort))
+        }
+    }
+    choices.forEach { (label, reasoning) ->
+        val active = selection.options.reasoning == reasoning
+        DropdownMenuItem(text = { Text(label) }, modifier = Modifier.semantics { selected = active },
+            trailingIcon = { if (active) Text("✓") },
+            onClick = { onChoose(selection.copy(options = selection.options.copy(reasoning = reasoning))) })
+    }
+}
 
 @Composable
 internal fun ModelControl(workspace: Phase3Workspace, sessionId: String?) {

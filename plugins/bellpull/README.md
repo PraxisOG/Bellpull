@@ -1,4 +1,4 @@
-> Current experimental pair: **Android 0.14.7 / build 39**, plugin
+> Current experimental pair: **Android 0.14.8 / build 40**, plugin
 > **0.6.1-integration-preview**. Adds model/reasoning controls on supported stock
 > Hermes and Low/Medium/XHigh/Off for the configured Qwen3.8 Flash Next vLLM model.
 > Install the complete plugin and restart Hermes when idle. The Android update
