@@ -19,6 +19,22 @@ class BellpullFilesContractTest {
     private fun client(handler: (Request) -> Response) = HermesClient("http://127.0.0.1:1", { "fixture-only" },
         httpClient = HermesClient.defaultHttpClient().newBuilder().addInterceptor { handler(it.request()) }.build())
 
+    @Test fun nativeModelCapabilityDoesNotEnableTheLegacyAttachmentExtension() {
+        val api = client { request ->
+            val body = if (request.url.encodedPath == "/v1/capabilities")
+                """{"features":{"run_submission":true}}"""
+            else """{"version":1,"features":{"bellpull_native_model_controls":true,"bellpull_model_controls":false,"bellpull_run_attachments":false}}"""
+            response(request, body.toByteArray())
+        }
+        try {
+            val caps = (api.capabilities() as HermesResult.Ok).value
+            assertTrue(caps.features["bellpull_native_model_controls"] == true)
+            assertFalse(caps.features["bellpull_model_controls"] == true)
+            assertFalse(caps.features["bellpull_run_attachments"] == true)
+            assertTrue(caps.features["run_submission"] == true)
+        } finally { api.close() }
+    }
+
     @Test fun serverCompressionAliasesKeepFilesInBothOldAndContinuedConversationFilters() {
         val api = client { request -> response(request, """{"data":[{"id":"$id","session_id":"root","session_ids":["root","middle","tip"],"message_id":10,"name":"answer.txt","mime":"text/plain","size":5,"sha256":"$hash","created_at":100,"source":"agent"}]}""".toByteArray()) }
         try {
@@ -70,11 +86,32 @@ class BellpullFilesContractTest {
             val reasoning = bellpull.getValue("selection").jsonObject.getValue("model_options").jsonObject.getValue("reasoning").jsonObject
             assertFalse(reasoning.getValue("enabled").jsonPrimitive.boolean)
             assertFalse(reasoning.containsKey("effort"))
+            assertEquals("qwen38-flash-next", body.getValue("model").jsonPrimitive.content)
+            assertEquals("custom", body.getValue("provider").jsonPrimitive.content)
+            assertEquals(bellpull.getValue("selection").jsonObject.getValue("model_options"), body.getValue("model_options"))
+            assertTrue(body.getValue("require_model_lock").jsonPrimitive.boolean)
             assertEquals(id, bellpull.getValue("artifact_ids").jsonArray.single().jsonPrimitive.content)
             response(request, """{"run_id":"run_fixture","status":"started"}""".toByteArray())
         }
         try { assertTrue(api.submitRun("chat", "hello", "stable-id", bellpull = BellpullRunOptions(
             selection = ModelSelection("qwen38-flash-next", "custom", ModelOptions(ReasoningChoice(false))), artifactIds = listOf(id))) is HermesResult.Ok) }
         finally { api.close() }
+    }
+    @Test fun effortAndNativeSelectionRemainIdenticalAcrossAdmissionRetries() {
+        val bodies = mutableListOf<String>()
+        val api = client { request ->
+            val sink = Buffer(); request.body!!.writeTo(sink); bodies += sink.readUtf8()
+            val body = Json.parseToJsonElement(bodies.last()).jsonObject
+            val selected = body.getValue("bellpull").jsonObject.getValue("selection").jsonObject
+            assertEquals(selected.getValue("model_options"), body.getValue("model_options"))
+            assertEquals("xhigh", body.getValue("model_options").jsonObject.getValue("reasoning").jsonObject.getValue("effort").jsonPrimitive.content)
+            assertEquals("stable-effort-id", request.header("Idempotency-Key"))
+            response(request, """{"run_id":"run_fixture","status":"started"}""".toByteArray())
+        }
+        try {
+            val options = BellpullRunOptions(selection = ModelSelection("qwen38-flash-next", "custom", ModelOptions(ReasoningChoice(effort = "xhigh"))))
+            repeat(2) { assertTrue(api.submitRun("chat", "hello", "stable-effort-id", bellpull = options) is HermesResult.Ok) }
+            assertEquals(bodies[0], bodies[1])
+        } finally { api.close() }
     }
 }

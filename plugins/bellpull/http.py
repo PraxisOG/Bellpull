@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, streaming, projects, planning, offline, titles
+from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -44,6 +44,8 @@ def wire(app, adapter):
     app.on_startup.append(speech.start)
     snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
+    stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
+    models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
     app.on_startup.append(coding.start)
     housekeeping = {}
@@ -51,6 +53,7 @@ def wire(app, adapter):
     def stop():
         nonlocal active
         active = False
+        stop_models()
         stop_streaming()
         coding.stop()
         snapshots.close()
@@ -58,6 +61,7 @@ def wire(app, adapter):
         speech.stop()
     async def close():
         await coding.close()
+        stop_models()
         stop_streaming()
         snapshots.close()
         await relay.close()
@@ -93,6 +97,7 @@ def wire(app, adapter):
             "host_api_version": host.API_VERSION if host_ready else None,
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
+                "bellpull_native_model_controls": stock_models_ready,
                 "bellpull_run_attachments": host_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
@@ -106,7 +111,8 @@ def wire(app, adapter):
                 "bellpull_speech": True,
                 "bellpull_routines": projects_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
-            "note": "" if host_ready else "Persistent file sharing is plugin-owned. Native image inputs and model overrides require the optional run extension."},
+            "note": "" if host_ready else ("Model controls use native Hermes request options. Chat attachments require the optional run extension."
+                if models_ready else "Persistent file sharing is plugin-owned. Model controls and chat attachments are unavailable on this host.")},
             headers={"Cache-Control": "no-store"})
 
     async def gpu(request):
@@ -183,7 +189,7 @@ def wire(app, adapter):
             ("GET", "/api/bellpull/artifacts/storage", storage),
             ("DELETE", "/api/bellpull/artifacts/{artifact_id}", storage),
         ])
-        routes.extend(models_files.routes(adapter, include_models=host_ready))
+        routes.extend(models_files.routes(adapter, include_models=models_ready))
     if offline_ready:
         routes.extend(offline.routes(adapter))
     if titles_ready:

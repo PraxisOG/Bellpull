@@ -280,7 +280,7 @@ class HermesClient(
         }
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
-        val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls",
+        val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls", "bellpull_native_model_controls",
             "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
@@ -550,7 +550,15 @@ class HermesClient(
         val body = buildJsonObject {
             put("input", input); put("session_id", sessionId)
             if (interactiveApprovals) put("interactive_approvals", true)
-            bellpull?.let { put("bellpull", json.encodeToJsonElement(it)) }
+            bellpull?.let {
+                put("bellpull", json.encodeToJsonElement(it))
+                // Stock Hermes consumes native request options. The plugin envelope
+                // remains for extension hosts and attachments; both carry the same
+                // immutable selection so admission retries cannot change effort.
+                put("model", it.selection.model); put("provider", it.selection.provider)
+                put("model_options", json.encodeToJsonElement(it.selection.options))
+                put("require_model_lock", true)
+            }
         }.toString()
         return execute(authed("/v1/runs").header("Idempotency-Key", requestId)
             .post(body.toRequestBody(JSON_MEDIA)).build(), sessionId) { json.decodeFromString(it) }

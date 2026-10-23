@@ -247,9 +247,11 @@ GET `/api/bellpull/capabilities` returns:
 
 Android first reads native `/v1/capabilities`, preserving structured native run
 idempotency/retention fields, then merges supported plugin flags. A missing plugin
-falls back to the legacy/native contract. Only input attachments, model overrides
-and run-observer notifications depend on host API v1; file delivery/lifecycle
-remain available on stock Hermes. Notification events are false when ntfy is disabled. No native static
+falls back to the legacy/native contract. Input attachments and run-observer
+notifications depend on host API v1; file delivery/lifecycle remain available on
+stock Hermes. Plugin 0.6.1 additionally exposes native model controls on supported
+stock hosts through `bellpull_native_model_controls`, as documented below.
+Notification events are false when ntfy is disabled. No native static
 feature dictionary is changed by the plugin. Refresh updates action availability.
 
 The native plugin tool `bellpull_share_files` accepts `{action:"prepare"}` or
@@ -513,13 +515,39 @@ the same authenticated artifact records. Arbitrary paths/URLs mentioned by an ag
 do not become downloadable. Generated output is collected after normal agent return;
 an interrupted process may leave unpublished files until a later successful turn.
 
-Verified reasoning translations: Fireworks DeepSeek V4/V4.1 low/high/max/Off maps
+Verified reasoning translations (updated October 22): Fireworks DeepSeek V4/V4.1 low/high/max/Off maps
 to top-level `reasoning_effort` (`none` for Off); GPT-OSS has low/medium/high and no
-Off. The exact custom model `qwen38-flash-next` supports On/Off via
-`extra_body.chat_template_kwargs.enable_thinking`. A direct local probe gave 0 versus
-23 reasoning tokens for the same prompt. No graded local effort was verified. This
-patch does not configure a local route. Other models use their actual provider's
-declared supported values; unknown controls remain unavailable.
+Off. The custom model `qwen38-flash-next` and official IDs
+`Qwen/Qwen3.8-Flash-Next` / `Qwen/Qwen3.8-Flash-Next-FP8` support Low/Medium/XHigh
+and On/Off. Effort is sent as top-level `reasoning_effort` plus the identical
+`extra_body.chat_template_kwargs.reasoning_effort`; On/Off uses
+`extra_body.chat_template_kwargs.enable_thinking`. The OpenAI SDK flattens
+`extra_body` into the HTTP request. These levels guide reasoning depth, not a hard
+token budget. The actual vLLM service and complete stock-Hermes/plugin path were
+tested at all three levels and Off. Other models use their provider's declared
+supported values. The plugin itself does not configure an inference route.
+
+### Stock Hermes native model controls — plugin 0.6.1 / app 0.14.7
+
+On the tested stock Hermes 0.21.5, the plugin advertises
+`bellpull_native_model_controls:true`, with legacy `bellpull_model_controls:false`
+and `bellpull_run_attachments:false`. Either model-control flag enables the model
+picker in the new app; attachments retain their independent capability check.
+An old app therefore does not mistake native controls for the legacy run extension.
+
+The new app sends identical `model`, `provider`, `model_options` and
+`require_model_lock:true` at the top level of `POST /v1/runs`, alongside the existing
+immutable Bellpull envelope. Native Hermes owns routing, persisted locks, admission,
+fingerprints and retries. The plugin feature-detects and wraps this adapter instance's
+`_create_agent`, translating the explicit selection into the existing agent's
+`request_overrides` after provider/model resolution. It deep-merges extras without
+modifying provider defaults. Unload restores the native method. Hosts missing the
+required native surface do not advertise support; no core patch is installed.
+
+Verified: stored per-chat choices, actual inference for Off/Low/Medium/XHigh,
+unchanged-key replay returning the original run without inference, and changed
+effort under that key returning 409. See
+[reproducible checks and limits](evidence/vllm-reasoning-20261022/README.md).
 
 The separate `plugins/bellpull_gpu` Hermes plugin registers authenticated GET
 `/api/bellpull/plugins/gpu` (and the native `/p/{profile}` prefix). Response is

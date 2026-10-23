@@ -1,6 +1,6 @@
 ## Car audio and streaming speech experiment
 
-This branch builds **0.14.4-experimental / build 36**. Initialize submodules
+This branch builds **0.14.7-experimental / build 39**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -8,7 +8,7 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.14.4-experimental / build 36**, with the 0.6.0
+This branch builds **0.14.7-experimental / build 39**, with the 0.6.1
 integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.

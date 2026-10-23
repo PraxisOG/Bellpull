@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.14.6-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.14.7-59091e?style=flat-square)](docs/PHASE-14-OFFLINE.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -42,8 +42,8 @@ the project, coding and calendar panels show the development preview.*
 | **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
-| **Voice output** | Use the installed Android voice, or experiment with on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
-| **Coding activity** | Open a chat → **Activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
+| **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
+| **Coding activity** | Open a chat → **⋮ → OpenCode activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
 | **Today overview** | See today's calendar, due reminders, pending decisions, tracked work and unread replies from existing local records. |
 | **Calendar** | Opt into selected phone calendars, view day/week blocks, and separately enable writes. Hermes proposals require a phone Apply action. |
@@ -56,20 +56,21 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.14.6-experimental / build 38**
-> pairs with Bellpull plugin **0.6.0-integration-preview**. Server features need
+> **This branch is experimental:** Android **0.14.7-experimental / build 39**
+> pairs with Bellpull plugin **0.6.1-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > Kokoro CPU speech, voice-exit repairs, image previews and reconnect fixes are
 > [documented with phone measurements](docs/evidence/voice-media-20261022/README.md).
-> Kokoro now prepares sentences ahead for [streamed playback](docs/RELEASE-0.14.6-EXPERIMENTAL.md).
+> Kokoro prepares sentences ahead for streamed playback. This update adds
+> [Qwen reasoning controls through stock Hermes](docs/RELEASE-0.14.7-EXPERIMENTAL.md).
 > Real Doze/reboot, car audio and cloud calendar sync
 > still need acceptance. Supported-host checks and historical compatibility
 > failures are reported separately in the evidence.
 
 ## Get started
 
-1. [Download 0.14.6 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.6-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download 0.14.7 experimental](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.7-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -78,14 +79,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.6-experimental.1/Bellpull-source-0.14.6.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.7-experimental.1/Bellpull-source-0.14.7.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.6-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.7-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.6.0) from the same source checkout.
+For this branch, use `plugins/bellpull` (0.6.1) from the same source checkout.
 The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
 ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
 
@@ -114,9 +115,10 @@ FP32 Moonshine medium export after it outperformed INT8 on the test host.
 Physical car/headset acoustics, navigation interruptions and sustained heat remain
 open; this is an experimental voice increment, not Android Auto.
 
-Validation: **714 JVM checks, one expected skip**, **187 unchanged screenshot
-baselines**, lint and signed release assembly. The plugin suite ran **168 checks,
-one expected skip**, plus 15 modern stock-host checks. Six helper tests cover
+Current validation: **733 JVM checks, one expected skip**, lint and signed release
+assembly. The plugin suite ran **171 checks, one expected skip**, plus targeted
+modern stock-host checks and live Moe inference. The prior UI release verified
+187 screenshot baselines; this increment changes no layouts. Six helper tests cover
 isolation, malformed audio, overload, authentication and cleanup. See the
 [release record](docs/release.md) for physical-device evidence and limitations.
 

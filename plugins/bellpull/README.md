@@ -1,10 +1,11 @@
-> Current experimental pair: **Android 0.14.4 / build 36**, plugin
-> **0.6.0-integration-preview**. Adds authenticated WebSocket PCM transcription
-> proxying, scoped to the existing profile credential. Install the complete plugin
-> and restart Hermes when idle. The optional [CPU speech helper](../../server-speech/README.md)
-> runs separately; its key stays on the server. Voice-title repair, offline memory
-> and reviewed handoff remain available. See the [release record](../../docs/release.md).
-> Historical setup follows below.
+> Current experimental pair: **Android 0.14.7 / build 39**, plugin
+> **0.6.1-integration-preview**. Adds model/reasoning controls on supported stock
+> Hermes and Low/Medium/XHigh/Off for the configured Qwen3.8 Flash Next vLLM model.
+> Install the complete plugin and restart Hermes when idle. The Android update
+> recognizes the new `bellpull_native_model_controls` capability. Existing
+> streaming speech, offline memory and reviewed handoff remain available.
+> See [reasoning setup and evidence](../../docs/evidence/vllm-reasoning-20261022/README.md)
+> and the [release record](../../docs/release.md). Historical setup follows below.
 
 # Bellpull integration plugin 0.4.2-integration-preview
 

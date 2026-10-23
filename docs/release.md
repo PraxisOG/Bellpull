@@ -1,3 +1,28 @@
+## vLLM reasoning controls — 0.14.7 / build 39
+
+App **0.14.7-experimental**, plugin **0.6.1-integration-preview**. Model controls
+now work on the tested stock Hermes 0.21.5 without a core patch. Qwen3.8 Flash Next
+supports Off/On/Low/Medium/XHigh per conversation. The app sends native request
+options and the plugin translates them into vLLM's reasoning/template fields.
+Actual Moe inference, saved choices and idempotent retries passed. The signed
+app is installed in place, and PowerMac runs the matching plugin with Moe as an
+additional selectable route. Its default model is preserved.
+See [release notes](RELEASE-0.14.7-EXPERIMENTAL.md) and
+[validation, setup and limits](evidence/vllm-reasoning-20261022/README.md).
+
+## Kokoro sentence streaming — 0.14.6 / build 38
+
+Kokoro prepares one sentence ahead while speech plays. Voice mode and Read aloud
+share bounded phrase splitting and immediate Stop. See
+[release notes](RELEASE-0.14.6-EXPERIMENTAL.md) and
+[physical-phone measurements](evidence/kokoro-sentences-20261022/README.md).
+
+## Voice and media repairs — 0.14.5 / build 37
+
+Kokoro small CPU TTS, voice-exit repair, OpenCode activity in the conversation
+menu, adjustable image previews and reconnect response deduplication. See
+[release notes](RELEASE-0.14.5-EXPERIMENTAL.md).
+
 ## Telecom call mode and streaming speech — 0.14.4 / build 36
 
 App **0.14.4-experimental**, plugin **0.6.0-integration-preview**.

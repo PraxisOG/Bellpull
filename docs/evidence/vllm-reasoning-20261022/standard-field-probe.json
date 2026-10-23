@@ -1,0 +1,56 @@
+[
+  {
+    "effort": "low",
+    "mode": "standard_field_only",
+    "usage": {
+      "prompt_tokens": 55,
+      "total_tokens": 73,
+      "completion_tokens": 18,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0,
+        "multimodal_tokens": null
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 12
+      }
+    },
+    "finish_reason": "stop"
+  },
+  {
+    "effort": "medium",
+    "mode": "standard_field_only",
+    "usage": {
+      "prompt_tokens": 25,
+      "total_tokens": 88,
+      "completion_tokens": 63,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0,
+        "multimodal_tokens": null
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 57
+      }
+    },
+    "finish_reason": "stop"
+  },
+  {
+    "effort": "xhigh",
+    "mode": "standard_field_only",
+    "usage": {
+      "prompt_tokens": 67,
+      "total_tokens": 115,
+      "completion_tokens": 48,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0,
+        "multimodal_tokens": null
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 42
+      }
+    },
+    "finish_reason": "stop"
+  }
+]

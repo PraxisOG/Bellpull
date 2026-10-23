@@ -17,6 +17,16 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-22, vLLM reasoning):** investigate Moe's running
+Qwen backend and wire Bellpull's reasoning choice through the plugin and Hermes.
+The user explicitly authorized SSH/API investigation and test inference on Moe.
+Branch `feature/vllm-reasoning-061`, Android 0.14.7/build39, plugin 0.6.1.
+Continue existing signed in-place phone installation, local PowerMac plugin
+deployment and experimental publication authorization. Preserve personal app data
+and the PowerMac server profile. A selectable Moe provider may be added to local
+Hermes without changing its default model. Do not restart/reconfigure Moe's
+inference service. See `docs/evidence/vllm-reasoning-20261022/README.md`.
+
 **Current task authority (2026-10-22, sentence streaming):** make Kokoro generate
 sentences to mimic streaming. Branch `fix/kokoro-sentence-streaming-0146`, Android
 0.14.6/build38; plugin stays 0.6.0. Share sentence boundaries between live voice

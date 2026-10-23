@@ -181,7 +181,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
-            capabilities.features["bellpull_model_controls"] == true,
+            capabilities.features["bellpull_model_controls"] == true || capabilities.features["bellpull_native_model_controls"] == true,
             capabilities.features["bellpull_artifact_lifecycle"] == true,
             capabilities.features["bellpull_run_attachments"] ?: (capabilities.features["bellpull_persistent_artifacts"] == true && capabilities.features["bellpull_model_controls"] == true)) }
         next.defaultModel = { phase3?.defaultSelection }
@@ -231,7 +231,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             delivery?.supported = result.value.features["bellpull_planning"]==true
             projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true)
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
-            val modelSupport = result.value.features["bellpull_model_controls"] == true
+            val modelSupport = result.value.features["bellpull_model_controls"] == true || result.value.features["bellpull_native_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
             val inputSupport = result.value.features["bellpull_run_attachments"] ?: (fileSupport && modelSupport)
             if (phase3?.filesSupported != fileSupport || phase3?.modelsSupported != modelSupport || phase3?.lifecycleSupported != lifecycleSupport || phase3?.runAttachmentsSupported != inputSupport) {

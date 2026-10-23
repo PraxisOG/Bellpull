@@ -29,9 +29,10 @@ def store_for(adapter, request):
 
 def reasoning_capabilities(provider, model):
     """Only expose values declared by the actual provider transport, not picker guesses."""
-    if local_qwen_toggle(provider, model):
-        return {"efforts": [], "can_disable": True, "can_enable": True,
-                "note": "Verified thinking on/off. Graded effort is not exposed by this local model."}
+    efforts = local_qwen_efforts(provider, model)
+    if efforts:
+        return {"efforts": list(efforts), "can_disable": True, "can_enable": True,
+                "note": "Qwen thinking effort guides reasoning depth; it is not a hard token limit."}
     from providers import get_provider_profile
     profile = get_provider_profile(provider)
     efforts = fireworks_efforts(model) if provider == "fireworks" else None
@@ -44,11 +45,14 @@ def reasoning_capabilities(provider, model):
             "note": "" if efforts else "This runtime does not declare supported reasoning controls; server defaults apply."}
 
 
-def local_qwen_toggle(provider, model):
-    # Verified against the existing local OpenAI-compatible qwen38-flash-next
-    # service, with 0 vs 23 reasoning tokens for off/on. This does NOT create a
-    # route or hardcode a host. Hermes must already configure this custom model.
-    return provider == "custom" and model == "qwen38-flash-next"
+def local_qwen_efforts(provider, model):
+    # Exact known alias and official model IDs, not a guess for every Qwen model.
+    # https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/main/chat_template.jinja
+    # Its template accepts precisely low/medium/xhigh (default), plus thinking off.
+    if provider == "custom" and model in (
+            "qwen38-flash-next", "Qwen/Qwen3.8-Flash-Next", "Qwen/Qwen3.8-Flash-Next-FP8"):
+        return ("low", "medium", "xhigh")
+    return None
 
 
 def fireworks_efforts(model):
@@ -73,10 +77,20 @@ def request_overrides(provider, model, options):
     reasoning = options.get("reasoning")
     if not isinstance(reasoning, dict):
         return {}
-    if local_qwen_toggle(provider, model):
-        if reasoning.get("effort") is not None:
-            raise ArtifactError("This local model exposes thinking on/off, not graded effort.", 409)
-        return {"extra_body": {"chat_template_kwargs": {"enable_thinking": reasoning.get("enabled") is not False}}}
+    efforts = local_qwen_efforts(provider, model)
+    if efforts:
+        enabled, effort = reasoning.get("enabled"), reasoning.get("effort")
+        if enabled is not None and not isinstance(enabled, bool):
+            raise ArtifactError("Thinking must be enabled or disabled.", 409)
+        if effort is not None and (effort not in efforts or enabled is False):
+            raise ArtifactError("This Qwen model supports Off, On, Low, Medium or XHigh.", 409)
+        kwargs = {"enable_thinking": enabled is not False}
+        result = {"extra_body": {"chat_template_kwargs": kwargs}}
+        if effort is not None:
+            # The standard field reaches Hermes/vLLM; the identical template kwarg
+            # also covers servers that do not forward the standard field to Jinja.
+            result["reasoning_effort"] = kwargs["reasoning_effort"] = effort
+        return result
     if provider != "fireworks" or not fireworks_efforts(model):
         return {}
     effort = "none" if reasoning.get("enabled") is False else reasoning.get("effort")

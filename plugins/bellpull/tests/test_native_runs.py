@@ -138,15 +138,21 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_concurrent_retries_admit_one_executor_and_one_output_directory(self):
         headers = {**self.headers, "Idempotency-Key": "racing-" + self.session}
-        payload = {"session_id": self.session, "input": "One execution", "bellpull": {
-            "version": 1, "selection": CATALOG["default"], "artifact_ids": []}}
+        choice = dict(CATALOG["default"], model_options={"reasoning": {"enabled": True, "effort": "high"}})
+        payload = {"session_id": self.session, "input": "One execution", **choice, "require_model_lock": True, "bellpull": {
+            "version": 1, "selection": choice, "artifact_ids": []}}
         responses = await asyncio.gather(*(self.client.post("/v1/runs", headers=headers, json=payload) for _ in range(8)))
         values = [await response.json() for response in responses]
         self.assertTrue(all(response.status == 202 for response in responses), values)
         self.assertEqual(1, len({value["run_id"] for value in values}))
         await self.settle(values[0]["run_id"])
         self.assertEqual(1, len(self.executed))
+        self.assertEqual(choice["model_options"], self.created[-1]["model_options"])
         changed = await self.client.post("/v1/runs", headers=headers, json={**payload, "input": "Changed"})
+        self.assertEqual(409, changed.status)
+        changed_choice = dict(choice, model_options={"reasoning": {"enabled": True, "effort": "low"}})
+        changed = await self.client.post("/v1/runs", headers=headers, json={**payload, **changed_choice,
+            "bellpull": {"version": 1, "selection": changed_choice, "artifact_ids": []}})
         self.assertEqual(409, changed.status)
         self.assertEqual(1, len(self.executed))
 
