@@ -1,0 +1,13 @@
+{
+  "app_version": "0.14.10-experimental",
+  "version_code": 42,
+  "plugin_changed": false,
+  "jvm_tests_passed": 50,
+  "lint": "passed",
+  "device_test": "passed: speaker at start, screen off, hold/resume and three restarts; normal audio after stop",
+  "installed_apk_sha256": "a9d9816fc6df9e699ed8c429ab6a63e0a54457c2314420ab68f744da8f7fd11f",
+  "signing_certificate_sha256": "c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf",
+  "personal_uid_preserved": true,
+  "personal_data_directories_preserved": true,
+  "physical_car_and_acoustic_tests": "manual acceptance outstanding"
+}

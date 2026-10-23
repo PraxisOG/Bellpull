@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import android.media.AudioDeviceInfo
 import android.os.SystemClock
 import android.telecom.TelecomManager
 import androidx.activity.ComponentActivity
@@ -37,6 +38,9 @@ class TelecomVoiceDeviceTest {
         val settings = VoiceSettings(context, "telecom-fixture")
         val telecom = context.getSystemService(TelecomManager::class.java)
         val audio = context.getSystemService(AudioManager::class.java)
+        fun awaitSpeaker() {
+            await { audio.communicationDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        }
         val client = HermesClient("http://127.0.0.1:18646", { "voice-device-hermes-key" })
         val capabilities = (client.capabilities() as HermesResult.Ok).value
         settings.save(VoiceConfiguration("http://127.0.0.1:18647/transcriptions", "separate-speech-key", "fixture-whisper",
@@ -46,6 +50,9 @@ class TelecomVoiceDeviceTest {
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             try {
                 assertFalse("Run only while no other call is active", telecom.isInCall)
+                assertFalse("Disconnect car/headsets for the phone-speaker check",
+                    audio.availableCommunicationDevices.any { it.type in setOf(AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                        AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET) })
                 scene.onActivity {
                     runtime.prepare("telecom-fixture")
                     runtime.connect(client, capabilities).openSession("fixture-id-1")
@@ -59,9 +66,11 @@ class TelecomVoiceDeviceTest {
                 await { var listening = false; main { listening = runtime.voice?.state == VoiceState.LISTENING }; listening }
                 assertTrue(telecom.isInCall)
                 assertEquals(AudioManager.MODE_IN_COMMUNICATION, audio.mode)
+                awaitSpeaker()
                 instrumentation.uiAutomation.executeShellCommand("input keyevent 223").close()
                 Thread.sleep(10000)
                 assertTrue(telecom.isInCall)
+                awaitSpeaker()
                 main { assertNotNull(runtime.voice); assertNotEquals(VoiceState.PAUSED, runtime.voice?.state) }
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.PAUSE))
                 await { var paused = false; main { paused = runtime.voice?.state == VoiceState.PAUSED }; paused }
@@ -69,6 +78,7 @@ class TelecomVoiceDeviceTest {
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.RESUME))
                 await { var listening = false; main { listening = runtime.voice?.state == VoiceState.LISTENING }; listening }
                 assertTrue(telecom.isInCall)
+                awaitSpeaker()
                 context.startService(Intent(context, VoiceService::class.java).setAction(VoiceService.STOP))
                 await { !telecom.isInCall }
                 await { var ended = false; main { ended = runtime.voice == null }; ended }
@@ -83,6 +93,7 @@ class TelecomVoiceDeviceTest {
                         it.startForegroundService(Intent(it, VoiceService::class.java))
                     }
                     await { var listening = false; main { listening = runtime.voice?.state == VoiceState.LISTENING }; listening }
+                    awaitSpeaker()
                     main { runtime.voice?.close() }
                     await { var ended = false; main { ended = runtime.voice == null }; ended }
                     await { !telecom.isInCall }

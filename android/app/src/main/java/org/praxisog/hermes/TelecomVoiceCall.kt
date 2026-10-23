@@ -6,8 +6,13 @@ import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallControlResult
 import androidx.core.telecom.CallControlScope
+import androidx.core.telecom.CallEndpointCompat
 import androidx.core.telecom.CallsManager
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -33,8 +38,9 @@ internal class TelecomVoiceCall(
     private var ready = false
     private var revision = 0L
     private var job: Job? = null
+    private val routingActive = MutableStateFlow(false)
     var active = false
-        private set
+        private set(value) { field = value; routingActive.value = value }
 
     fun start() {
         check(job == null)
@@ -63,11 +69,31 @@ internal class TelecomVoiceCall(
                         launch { disconnect(DisconnectCause(DisconnectCause.LOCAL)) }
                     } else {
                         launch { isMuted.collect { if (!ended) onMuted(it) } }
-                        launch { currentCallEndpoint.collect {
-                            // Route changes are expected when the car/headset connects.
-                            // Telecom arbitrates the route; never fight it with AudioManager.
-                            android.util.Log.i("BellpullVoiceAudio", "telecom_endpoint=${it.type}")
-                        } }
+                        launch {
+                            // Call mode is hands-free on the phone. Let Telecom retain
+                            // car/headset routes, and request its speaker endpoint only
+                            // when it would otherwise leave us on the quiet earpiece.
+                            // Active state also rechecks the route after hold/resume.
+                            // These Telecom flows consume channels: keep one collector
+                            // per flow so logging cannot steal the initial endpoint.
+                            val endpoints = currentCallEndpoint.onEach {
+                                android.util.Log.i("BellpullVoiceAudio", "telecom_endpoint=${it.type}")
+                            }
+                            combine(endpoints, availableEndpoints, routingActive) { current, available, isActive ->
+                                if (isActive && current.type == CallEndpointCompat.TYPE_EARPIECE &&
+                                    available.none { it.type == CallEndpointCompat.TYPE_BLUETOOTH ||
+                                        it.type == CallEndpointCompat.TYPE_WIRED_HEADSET ||
+                                        it.type == CallEndpointCompat.TYPE_STREAMING })
+                                    available.firstOrNull { it.type == CallEndpointCompat.TYPE_SPEAKER }
+                                else null
+                            }.distinctUntilChanged().collect { speaker ->
+                                if (speaker != null && !ended) {
+                                    val result = requestEndpointChange(speaker)
+                                    if (result !is CallControlResult.Success && active && !ended)
+                                        onError("Android could not switch voice to the speaker. Resume voice to retry.")
+                                }
+                            }
+                        }
                         setHeld(false)
                     }
                 }

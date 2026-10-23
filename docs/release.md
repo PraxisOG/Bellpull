@@ -1,3 +1,36 @@
+## Phone loudspeaker — 0.14.10 / build 42
+
+Telecom voice mode requests the loudspeaker when the phone would otherwise use
+its earpiece and no car/headset/streaming endpoint is available. It rechecks on
+resume and endpoint changes, and leaves external audio routes to Telecom.
+Routing uses [Core-Telecom's endpoint API](https://developer.android.com/develop/connectivity/telecom/voip-app/telecom),
+without competing AudioManager routing commands. Plugin 0.6.2 is unchanged.
+
+Validation: 50 focused voice JVM tests and lint passed. The isolated Pixel test
+verified actual speaker selection at start, after ten seconds screen-off,
+after hold/resume and across three restarts; ending voice restored normal audio.
+The signed build42 update is installed in place, with matching APK hash and the
+same personal app UID/data directories. Real car acoustics remain for manual testing.
+See [device result](evidence/voice-speaker-20261023/device-test.txt) and
+[validation record](evidence/voice-speaker-20261023/validation.json).
+
+Manual acceptance checklist:
+
+- With Bluetooth/headsets disconnected, start voice and confirm the phone's
+  loudspeaker plays replies at a comfortable call-volume setting.
+- Pause/resume, lock the screen, and reopen the app; speech remains audible.
+- Stop voice from the app and notification; neither closes the app, and the
+  call notification disappears. Start again and confirm loudspeaker output.
+- Connect the car/headset before starting voice; confirm it receives speech.
+  Test connecting/disconnecting it during a session and verify the resulting route.
+- While parked, test navigation announcements and an incoming call; confirm
+  voice pauses/resumes appropriately without overlapping or repeating speech.
+- Interrupt a spoken response; old queued sentences must stop rather than
+  play over the next turn. Check that the loudspeaker does not transcribe itself.
+- Switch Wi-Fi/cellular, then briefly disconnect/reconnect Tailscale; check
+  recovery and that responses do not appear twice. Verify both server profiles.
+- Run a 15-minute voice session; note heat, battery use, missed speech and gaps.
+
 ## Moe thinking controls — plugin 0.6.2, app 0.14.9 unchanged
 
 The named `moe/moe-local` route now advertises the verified Qwen controls and
