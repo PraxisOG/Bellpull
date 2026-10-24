@@ -22,6 +22,7 @@ use the phone loudspeaker instead of its earpiece, preserving car/headset routes
 Branch `fix/voice-speaker-01410`, app 0.14.10/build42; plugin stays 0.6.2.
 Test the real audio route in the isolated phone fixture, install the signed app
 in place with personal settings/data intact, and provide a manual test checklist.
+The user subsequently requested GitHub publication of this tested increment.
 
 **Current task authority (2026-10-22, issue #27):** fix the named Moe route's
 unsupported thinking controls first. Branch `fix/moe-reasoning-062`, plugin

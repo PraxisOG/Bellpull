@@ -1,11 +1,11 @@
 # Bellpull phase roadmap
 
-Updated **October 22, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 23, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.14.9-experimental / build 41**, plugin
+This experimental branch: app **0.14.10-experimental / build 42**, plugin
 **0.6.2-integration-preview**, based on `2026-10-17-car-experimental`.
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
@@ -16,6 +16,7 @@ This experimental branch: app **0.14.9-experimental / build 41**, plugin
 [Direct thinking submenu](RELEASE-0.14.8-EXPERIMENTAL.md).
 [Startup replay memory repair](RELEASE-0.14.9-EXPERIMENTAL.md).
 [Moe named-route thinking repair](RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md).
+[Phone loudspeaker repair and manual checklist](release.md#phone-loudspeaker--01410--build-42).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
 ## At a glance

@@ -1,6 +1,6 @@
 ## Car audio and streaming speech experiment
 
-This branch builds **0.14.9-experimental / build 41**. Initialize submodules
+This branch builds **0.14.10-experimental / build 42**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -8,7 +8,7 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.14.9-experimental / build 41**, with the 0.6.2
+This branch builds **0.14.10-experimental / build 42**, with the 0.6.2
 integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
@@ -18,7 +18,7 @@ versions; use the exact branch or revision to reproduce this build.
 Use a recursive clone of this experimental branch:
 
 ```bash
-git clone --recurse-submodules --branch fix/moe-reasoning-062 \
+git clone --recurse-submodules --branch fix/voice-speaker-01410 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
