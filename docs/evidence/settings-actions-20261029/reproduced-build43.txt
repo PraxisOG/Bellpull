@@ -1,0 +1,83 @@
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.SettingsActionsDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+org.praxisog.hermes.SettingsActionsDeviceTest:
+INSTRUMENTATION_STATUS: test=replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.SettingsActionsDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Stock Hermes rejected reply notifications without a relay
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem$lambda$0(SettingsActionsDeviceTest.kt:82)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda17.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem(SettingsActionsDeviceTest.kt:75)
+
+INSTRUMENTATION_STATUS: stream=
+Error in replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem(org.praxisog.hermes.SettingsActionsDeviceTest):
+java.lang.AssertionError: Stock Hermes rejected reply notifications without a relay
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem$lambda$0(SettingsActionsDeviceTest.kt:82)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda17.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem(SettingsActionsDeviceTest.kt:75)
+
+INSTRUMENTATION_STATUS: test=replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.SettingsActionsDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=org.praxisog.hermes.SettingsActionsDeviceTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Assistant button did not open Android settings
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault$lambda$0(SettingsActionsDeviceTest.kt:39)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda18.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault(SettingsActionsDeviceTest.kt:31)
+
+INSTRUMENTATION_STATUS: stream=
+Error in chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault(org.praxisog.hermes.SettingsActionsDeviceTest):
+java.lang.AssertionError: Assistant button did not open Android settings
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault$lambda$0(SettingsActionsDeviceTest.kt:39)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda18.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault(SettingsActionsDeviceTest.kt:31)
+
+INSTRUMENTATION_STATUS: test=chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 23.187
+There were 2 failures:
+1) replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem(org.praxisog.hermes.SettingsActionsDeviceTest)
+java.lang.AssertionError: Stock Hermes rejected reply notifications without a relay
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem$lambda$0(SettingsActionsDeviceTest.kt:82)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda17.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.replyNotificationsEnableWithoutPushRelayAndTheLabelTogglesThem(SettingsActionsDeviceTest.kt:75)
+2) chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault(org.praxisog.hermes.SettingsActionsDeviceTest)
+java.lang.AssertionError: Assistant button did not open Android settings
+	at org.praxisog.hermes.DeviceFixtureUi.await(DeviceFixtureUi.kt:24)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault$lambda$0(SettingsActionsDeviceTest.kt:39)
+	at org.praxisog.hermes.SettingsActionsDeviceTest$$ExternalSyntheticLambda18.invoke(D8$$SyntheticClass:0)
+	at org.praxisog.hermes.DeviceFixtureUi.withWindows(DeviceFixtureUi.kt:98)
+	at org.praxisog.hermes.SettingsActionsDeviceTest.chooseAssistantOpensAndroidSettingsWithoutChangingTheDefault(SettingsActionsDeviceTest.kt:31)
+
+FAILURES!!!
+Tests run: 2,  Failures: 2
+
+
+INSTRUMENTATION_CODE: -1

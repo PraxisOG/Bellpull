@@ -1,0 +1,22 @@
+{
+  "version": "0.15.1-experimental",
+  "build": 44,
+  "installed_at_utc": "2026-10-29T11:28:29.258931+00:00",
+  "apk_sha256": "be34c4972312ff24b3d4d15aa121dc0af2bccf4f654892e2f94ce609d8d97601",
+  "update_in_place": true,
+  "uid_before": 10308,
+  "uid_after": 10308,
+  "data_directory": "/data/user/0/org.praxisog.hermes",
+  "tests": {
+    "android_passed": 763,
+    "android_skipped": 1,
+    "physical_regressions_passed": 3,
+    "old_build_reproductions_failed_as_expected": 2
+  },
+  "screenshot_verification": "passed",
+  "lint": "passed",
+  "plugin": "0.7.0-integration-preview unchanged",
+  "default_assistant_changed": false,
+  "live_servers_changed": false,
+  "fixture_cleanup": "complete"
+}

@@ -43,7 +43,7 @@ class NotificationListenerService : Service() {
                             }
                         }
                     }
-                    delay(5_000)
+                    delay(if (runtime.notificationEventsAvailable) 5_000 else 60_000)
                 }
             }
             scope.launch {

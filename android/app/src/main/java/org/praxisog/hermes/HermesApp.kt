@@ -78,6 +78,8 @@ internal fun HermesApp(
     onApproval: (String, String) -> Unit = { _, _ -> },
     notificationsAvailable: Boolean = false,
     onNotificationsChange: (Boolean) -> Unit = {},
+    notificationProblem: String? = null, notificationsUseRelay: Boolean = true,
+    onNotificationSettings: () -> Unit = {},
     focusChatRevision: Int = 0,
     focusTodayRevision: Int = 0,
     onVisibleSession: (String?) -> Unit = {},
@@ -278,7 +280,8 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings,
+                                    notificationProblem, notificationsUseRelay, onNotificationSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,

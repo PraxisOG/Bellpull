@@ -3,6 +3,7 @@ package org.praxisog.hermes
 import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -91,19 +92,16 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     phoneNotificationSettings: (@Composable () -> Unit)? = null,
     localLlmSettings: (@Composable () -> Unit)? = null,
-    assistantSettings: (@Composable () -> Unit)? = null) {
+    assistantSettings: (@Composable () -> Unit)? = null,
+    notificationProblem: String? = null, notificationsUseRelay: Boolean = true,
+    onNotificationSettings: () -> Unit = {}) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
         if (notificationsAvailable) {
             SettingsSection("Notifications", "Reply and approval alerts") {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Reply notifications", style = MaterialTheme.typography.titleMedium)
-                        Text("Replies and requests needing attention. Keeps a quiet connection notification while enabled.", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Switch(checked = preferences.notifications, onCheckedChange = onNotificationsChange)
-                }
+                ReplyNotificationSettings(preferences.notifications, notificationsUseRelay, notificationProblem,
+                    onNotificationsChange, onNotificationSettings)
             }
         }
         assistantSettings?.let { SettingsSection("Phone assistant", "Default assistant and phone actions") { it() } }
@@ -232,4 +230,21 @@ internal fun PreferenceSwitch(title: String, detail: String, checked: Boolean, e
         }
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled, modifier = Modifier.semantics { contentDescription = title })
     }
+}
+
+@Composable
+internal fun ReplyNotificationSettings(checked: Boolean, useRelay: Boolean, problem: String?,
+    onChange: (Boolean) -> Unit, onSystemSettings: () -> Unit) {
+    Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text("Reply notifications", style = MaterialTheme.typography.titleMedium)
+            Text(if (useRelay) "Replies and requests needing attention. Keeps a quiet connection notification while enabled."
+                else "Checks for replies and requests needing attention about once a minute while its connection service runs. Keeps a quiet connection notification while enabled.",
+                style = MaterialTheme.typography.bodySmall)
+        }
+        Switch(checked = checked, onCheckedChange = null)
+    }
+    problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    TextButton(onClick = onSystemSettings) { Text("Android notification settings") }
 }

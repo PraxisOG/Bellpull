@@ -1,3 +1,22 @@
+# October 29: settings controls repaired — app 0.15.1 / build44
+
+`fix/assistant-notification-settings-0151` fixes the Reply notifications slider
+immediately reverting to off on stock Hermes without the optional push relay.
+The existing polling service is now allowed by the same availability rule as the
+UI. Whole-row tapping works; denied permission has visible feedback and an Android
+settings shortcut. Choose default assistant opens the public assistant settings
+page instead of issuing a non-requestable role request.
+
+Both old failures were reproduced on the physical phone. Three repaired device
+checks and 763 Android checks pass, with one existing opt-in skip. Screenshot
+verification/lint/release pass. Plugin 0.7.0 is unchanged. See
+[repair evidence](RELEASE-0.15.1-EXPERIMENTAL.md). Release target:
+`android-v0.15.1-experimental.1`. Installation digest and data-preservation evidence
+are in [validation.json](evidence/settings-actions-20261029/validation.json).
+The default assistant and live server configuration remain user-owned.
+
+---
+
 # October 28: Phase 15 installed; experimental release prepared
 
 Branch `feature/phase15-phone-assistant`, based on `4cf7c98`. App

@@ -48,10 +48,15 @@ class MainActivity : ComponentActivity() {
             if (granted) continueVoice(request.mode) else runtime.voiceStartError = "Microphone permission is required to start voice."
         }
     }
+    private var notificationProblem by mutableStateOf<String?>(null)
     private var permissionProfile: String? = null
     private val notificationPermission = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
-        if (permissionProfile != null && permissionProfile == runtime.profileId) setNotifications(granted)
+        val requestedProfile = permissionProfile; permissionProfile = null
+        if (requestedProfile != null && requestedProfile == runtime.profileId) {
+            setNotifications(granted)
+            if (!granted) notificationProblem = NOTIFICATIONS_BLOCKED
+        }
     }
     private var calendarPermissionProfile: String? = null
     private val calendarPermissions = registerForActivityResult(
@@ -62,6 +67,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        permissionProfile = savedInstanceState?.getString("notificationPermissionProfile")
+        notificationProblem = savedInstanceState?.getString("notificationProblem")
         preferences = BellpullSettings(this)
         configureWindowChrome(window, preferences.value.immersiveMode)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
@@ -300,8 +307,13 @@ class MainActivity : ComponentActivity() {
                         runLabels = current?.runLabels.orEmpty(), onRetryRun = { current?.retryRun() },
                         onAbandonRun = { current?.abandonRunAfterReview() },
                         onApproval = { id, choice -> current?.respondToApproval(id, choice) },
-                        notificationsAvailable = current != null && (runtime.notificationEventsAvailable || runtime.delivery?.supported == true),
+                        notificationsAvailable = runtime.replyNotificationsAvailable,
                         onNotificationsChange = ::requestNotifications,
+                        notificationProblem = notificationProblem, notificationsUseRelay = runtime.notificationEventsAvailable,
+                        onNotificationSettings = {
+                            if (!launchSystemSettings(notificationSettingsIntents(packageName)) { startActivity(it) })
+                                notificationProblem = "Open Android Settings → Apps → Bellpull → Notifications to allow notifications."
+                        },
                         focusChatRevision = focusChatRevision,
                         onVisibleSession = { runtime.visibleSessionId = it.takeIf { current != null } },
                         draft = current?.draft ?: exampleDraft,
@@ -469,6 +481,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("assistantOpen", assistantOpen)
+        outState.putString("notificationPermissionProfile", permissionProfile)
+        outState.putString("notificationProblem", notificationProblem)
         super.onSaveInstanceState(outState)
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); handleIntent(intent) }
@@ -494,6 +508,7 @@ class MainActivity : ComponentActivity() {
         runtime.phoneContext?.request()
         runtime.delivery?.refresh()
         store?.loadSessions(); store?.refreshHistory(); runtime.refreshCapabilities()
+        if (notificationProblem == NOTIFICATIONS_BLOCKED && notificationsAllowed(this)) notificationProblem = null
         if (preferences.value.notifications && store != null) setNotifications(true)
     }
     override fun onPause() { foreground = false; if (runtime.voiceButtonHeld) releaseVoice(true); super.onPause() }
@@ -564,6 +579,7 @@ class MainActivity : ComponentActivity() {
         return runtime.voiceStartError == null
     }
     private fun requestNotifications(enabled: Boolean) {
+        notificationProblem = null
         if (enabled && android.os.Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             permissionProfile = runtime.profileId
@@ -571,16 +587,21 @@ class MainActivity : ComponentActivity() {
         } else setNotifications(enabled)
     }
     private fun setNotifications(enabled: Boolean) {
-        val allow = enabled && store != null && runtime.notificationEventsAvailable
+        val allow = enabled && runtime.replyNotificationsAvailable && notificationsAllowed(this)
         preferences.update(preferences.value.copy(notifications = allow))
         runtime.delivery?.refresh()
         val listener = Intent(this, NotificationListenerService::class.java)
         if (allow) {
+            notificationProblem = null
             runCatching { startForegroundService(listener) }.onFailure {
                 preferences.update(preferences.value.copy(notifications = false))
-                android.widget.Toast.makeText(this, "Could not start notifications. Try enabling them again.", android.widget.Toast.LENGTH_LONG).show()
+                notificationProblem = "Could not start notifications. Try enabling them again with Bellpull open."
             }
             runtime.catchUpNotifications()
-        } else stopService(listener)
+        } else {
+            stopService(listener)
+            if (enabled) notificationProblem = if (runtime.replyNotificationsAvailable) NOTIFICATIONS_BLOCKED
+                else "Connect to a server with notification support, then try again."
+        }
     }
 }

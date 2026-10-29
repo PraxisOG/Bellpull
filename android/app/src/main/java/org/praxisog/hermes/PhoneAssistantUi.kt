@@ -3,9 +3,7 @@ package org.praxisog.hermes
 import android.Manifest
 import android.app.KeyguardManager
 import android.app.role.RoleManager
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -35,10 +33,8 @@ internal fun PhoneAssistantSettings(foreground: Boolean, onOpen: () -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = {
             error = null
-            try {
-                picker.launch(if (!held && roles?.isRoleAvailable(RoleManager.ROLE_ASSISTANT) == true)
-                    roles.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT) else Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
-            } catch (_: Exception) { error = "Open Android Settings → Default apps → Digital assistant app and select Bellpull." }
+            if (!launchSystemSettings(assistantSettingsIntents()) { picker.launch(it) })
+                error = "Open Android Settings → Default apps → Digital assistant app and select Bellpull."
         }) { Text(if (held) "Assistant settings" else "Choose default assistant") }
         OutlinedButton(onClick = onOpen, modifier = Modifier.testTag("open-phone-assistant")) { Text("Try assistant") }
     }

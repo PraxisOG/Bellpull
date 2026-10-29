@@ -125,6 +125,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var notificationEventsAvailable by mutableStateOf(false)
         private set
+    val replyNotificationsAvailable get() = store != null && (notificationEventsAvailable || delivery?.supported == true)
     private var notifications: ReplyNotifications? = null
     var visibleSessionId: String? = null
     private fun loadDrafts() {

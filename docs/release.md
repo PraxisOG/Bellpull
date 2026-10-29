@@ -1,3 +1,13 @@
+## Settings controls — app 0.15.1 / build 44
+
+Reply notifications can now be enabled on stock Hermes without a push relay,
+using the existing foreground polling service. The whole setting row is tappable,
+and permission denial has a visible explanation and Android settings shortcut.
+Choose default assistant opens Android's assistant settings instead of submitting
+a non-requestable role request. Plugin 0.7.0 is unchanged.
+
+[Repair details and validation](RELEASE-0.15.1-EXPERIMENTAL.md).
+
 ## Phone assistant and context — app 0.15.0 / build 43, plugin 0.7.0
 
 Android assistant entry, bounded direct phone commands, foreground speech and

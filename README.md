@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.15.0-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.15.1-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -58,10 +58,12 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.15.0-experimental / build 43**
+> **This is an experimental prerelease:** Android **0.15.1-experimental / build 44**
 > pairs with Bellpull plugin **0.7.0-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
+> 0.15.1 repairs the Reply notifications switch and Choose default assistant button.
+> [Settings repairs and validation](docs/RELEASE-0.15.1-EXPERIMENTAL.md).
 > Phase 15 adds assistant entry, explicit phone commands, bounded phone-calendar/notification context and a separate Notifications view.
 > [Implementation, validation and limits](docs/PHASE-15-ASSISTANT.md).
 > Kokoro CPU speech, voice-exit repairs, image previews and reconnect fixes are
@@ -80,7 +82,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.0-experimental.1), or [build this branch](docs/BUILDING.md) for the new assistant/context experiment.
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.1-experimental.1), or [build this branch](docs/BUILDING.md) for the new assistant/context experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -89,10 +91,10 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.0-experimental.1/Bellpull-source-0.15.0.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.1-experimental.1/Bellpull-source-0.15.1.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.0-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.1-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
