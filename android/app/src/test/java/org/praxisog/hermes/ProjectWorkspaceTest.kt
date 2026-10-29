@@ -64,6 +64,26 @@ class ProjectWorkspaceTest {
         workspace.close(); client.close()
     }
 
+    @Test fun notificationFolderSeparatesBackgroundSourcesAndUnreadWithoutMovingHistory() {
+        val client = client { 200 to wireJson.encodeToString(server) }
+        val cache = Cache(server)
+        val workspace = ProjectWorkspace(scope, client, cache, true, backgroundFolders = true)
+        val all = listOf(Session("tip", source = "api_server"), Session("manual", source = "cli"),
+            Session("scheduled", source = "cron"), Session("alert", source = "bellpull_notification"))
+        try {
+            assertEquals(listOf("tip", "manual"), workspace.sessions(all).map { it.id })
+            assertEquals(setOf("tip"), workspace.unreadIds(workspace.sessions(all), setOf("root", "scheduled")))
+            workspace.choose(NOTIFICATION_PROJECT_CHATS)
+            assertEquals(listOf("scheduled", "alert"), workspace.sessions(all).map { it.id })
+            workspace.refresh(); waitUntil { workspace.fresh }
+            assertEquals(NOTIFICATION_PROJECT_CHATS, workspace.selectedScope)
+            workspace.choose(ALL_WITH_NOTIFICATIONS); assertEquals(all, workspace.sessions(all))
+            workspace.choose(UNFILED_PROJECT_CHATS)
+            assertEquals(listOf("manual"), workspace.sessions(all).map { it.id })
+            assertEquals(server.memberships, workspace.snapshot.memberships)
+        } finally { workspace.close(); client.close() }
+    }
+
     @Test fun globalPinCapabilityControlsUnfiledWritesAndAllScopesSeeOnePinState() {
         val pinned = server.copy(memberships = server.memberships + ProjectMembership("unfiled", pinned = true))
         val requests = CopyOnWriteArrayList<String>()

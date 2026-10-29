@@ -24,7 +24,8 @@ import java.util.UUID
 internal fun ProjectFilterItems(workspace: ProjectWorkspace, unread: Set<String>, running: Set<String>,
     onSelect: (String) -> Unit, onManage: () -> Unit) {
     Text("Projects", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(16.dp))
-    listOf(ALL_PROJECT_CHATS to "All conversations", UNFILED_PROJECT_CHATS to "Unfiled").forEach { (id, name) ->
+    (listOf(ALL_PROJECT_CHATS to if (workspace.backgroundFolders) "Conversations" else "All conversations", UNFILED_PROJECT_CHATS to "Unfiled") +
+        if (workspace.backgroundFolders) listOf(NOTIFICATION_PROJECT_CHATS to "Notifications", ALL_WITH_NOTIFICATIONS to "All including notifications") else emptyList()).forEach { (id, name) ->
         DropdownMenuItem(text = { Text((if (workspace.selectedScope == id) "✓ " else "") + name) }, onClick = { onSelect(id) })
     }
     workspace.snapshot.projects.filterNot { it.archived }.forEach { project ->
@@ -85,6 +86,7 @@ internal fun ProjectsPanel(workspace: ProjectWorkspace?, sessions: List<Session>
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { onSelectScope(ALL_PROJECT_CHATS) }) { Text("All conversations") }
                     OutlinedButton(onClick = { onSelectScope(UNFILED_PROJECT_CHATS) }) { Text("Unfiled") }
+                    if (workspace.backgroundFolders) OutlinedButton(onClick = { onSelectScope(NOTIFICATION_PROJECT_CHATS) }) { Text("Notifications") }
                     Button(onClick = { creating = true }, enabled = workspace.canEdit) { Text("New project") }
                 }
                 FilterChip(selected = archived, onClick = { archived = !archived }, label = { Text("Archived projects") })

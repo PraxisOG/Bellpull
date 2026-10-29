@@ -1,12 +1,13 @@
 # Bellpull phase roadmap
 
-Updated **October 23, 2026**. Scope follows the user's October 11 roadmap and
+Updated **October 28, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-This experimental branch: app **0.14.10-experimental / build 42**, plugin
-**0.6.2-integration-preview**, based on `2026-10-17-car-experimental`.
+This experimental branch: app **0.15.0-experimental / build 43**, plugin
+**0.7.0-integration-preview**, based on `2026-10-17-car-experimental`.
+[Phone assistant, phone context and offline banner repair](PHASE-15-ASSISTANT.md).
 [Today implementation and acceptance scope](PHASE-11-TODAY.md).
 [Phone notification context implementation and limits](PHASE-12-NOTIFICATION-CONTEXT.md).
 [Local LLM experiment and measurements](PHASE-13-LOCAL-LLM.md).
@@ -35,7 +36,7 @@ This experimental branch: app **0.14.10-experimental / build 42**, plugin
 | 12 | Phone notification context | Early implementation: opt-in encrypted history, exclusions, retention and per-server bounded context |
 | 13 | On-device LLM feasibility | Experimental local chat lab; E2B CPU works, Vulkan fails correctness checks |
 | 14 | Offline conversations and reconnection | Experimental integrated fallback, local compaction and reviewed resync |
-| 15 | Phone assistant replacement and device actions | Deferred |
+| 15 | Phone assistant replacement and device actions | First experimental slice: default-assistant picker/entry, bounded phone commands, speech and chat handoff |
 | 16 | Android Auto | Separate deferred investigation |
 | 17 | Public release polish, widgets and Quick Settings | Final polish |
 
@@ -57,14 +58,13 @@ supersede the original scope. Verify actual implementation status in the reposit
 ## Priorities
 
 Existing foundation: Phases 0–3. Preserve and repair rather than rebuild.
-Active roadmap: Phases 4–14. Phase 14 is an authorized integrated fallback experiment.
-Deferred work: Phases 15–16. These must not block the active roadmap.
+Active roadmap: Phases 4–15. Phase 15 was activated October 28.
+Deferred work: Phase 16; broader assistant capabilities remain follow-on work.
 Final polish: Phase 17. Widgets and Quick Settings belong here.
 
 The deferred numbering is organizational, not a strict dependency chain.
 Android Auto can be investigated once phone voice/background audio are reliable;
-it does not require an on-device LLM. Assistant replacement remains a long-term
-goal. Offline conversation now builds on local caching and the measured CPU inference path.
+it does not require an on-device LLM. Assistant replacement now has an initial activity-based implementation. Offline conversation now builds on local caching and the measured CPU inference path.
 
 ## Existing foundation
 
@@ -222,7 +222,7 @@ Reading/context access does not itself authorize auto-replies or notification
 action execution. Per-app exclusion controls can remain available without making
 restricted app selection the default requirement for the requested broad mode.
 
-## Deferred
+## Local experiments and assistant
 
 ### Phase 13 · On-device LLM feasibility — EXPERIMENTAL IMPLEMENTATION
 The user authorized this experiment after publishing 0.12.0. See
@@ -254,7 +254,15 @@ Further acceptance: very large histories, sustained thermals/battery, broader
 summary quality and local tool adherence. Automatic merging into the original chat
 and changes to Hermes permanent memory notes are outside this version.
 
-### Phase 15 · Phone assistant replacement and device actions — LATER BUCKET
+### Phase 15 · Phone assistant replacement and device actions — FIRST EXPERIMENTAL SLICE
+Activated October 28: [implementation, supported commands and limits](PHASE-15-ASSISTANT.md).
+The initial slice adds assistant selection/entry, direct phone commands, foreground
+speech and new-draft chat handoff. The same increment adds opt-in phone notification
+and calendar snapshots to the plugin for new API chats, independent local-context
+controls, and a separate Notifications view for background conversations. Phone
+calendars are the source; Nextcloud sync is independent. Uploading never starts a
+chat or a model run. Broader model-driven actions remain future work.
+
 Long-term goal: Bellpull replaces the user's phone assistant. Combine default-
 assistant integration with useful phone actions once voice and local capabilities
 are mature enough. Candidate actions: alarms/timers, app launch, navigation, URLs,
@@ -285,7 +293,7 @@ because they appeared in the original brief.
 - Codex/Claude CLI runner harness, arbitrary terminal attachment, full mobile IDE,
   and response comparison as Phase 6 requirements.
 - Widgets/Quick Settings as early prerequisites.
-- On-device inference/offline conversation/assistant replacement as near-term work.
+- Always-listening wake words, screen automation and unrestricted model-driven device actions.
 
 ## Implementation notes
 

@@ -1,3 +1,27 @@
+## Phone assistant and context — app 0.15.0 / build 43, plugin 0.7.0
+
+Android assistant entry, bounded direct phone commands, foreground speech and
+new-chat draft handoff are available in Settings → Phone assistant. The offline
+notice now dismisses after five seconds, with Android accessibility timeout support.
+
+Separate opt-ins sync recent notifications and selected upcoming phone-calendar
+events to a profile-scoped plugin cache for new API chats; offline chats have their
+own local controls. Incoming sync creates no chats/runs. Cron conversations appear
+in a separate Notifications view. Existing sharing does not silently opt into the
+broader snapshot. Phone calendars work independently of Nextcloud availability.
+
+758 Android checks and 187 plugin checks pass, each with one existing skip;
+screenshot verification, lint and signed release assembly pass. Context checks
+pass on stock Hermes 0.21.5 and 0.21.1. Physical synthetic fixtures cover assistant
+state and phone sources → plugin → native chat prompt → revocation at both widths.
+Build43 is installed in place; installed APK bytes match the signed release and
+UID/data directory are preserved. Default assistant selection, real phone-action
+handoffs and long background/Doze behavior still need manual acceptance.
+
+[Download experimental app and plugin](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.0-experimental.1) ·
+[Behavior, protocol, limits and evidence](PHASE-15-ASSISTANT.md).
+No live Hermes plugin deployment was performed by this publication task.
+
 ## Phone loudspeaker — 0.14.10 / build 42
 
 Telecom voice mode requests the loudspeaker when the phone would otherwise use

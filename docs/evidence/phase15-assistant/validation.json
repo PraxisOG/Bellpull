@@ -1,0 +1,33 @@
+{
+  "app_version": "0.15.0-experimental",
+  "version_code": 43,
+  "plugin_version": "0.7.0-integration-preview",
+  "installed_at_utc": "2026-10-29T04:55:20.320190+00:00",
+  "apk_sha256": "5d20e2a2ba601dc983982e15ff79edee28af742c41469f27c2207ee293c731d5",
+  "package": "org.praxisog.hermes",
+  "uid_before": 10308,
+  "uid_after": 10308,
+  "update_in_place": true,
+  "default_assistant_changed": false,
+  "live_plugin_deployed": false,
+  "android_tests": {
+    "passed": 758,
+    "skipped": 1
+  },
+  "plugin_tests": {
+    "passed": 187,
+    "skipped": 1
+  },
+  "stock_context_checks": {
+    "hermes_0_21_5": 12,
+    "hermes_0_21_1": 12
+  },
+  "device_fixture_tests": {
+    "unfolded": 3,
+    "narrow": 3
+  },
+  "device_inference": "synthetic",
+  "screenshots_verified": true,
+  "lint": "passed",
+  "signed_release": "passed"
+}

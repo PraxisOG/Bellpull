@@ -46,6 +46,7 @@ internal fun HermesApp(
     creatingSession: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
     offline: OfflineState? = null,
+    backgroundProblem: String? = null,
     onDisconnect: (() -> Unit)? = null,
     query: String = "",
     onQueryChange: (String) -> Unit = {},
@@ -106,6 +107,7 @@ internal fun HermesApp(
     voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     phoneNotificationSettings: (@Composable () -> Unit)? = null,
     localLlmSettings: (@Composable () -> Unit)? = null,
+    assistantSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
     onOffline: (() -> Unit)? = null,
@@ -125,13 +127,13 @@ internal fun HermesApp(
     val allSessions = (sessions as? UiState.Ready)?.value.orEmpty()
     val projectSessions = projects?.sessions(allSessions) ?: allSessions
     val scopedSessions = if (sessions is UiState.Ready) UiState.Ready(projectSessions) else sessions
-    val projectUnread = projects?.unreadIds(allSessions, unreadIds) ?: unreadIds
+    val projectUnread = projects?.unreadIds(projectSessions, unreadIds) ?: unreadIds
     val projectLabels = projects?.runLabels(allSessions, runLabels) ?: runLabels
     val runningIds = runLabels.filterValues { it in setOf("Running", "Sending", "Reconnecting", "Stopping", "Needs approval") }.keys
     val selectProjectScope: (String) -> Unit = { id ->
         projects?.choose(id)
         expandedSearch = false
-        if (id in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS)) { mode = WorkspaceMode.CHATS; drawerOnCover = true }
+        if (id in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS, NOTIFICATION_PROJECT_CHATS, ALL_WITH_NOTIFICATIONS)) { mode = WorkspaceMode.CHATS; drawerOnCover = true }
         else { mode = WorkspaceMode.PROJECTS; drawerOnCover = false }
     }
     val screenState = rememberSaveableStateHolder()
@@ -233,6 +235,7 @@ internal fun HermesApp(
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
                                 creating = creatingSession, createError = createError, offline = offline.takeUnless { sideBySide && fallbackBanner != null },
                                 onNewLocal = onNewLocal, fallbackBanner = fallbackBanner.takeUnless { sideBySide },
+                                backgroundProblem = backgroundProblem.takeIf { projects?.selectedScope in setOf(NOTIFICATION_PROJECT_CHATS, ALL_WITH_NOTIFICATIONS) },
                                 modifier = Modifier.weight(1f), showNewChatButton = !sideBySide,
                                 unreadIds = projectUnread, completionRevision = completionRevision,
                                 runLabels = projectLabels,
@@ -275,7 +278,7 @@ internal fun HermesApp(
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
-                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings)
+                                    notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,

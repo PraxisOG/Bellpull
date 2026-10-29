@@ -1,4 +1,12 @@
-> Current experimental pair: **Android 0.14.9 / build 41**, plugin
+> Current experimental pair: **Android 0.15.0 / build 43**, plugin **0.7.0-integration-preview**.
+> Includes authenticated phone snapshots, bounded context for new API chats and a read-only context tool.
+> Phone context details: authenticated phone snapshots, bounded context
+> for new native API chats, and a read-only phone-context tool. Uploads never start
+> chats or runs. See [Phase 15 protocol, consent, expiry and limits](../../docs/PHASE-15-ASSISTANT.md#phone-context-and-notifications-folder).
+> Deploy this plugin alongside app 0.15.0 to enable the new controls; older app
+> grants do not silently opt into server caching. No live server has been updated.
+
+> Previous plugin increment: **Android 0.14.9 / build 41**, plugin
 > **0.6.2-integration-preview**. Fixes #27: the verified named route `moe/moe-local`
 > advertises Low/Medium/XHigh and Off/On; unsupported choices are rejected before
 > saving. An older invalid lock reports how to reset Thinking level to Default.
@@ -7,12 +15,12 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.4.2-integration-preview
+# Bellpull integration plugin 0.7.0-integration-preview
 
 This single plugin includes OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.8.4-integration-preview** (build 25) from
-`master`. The separate Phase 6/8/9 preview plugin directories are
+Pair it with Android **0.15.0-experimental** (build 43) from
+`android-v0.15.0-experimental.1`. The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
 Install the entire `plugins/bellpull/` directory using the stock-plugin procedure

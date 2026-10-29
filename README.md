@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.14.10-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.15.0-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -46,6 +46,8 @@ the project, coding and calendar panels show the development preview.*
 | **Coding activity** | Open a chat → **⋮ → OpenCode activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
 | **Today overview** | See today's calendar, due reminders, pending decisions, tracked work and unread replies from existing local records. |
+| **Phone assistant** | Choose Bellpull in Android’s assistant picker, use explicit phone commands, or continue spoken/typed words as a new chat draft. |
+| **Phone context** | Separately opt into notification/calendar snapshots for new server chats or offline chat; cron conversations have a Notifications view. |
 | **Calendar** | Opt into selected phone calendars, view day/week blocks, and separately enable writes. Hermes proposals require a phone Apply action. |
 | **Offline conversations** | Automatic foreground model loading, encrypted local chats/forks, chunk compaction, source search, Gemma E2B CPU with optional thinking, and reviewed Hermes handoff. |
 | **Local chat lab** | Import a GGUF, run CPU text chat, measure performance and validate Vulkan against CPU. |
@@ -56,10 +58,12 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This branch is experimental:** Android **0.14.10-experimental / build 42**
-> pairs with Bellpull plugin **0.6.2-integration-preview**. Server features need
+> **This is an experimental prerelease:** Android **0.15.0-experimental / build 43**
+> pairs with Bellpull plugin **0.7.0-integration-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
+> Phase 15 adds assistant entry, explicit phone commands, bounded phone-calendar/notification context and a separate Notifications view.
+> [Implementation, validation and limits](docs/PHASE-15-ASSISTANT.md).
 > Kokoro CPU speech, voice-exit repairs, image previews and reconnect fixes are
 > [documented with phone measurements](docs/evidence/voice-media-20261022/README.md).
 > Use **⋮ → Thinking level** to change the current model’s reasoning directly.
@@ -76,7 +80,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the current experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.14.10-experimental.1), or [build this branch](docs/BUILDING.md) for the integrated offline conversation experiment.
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.0-experimental.1), or [build this branch](docs/BUILDING.md) for the new assistant/context experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -85,14 +89,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.10-experimental.1/Bellpull-source-0.14.10.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.0-experimental.1/Bellpull-source-0.15.0.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.14.10-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.0-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.6.2) from the same source checkout.
+For this branch, use `plugins/bellpull` (0.7.0) from the same source checkout.
 The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
 ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
 
@@ -120,6 +124,8 @@ CPU STT comparisons, and live audio through the plugin. The server defaults to a
 FP32 Moonshine medium export after it outperformed INT8 on the test host.
 Physical car/headset acoustics, navigation interruptions and sustained heat remain
 open; this is an experimental voice increment, not Android Auto.
+
+The 0.15.0 assistant/context increment passes **758 Android checks with one expected skip**, screenshot verification and lint. Plugin 0.7.0 passes **187 checks with one expected skip**, plus 12 context checks on each supported stock host. Physical fixtures at both widths verify assistant state and phone sources → plugin → native chat prompt → revocation, using synthetic inference. [Phase 15 evidence and limits](docs/PHASE-15-ASSISTANT.md).
 
 The 0.14.10 speaker repair passes **50 focused voice JVM tests**, lint and a real
 phone Telecom test covering speaker routing, screen-off, hold/resume, repeated

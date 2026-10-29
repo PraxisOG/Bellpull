@@ -13,7 +13,7 @@ internal data class OfflineWorkspaceState(val forks: List<OfflineFork> = emptyLi
 internal data class ForkReview(val tokens: Int, val contextTokens: Int)
 
 /** Separate route: local Send has no network path. Network use is explicit preparation or handoff. */
-internal class OfflineWorkspace(private val context: Context, val profile: String, private val client: () -> HermesClient?) {
+internal class OfflineWorkspace(private val context: Context, val profile: String, private val phoneContext: suspend () -> String = { "" }, private val client: () -> HermesClient?) {
     private val storage = OfflineStorage(context, profile)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val lab = LocalLlmLab.get(context)
@@ -53,9 +53,9 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         val fork = checkNotNull(storage.fork(id)); mutable.update { it.copy(current = fork, searchResults = emptyList(), forkReview = null, status = "Local • source and server chat are separate") }
     }
     fun back() { if (!state.value.busy) mutable.update { it.copy(current = null, searchResults = emptyList(), forkReview = null) } }
-    fun create(sourceId: String?, title: String = "Local conversation") = action("Creating local fork…") {
+    fun create(sourceId: String?, title: String = "Local conversation", initialDraft: String = "") = action("Creating local fork…") {
         val source = sourceId?.let { storage.source(it) ?: error("Open this chat online once or choose Prepare for offline to save its history.") }
-        save(OfflineFork(title = source?.title ?: title, source = source, memory = storage.memory(), thinking = configuration().thinking))
+        save(OfflineFork(title = source?.title ?: title, source = source, memory = storage.memory(), thinking = configuration().thinking, draft = initialDraft))
         mutable.update { it.copy(searchResults = emptyList(), forkReview = null, status = if (source == null) "Local chat ready" else "Local fork saved") }
     }
     fun prepare(sourceId: String, title: String) = action("Saving full conversation…") {
@@ -235,6 +235,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
         check(fork.pending == null && fork.remoteId == null) { "Open the synced Hermes conversation or finish the pending handoff first." }
         val text = fork.draft.trim(); require(text.isNotEmpty())
         val settings = configuration()
+        val phoneSnapshot = phoneContext()
         val contextTokens = settings.contextTokens
         mutable.update { it.copy(status = "Preparing local model…") }
         // A first question may arrive while foreground fallback loading is still
@@ -259,7 +260,7 @@ internal class OfflineWorkspace(private val context: Context, val profile: Strin
             for (round in 0..2) {
                 var persistedAt = 0L
                 val generating = lab.offlineReply("$profile:${fork.id}", fork.thinking, remaining, contextTokens, { count ->
-                    OfflinePrompt.build(fork, hits, resultText, round < 2 && (fork.source != null || fork.summarizedTurns > 0), contextTokens, settings.systemPrompt, count)
+                    OfflinePrompt.build(fork, hits, resultText, round < 2 && (fork.source != null || fork.summarizedTurns > 0), contextTokens, settings.systemPrompt, phoneSnapshot, count)
                 }) { raw ->
                     val output = OfflinePrompt.output(raw)
                     val turn = fork.turns.last().copy(text = output.answer, thought = output.thought,

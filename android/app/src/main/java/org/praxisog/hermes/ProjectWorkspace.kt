@@ -13,7 +13,10 @@ internal class ProjectWorkspace(
     private val cache: ProjectCache,
     supported: Boolean,
     globalPins: Boolean = false,
+    backgroundFolders: Boolean = false,
 ) {
+    var backgroundFolders by mutableStateOf(backgroundFolders)
+        private set
     var globalPins by mutableStateOf(globalPins)
         private set
     var supported by mutableStateOf(supported)
@@ -37,13 +40,16 @@ internal class ProjectWorkspace(
     private var refreshJob: Job? = null
     val selectedProject get() = snapshot.projects.firstOrNull { it.id == selectedScope }
     val scopeTitle get() = when (selectedScope) {
-        ALL_PROJECT_CHATS -> "All conversations"
+        ALL_PROJECT_CHATS -> if (backgroundFolders) "Conversations" else "All conversations"
+        NOTIFICATION_PROJECT_CHATS -> "Notifications"
+        ALL_WITH_NOTIFICATIONS -> "All including notifications"
         UNFILED_PROJECT_CHATS -> "Unfiled"
         else -> selectedProject?.name ?: "Project"
     }
     val canEdit get() = supported && fresh && !refreshing && !mutating && !closed
 
-    fun configure(supported: Boolean, globalPins: Boolean = false) {
+    fun configure(supported: Boolean, globalPins: Boolean = false, backgroundFolders: Boolean = false) {
+        this.backgroundFolders = backgroundFolders
         this.globalPins = globalPins
         if (this.supported == supported) return
         this.supported = supported
@@ -52,15 +58,18 @@ internal class ProjectWorkspace(
     }
 
     fun choose(value: String) {
-        if (value != ALL_PROJECT_CHATS && value != UNFILED_PROJECT_CHATS && snapshot.projects.none { it.id == value }) return
+        if (value !in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS) &&
+            !(backgroundFolders && value in setOf(NOTIFICATION_PROJECT_CHATS, ALL_WITH_NOTIFICATIONS)) && snapshot.projects.none { it.id == value }) return
         selectedScope = value
         cache.rememberProjectScope(value)
     }
 
     fun sessions(all: List<Session>, scopeId: String = selectedScope): List<Session> = all.filter { session ->
         when (scopeId) {
-            ALL_PROJECT_CHATS -> true
-            UNFILED_PROJECT_CHATS -> snapshot.projectFor(session.id) == null
+            ALL_PROJECT_CHATS -> !backgroundFolders || !backgroundConversation(session)
+            ALL_WITH_NOTIFICATIONS -> true
+            NOTIFICATION_PROJECT_CHATS -> backgroundConversation(session)
+            UNFILED_PROJECT_CHATS -> snapshot.projectFor(session.id) == null && (!backgroundFolders || !backgroundConversation(session))
             else -> snapshot.projectFor(session.id) == scopeId
         }
     }
@@ -83,7 +92,7 @@ internal class ProjectWorkspace(
         snapshot = value
         fresh = true
         if (!cache.writeProjects(value)) error = "Projects are available, but their local cache could not be saved."
-        if (selectedScope !in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS) && value.projects.none { it.id == selectedScope })
+        if (selectedScope !in setOf(ALL_PROJECT_CHATS, UNFILED_PROJECT_CHATS, NOTIFICATION_PROJECT_CHATS, ALL_WITH_NOTIFICATIONS) && value.projects.none { it.id == selectedScope })
             choose(UNFILED_PROJECT_CHATS)
     }
 

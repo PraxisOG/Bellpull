@@ -66,6 +66,7 @@ internal fun SessionListScreen(
     creating: Boolean = false,
     createError: org.praxisog.hermes.model.HermesError? = null,
     offline: OfflineState? = null,
+    backgroundProblem: String? = null,
     onNewLocal: (() -> Unit)? = null,
     fallbackBanner: (@Composable () -> Unit)? = null,
     now2: Double = now,
@@ -158,6 +159,7 @@ internal fun SessionListScreen(
                 }
                 if (showNewChatButton) NewChatButton(onNewSession, creating, onNewLocal = onNewLocal)
             }
+            backgroundProblem?.let { Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
             fallbackBanner?.invoke()
             offline?.takeIf { fallbackBanner == null }?.let { state ->
                 // Names the staleness AND which layer failed, because "offline" alone does not

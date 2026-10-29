@@ -1,6 +1,8 @@
+> Experimental app 0.15.0 / plugin 0.7.0. See [Phase 15](PHASE-15-ASSISTANT.md).
+
 ## Car audio and streaming speech experiment
 
-This branch builds **0.14.10-experimental / build 42**. Initialize submodules
+This branch builds **0.15.0-experimental / build 43**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -8,17 +10,17 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.14.10-experimental / build 42**, with the 0.6.2
-integration-preview plugin. See [Phase 14](PHASE-14-OFFLINE.md) and
+This branch builds **0.15.0-experimental / build 43**, with the 0.7.0
+integration-preview plugin. See [Phase 15](PHASE-15-ASSISTANT.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Use a recursive clone of this experimental branch:
+Clone the experimental branch recursively, or check out `android-v0.15.0-experimental.1` for this release:
 
 ```bash
-git clone --recurse-submodules --branch fix/voice-speaker-01410 \
+git clone --recurse-submodules --branch feature/phase15-phone-assistant \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive

@@ -66,6 +66,23 @@ class PhoneNotificationRepositoryTest {
             assertEquals(1, repo.state.value.records.size); assertNull(repo.contextFor("server", "Alice"))
         } finally { repo.close() }
     }
+    @Test fun serverContextOptInReplacesLegacySharingAndRevocationClearsBothGrants() = runBlocking {
+        val repo = repository(); repo.awaitIdle()
+        try {
+            repo.shareServer("server", true); repo.awaitIdle()
+            assertTrue(repo.state.value.policy.serverSharingProfiles.isEmpty())
+            repo.capture(true); repo.share("server", true); repo.shareServer("server", true); repo.awaitIdle()
+            assertEquals(setOf("server"), repo.state.value.policy.serverSharingProfiles)
+            assertTrue(repo.state.value.policy.sharingProfiles.isEmpty())
+            access = false; repo.refresh(); repo.awaitIdle()
+            assertTrue(repo.state.value.policy.serverSharingProfiles.isEmpty())
+            access = true; repo.refresh(); repo.capture(true); repo.awaitIdle()
+            assertTrue(repo.state.value.policy.serverSharingProfiles.isEmpty())
+            repo.shareServer("server", true); repo.capture(false); repo.awaitIdle()
+            assertTrue(repo.state.value.policy.serverSharingProfiles.isEmpty())
+        } finally { repo.close() }
+    }
+
     @Test fun clearExclusionsAndRetentionAlsoGateQueuedAndReconnectedRecords() = runBlocking {
         val repo = repository(); repo.awaitIdle()
         try {

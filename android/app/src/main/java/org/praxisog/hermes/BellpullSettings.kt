@@ -90,7 +90,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     voiceOutputSettings: (@Composable () -> Unit)? = null,
     voiceAnnouncementSettings: (@Composable () -> Unit)? = null,
     phoneNotificationSettings: (@Composable () -> Unit)? = null,
-    localLlmSettings: (@Composable () -> Unit)? = null) {
+    localLlmSettings: (@Composable () -> Unit)? = null,
+    assistantSettings: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
@@ -105,6 +106,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                 }
             }
         }
+        assistantSettings?.let { SettingsSection("Phone assistant", "Default assistant and phone actions") { it() } }
         phoneNotificationSettings?.let { SettingsSection("Phone notification context", "Local history and sharing with Hermes") { it() } }
         localLlmSettings?.let { SettingsSection("Local fallback", "Gemma on this phone") { it() } }
         SettingsSection("Appearance", "Theme, colors and preview") {

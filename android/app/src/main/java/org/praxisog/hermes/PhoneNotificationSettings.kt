@@ -65,7 +65,7 @@ internal fun PhoneNotificationControls(snapshot: PhoneNotificationSnapshot, prof
     if (profile == null) Text("Choose a server profile to enable sharing.", style = MaterialTheme.typography.bodySmall)
     PreferenceSwitch("Share relevant excerpts", profile?.let { "For ${it.name} (${it.url}). Adds up to six matching excerpts when you send a chat or voice message." }
         ?: "Sharing is configured separately for each server.",
-        profile?.id in policy.sharingProfiles, snapshot.ready && policy.capture && snapshot.access && profile != null) {
+        profile?.id in policy.sharingProfiles, snapshot.ready && policy.capture && snapshot.access && profile != null && profile.id !in policy.serverSharingProfiles) {
         if (it) confirmShare = true else share(false)
     }
     Text("Try “Summarize my notifications” or ask about a sender, app or topic. Selection uses words in your message. Rendering history never contacts Hermes.", style = MaterialTheme.typography.bodySmall)

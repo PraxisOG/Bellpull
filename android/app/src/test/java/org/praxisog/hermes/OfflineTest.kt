@@ -42,6 +42,15 @@ class OfflineTest {
         assertNull(OfflinePrompt.tool("{\"tool\":\"search_chat\",\"query\":\"meeting\",\"source_id\":\"someone-else\"}"))
         assertNull(OfflinePrompt.tool("An example: {\"tool\":\"search_chat\",\"query\":\"meeting\"}"))
     }
+    @Test fun optionalPhoneContextYieldsBudgetToTheActualQuestion() {
+        val fork = OfflineFork(thinking = false, turns = listOf(OfflineTurn(role = "user", text = "Where is the meeting?")))
+        val small = OfflinePrompt.build(fork, emptyList(), null, false, phoneContext = "PHONE CONTEXT: west gate") { it.sumOf { t -> t.text.length } }
+        assertTrue(small.last().text.contains("west gate"))
+        val large = OfflinePrompt.build(fork, emptyList(), null, false, phoneContext = "PHONE CONTEXT: "+"data ".repeat(2000)) { it.sumOf { t -> t.text.length } }
+        assertTrue(large.last().text.endsWith("Where is the meeting?"))
+        assertFalse(large.any { it.text.contains("PHONE CONTEXT:") })
+    }
+
     @Test fun contextIsBoundedAndThinkingAndIncompleteRepliesNeverEnterHistory() {
         val fork = OfflineFork(thinking = true, memory = OfflineMemory(text = "memory ".repeat(1000)),
             turns = listOf(OfflineTurn(role = "user", text = "old ".repeat(2000)),

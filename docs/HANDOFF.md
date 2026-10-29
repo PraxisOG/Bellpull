@@ -1,3 +1,32 @@
+# October 28: Phase 15 installed; experimental release prepared
+
+Branch `feature/phase15-phone-assistant`, based on `4cf7c98`. App
+**0.15.0-experimental / build 43**, plugin **0.7.0-integration-preview**.
+[Phase 15 implementation and acceptance](PHASE-15-ASSISTANT.md) records assistant
+entry, direct commands, foreground speech, new-draft handoff, transient offline
+notice, opt-in phone-calendar/notification context and the Notifications folder.
+Phone calendar is the source; Nextcloud is independent. Server context stays off
+until its separate grants are enabled. Incoming uploads never create chats/runs.
+
+758 Android checks pass with one expected opt-in skip; screenshot verification,
+lint and release assembly pass. Plugin: 187 passes/one skip on the compatibility
+host, plus 12 context checks on each stock 0.21.5 and 0.21.1 host. Physical fixtures
+cover assistant state/draft preservation and phone sources → plugin → new native
+chat prompt → revocation, at unfolded and simulated narrow widths. Inference was
+synthetic; actual default-assistant gestures and installed-app handoffs still need
+manual acceptance. Phone force-stop/background sync guarantees are not provided.
+
+Signed APK and plugin bundle are prepared under
+`/home/praxisog/Bellpull-builds/0.15.0-experimental/`, with checksums and logs.
+The user authorized installation and GitHub publication. The signed build43 update
+is installed in place with UID10308 and the existing data directory; the installed
+APK hash matches the release artifact. The app opens. Publication target:
+`android-v0.15.0-experimental.1`, with APK, plugin, recursive source, roadmap and
+checksums. The default assistant and live Hermes plugin remain unchanged. See
+[installation record](evidence/phase15-assistant/validation.json).
+
+---
+
 # Phase 13 installed — October 17, 2026
 
 0.12.0/build30 was pushed and published first as

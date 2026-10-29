@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private var shareError by mutableStateOf<String?>(null)
     private var showShare by mutableStateOf(true)
     private var pendingNotification: Pair<String, String>? = null
+    private var assistantOpen by mutableStateOf(false)
     private var voiceOpen by mutableStateOf(false)
     private data class VoicePermissionRequest(val profile: String, val session: String, val mode: VoiceMode)
     private var microphoneRequest: VoicePermissionRequest? = null
@@ -78,10 +79,12 @@ class MainActivity : ComponentActivity() {
         profiles = ServerProfiles(this, scope, runtime, onLeaving = {
             reader.stop()
             voiceOpen = false
+            assistantOpen = false
             pendingNotification = null
             pendingNewChat = false
             pendingInboxProfile = null
         }, onConnected = ::connected)
+        assistantOpen = savedInstanceState?.getBoolean("assistantOpen") ?: false
         handleIntent(intent)
 
         setContent {
@@ -97,8 +100,10 @@ class MainActivity : ComponentActivity() {
                     val emptyOffline = remember { kotlinx.coroutines.flow.MutableStateFlow(OfflineWorkspaceState(busy = false)) }
                     val offlineState by (offlineWorkspace?.state ?: emptyOffline).collectAsState()
                     val localModel by runtime.localModel.state.collectAsState()
+                    var assistantDraft by rememberSaveable { mutableStateOf("") }
                     var localSelected by rememberSaveable { mutableStateOf(false) }
                     val isOffline = current != null && (runtime.fallbackOffline || current.offline != null || current.sessions is UiState.Failed)
+                    val offlineNotice = rememberOfflineNotice(isOffline)
                     val configuration = runtime.localSettings.value
                     val localReady = localModel.ready && !localModel.gpu && localModel.contextTokens == configuration.contextTokens &&
                         localModel.models.any { it.id == localModel.selected && it.sha256 == LocalLlmLab.E2B_SHA }
@@ -135,6 +140,19 @@ class MainActivity : ComponentActivity() {
 
                     val savedVoiceSettings = remember(profiles.activeId) { profiles.activeId?.let { VoiceSettings(applicationContext, it) } }
                     var voiceConfig by remember(savedVoiceSettings) { mutableStateOf(savedVoiceSettings?.read() ?: VoiceConfiguration()) }
+                    if (assistantOpen) {
+                        HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
+                            PhoneAssistantPanel(runtime, foreground, assistantDraft, { assistantDraft = it }, onDismiss = { assistantOpen = false },
+                                onHermes = if (current != null && !isOffline && !current.creatingSession) ({ text ->
+                                    current.askHermes(text); localSelected = false; focusChatRevision++; assistantOpen = false
+                                }) else null,
+                                onLocal = if (offlineWorkspace != null && !offlineState.busy) ({ text ->
+                                    runtime.voice?.close(); reader.stop()
+                                    offlineWorkspace.create(null, initialDraft = text)
+                                    localSelected = true; focusChatRevision++; assistantOpen = false
+                                }) else null)
+                        }
+                    }
                     if (voiceOpen && profiles.activeId != null) {
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
                             VoicePanel(runtime.voice, voiceConfig, runtime.voiceStartError,
@@ -189,7 +207,10 @@ class MainActivity : ComponentActivity() {
                         phoneNotificationSettings = {
                             PhoneNotificationSettings(PhoneNotificationRepository.get(applicationContext),
                                 profiles.profiles.firstOrNull { it.id == profiles.activeId })
+                            PhoneContextSettingsUi(runtime.phoneContext, PhoneNotificationRepository.get(applicationContext),
+                                profiles.profiles.firstOrNull { it.id == profiles.activeId }, runtime.planning?.policy?.sharing == true)
                         },
+                        assistantSettings = { PhoneAssistantSettings(foreground) { reader.stop(); assistantOpen = true } },
                         localLlmSettings = {
                             LocalFallbackSettingsEditor(runtime.localSettings, localModel, setupLocal,
                                 { scope.launch { runtime.warmLocal() } }, runtime.localModel::unload,
@@ -212,10 +233,11 @@ class MainActivity : ComponentActivity() {
                                 onClose = { localSelected = false }, embedded = true)
                         }) else null,
                         fallbackBanner = if (isOffline) ({
-                            LocalFallbackBanner(localReady, localModel.busy && !localReady,
+                            if (offlineNotice.visible) LocalFallbackBanner(localReady, localModel.busy && !localReady,
                                 localModel.error ?: runtime.fallbackProblem,
                                 { scope.launch { runtime.warmLocal() } }, profiles::showSettings,
-                                current.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } })
+                                current.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } },
+                                onDismiss = offlineNotice::dismiss)
                         }) else null,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
@@ -264,7 +286,7 @@ class MainActivity : ComponentActivity() {
                         onRetrySessions = { current?.loadSessions() }, onRetryHistory = { current?.refreshHistory() },
                         onNewSession = { preview = null; if (isOffline) newLocal() else { localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() } },
                         creatingSession = if (isOffline) offlineState.busy else current?.creatingSession ?: false,
-                        createError = current?.createError, offline = current?.offline,
+                        createError = current?.createError, offline = current?.offline, backgroundProblem = current?.backgroundProblem,
                         onDisconnect = profiles::showSettings,
                         query = current?.searchQuery ?: exampleQuery,
                         onQueryChange = { if (current == null) exampleQuery = it else current.setQuery(it) },
@@ -376,6 +398,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action in setOf(Intent.ACTION_ASSIST, "android.intent.action.VOICE_ASSIST")) {
+            if (intent?.getBooleanExtra("bellpull.assist.consumed", false) != true) {
+                messageReader?.stop()
+                assistantOpen = true
+                intent?.putExtra("bellpull.assist.consumed", true)
+            }
+            return
+        }
         if (intent?.getBooleanExtra(ReminderAlerts.OPEN_INBOX, false) == true) {
             if (intent.getStringExtra(ReminderAlerts.PROFILE) == profiles.activeId) {
                 if (store != null) focusTodayRevision++ else pendingInboxProfile = profiles.activeId
@@ -437,6 +467,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("assistantOpen", assistantOpen)
+        super.onSaveInstanceState(outState)
+    }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); handleIntent(intent) }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
@@ -457,6 +491,7 @@ class MainActivity : ComponentActivity() {
             val state = phoneNotifications.state.value
             if (state.ready && state.policy.capture && state.access && !state.connected) requestPhoneNotificationBinding(applicationContext)
         }
+        runtime.phoneContext?.request()
         runtime.delivery?.refresh()
         store?.loadSessions(); store?.refreshHistory(); runtime.refreshCapabilities()
         if (preferences.value.notifications && store != null) setNotifications(true)

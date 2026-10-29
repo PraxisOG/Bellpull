@@ -17,6 +17,7 @@ internal data class PhoneNotificationPolicy(
     val retentionDays: Int = 7,
     val excludedPackages: Set<String> = emptySet(),
     val sharingProfiles: Set<String> = emptySet(),
+    val serverSharingProfiles: Set<String> = emptySet(),
     val shareOngoing: Boolean = false,
     val clearedBefore: Long = 0,
 )

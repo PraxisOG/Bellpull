@@ -40,7 +40,10 @@ internal class HermesStore(
     durableRetention: Long? = null,
     journal: RunJournal? = null,
     supportsVoiceTitles: Boolean = false,
+    var backgroundFolders: Boolean = false,
 ) {
+    var backgroundProblem by mutableStateOf<String?>(null)
+        private set
     private var supportsVoiceTitles = supportsVoiceTitles
     var supportsMessageBranching by mutableStateOf(supportsMessageBranching)
         private set
@@ -216,8 +219,28 @@ internal class HermesStore(
         scope.launch {
             if (sessions !is UiState.Ready) sessions = UiState.Loading
             val source = sessionSource
-            val result = io { client.allSessions(source = source) }
+            var backgroundFailure: String? = null
+            val result = io {
+                val main = client.allSessions(source = source)
+                if (!backgroundFolders || source == null || main !is HermesResult.Ok) main
+                else {
+                    val extra = mutableListOf<Session>()
+                    var failed = false
+                    for (background in BACKGROUND_CHAT_SOURCES - setOfNotNull(source)) {
+                        when (val response = client.allSessions(source = background)) {
+                            is HermesResult.Ok -> extra += response.value.data
+                            is HermesResult.Err -> {
+                                failed = true
+                                extra += cache?.read()?.sessions.orEmpty().filter { it.source == background }
+                            }
+                        }
+                    }
+                    backgroundFailure = if (failed) "Some notification conversations could not refresh; showing saved entries where available." else null
+                    HermesResult.Ok(main.value.copy(data = (main.value.data + extra).distinctBy { it.id }))
+                }
+            }
             if (request != sessionsRequest) return@launch
+            backgroundProblem = backgroundFailure
             when (result) {
                 is HermesResult.Ok -> {
                     offline = null
@@ -228,7 +251,7 @@ internal class HermesStore(
                 }
                 is HermesResult.Err -> {
                     val cached = io { cache?.read() }
-                    val permitted = cached?.sessions?.filter { source == null || it.source == source }.orEmpty()
+                    val permitted = cached?.sessions?.filter { source == null || it.source == source || backgroundFolders && backgroundConversation(it) }.orEmpty()
                     if (cached != null && permitted.isNotEmpty()) {
                         offline = OfflineState(cached.cachedAtEpochSeconds, result.error)
                         sessions = UiState.Ready(permitted)

@@ -1,6 +1,6 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.6.2-integration-preview"
+VERSION = "0.7.0-integration-preview"
 
 
 def register(ctx):
@@ -9,6 +9,8 @@ def register(ctx):
     register_sharing(ctx)
     from .planning import register as register_planning
     register_planning(ctx)
+    from .phone_context import register as register_context
+    register_context(ctx)
     instances = []
     def factory(app, adapter):
         instances.append(wire(app, adapter))

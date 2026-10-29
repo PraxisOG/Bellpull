@@ -52,7 +52,7 @@ internal class PhoneNotificationRepository internal constructor(
         val granted = accessGranted()
         val policy = mutable.value.policy
         if (!granted && policy.accessWasGranted) {
-            setPolicy(policy.copy(capture = false, accessWasGranted = false, sharingProfiles = emptySet()))
+            setPolicy(policy.copy(capture = false, accessWasGranted = false, sharingProfiles = emptySet(), serverSharingProfiles = emptySet()))
         } else if (granted && !policy.accessWasGranted) setPolicy(policy.copy(accessWasGranted = true))
         mutable.value = mutable.value.copy(access = granted, connected = mutable.value.connected && granted)
     }
@@ -67,7 +67,8 @@ internal class PhoneNotificationRepository internal constructor(
         if (!mutable.value.ready) return@control
         auditAccess()
         setPolicy(mutable.value.policy.copy(capture = enabled,
-            sharingProfiles = if (enabled) mutable.value.policy.sharingProfiles else emptySet()))
+            sharingProfiles = if (enabled) mutable.value.policy.sharingProfiles else emptySet(),
+            serverSharingProfiles = if (enabled) mutable.value.policy.serverSharingProfiles else emptySet()))
         if (!enabled) mutable.value = mutable.value.copy(connected = false)
     }
     fun share(profile: String, enabled: Boolean) = control {
@@ -76,6 +77,14 @@ internal class PhoneNotificationRepository internal constructor(
         val policy = mutable.value.policy
         if (enabled && (!policy.capture || !mutable.value.access)) return@control
         setPolicy(policy.copy(sharingProfiles = if (enabled) policy.sharingProfiles + profile else policy.sharingProfiles - profile))
+    }
+    fun shareServer(profile: String, enabled: Boolean) = control {
+        if (!mutable.value.ready) return@control
+        auditAccess()
+        val policy = mutable.value.policy
+        if (enabled && (!policy.capture || !mutable.value.access)) return@control
+        setPolicy(policy.copy(serverSharingProfiles = if (enabled) policy.serverSharingProfiles + profile else policy.serverSharingProfiles - profile,
+            sharingProfiles = if (enabled) policy.sharingProfiles - profile else policy.sharingProfiles))
     }
     fun retention(days: Int) = control {
         if (!mutable.value.ready) return@control

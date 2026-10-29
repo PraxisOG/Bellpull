@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun LocalFallbackBanner(ready: Boolean, loading: Boolean, problem: String?, onLoad: () -> Unit,
-    onSettings: () -> Unit, onFork: (() -> Unit)? = null) {
+    onSettings: () -> Unit, onFork: (() -> Unit)? = null, onDismiss: (() -> Unit)? = null) {
     Surface(color = if (ready) Color(0xFFFFE5A0) else MaterialTheme.colorScheme.errorContainer,
         contentColor = if (ready) Color(0xFF392C00) else MaterialTheme.colorScheme.onErrorContainer,
         modifier = Modifier.fillMaxWidth().testTag(if (ready) "local-ready-banner" else "local-unavailable-banner")) {
@@ -24,6 +24,7 @@ internal fun LocalFallbackBanner(ready: Boolean, loading: Boolean, problem: Stri
                 if (!ready && !loading) TextButton(onClick = onLoad) { Text("Load / retry") }
                 if (onFork != null) TextButton(onClick = onFork) { Text("Create local fork") }
                 TextButton(onClick = onSettings) { Text("Local settings") }
+                onDismiss?.let { TextButton(onClick = it) { Text("Dismiss") } }
             }
         }
     }

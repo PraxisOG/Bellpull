@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles
+from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -45,6 +45,7 @@ def wire(app, adapter):
     snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
+    context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
     models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
     app.on_startup.append(coding.start)
@@ -53,6 +54,7 @@ def wire(app, adapter):
     def stop():
         nonlocal active
         active = False
+        stop_context()
         stop_models()
         stop_streaming()
         coding.stop()
@@ -61,6 +63,7 @@ def wire(app, adapter):
         speech.stop()
     async def close():
         await coding.close()
+        stop_context()
         stop_models()
         stop_streaming()
         snapshots.close()
@@ -106,6 +109,8 @@ def wire(app, adapter):
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,
+                "bellpull_phone_context": context_ready,
+                "bellpull_background_folder": projects_ready,
                 "bellpull_offline": offline_ready,
                 "bellpull_voice_titles": titles_ready,
                 "bellpull_speech": True,
@@ -183,6 +188,8 @@ def wire(app, adapter):
     if projects_ready:
         routes.extend(projects.routes(adapter))
         routes.extend(planning.routes(adapter))
+    if context_ready:
+        routes.extend(phone_context.routes(adapter))
     if files_ready:
         routes.extend([
             ("GET", "/api/bellpull/plugins/gpu", gpu),

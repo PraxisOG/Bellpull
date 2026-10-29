@@ -73,6 +73,31 @@ class HermesStoreTest {
         assertEquals(listOf("cli"), (store.sessions as UiState.Ready).value.map { it.source })
     }
 
+    @Test fun explicitSourceFilterStillLoadsNotificationFolderAndReportsPartialFailure() {
+        val failCron = AtomicBoolean(false)
+        val sources = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val source = chain.request().url.queryParameter("source") ?: "all"
+            sources += source
+            val failed = failCron.get() && source == "cron"
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(if (failed) 503 else 200).message("fixture")
+                .body((if (failed) """{"error":{"message":"Temporarily unavailable"}}""" else
+                    """{"data":[{"id":"$source","source":"$source"}]}""").toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val client = HermesClient("http://fixture.invalid", { "fixture" }, httpClient = http)
+        val store = HermesStore(scope, client, sessionSource = "api_server", backgroundFolders = true)
+        try {
+            store.loadSessions(); awaitUntil("combined sources") { store.sessions is UiState.Ready }
+            assertEquals(setOf("api_server", "cron", "bellpull_notification"), (store.sessions as UiState.Ready).value.map { it.source }.toSet())
+            assertEquals(setOf("api_server", "cron", "bellpull_notification"), sources.toSet())
+            failCron.set(true); store.loadSessions()
+            awaitUntil("partial background error") { store.backgroundProblem != null }
+            assertNull(store.offline)
+            store.chooseSessionSource(null)
+            awaitUntil("unfiltered recovery") { store.sessions is UiState.Ready && store.backgroundProblem == null }
+        } finally { store.close(); client.close() }
+    }
+
     @Test fun droppedLegacyStreamLoadsLaterSavedReplyWithoutOpeningChatAgain() {
         val saved = AtomicBoolean(false)
         val submissions = AtomicInteger()

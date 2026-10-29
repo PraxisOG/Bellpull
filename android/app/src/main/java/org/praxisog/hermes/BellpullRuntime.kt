@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import org.praxisog.hermes.core.HermesClient
@@ -38,6 +39,8 @@ internal class BellpullRuntime private constructor(context: Context) {
     var client: HermesClient? = null
         private set
     var offlineWorkspace by mutableStateOf<OfflineWorkspace?>(null)
+        private set
+    var phoneContext by mutableStateOf<PhoneContextSync?>(null)
         private set
     val localSettings = LocalFallbackSettings(this.context)
     val localModel by lazy { LocalLlmLab.get(this.context) }
@@ -141,7 +144,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         disconnect()
         cache = SessionCache(context, id)
         profileId = id
-        offlineWorkspace = OfflineWorkspace(context, id) { client.takeIf { profileId == id } }
+        phoneContext = PhoneContextSync(context, id, cache!!)
+        offlineWorkspace = OfflineWorkspace(context, id, phoneContext = { phoneContext?.localContext().orEmpty() }) { client.takeIf { profileId == id } }
         loadDrafts()
     }
 
@@ -151,6 +155,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         this.capabilities = capabilities
         syncOfflineMemory()
         client.configureCapabilities(capabilities)
+        phoneContext?.configure(client, capabilities.features["bellpull_phone_context"] == true)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
         val next = HermesStore(scope, client, cache = cache, drafts = drafts, readState = receipts,
@@ -158,14 +163,16 @@ internal class BellpullRuntime private constructor(context: Context) {
             supportsMessageBranching = capabilities.sessionForkAtMessage,
             supportsPromptEditing = capabilities.sessionForkBeforeMessage,
             durableRetention = capabilities.durableRunRetention, journal = cache,
-            supportsVoiceTitles = capabilities.features["bellpull_voice_titles"] == true)
+            supportsVoiceTitles = capabilities.features["bellpull_voice_titles"] == true,
+            backgroundFolders = capabilities.features["bellpull_background_folder"] == true)
         receipts.onChange = { id, receipt -> if (store === next) {
             cache?.writeReceipt(id, receipt)
             if (receipt.readThrough >= receipt.unreadReply) notifications?.read(id)
         } }
         val contextProfile = profileId.orEmpty()
         next.phoneNotificationContext = { query ->
-            if (store === next && profileId == contextProfile)
+            if (store === next && profileId == contextProfile &&
+                !(phoneContext?.supported == true && contextProfile in PhoneNotificationRepository.get(context).state.value.policy.serverSharingProfiles))
                 PhoneNotificationRepository.get(context).contextFor(contextProfile, query) else null
         }
         store = next
@@ -176,8 +183,9 @@ internal class BellpullRuntime private constructor(context: Context) {
         delivery = cache?.let { DeliveryWorkspace(context, profileId.orEmpty(), scope, it, client,
             capabilities.features["bellpull_planning"] == true) { snapshot -> planning?.acceptSnapshot(snapshot) } }
         planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true, delivery) }
+        scope.launch { snapshotFlow { planning?.policy }.collect { phoneContext?.request() } }
         projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true,
-            capabilities.features["bellpull_conversation_pins"] == true) }
+            capabilities.features["bellpull_conversation_pins"] == true, capabilities.features["bellpull_background_folder"] == true) }
         projects?.let { workspace -> next.newSessionRequest = workspace::creationRequest; workspace.refresh() }
         phase3 = cache?.let { profileCache -> Phase3Workspace(context, profileId.orEmpty(), scope, client, profileCache,
             capabilities.features["bellpull_persistent_artifacts"] == true,
@@ -225,11 +233,13 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
+            phoneContext?.configure(current, result.value.features["bellpull_phone_context"] == true)
             syncOfflineMemory()
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
             delivery?.supported = result.value.features["bellpull_planning"]==true
-            projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true)
+            projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true, result.value.features["bellpull_background_folder"] == true)
+            store?.backgroundFolders = result.value.features["bellpull_background_folder"] == true
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true || result.value.features["bellpull_native_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
@@ -290,6 +300,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         context.stopService(android.content.Intent(context, VoiceService::class.java))
         projects?.close()
         projects = null
+        phoneContext?.close(); phoneContext = null
         planning?.close()
         planning = null
         capabilities = null

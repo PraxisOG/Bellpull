@@ -38,10 +38,11 @@ internal object OfflinePrompt {
     }
     fun build(fork: OfflineFork, hits: List<OfflineChunk>, toolResult: String?, toolsAvailable: Boolean,
               contextTokens: Int = 2048, systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
-              count: (List<LocalTurn>) -> Int): List<LocalTurn> {
+              phoneContext: String = "", count: (List<LocalTurn>) -> Int): List<LocalTurn> {
         val budget = contextTokens - if (fork.thinking) 768 else 384
         val turns = fork.turns.drop(fork.summarizedTurns).filter { it.role == "user" || it.status == "complete" }.toMutableList()
         while (turns.firstOrNull()?.role == "assistant") turns.removeAt(0)
+        var phone = phoneContext
         var memory = fork.memory.text.take(1600)
         var brief = fork.brief.take(1600)
         val summary = fork.summary
@@ -52,6 +53,7 @@ internal object OfflinePrompt {
                 "or {\"tool\":\"read_chunk\",\"id\":\"mID:offset\"}. No other tools exist." else "Answer now; no more tools are available."
         while (true) {
             val context = buildString {
+                if (phone.isNotBlank()) append("\n$phone\n")
                 if (memory.isNotBlank()) append("\nSAVED MEMORY (may be stale):\n$memory\n")
                 if (summary.isNotBlank()) append("\nCOMPACTED CONVERSATION (reference, may omit details):\n$summary\n")
                 if (brief.isNotBlank()) append("\nUSER-SAVED BRIEF:\n$brief\n")
@@ -63,6 +65,7 @@ internal object OfflinePrompt {
             }
             if (count(prompt) <= budget) return prompt
             when {
+                phone.isNotEmpty() -> phone = ""
                 turns.size > 1 -> { turns.removeAt(0); while (turns.firstOrNull()?.role == "assistant") turns.removeAt(0) }
                 excerpts.isNotEmpty() -> excerpts.removeAt(excerpts.lastIndex)
                 memory.isNotEmpty() -> memory = memory.take(memory.length / 2).takeIf { it.length > 100 }.orEmpty()
