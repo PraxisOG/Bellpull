@@ -1,8 +1,6 @@
 > Current experimental pair: **Android 0.15.0 / build 43**, plugin **0.7.0-integration-preview**.
-> Includes authenticated phone snapshots, bounded context for new API chats and a read-only context tool.
-> Phone context details: authenticated phone snapshots, bounded context
-> for new native API chats, and a read-only phone-context tool. Uploads never start
-> chats or runs. See [Phase 15 protocol, consent, expiry and limits](../../docs/PHASE-15-ASSISTANT.md#phone-context-and-notifications-folder).
+> Authenticated phone snapshots provide bounded context for new native API chats
+> and a read-only phone-context tool. Uploads never start chats or runs. See [Phase 15 protocol, consent, expiry and limits](../../docs/PHASE-15-ASSISTANT.md#phone-context-and-notifications-folder).
 > Deploy this plugin alongside app 0.15.0 to enable the new controls; older app
 > grants do not silently opt into server caching. No live server has been updated.
 
