@@ -12,7 +12,7 @@ A native Android companion for self-hosted [Hermes Agent](https://github.com/Nou
 [![Experimental](https://img.shields.io/badge/experimental-0.18.2-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
+[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1)
 
 </div>
 
@@ -61,8 +61,8 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 > [!IMPORTANT]
 > **This is an experimental prerelease:** Android **0.18.2-experimental / build 47**
 > pairs with Bellpull plugin **0.8.1-integration-preview**. Server features need
-> the plugin and compatible Hermes capabilities. This Kanban build is local; the
-> download links below still point to the prior published release. See the
+> the plugin and compatible Hermes capabilities. Native Kanban includes task
+> creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > 0.15.1 repairs the Reply notifications switch and Choose default assistant button.
@@ -85,7 +85,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.1-experimental.1), or [build this branch](docs/BUILDING.md) for the new Kanban experiment.
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1), or [build from the release source](docs/BUILDING.md).
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -94,16 +94,17 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.1-experimental.1/Bellpull-source-0.15.1.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull-source-0.18.2.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.15.1-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-For this branch, use `plugins/bellpull` (0.7.0) from the same source checkout.
-The [older 0.4.3 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.12.0-experimental.1/bellpull-plugin-0.4.3-integration-preview.tar.gz)
-ships with the published 0.12.0 release and lacks offline memory/handoff. Back up the data home, then preview the installer:
+The release includes the [**matching plugin 0.8.1 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/bellpull-plugin-0.8.1-integration-preview.tar.gz).
+Update older plugins to enable Tasks; an existing 0.8.1 installation already supports
+this APK. Unpack the archive, enter its directory and back up the data home, then
+preview the installer:
 
 ```bash
 python3 tools/install-plugin.py --home /YOUR/HERMES/DATA/HOME
@@ -122,6 +123,10 @@ core-overlay installations need the documented migration rather than an overlay.
 [Combined acceptance and known failures](docs/INTEGRATION-6-8-9.md)
 
 ## Verification and scope
+
+The Kanban release passes **796 Android JVM tests**, **200 plugin tests**, **199
+screenshot baselines** and **four physical-device tests**. JVM and plugin suites
+each have one skip; lint has zero errors. [Kanban scope, audit and validation](docs/PHASE-18-KANBAN.md).
 
 The [car and streaming evidence](docs/evidence/car-streaming-20261020/README.md)
 records Android Telecom screen-off/hold/resume/end checks on a physical phone,
@@ -146,12 +151,12 @@ isolation, malformed audio, overload, authentication and cleanup. See the
 
 ## For contributors and agents
 
-**`master` is the default and current development source for both the Android app
-and the Bellpull plugin.** Earlier work is preserved in Git history and release
-tags. Use short-lived branches for new changes and merge them back here.
+The current experimental app and plugin source is tagged **`android-v0.18.2-experimental.1`**.
+Use the release tag to reproduce its APK and matching plugin; feature work is on
+`fix/kanban-reliability-0182`. Earlier versions remain in Git history and release tags.
 
 ```bash
-git clone --recurse-submodules https://github.com/PraxisOG/Bellpull.git
+git clone --recurse-submodules --branch android-v0.18.2-experimental.1 https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
 ```

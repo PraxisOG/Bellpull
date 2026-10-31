@@ -5,12 +5,12 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-Current development build: app **0.18.2-experimental / build 47**, plugin
+Current experimental release: app **0.18.2-experimental / build 47**, plugin
 **0.8.1-integration-preview**, on `fix/kanban-reliability-0182`.
 The October 31 implementation includes native Kanban reading, creation and field editing.
 Phase 18 is a new identifier; existing phase numbers and release references are
 retained. Delivery order is **18A → 18B → 18C → 18D**, ahead of deferred Phase 16
-and final-polish Phase 17. This build is local; it is not a published release.
+and final-polish Phase 17. Published as [android-v0.18.2-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1).
 [Kanban implementation, validation and remaining work](PHASE-18-KANBAN.md).
 [Phone assistant, phone context and offline banner repair](PHASE-15-ASSISTANT.md).
 [Reply-notification and assistant-settings repair](RELEASE-0.15.1-EXPERIMENTAL.md).

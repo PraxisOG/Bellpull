@@ -1,8 +1,8 @@
-> Current development pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
+> Current experimental pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
 > Adds authenticated native Kanban board/detail reads, task creation/field editing, comments, non-executing moves
 > and atomic operation receipts for offline recovery. See [Phase 18](../../docs/PHASE-18-KANBAN.md)
 > and the [API contract](../../docs/hermes-api.md#bellpull-native-kanban-extension--october-31-2026).
-> This is a local development build. The local test gateway has the Kanban extension
+> [Download the experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1). The local test gateway has the Kanban extension
 > layered into its existing Canvas preview; the user updates Moe manually.
 
 > Previous experimental pair: **Android 0.15.0 / build 43**, plugin **0.7.0-integration-preview**.

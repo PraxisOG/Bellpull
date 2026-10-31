@@ -1,9 +1,10 @@
 # Phase 18: native mobile Kanban
 
-Development build 0.18.2-experimental (47), standard plugin 0.8.1-integration-preview.
+Experimental release 0.18.2-experimental (47), standard plugin 0.8.1-integration-preview.
 Branch `fix/kanban-reliability-0182` repairs the 0.18.1 creation/editing increment.
 The local test Hermes has the new Kanban contract while preserving its existing
-Canvas preview. The user updates Moe manually. This increment is not published.
+Canvas preview. The user updates Moe manually. Published as
+[android-v0.18.2-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1).
 
 ## Included
 

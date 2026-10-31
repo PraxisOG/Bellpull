@@ -1,14 +1,18 @@
-## Local Kanban reliability repair — 0.18.2 / build 47
+## Experimental native Kanban release — 0.18.2 / build 47
 
-Fixes deleted tasks blocking unrelated edits, queue overflow during rapid actions,
+Publishes native board/list/detail views, task creation and field editing, comments,
+non-executing moves, offline recovery and the shared Today preview. Also fixes
+deleted tasks blocking unrelated edits, queue overflow during rapid actions,
 late callbacks recreating submitted drafts, Unicode text-limit mismatches and
 decoding native priorities outside the mobile editing range. Queue identities,
 unsent text and original draft revisions remain durable. Plugin runtime code stays
 at **0.8.1-integration-preview**; the test gateway needs no new deployment.
 
 Six regression cases reproduced the failures before repair. The native Unicode/
-priority contract is also covered on stock Hermes. This increment is local and
-unpublished; Moe remains a manual user deployment. Artifacts are under
+priority contract is also covered on stock Hermes. Published as
+[android-v0.18.2-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1) with the signed APK, matching plugin,
+complete source including pinned submodules, roadmap and checksums.
+Moe remains a manual user deployment. Local validation artifacts are under
 `/home/praxisog/Bellpull-builds/kanban-bugfix-development/`.
 Validation: 796 JVM tests, 200 plugin tests, 199 screenshot baselines and all four
 physical Kanban tests passed. JVM and plugin suites each retain one skip. Lint has

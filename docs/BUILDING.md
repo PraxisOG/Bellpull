@@ -1,8 +1,8 @@
-> Experimental app 0.15.1 / plugin 0.7.0. See [Phase 15](PHASE-15-ASSISTANT.md).
+> Experimental app 0.18.2 / plugin 0.8.1. See [Phase 18](PHASE-18-KANBAN.md).
 
 ## Car audio and streaming speech experiment
 
-This branch builds **0.15.1-experimental / build 44**. Initialize submodules
+This branch builds **0.18.2-experimental / build 47**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -10,17 +10,17 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.15.1-experimental / build 44**, with the 0.7.0
-integration-preview plugin. See [Phase 15](PHASE-15-ASSISTANT.md) and
+This branch builds **0.18.2-experimental / build 47**, with the 0.8.1
+integration-preview plugin. See [Phase 18](PHASE-18-KANBAN.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Clone the experimental branch recursively, or check out `android-v0.15.1-experimental.1` for this release:
+Clone the experimental branch recursively, or check out `android-v0.18.2-experimental.1` for this release:
 
 ```bash
-git clone --recurse-submodules --branch fix/assistant-notification-settings-0151 \
+git clone --recurse-submodules --branch android-v0.18.2-experimental.1 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
@@ -39,13 +39,13 @@ To reproduce a release, fetch and check out its tag, then run
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
 **not** include submodule contents. Use the recursive clone above, or download
-**Bellpull-source-0.14.4.tar.gz**, which includes this release's tracked
+**Bellpull-source-0.18.2.tar.gz**, which includes this release's tracked
 source and native trees. That archive also contains
 `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.14.4.tar.gz
-cd Bellpull-source-0.14.4
+tar -xzf Bellpull-source-0.18.2.tar.gz
+cd Bellpull-source-0.18.2
 ```
 
 ## Toolchain
