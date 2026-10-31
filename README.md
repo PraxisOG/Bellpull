@@ -1,3 +1,6 @@
+> **Latest experimental release: [Bellpull 0.18.2 — native Kanban and offline editing](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1).**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull.apk) · [Plugin 0.8.1](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/bellpull-plugin-0.8.1-integration-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.18.2-experimental.1/docs/BUILDING.md) · [Updated phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.18.2-experimental.1/docs/ROADMAP.md)
+
 <div align="center">
 
 <img src="docs/images/bellpull-icon.png" alt="Bellpull bell cord icon" width="112" height="112">
