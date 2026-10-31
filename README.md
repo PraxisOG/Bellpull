@@ -1,3 +1,8 @@
+> **Experimental source: 0.19.0 / build 48 — shared mobile/desktop Canvas.**
+> This branch combines the published 0.18.2 Kanban work with the shared canvas tool,
+> streamed drawing updates and mobile touch controls. [Implementation and remaining validation](docs/SHARED-CANVAS.md).
+> Downloads below remain the published 0.18.2 release; the source merge does not publish a new APK.
+
 <div align="center">
 
 <img src="docs/images/bellpull-icon.png" alt="Bellpull bell cord icon" width="112" height="112">
@@ -41,6 +46,7 @@ the project, coding and calendar panels show the development preview.*
 | :--- | :--- |
 | **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
 | **Native tasks** | Browse native Kanban boards, create tasks in triage, edit task fields, add comments, park unclaimed cards in triage/blocked, and recover offline drafts and edits. [Scope and validation](docs/PHASE-18-KANBAN.md). |
+| **Shared Canvas (0.19.0 source)** | Continue the same drawing in an existing desktop or mobile conversation, with streamed updates, touch editing and Undo/Redo. Drawing data is collapsed. [Contract and acceptance limits](docs/SHARED-CANVAS.md). |
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
@@ -151,9 +157,11 @@ isolation, malformed audio, overload, authentication and cleanup. See the
 
 ## For contributors and agents
 
-The current experimental app and plugin source is tagged **`android-v0.18.2-experimental.1`**.
-Use the release tag to reproduce its APK and matching plugin; feature work is on
-`fix/kanban-reliability-0182`. Earlier versions remain in Git history and release tags.
+The published experimental app and plugin source is tagged **`android-v0.18.2-experimental.1`**.
+Use that release tag to reproduce its APK and matching plugin. Current experimental
+source on `fix/kanban-reliability-0182` includes **0.19.0 / build 48** and plugin
+**0.8.2-canvas-v1-preview**; see [Canvas scope and validation](docs/SHARED-CANVAS.md).
+Earlier versions remain in Git history and release tags.
 
 ```bash
 git clone --recurse-submodules --branch android-v0.18.2-experimental.1 https://github.com/PraxisOG/Bellpull.git

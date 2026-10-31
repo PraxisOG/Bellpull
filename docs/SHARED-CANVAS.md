@@ -48,21 +48,45 @@ Historical drawing text is display-only on shared-capable servers.
 
 ## Development preview and validation
 
-This worktree is based on mobile commit ed99b43. The default app identity remains
-unchanged. Build with `-PbellpullCanvasFixture=true` for the separate **Bellpull
-Canvas** preview (`org.praxisog.hermes.canvasfixture`, 0.16.0-canvas-preview).
-It preserves the primary app and its data. The current phone preview reaches the
-local Docker gateway through `adb reverse tcp:18647 tcp:8642`; the USB connection
-is required for this development setup. No server port was exposed externally.
+The combined source is **Android 0.19.0-experimental / build 48**, with plugin
+**0.8.2-canvas-v1-preview**. It includes the exact published mobile baseline
+[`android-v0.18.2-experimental.1`](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1)
+(`5761d20343d60e8efd29271e7242a57200c45af3`), preserving native Kanban and its
+offline-editing repairs. The source integration targets the current experimental
+branch, `fix/kanban-reliability-0182`. It does not replace the published 0.18.2 APK
+or plugin assets. [Feature request and ongoing acceptance](https://github.com/PraxisOG/Bellpull/issues/38).
+
+The default app identity remains unchanged. Build with
+`-PbellpullCanvasFixture=true` for the separate **Bellpull Canvas** preview
+(`org.praxisog.hermes.canvasfixture`, 0.19.0-canvas-preview). Instrumentation uses
+only this disposable package; the primary phone installation and data are preserved.
+The fixture reads its test connection from private device storage, not source.
+Early checks used a USB reverse tunnel. The later HTTPS/Tailscale check did not
+require that tunnel, but its full conversation UI check remains incomplete below.
 
 Validated against the real local Hermes gateway: authenticated/profile-isolated
 HTTP and SSE, native tool middleware, stable operation receipts, grouped Undo
 across separate internal model requests, interruption, stale edits, compression
 lineage, ordinary forks, replay gaps, and plugin unload. A real model run updated
-two desktop clients during the reply. Pixel instrumentation reuses that same
-conversation and checks touch editing, remote changes, cache/reconnect, Undo/Redo,
-capability discovery, and access through the full conversation menu.
+two desktop clients during the reply. Earlier isolated Pixel instrumentation passed
+touch editing, remote changes, cache/reconnect, Undo/Redo, capability discovery,
+and access through the full conversation menu.
+
+The combined Android debug app and instrumentation build pass. The focused suites
+run 37 model tests and 49 client tests without failures (one existing client skip).
+The latest physical HTTPS/Tailscale test reached shared touch/edit/reconnect checks,
+then failed at opening Canvas from the actual conversation screen. That failure is
+unresolved; earlier preview results do not establish acceptance for this combined
+build. No further phone installation or UI testing is part of this source merge.
+
+Desktop 0.6.1 has 121 passing unit tests, off-screen shared-canvas checks, delayed
+acknowledgment drag/resize, full screen/Escape, selection-aware prompts, and SVG/PNG
+exports to disk or shared conversation files. One real native model request moved
+only the selected object and Undo restored it. Mobile selection-aware prompting and
+export controls remain follow-up work; these desktop features are not claimed as
+implemented mobile controls.
 
 The desktop's original drawing files and history remain unchanged after import.
-The desktop 0.5.0 launcher and local canvas extension are installed; this branch
-is a separate mobile preview so concurrent Kanban development is preserved.
+The primary phone app remains on its existing release. Development returns to
+desktop parity after this source merge. Separate plugins are not consolidated or
+deployed as part of it; the user continues to manage Moe updates.

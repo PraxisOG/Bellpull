@@ -140,7 +140,7 @@ class CanvasDeviceTest {
                 assertEquals("Desktop reply", ok(client.canvas(session)).document!!.content.nodes[1].label)
             }
             // Keep the separate preview connected for manual inspection; primary app is untouched.
-            SecureConnectionStore(app).apply { if (active() == null) save(origin, token) }
+            SecureConnectionStore(app).apply { if (loadUrl() != origin) save(origin, token) }
             ActivityScenario.launch(MainActivity::class.java).use {
                 ui.tapText("Shared canvas integration check")
                 ui.await("Conversation menu missing") { ui.find { it.packageName?.toString() == app.packageName && it.contentDescription?.toString() == "More options" } != null }

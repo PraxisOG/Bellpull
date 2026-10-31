@@ -17,6 +17,17 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-31, shared Canvas merge):** the user requested
+merging the working mobile Canvas changes before returning to desktop development.
+Integrate into the latest experimental source based on published 0.18.2/build47,
+preserving Kanban. The combined source is 0.19.0/build48 with plugin
+0.8.2-canvas-v1-preview. Push and merge the source and record the outstanding
+acceptance in issue #38 and `docs/SHARED-CANVAS.md`. This request does not require
+another phone installation, release-asset publication or server deployment.
+Preserve the primary phone app/data and separately managed plugins; focus subsequent
+feature work on desktop. The latest tailnet test's conversation-menu assertion
+remains unresolved and must not be represented as a passing full-device check.
+
 **Current task authority (2026-10-31, experimental publication):** the user requested
 "push to github as the latest experimental" after the Kanban audit. Publish the
 verified app 0.18.2/build47 and compatible plugin 0.8.1 as the prerelease

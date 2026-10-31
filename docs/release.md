@@ -1,3 +1,19 @@
+## Experimental Canvas source integration — 0.19.0 / build 48
+
+Combines the published 0.18.2 Kanban release with shared conversation Canvas and
+plugin **0.8.2-canvas-v1-preview**. Desktop and mobile use the same native tool,
+authenticated snapshots and streamed committed changes, retaining existing chat
+identity. Mobile adds touch editing, collapsed Drawing details, full-screen
+controls, cached viewing and Undo/Redo. The source is merged into the current
+experimental branch; no new APK/release assets or server deployment are included.
+
+The combined debug app and instrumentation build pass, with 37 model and 49 client
+tests completing without failures (one existing skip). Earlier isolated phone
+checks passed. The latest HTTPS/Tailscale test reached shared editing/reconnect
+but failed its subsequent main-conversation Canvas-opening assertion; that check
+remains unresolved. Mobile selection-aware prompts and export controls are still
+follow-up work. [Contract, validation and limitations](SHARED-CANVAS.md).
+
 ## Experimental native Kanban release — 0.18.2 / build 47
 
 Publishes native board/list/detail views, task creation and field editing, comments,
