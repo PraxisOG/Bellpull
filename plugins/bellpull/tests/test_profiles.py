@@ -51,6 +51,13 @@ class ProfileTest(unittest.IsolatedAsyncioTestCase):
                         self.assertIn("belongs to " + name, (await response.json())["text"])
                     response = await client.post(a + "/api/sessions", headers=headers["alpha"], json={})
                     session = (await response.json())["session"]["id"]
+                    canvas_path = f"/api/bellpull/sessions/{session}/canvas"
+                    canvas_body = {"action": "create", "canvas_id": "profile-canvas", "operation_id": "profile-create", "name": "Alpha only"}
+                    self.assertEqual(401, (await client.post(a + canvas_path, headers=headers["beta"], json=canvas_body)).status)
+                    self.assertEqual(200, (await client.post(a + canvas_path, headers=headers["alpha"], json=canvas_body)).status)
+                    self.assertEqual(404, (await client.get(b + canvas_path, headers=headers["beta"])).status)
+                    canvas_snapshot = await (await client.get(a + canvas_path, headers=headers["alpha"])).json()
+                    self.assertEqual("Alpha only", canvas_snapshot["document"]["name"])
                     project = "b" * 32
                     import uuid
                     response = await client.post(a + "/api/bellpull/projects", headers=headers["alpha"], json={

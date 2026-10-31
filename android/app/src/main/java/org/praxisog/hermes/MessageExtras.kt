@@ -70,7 +70,9 @@ private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, onCl
 /** The original message remains the source for copy, selection, quotes and edits. */
 @Composable
 internal fun UserMessageText(text: String) {
-    val (body, notificationContext) = remember(text) { splitPhoneNotificationContext(text) }
+    val (withoutCanvas, drawingContext) = remember(text) { org.praxisog.hermes.model.splitCanvasContext(text) }
+    if (drawingContext != null) DrawingDisclosure(drawingContext, "Drawing context")
+    val (body, notificationContext) = remember(withoutCanvas) { splitPhoneNotificationContext(withoutCanvas) }
     if (notificationContext != null) {
         var expanded by rememberSaveable(notificationContext) { mutableStateOf(false) }
         CompactDisclosure(if (expanded) "Phone notification context ▴" else "Phone notification context ▾",
@@ -96,6 +98,22 @@ internal fun UserMessageText(text: String) {
             }
         }
         if (voice.body.isNotEmpty()) Text(voice.body, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+internal fun DrawingDisclosure(text: String, title: String = "Drawing") {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().responseRowEdges()) {
+        CompactDisclosure(title + if (expanded) " ▴" else " ▾", Modifier.testTag("drawing-disclosure")) { expanded = !expanded }
+        if (expanded) SelectionContainer { Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp)) }
+    }
+}
+
+@Composable
+internal fun CanvasMessageText(text: String, modifier: Modifier = Modifier) {
+    org.praxisog.hermes.model.canvasMessageParts(text).forEach { part ->
+        if (part.drawing) DrawingDisclosure(part.text) else if (part.text.isNotBlank()) MarkdownAnswer(part.text, modifier)
     }
 }
 

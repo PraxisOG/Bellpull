@@ -1,3 +1,10 @@
+# Shared Canvas v1 — development
+
+The shared-canvas branch implements the authenticated `bellpull_canvas` tool,
+session canvas snapshots/mutations, and committed SSE updates. See
+[the exact wire and recovery contract](SHARED-CANVAS.md). Capability discovery
+gates clients; these routes are not assumed on older deployments.
+
 # Phase 8/9 experimental planning contract — 2026-10-12
 
 These are new **Bellpull-owned** routes, implemented in this branch's

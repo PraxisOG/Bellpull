@@ -41,6 +41,16 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    fun readCanvas(id: String): org.praxisog.hermes.model.CanvasSnapshot? = runCatching {
+        json.decodeFromString<org.praxisog.hermes.model.CanvasSnapshot>(preferences.getString("canvas:$id", null)!!).validated(id)
+    }.getOrNull()
+    @Synchronized fun writeCanvas(id: String, value: org.praxisog.hermes.model.CanvasSnapshot) {
+        if (closed) return
+        val edit = preferences.edit().putString("canvas:$id", json.encodeToString(value))
+        val old = preferences.all.keys.filter { it.startsWith("canvas:") && it != "canvas:$id" }
+        old.drop(19).forEach(edit::remove)
+        edit.apply()
+    }
     override fun readUntitled(): Set<String> =
         preferences.getString("untitled-app-sessions", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
     override fun writeUntitled(ids: Set<String>) { if (!closed) preferences.edit().putString("untitled-app-sessions", ids.joinToString(",")).apply() }

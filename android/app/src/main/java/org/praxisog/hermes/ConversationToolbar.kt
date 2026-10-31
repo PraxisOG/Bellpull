@@ -36,6 +36,7 @@ internal fun ConversationToolbar(
     onOffline: (() -> Unit)? = null,
     onNewLocal: (() -> Unit)? = null,
     onActivity: (() -> Unit)? = null,
+    onCanvas: (() -> Unit)? = null,
     thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -91,6 +92,8 @@ internal fun ConversationToolbar(
                             )
                             DropdownMenuItem(text = { Text("Prompt history") }, enabled = hasSession && hasHistory,
                                 onClick = { menuOpen = false; onPrompts() })
+                            if (onCanvas != null) DropdownMenuItem(text = { Text("Canvas") }, enabled = hasSession,
+                                modifier = Modifier.testTag("open-shared-canvas"), onClick = { menuOpen = false; onCanvas() })
                             DropdownMenuItem(text = { Text("Search in chat") }, enabled = hasSession && hasHistory,
                                 onClick = { menuOpen = false; onSearch() })
                             if (onOffline != null) DropdownMenuItem(text = { Text("Create local fork") }, enabled = hasSession,

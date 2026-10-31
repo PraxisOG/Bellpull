@@ -82,7 +82,8 @@ android {
 
     defaultConfig {
         // Device fixtures use a separate sandbox; personal profiles are never loaded.
-        applicationId = if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true")
+        applicationId = if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") "org.praxisog.hermes.canvasfixture"
+            else if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true")
             "org.praxisog.hermes.fixture" else "org.praxisog.hermes"
         minSdk = 29
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -95,6 +96,8 @@ android {
         targetSdk = 37
         versionCode = 44
         versionName = "0.15.1-experimental"
+        if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") versionName = "0.16.0-canvas-preview"
+        manifestPlaceholders["bellpullAppLabel"] = if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") "Bellpull Canvas" else "Bellpull"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

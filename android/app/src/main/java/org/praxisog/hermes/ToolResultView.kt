@@ -45,6 +45,7 @@ internal fun toolDisplayName(name: String?): String = when (name?.lowercase(Loca
     "edit_file", "patch_file" -> "Edit file"
     "list_directory", "list_files" -> "Browse files"
     "terminal" -> "Terminal"
+    "bellpull_canvas" -> "Drawing"
     else -> name.replace('_', ' ').replaceFirstChar { it.titlecase(Locale.ROOT) }
 }
 
