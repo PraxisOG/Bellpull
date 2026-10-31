@@ -9,7 +9,7 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.15.1-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.18.2-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
 [**Build this experiment**](docs/BUILDING.md) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](docs/release.md)
@@ -40,6 +40,7 @@ the project, coding and calendar panels show the development preview.*
 | Area | What you can do |
 | :--- | :--- |
 | **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
+| **Native tasks** | Browse native Kanban boards, create tasks in triage, edit task fields, add comments, park unclaimed cards in triage/blocked, and recover offline drafts and edits. [Scope and validation](docs/PHASE-18-KANBAN.md). |
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
@@ -58,9 +59,11 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.15.1-experimental / build 44**
-> pairs with Bellpull plugin **0.7.0-integration-preview**. Server features need
-> the plugin and compatible Hermes capabilities. Phase 10's delivery framework
+> **This is an experimental prerelease:** Android **0.18.2-experimental / build 47**
+> pairs with Bellpull plugin **0.8.1-integration-preview**. Server features need
+> the plugin and compatible Hermes capabilities. This Kanban build is local; the
+> download links below still point to the prior published release. See the
+> [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework
 > and Phase 11's overview are included, plus Phase 12's opt-in notification history and context, the Phase 13 local LLM lab, and Phase 14 offline forks and reconnection.
 > 0.15.1 repairs the Reply notifications switch and Choose default assistant button.
 > [Settings repairs and validation](docs/RELEASE-0.15.1-EXPERIMENTAL.md).
@@ -82,7 +85,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.1-experimental.1), or [build this branch](docs/BUILDING.md) for the new assistant/context experiment.
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.15.1-experimental.1), or [build this branch](docs/BUILDING.md) for the new Kanban experiment.
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -162,7 +165,7 @@ be run indiscriminately against a configured personal app.
 | Read first | Purpose |
 | :--- | :--- |
 | [Build from source](docs/BUILDING.md) | Recursive clone, complete source archive, pinned dependencies and signing. |
-| [Phase roadmap](docs/ROADMAP.md) | Phases 0–17, revised scope and honest implementation status. |
+| [Phase roadmap](docs/ROADMAP.md) | Implementation status and active work: native Hermes Kanban (Phase 18). |
 | [Handoff](docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
 | [API contract](docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
 | [Repository instructions](CLAUDE.md) | Scope, dependencies and deployment boundaries. |

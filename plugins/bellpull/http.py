@@ -8,7 +8,7 @@ import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context
+from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context, kanban
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -108,6 +108,8 @@ def wire(app, adapter):
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
                 "bellpull_canvas": projects_ready and canvas.available(),
+                "bellpull_kanban": files_ready and kanban.supported(),
+                "bellpull_kanban_editing": files_ready and kanban.editing_supported(),
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,
@@ -185,6 +187,8 @@ def wire(app, adapter):
 
     routes = [("GET", "/api/bellpull/capabilities", capabilities)]
     routes.extend(speech.routes())
+    if files_ready and kanban.supported():
+        routes.extend(kanban.routes(adapter))
     if projects_ready:
         routes.extend(coding.routes())
     if projects_ready:

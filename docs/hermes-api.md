@@ -1096,3 +1096,108 @@ interruption paths — only that an API stop does not set it.)
 not behave as documented. It does stop the turn, reliably and fast, which is the part that
 matters; only the labelling is wrong, and the client can label it correctly from what it
 already knows. Shipping a working stop with client-side state is better than no stop.
+# Bellpull native Kanban extension — October 31, 2026
+
+Implemented by `plugins/bellpull/kanban.py`; discovery is
+`features.bellpull_kanban=true`. Plugin 0.8.1 adds
+`features.bellpull_kanban_editing=true` when native task creation supports nested
+transactions. Both contracts have been tested on Hermes 0.21.1 and 0.21.5.
+The normal bearer and native `/p/{profile}` prefix
+apply to all routes. No dashboard authentication or model inference is involved.
+The native source inspected in the isolated Hermes 0.21.1 image is
+`hermes_cli/kanban_db.py` plus `kanban_db_connect.py`. Native boards are shared
+across profiles within an installation; the app's caches remain connection/profile
+isolated. `owner_id` identifies that installation and `board.id` its persistent
+database incarnation. Both must match on every mutation. `owner_name` uses
+`BELLPULL_DEVICE_NAME` or the host name. Separate installations remain separate
+authorities; switching a server never transfers pending operations.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/bellpull/kanban/boards` | `{version:1, boards:[Board], observed_at_ms}` |
+| GET | `/api/bellpull/kanban/boards/{slug}` | `{version:1, board, columns, tasks, total, complete, observed_at_ms}` |
+| GET | `/api/bellpull/kanban/boards/{slug}/tasks/{id}` | `{version:1, board, task, observed_at_ms}` with task details |
+| POST | `/api/bellpull/kanban/boards/{slug}` | Create/edit a task or apply a move/comment; returns an operation receipt |
+| GET | `/api/bellpull/kanban/boards/{slug}/operations/{id}` | Recover a receipt, or `{version:1, board, operation_id, state:"not_found"}` |
+
+`Board`: `id` (32 hex), `slug`, `name`, `description`, `archived`, `owner_id`
+(64 hex), `owner_name`, `scope:"installation"`, `can_create` (false on archived or
+unsupported boards; absent means false). Slugs match
+`[a-z0-9][a-z0-9_-]{0,63}`. Task IDs match `[a-zA-Z0-9_-]{1,128}`.
+Native columns are triage, todo, scheduled, ready, running, blocked, review, done,
+archived. Snapshots include the newest 500 tasks with an explicit total/completeness
+flag; clients must label a bounded result. Board lists support up to 100 boards.
+
+Tasks carry `id`, `title`, `status`, `revision` (opaque SHA-256), `assignee`,
+`project_id`, `session_id`, `priority`, `current_run_id`, `allowed_moves`, `editable`, `body`
+and `result` (snapshot excerpts, max 1,000 characters). Detail adds `comments`
+(latest 50, id/author/body/created_at), `runs` (latest 20, id/profile/status/outcome/
+summary/error/started_at/ended_at), `parents` and `children` (up to 100 each),
+`files` (latest 50, id/filename/path/size/device/hash), and `details_complete`.
+Detail prose is capped at 16,384 characters with truncation disclosed. Native file
+references do not supply hashes: `hash:null` means unknown; content is not copied.
+Native run IDs identify task attempts, not automatically gateway `/v1/runs` IDs.
+
+A mutation contains `operation_id` (32 hex), `owner_id`, `board_id`, `task_id`,
+`expected_revision`, and either `action:"comment", comment` (1–8,000 characters)
+or `action:"move", status`. Only advertised moves into **triage** or **blocked**
+are currently implemented, and only for unclaimed triage/todo/scheduled/ready/
+blocked tasks without an active run. They park work; they never release dependency
+gates, launch/stop a worker, archive results, or claim execution. Native status
+events record these transitions. Running/review/done/archived tasks remain readable
+and commentable; other lifecycle controls require a later explicit contract.
+
+Plugin 0.8.1 also accepts `action:"create"` and `action:"edit"`, each with exactly
+four required `fields`: `title` (nonblank, at most 500 characters; trimmed), `body`
+(at most 16,384 characters), `assignee` (null or a lowercase Hermes profile slug),
+and `priority` (signed 32-bit integer; higher values sort first). These operations
+cannot include a move or comment. JSON payloads are limited to 80,000 UTF-8 bytes
+after normalization with unescaped Unicode.
+Text limits count Unicode code points, matching Python's `len`; Android 0.18.2
+matches those limits and preserves complete surrogate pairs when limiting input.
+Task reads preserve native signed 64-bit priorities. Values outside the editing
+range remain readable with `editable=false`.
+
+Creation uses a client-local `task_id` of `draft_` plus 32 lowercase hex characters,
+and `expected_revision` of 64 zeros. The separate operation ID remains stable
+through delivery/recovery. Native `create_task(..., triage=True)` assigns the real
+task ID, which the applied receipt supplies; clients must adopt that ID and must
+not GET the local draft as a native task. Creation and its receipt commit together.
+The task must remain in triage and retain the board's project association; otherwise
+creation is rolled back and a conflict receipt is saved. Creation never dispatches
+work. An unresolved owning project is a conflict, not a silently dropped link.
+
+Editing uses the task revision captured when its form was opened. `editable=true`
+requires an unclaimed, inactive triage/todo/scheduled/ready/blocked task whose full
+editable fields fit the mobile limits. Fetch full detail before opening its form;
+snapshot bodies are excerpts. Missing `editable` means false. Changes preserve
+lifecycle fields, record native update/assignment events and reset native assignment
+failure bookkeeping when the assignee changes. They invoke no execution hooks.
+
+Receipts contain `version`, `board`, `operation_id`, `state` (applied/conflict),
+`message`, current detailed `task`, and `observed_at_ms`. Applied receipts always
+contain a task; creation conflicts have `task:null`. An archived board, stale
+revision or unavailable move yields a persisted conflict receipt without mutation.
+Receipts and native task/comment/event writes commit in **one native-board SQLite
+transaction** using plugin-prefixed tables. Identical retries return the saved
+receipt; changed payload with the same ID returns 409. Receipts are retained, with
+admission stopped at 20,000 rather than evicting recovery evidence. Lost responses
+must be resolved by receipt lookup. On same-owner/same-board `not_found`, retry of
+the exact operation is safe: concurrent/in-flight attempts serialize at this same
+transaction boundary. Never infer success from a transport error or card appearance.
+
+Clients durably record pending edits before any request. Form drafts persist the
+original revision; background refresh cannot authorize overwriting a newer task.
+Pending creations are marked local until confirmed, including in Today. Unsent
+offline edits may be edited/cancelled. Queue edits must recheck delivery state under
+the synchronization lock; a stale UI item cannot remove an unknown operation.
+Queue/form capacity is also checked under that lock. A late editor callback cannot
+recreate a submitted or discarded form. A 404/410 for an unsent task lookup retains
+that edit as a conflict; unavailable receipts or admitted writes remain unknown.
+These per-task failures do not prevent unrelated queued tasks from synchronizing.
+Reconnect first refreshes and validates current task revision (or board creation support);
+stale edits require review. Sent-but-unresolved operations remain unknown until
+receipt recovery; cancelling a local item cannot revoke an admitted operation.
+400/404/409/410/413/503 errors use the existing Bellpull error envelope. Capability
+absence leaves cached reading available and remote writes disabled. No push feed
+is promised; foreground polling and explicit refresh use these GET routes.

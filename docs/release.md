@@ -1,3 +1,51 @@
+## Local Kanban reliability repair — 0.18.2 / build 47
+
+Fixes deleted tasks blocking unrelated edits, queue overflow during rapid actions,
+late callbacks recreating submitted drafts, Unicode text-limit mismatches and
+decoding native priorities outside the mobile editing range. Queue identities,
+unsent text and original draft revisions remain durable. Plugin runtime code stays
+at **0.8.1-integration-preview**; the test gateway needs no new deployment.
+
+Six regression cases reproduced the failures before repair. The native Unicode/
+priority contract is also covered on stock Hermes. This increment is local and
+unpublished; Moe remains a manual user deployment. Artifacts are under
+`/home/praxisog/Bellpull-builds/kanban-bugfix-development/`.
+Validation: 796 JVM tests, 200 plugin tests, 199 screenshot baselines and all four
+physical Kanban tests passed. JVM and plugin suites each retain one skip. Lint has
+zero errors; debug and signed release assembly pass. The existing test gateway's
+Canvas/Kanban capabilities and matching Kanban runtime were verified read-only.
+Signed build47 is installed in place with matching release bytes and preserved
+signing identity, app UID, data directories and original installation time.
+[Implementation and validation](PHASE-18-KANBAN.md#validation).
+
+## Local Kanban creation/editing build — 0.18.1 / build 46
+
+Adds creation in triage and edits to title, description, assignee profile and
+priority. Encrypted forms retain their original revision through refresh/restart;
+queued creations recover the native task ID from atomic receipts. Active work
+cannot be edited, and stale UI actions cannot discard unknown delivery.
+Requires standard plugin **0.8.1-integration-preview** for the new controls.
+
+The local test Hermes was updated while preserving its separately developed Canvas
+preview, configuration and 68 sessions. Its composite plugin reports
+`0.6.1-canvas-v1-preview+kanban.0.8.1`. Moe remains a manual user deployment.
+Signed build46 is installed in place on the Pixel 10 Pro Fold with matching APK
+bytes, signing identity, app UID and data directories. Validation: 789 JVM tests,
+199 screenshot baselines and all three physical Kanban tests passed; lint has zero
+errors. The plugin suite passed 199 tests with one skip; JVM checks also have one
+opt-in skip. The test gateway passed create/edit/conflict/receipt checks without execution.
+Local artifacts are under `/home/praxisog/Bellpull-builds/kanban-editing-development/`.
+This increment has not been published.
+[Implementation, validation and remaining scope](PHASE-18-KANBAN.md).
+
+## Initial Kanban development build — 0.18.0 / build 45
+
+Adds native task board/list/detail views, comments, non-executing moves to triage or
+blocked, encrypted offline queues with receipt recovery, and a Today task preview.
+Requires matching plugin **0.8.0-integration-preview** on a compatible Hermes host.
+[Implementation, validation and remaining scope](PHASE-18-KANBAN.md).
+This local build was installed in place before the creation/editing increment.
+
 ## Settings controls — app 0.15.1 / build 44
 
 Reply notifications can now be enabled on stock Hermes without a push relay,

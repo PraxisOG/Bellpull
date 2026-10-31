@@ -115,6 +115,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var projects by mutableStateOf<ProjectWorkspace?>(null)
         private set
+    var kanban by mutableStateOf<KanbanWorkspace?>(null)
+        private set
     var coding by mutableStateOf<CodingActivityWorkspace?>(null)
         private set
     var delivery by mutableStateOf<DeliveryWorkspace?>(null)
@@ -146,6 +148,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         if (profileId == id) return
         disconnect()
         cache = SessionCache(context, id)
+        kanban = KanbanWorkspace(scope, cache!!)
         profileId = id
         phoneContext = PhoneContextSync(context, id, cache!!)
         offlineWorkspace = OfflineWorkspace(context, id, phoneContext = { phoneContext?.localContext().orEmpty() }) { client.takeIf { profileId == id } }
@@ -158,6 +161,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         this.capabilities = capabilities
         syncOfflineMemory()
         client.configureCapabilities(capabilities)
+        kanban?.configure(client, capabilities.features["bellpull_kanban"] == true)
         phoneContext?.configure(client, capabilities.features["bellpull_phone_context"] == true)
         notificationEventsAvailable = capabilities.notificationEvents
         val receipts = ConversationReadState(cache?.readReceipts().orEmpty())
@@ -237,6 +241,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
+            kanban?.configure(current, result.value.features["bellpull_kanban"] == true)
             phoneContext?.configure(current, result.value.features["bellpull_phone_context"] == true)
             syncOfflineMemory()
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
@@ -305,6 +310,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         context.stopService(android.content.Intent(context, VoiceService::class.java))
         projects?.close()
         projects = null
+        kanban?.close(); kanban = null
         phoneContext?.close(); phoneContext = null
         planning?.close()
         canvas?.close(); canvas = null

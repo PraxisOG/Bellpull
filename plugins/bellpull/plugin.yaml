@@ -1,5 +1,5 @@
 name: bellpull
-version: 0.7.0-canvas-v1-preview
+version: 0.8.2-canvas-v1-preview
 description: Bellpull authenticated Android API, atomic branches, files, models, wake hints and optional GPU telemetry.
 author: Bellpull
 kind: standalone

@@ -17,6 +17,24 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-31, Kanban bug audit):** the user asked what is
+next and to check for bugs again. Audit and repair the existing Kanban flow before
+adding execution controls. Branch `fix/kanban-reliability-0182`, app 0.18.2/build47;
+plugin runtime stays 0.8.1. Continue signed in-place phone upgrades and fixture tests,
+preserving personal data and unrelated Canvas fixtures. The local test gateway's
+Canvas/Kanban bundle remains compatible and needs no runtime update. Moe remains
+manual and this increment is not authorized for GitHub publication.
+
+**Current task authority (2026-10-31, mobile Kanban):** implement native task
+creation/field editing after the initial board/comment/move slice, with durable
+offline drafts and receipt recovery. Branch `feature/mobile-kanban-editing-0181`,
+app 0.18.1/build46 and standard plugin 0.8.1. The user said: "I manually update
+moe, update the test hermes for testing." Update only the local test Hermes,
+preserving its existing Canvas preview, configuration, sessions and model defaults.
+Continue fixture-device validation and signed in-place phone upgrades with personal
+data intact. Moe deployment is manual; no GitHub publication is requested for this
+increment. Earlier publication permissions below describe historical tasks.
+
 **Current task authority (2026-10-23, voice speaker):** make Telecom voice mode
 use the phone loudspeaker instead of its earpiece, preserving car/headset routes.
 Branch `fix/voice-speaker-01410`, app 0.14.10/build42; plugin stays 0.6.2.

@@ -31,6 +31,7 @@ import kotlinx.coroutines.delay
 @Composable internal fun PlanningScreen(workspace: PlanningWorkspace, foreground: Boolean,
     store: HermesStore? = null, onOpenSession: (String) -> Unit = {}, inboxRevision: Int = 0,
     clock: () -> Long = { System.currentTimeMillis() },
+    tasks: (@Composable () -> Unit)? = null,
     requestPermission: (Boolean) -> Unit) {
     DisposableEffect(workspace,foreground) { workspace.open(foreground); onDispose { workspace.open(false) } }
     val delivery = workspace.delivery
@@ -101,7 +102,7 @@ import kotlinx.coroutines.delay
                 onReminder={ reminder, action -> workspace.reminder(reminder,action,if (action=="snooze") clock()+3_600_000L else null) },
                 onEvent={ selectedEvent=it },onProposal={ proposal=it },onOpenSession=onOpenSession,
                 onCalendar={ tab="Calendar" },onReminders={ tab="Reminders" },onInbox={ tab=if (delivery!=null) "Inbox" else "Reminders" },
-                modifier=Modifier.weight(1f),busy=workspace.busy)
+                modifier=Modifier.weight(1f),busy=workspace.busy,tasks=tasks)
         } else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         if (delivery == null) Text("Planning prototype · reminders need this view for now; background/offline alerts belong to Phase 10.",style=MaterialTheme.typography.bodySmall)
         else {
