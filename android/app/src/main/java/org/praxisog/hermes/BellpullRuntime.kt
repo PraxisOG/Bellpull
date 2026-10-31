@@ -123,6 +123,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var planning by mutableStateOf<PlanningWorkspace?>(null)
         private set
+    var canvas by mutableStateOf<CanvasWorkspace?>(null)
+        private set
     var capabilities by mutableStateOf<HermesClient.Capabilities?>(null)
         private set
     var notificationEventsAvailable by mutableStateOf(false)
@@ -181,6 +183,7 @@ internal class BellpullRuntime private constructor(context: Context) {
                 PhoneNotificationRepository.get(context).contextFor(contextProfile, query) else null
         }
         store = next
+        canvas = cache?.let { CanvasWorkspace(scope, client, it, capabilities.features["bellpull_canvas"] == true) }
         coding = CodingActivityWorkspace(scope, client, cache?.let { saved -> object : CodingCache {
             override fun readCoding(id: String) = saved.readCoding(id)
             override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
@@ -243,6 +246,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             syncOfflineMemory()
             coding?.configure(result.value.features["bellpull_coding_activity"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
+            canvas?.supported = result.value.features["bellpull_canvas"]==true
             delivery?.supported = result.value.features["bellpull_planning"]==true
             projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true, result.value.features["bellpull_background_folder"] == true)
             store?.backgroundFolders = result.value.features["bellpull_background_folder"] == true
@@ -309,6 +313,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         kanban?.close(); kanban = null
         phoneContext?.close(); phoneContext = null
         planning?.close()
+        canvas?.close(); canvas = null
         planning = null
         capabilities = null
         phase3?.close()

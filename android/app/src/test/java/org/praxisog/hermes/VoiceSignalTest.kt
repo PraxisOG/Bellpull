@@ -6,6 +6,15 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class VoiceSignalTest {
+    @Test fun streamedCanvasCommandsNeverBecomeSpokenSentences() {
+        val chunks = VoiceSentences()
+        val raw = "Here is the drawing.\n\n{\"format\":\"bellpull.canvas.patch\",\"version\":1,\"operations\":[{\"type\":\"rename\",\"name\":\"PRIVATE DRAWING. MORE PRIVATE.\"}]}\n\nAll done."
+        val spoken = mutableListOf<String>()
+        for (end in 1..raw.length) spoken += chunks.take(raw.take(end))
+        spoken += chunks.take(raw, true)
+        assertEquals(listOf("Here is the drawing.", "All done."), spoken)
+        assertFalse(speechText(raw).contains("PRIVATE"))
+    }
     @Test fun voicePresetHonorsDetailedRequestsWithoutLengthLimits() {
         assertTrue(VOICE_PRESET.contains("honor their requested depth and length"))
         assertFalse(VOICE_PRESET.contains("180"))

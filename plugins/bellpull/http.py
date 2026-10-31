@@ -15,6 +15,7 @@ from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
 from .speech import SpeechProxy
+from . import canvas
 
 
 def wire(app, adapter):
@@ -106,6 +107,7 @@ def wire(app, adapter):
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
+                "bellpull_canvas": projects_ready and canvas.available(),
                 "bellpull_kanban": files_ready and kanban.supported(),
                 "bellpull_kanban_editing": files_ready and kanban.editing_supported(),
                 "bellpull_conversation_pins": projects_ready,
@@ -191,6 +193,7 @@ def wire(app, adapter):
         routes.extend(coding.routes())
     if projects_ready:
         routes.extend(projects.routes(adapter))
+        if canvas.available(): routes.extend(canvas.routes(adapter, lambda: active))
         routes.extend(planning.routes(adapter))
     if context_ready:
         routes.extend(phone_context.routes(adapter))

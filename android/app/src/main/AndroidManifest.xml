@@ -39,7 +39,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Bellpull"
+        android:label="${bellpullAppLabel}"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Hermes"
         android:supportsRtl="true"

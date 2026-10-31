@@ -296,7 +296,7 @@ class MainActivity : ComponentActivity() {
                             else { localSelected = false; if (current == null) exampleId = BellpullExample.ID else current.openSession(id) }
                         },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
-                        onSend = { text -> current?.let { if (files != null) files.send(it, text) else it.send(text) } ?: false }, onStop = { current?.stop() },
+                        onSend = { text -> current?.let { val prompt = runtime.canvas?.prepare(text) ?: text; if (files != null) files.send(it, prompt) else it.send(prompt) } ?: false }, onStop = { current?.stop() },
                         onRetrySessions = { current?.loadSessions() }, onRetryHistory = { current?.refreshHistory() },
                         onNewSession = { preview = null; if (isOffline) newLocal() else { localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() } },
                         creatingSession = if (isOffline) offlineState.busy else current?.creatingSession ?: false,
@@ -335,6 +335,7 @@ class MainActivity : ComponentActivity() {
                         onDismissBranchError = { current?.dismissBranchError() },
                         disconnected = current == null, settingsRevision = profiles.settingsRevision,
                         coding = runtime.coding,
+                        canvas = runtime.canvas,
                         extraTools = runtime.client?.let { client -> {
                             FileSharingStatus(files?.filesSupported == true, files?.runAttachmentsSupported == true,
                                 runtime::refreshCapabilities)

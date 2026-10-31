@@ -1,12 +1,14 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.8.1-integration-preview"
+VERSION = "0.8.2-canvas-v1-preview"
 
 
 def register(ctx):
     from .http import wire
     from .sharing import register as register_sharing
     register_sharing(ctx)
+    from .canvas import register as register_canvas
+    register_canvas(ctx)
     from .planning import register as register_planning
     register_planning(ctx)
     from .phone_context import register as register_context

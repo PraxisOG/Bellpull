@@ -113,6 +113,7 @@ internal fun HermesApp(
     localLlmSettings: (@Composable () -> Unit)? = null,
     assistantSettings: (@Composable () -> Unit)? = null,
     coding: CodingActivityWorkspace? = null,
+    canvas: CanvasWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
     onOffline: (() -> Unit)? = null,
     onNewLocal: (() -> Unit)? = null,
@@ -120,6 +121,9 @@ internal fun HermesApp(
     localChat: (@Composable () -> Unit)? = null,
     fallbackBanner: (@Composable () -> Unit)? = null,
 ) {
+    LaunchedEffect(canvas, openSessionId, foreground, canvas?.visible, canvas?.supported) {
+        canvas?.observe(openSessionId, foreground && canvas.visible)
+    }
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected && projects?.selectedProject == null) }
@@ -273,6 +277,7 @@ internal fun HermesApp(
                                 onSettings = openSettings,
                                 onArtifacts = { artifactsOpen = true },
                                 onActivity = if (coding != null) ({ activityOpen = true }) else null,
+                                onCanvas = canvas?.takeIf { it.supported }?.let { workspace -> { workspace.visible = !workspace.visible; showContext = false; infoSheet = false } },
                                 thinkingMenu = if (mode == WorkspaceMode.CHATS && localChat == null) thinkingMenu else null,
                                 onOffline = onOffline, onNewLocal = onNewLocal,
                                 onShare = if (history is UiState.Ready && history.value.isNotEmpty()) ({
@@ -280,7 +285,7 @@ internal fun HermesApp(
                                         .joinToString("\n\n") { "${if (it.role == "user") "You" else "Hermes"}:\n${it.content}" })
                                 }) else null,
                                 showContext = sideBySide && showContext,
-                                onContext = { if (sideBySide) showContext = !showContext else infoSheet = true })
+                                onContext = { canvas?.visible = false; if (sideBySide) showContext = !showContext else infoSheet = true })
                             if (mode == WorkspaceMode.CHATS) fallbackBanner?.invoke()
                             if (createError != null) NewChatFailure(createError)
                             when (mode) {
@@ -335,18 +340,19 @@ internal fun HermesApp(
                     }
                     if (sideBySide) {
                         Row(Modifier.fillMaxSize()) {
-                            SlidingPane(showList && previewPane == null, fromLeft = true, animate = animate) {
+                            SlidingPane(showList && previewPane == null && canvas?.visible != true, fromLeft = true, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     listPane(Modifier.width(240.dp).fillMaxHeight())
                                     VerticalDivider()
                                 }
                             }
-                            detailPane(Modifier.weight(1f).fillMaxHeight())
-                            SlidingPane(previewPane != null || (showContext && openSessionId != null && mode == WorkspaceMode.CHATS && localChat == null),
+                            if (canvas?.visible != true || !canvas.fullScreen) detailPane(Modifier.weight(1f).fillMaxHeight())
+                            SlidingPane(canvas?.visible == true || previewPane != null || (showContext && openSessionId != null && mode == WorkspaceMode.CHATS && localChat == null),
                                 fromLeft = false, animate = animate) {
                                 Row(Modifier.fillMaxHeight()) {
                                     VerticalDivider()
-                                    if (previewPane != null) previewPane(Modifier.width(360.dp).fillMaxHeight())
+                                    if (canvas?.visible == true) CanvasScreen(canvas, if (canvas.fullScreen) Modifier.fillMaxSize() else Modifier.width(400.dp).fillMaxHeight()) { canvas.visible = false }
+                                    else if (previewPane != null) previewPane(Modifier.width(360.dp).fillMaxHeight())
                                     else ContextPanel(openSession, now, onDisconnect = if (serverProfiles != null) openSettings else onDisconnect,
                                         modifier = Modifier.width(200.dp).fillMaxHeight(), onClose = { showContext = false }, modelControl = modelControl)
                                 }
@@ -366,7 +372,16 @@ internal fun HermesApp(
                         }
                     }
                     if (!sideBySide && previewPane != null) previewPane(Modifier.fillMaxSize())
+                    if (!sideBySide && canvas?.visible == true) {
+                        if (canvas.fullScreen) androidx.compose.ui.window.Dialog(onDismissRequest = { canvas.fullScreen = false },
+                            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                            CanvasScreen(canvas, Modifier.fillMaxSize().safeDrawingPadding()) { canvas.visible = false }
+                        } else ModalBottomSheet(onDismissRequest = { canvas.visible = false }) {
+                            CanvasScreen(canvas, Modifier.fillMaxWidth().fillMaxHeight(.9f)) { canvas.visible = false }
+                        }
+                    }
                     previewDialog?.invoke()
+                    BackHandler(enabled = sideBySide && canvas?.visible == true && canvas.fullScreen) { canvas?.fullScreen = false }
                 }
             }
         }

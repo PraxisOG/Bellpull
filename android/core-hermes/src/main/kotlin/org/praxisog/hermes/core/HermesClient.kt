@@ -104,6 +104,23 @@ class HermesClient(
 
     // ---- endpoints ------------------------------------------------------------
 
+    private fun canvasPath(session: String): String {
+        require(session.matches(Regex("[a-zA-Z0-9_-]{1,200}")))
+        return "/api/bellpull/sessions/$session/canvas"
+    }
+    fun canvas(session: String): HermesResult<CanvasSnapshot> = get(canvasPath(session)) {
+        json.decodeFromString<CanvasSnapshot>(it).validated(session)
+    }
+    fun canvasEdit(session: String, body: JsonObject): HermesResult<CanvasSnapshot> = post(canvasPath(session), body.toString()) {
+        json.decodeFromString<CanvasSnapshot>(it).validated(session)
+    }
+    fun canvasEvents(session: String, onStart: (Streaming) -> Unit, onSnapshot: (CanvasSnapshot) -> Unit): HermesResult<Unit> = try {
+        events(canvasPath(session) + "/events", onStart) { event ->
+            if (event is StreamEvent.Unknown && event.event in setOf("canvas.reset", "canvas.committed"))
+                onSnapshot(json.decodeFromString<CanvasSnapshot>(event.raw.getValue("snapshot").toString()).validated(session))
+        }
+    } catch (_: IllegalArgumentException) { HermesResult.Err(HermesError.MalformedResponse("Invalid shared canvas event.")) }
+
     fun offlineMemory(): HermesResult<OfflineMemory> = get("/api/bellpull/offline/memory") {
         json.decodeFromString<OfflineMemory>(it).also { m -> require(m.version == 1 && m.text.length <= 16000) }
     }
@@ -303,7 +320,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls", "bellpull_native_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles", "bellpull_phone_context", "bellpull_background_folder", "bellpull_kanban", "bellpull_kanban_editing")
+            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles", "bellpull_phone_context", "bellpull_background_folder", "bellpull_kanban", "bellpull_kanban_editing", "bellpull_canvas")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

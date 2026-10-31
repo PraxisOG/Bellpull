@@ -70,7 +70,8 @@ internal fun wav(pcm: ByteArray): ByteArray = ByteBuffer.allocate(44 + pcm.size)
 internal class VoiceSentences {
     private var consumed = 0
     private var previous = ""
-    fun take(text: String, final: Boolean = false): List<String> {
+    fun take(text: String, final: Boolean = false): List<String> = takeVisible(org.praxisog.hermes.model.canvasVisibleText(text), final)
+    private fun takeVisible(text: String, final: Boolean): List<String> {
         if (!text.startsWith(previous)) {
             if (previous.startsWith(text)) return emptyList() // a shorter replay cannot restart speech
             val exact = previous.lastIndexOf(text).takeIf { text.isNotEmpty() && it >= 0 }
@@ -128,7 +129,7 @@ internal fun speechSentenceEnd(text: String, index: Int, final: Boolean): Int? {
 }
 private val speechAbbreviations = setOf("mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "e.g", "i.e")
 private val speechInitials = Regex("(?:[A-Za-z]\\.)+[A-Za-z]")
-internal fun speechText(value: String): String = value
+internal fun speechText(value: String): String = org.praxisog.hermes.model.canvasVisibleText(value)
     .replace(Regex("```[\\s\\S]*?(?:```|$)"), " Code is available in the chat. ")
     .replace(Regex("!\\[([^]]*)]\\([^)]*\\)"), "$1")
     .replace(Regex("\\[([^]]+)]\\([^)]*\\)"), "$1")

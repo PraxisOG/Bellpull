@@ -41,6 +41,16 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    fun readCanvas(id: String): org.praxisog.hermes.model.CanvasSnapshot? = runCatching {
+        json.decodeFromString<org.praxisog.hermes.model.CanvasSnapshot>(preferences.getString("canvas:$id", null)!!).validated(id)
+    }.getOrNull()
+    @Synchronized fun writeCanvas(id: String, value: org.praxisog.hermes.model.CanvasSnapshot) {
+        if (closed) return
+        val edit = preferences.edit().putString("canvas:$id", json.encodeToString(value))
+        val old = preferences.all.keys.filter { it.startsWith("canvas:") && it != "canvas:$id" }
+        old.drop(19).forEach(edit::remove)
+        edit.apply()
+    }
     override fun readKanban(): org.praxisog.hermes.model.KanbanLocalState = preferences.getString("kanban-v1", null)?.let {
         json.decodeFromString<org.praxisog.hermes.model.KanbanLocalState>(it)
     } ?: org.praxisog.hermes.model.KanbanLocalState()

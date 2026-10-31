@@ -1,4 +1,9 @@
-> Current experimental pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
+> Current experimental source: **Android 0.19.0 / build 48**, plugin **0.8.2-canvas-v1-preview**.
+> Adds the shared `bellpull_canvas` tool, authenticated snapshots/mutations and live events
+> to the 0.18.2 Kanban baseline. [Contract and remaining acceptance](../../docs/SHARED-CANVAS.md).
+> This source merge does not deploy a plugin or change the published release assets.
+
+> Published experimental pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
 > Adds authenticated native Kanban board/detail reads, task creation/field editing, comments, non-executing moves
 > and atomic operation receipts for offline recovery. See [Phase 18](../../docs/PHASE-18-KANBAN.md)
 > and the [API contract](../../docs/hermes-api.md#bellpull-native-kanban-extension--october-31-2026).
@@ -20,12 +25,13 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.8.1-integration-preview
+# Bellpull integration plugin 0.8.2-canvas-v1-preview
 
-This single plugin includes native Kanban, OpenCode activity, reminders/native Hermes routines,
+This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.18.2-experimental** (build 47) built from this branch.
-The 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1.
+Pair this source with Android **0.19.0-experimental** (build 48).
+The published 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1,
+but shared Canvas requires the separately advertised `bellpull_canvas` capability.
 The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
@@ -49,8 +55,9 @@ native board database. Preserve these identities and receipts through backups an
 rollback so unresolved phone edits retain their recovery evidence.
 The local test gateway reports `0.6.1-canvas-v1-preview+kanban.0.8.1`: this preserves
 its separately developed Canvas implementation. That deployment bundle is distinct
-from this standard 0.8.1 package; do not replace a Canvas preview with the standard
-package and expect Canvas to remain available.
+from the published standard 0.8.1 package, which does not contain Canvas. This
+0.8.2 source includes both features; the source merge does not replace that live
+deployment or consolidate separately managed plugins.
 See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.md),
 [OpenCode scope](../../docs/PHASE-6-OPENCODE.md) and
 [planning scope](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).

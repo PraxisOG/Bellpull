@@ -7,7 +7,7 @@ internal data class VoicePromptPresentation(val details: String, val body: Strin
 
 /** Strip only a recognized Bellpull voice wrapper; ordinary messages pass through verbatim. */
 internal fun voicePromptUserText(text: String): String {
-    val body = splitPhoneNotificationContext(text).first
+    val body = org.praxisog.hermes.model.splitCanvasContext(splitPhoneNotificationContext(text).first).first
     return voicePromptPresentation(body)?.body ?: body
 }
 
