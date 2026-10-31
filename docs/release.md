@@ -1,3 +1,11 @@
+## Local Kanban development build — 0.18.0 / build 45
+
+Adds native task board/list/detail views, comments, non-executing moves to triage or
+blocked, encrypted offline queues with receipt recovery, and a Today task preview.
+Requires matching plugin **0.8.0-integration-preview** on a compatible Hermes host.
+[Implementation, validation and remaining scope](PHASE-18-KANBAN.md).
+This build is local and has not been published or deployed to a personal server.
+
 ## Settings controls — app 0.15.1 / build 44
 
 Reply notifications can now be enabled on stock Hermes without a push relay,

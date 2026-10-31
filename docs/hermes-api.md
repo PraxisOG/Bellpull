@@ -1089,3 +1089,68 @@ interruption paths — only that an API stop does not set it.)
 not behave as documented. It does stop the turn, reliably and fast, which is the part that
 matters; only the labelling is wrong, and the client can label it correctly from what it
 already knows. Shipping a working stop with client-side state is better than no stop.
+# Bellpull native Kanban extension — October 31, 2026
+
+Implemented by `plugins/bellpull/kanban.py`; discovery is
+`features.bellpull_kanban=true`. The normal bearer and native `/p/{profile}` prefix
+apply to all routes. No dashboard authentication or model inference is involved.
+The native source inspected in the isolated Hermes 0.21.1 image is
+`hermes_cli/kanban_db.py` plus `kanban_db_connect.py`. Native boards are shared
+across profiles within an installation; the app's caches remain connection/profile
+isolated. `owner_id` identifies that installation and `board.id` its persistent
+database incarnation. Both must match on every mutation. `owner_name` uses
+`BELLPULL_DEVICE_NAME` or the host name. Separate installations remain separate
+authorities; switching a server never transfers pending operations.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/bellpull/kanban/boards` | `{version:1, boards:[Board], observed_at_ms}` |
+| GET | `/api/bellpull/kanban/boards/{slug}` | `{version:1, board, columns, tasks, total, complete, observed_at_ms}` |
+| GET | `/api/bellpull/kanban/boards/{slug}/tasks/{id}` | `{version:1, board, task, observed_at_ms}` with task details |
+| POST | `/api/bellpull/kanban/boards/{slug}` | Apply a move/comment; returns an operation receipt |
+| GET | `/api/bellpull/kanban/boards/{slug}/operations/{id}` | Recover a receipt, or `{version:1, board, operation_id, state:"not_found"}` |
+
+`Board`: `id` (32 hex), `slug`, `name`, `description`, `archived`, `owner_id`
+(64 hex), `owner_name`, `scope:"installation"`. Slugs match
+`[a-z0-9][a-z0-9_-]{0,63}`. Task IDs match `[a-zA-Z0-9_-]{1,128}`.
+Native columns are triage, todo, scheduled, ready, running, blocked, review, done,
+archived. Snapshots include the newest 500 tasks with an explicit total/completeness
+flag; clients must label a bounded result. Board lists support up to 100 boards.
+
+Tasks carry `id`, `title`, `status`, `revision` (opaque SHA-256), `assignee`,
+`project_id`, `session_id`, `priority`, `current_run_id`, `allowed_moves`, `body`
+and `result` (snapshot excerpts, max 1,000 characters). Detail adds `comments`
+(latest 50, id/author/body/created_at), `runs` (latest 20, id/profile/status/outcome/
+summary/error/started_at/ended_at), `parents` and `children` (up to 100 each),
+`files` (latest 50, id/filename/path/size/device/hash), and `details_complete`.
+Detail prose is capped at 16,384 characters with truncation disclosed. Native file
+references do not supply hashes: `hash:null` means unknown; content is not copied.
+Native run IDs identify task attempts, not automatically gateway `/v1/runs` IDs.
+
+A mutation contains `operation_id` (32 hex), `owner_id`, `board_id`, `task_id`,
+`expected_revision`, and either `action:"comment", comment` (1–8,000 characters)
+or `action:"move", status`. Only advertised moves into **triage** or **blocked**
+are currently implemented, and only for unclaimed triage/todo/scheduled/ready/
+blocked tasks without an active run. They park work; they never release dependency
+gates, launch/stop a worker, archive results, or claim execution. Native status
+events record these transitions. Running/review/done/archived tasks remain readable
+and commentable; other lifecycle controls require a later explicit contract.
+
+Receipts contain `version`, `board`, `operation_id`, `state` (applied/conflict),
+`message`, current detailed `task`, and `observed_at_ms`. An archived board, stale
+revision or unavailable move yields a persisted conflict receipt without mutation.
+Receipts and native task/comment/event writes commit in **one native-board SQLite
+transaction** using plugin-prefixed tables. Identical retries return the saved
+receipt; changed payload with the same ID returns 409. Receipts are retained, with
+admission stopped at 20,000 rather than evicting recovery evidence. Lost responses
+must be resolved by receipt lookup. On same-owner/same-board `not_found`, retry of
+the exact operation is safe: concurrent/in-flight attempts serialize at this same
+transaction boundary. Never infer success from a transport error or card appearance.
+
+Clients durably record pending edits before any request. Unsent offline edits may
+be edited/cancelled. Reconnect first refreshes and validates current task revision;
+stale edits require review. Sent-but-unresolved operations remain unknown until
+receipt recovery; cancelling a local item cannot revoke an admitted operation.
+400/404/409/410/413/503 errors use the existing Bellpull error envelope. Capability
+absence leaves cached reading available and remote writes disabled. No push feed
+is promised; foreground polling and explicit refresh use these GET routes.

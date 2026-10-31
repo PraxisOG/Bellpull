@@ -101,6 +101,8 @@ internal fun HermesApp(
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     projects: ProjectWorkspace? = null,
+    kanban: KanbanWorkspace? = null,
+    focusTasksRevision: Int = 0,
     onRetryProjectCreation: () -> Unit = {},
     pluginVersions: () -> List<ServerPluginVersion> = { emptyList() },
     speechLab: (@Composable () -> Unit)? = null,
@@ -157,6 +159,9 @@ internal fun HermesApp(
     val open: (String) -> Unit = { mode = WorkspaceMode.CHATS; drawerOnCover = false; expandedSearch = false; onOpenSession(it) }
     LaunchedEffect(focusTodayRevision) {
         if (focusTodayRevision > 0) { mode = WorkspaceMode.TODAY; drawerOnCover = false; expandedSearch = false; infoSheet = false; navigation = null }
+    }
+    LaunchedEffect(focusTasksRevision) {
+        if (focusTasksRevision > 0) { mode = WorkspaceMode.TASKS; drawerOnCover = false; expandedSearch = false; infoSheet = false }
     }
     LaunchedEffect(focusChatRevision) {
         if (focusChatRevision > 0) {
@@ -250,7 +255,7 @@ internal fun HermesApp(
                                 source = sessionSource, onSourceChange = onSessionSourceChange,
                                 filterSummary = listOfNotNull(projects?.scopeTitle?.takeIf { projects.selectedScope != ALL_PROJECT_CHATS }, sessionSource).takeIf { it.isNotEmpty() }?.joinToString(" · "),
                                 onExpandedSearch = { expandedSearch = true })
-                            WorkspaceModes(mode) { mode = it; drawerOnCover = false }
+                            WorkspaceModes(mode, includeTasks = kanban != null) { mode = it; drawerOnCover = false }
                         }
                     }
                     val detailPane: @Composable (Modifier) -> Unit = { paneModifier ->
@@ -284,6 +289,7 @@ internal fun HermesApp(
                                     notificationProblem, notificationsUseRelay, onNotificationSettings)
                                 WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
                                     if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
+                                WorkspaceMode.TASKS -> KanbanScreen(kanban, foreground, open)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
                                     selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,
                                     preferences.titleOnlyConversations)

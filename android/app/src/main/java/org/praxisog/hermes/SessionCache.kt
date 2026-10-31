@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY, testPreferences: android.content.SharedPreferences? = null) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY, testPreferences: android.content.SharedPreferences? = null) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache, KanbanCache {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
@@ -41,6 +41,11 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    override fun readKanban(): org.praxisog.hermes.model.KanbanLocalState = preferences.getString("kanban-v1", null)?.let {
+        json.decodeFromString<org.praxisog.hermes.model.KanbanLocalState>(it)
+    } ?: org.praxisog.hermes.model.KanbanLocalState()
+    @Synchronized override fun writeKanban(value: org.praxisog.hermes.model.KanbanLocalState): Boolean = !closed &&
+        preferences.edit().putString("kanban-v1", json.encodeToString(value)).commit()
     override fun readUntitled(): Set<String> =
         preferences.getString("untitled-app-sessions", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
     override fun writeUntitled(ids: Set<String>) { if (!closed) preferences.edit().putString("untitled-app-sessions", ids.joinToString(",")).apply() }

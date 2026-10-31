@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(false)
     private var windowCutouts by mutableStateOf(emptyList<androidx.compose.ui.geometry.Rect>())
     private var focusTodayRevision by mutableStateOf(0)
+    private var focusTasksRevision by mutableStateOf(0)
     private var focusChatRevision by mutableStateOf(0)
     private var pendingNewChat = false
     private var pendingInboxProfile: String? = null
@@ -196,10 +197,16 @@ class MainActivity : ComponentActivity() {
                     HermesApp(
                         thumbnails = files?.thumbnails,
                         focusTodayRevision = focusTodayRevision,
+                        focusTasksRevision = focusTasksRevision,
+                        kanban = runtime.kanban,
                         planningView = runtime.planning?.let { planning -> {
                             PlanningScreen(planning,foreground,store=current,
                                 onOpenSession={ preview=null; current?.openSession(it); focusChatRevision++ },
-                                inboxRevision=focusTodayRevision) { write ->
+                                inboxRevision=focusTodayRevision,
+                                tasks=runtime.kanban?.let { tasks -> { KanbanToday(tasks, foreground) { id ->
+                                    if (id.isNotEmpty()) tasks.open(id) else tasks.back()
+                                    focusTasksRevision++
+                                } } }) { write ->
                                 calendarPermissionProfile=runtime.profileId
                                 calendarPermissions.launch(if (write) arrayOf(android.Manifest.permission.READ_CALENDAR,android.Manifest.permission.WRITE_CALENDAR) else arrayOf(android.Manifest.permission.READ_CALENDAR))
                             }

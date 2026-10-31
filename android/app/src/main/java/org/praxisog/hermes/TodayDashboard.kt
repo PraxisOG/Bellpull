@@ -83,7 +83,7 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
     onReminder: (Reminder, String) -> Unit, onEvent: (PhoneCalendarEvent) -> Unit,
     onProposal: (CalendarProposal) -> Unit, onOpenSession: (String) -> Unit,
     onCalendar: () -> Unit, onReminders: () -> Unit, onInbox: () -> Unit,
-    modifier: Modifier = Modifier, busy: Boolean = false,
+    modifier: Modifier = Modifier, busy: Boolean = false, tasks: (@Composable () -> Unit)? = null,
 ) {
     var allEvents by rememberSaveable { mutableStateOf(false) }
     var allReminders by rememberSaveable { mutableStateOf(false) }
@@ -131,6 +131,7 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
             }
         }
         if (data.reminders.size > 3) item("reminders-more") { TextButton(onClick = { allReminders = !allReminders }) { Text(if (allReminders) "Show fewer reminders" else "Show all ${data.reminders.size} reminders") } }
+        if (tasks != null) item("kanban-tasks") { tasks() }
         item("work-heading") { TodayHeading("Agent attention & work", "Inbox", onInbox); TodaySourceLabel(workSource) }
         if (data.proposals.isEmpty() && data.decisions.isEmpty()) item("decisions-empty") {
             if (workSource.available && reminderSource.available) Text("No pending decisions in the available records.", style = MaterialTheme.typography.bodySmall)

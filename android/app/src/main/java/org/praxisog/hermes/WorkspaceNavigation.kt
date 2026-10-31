@@ -12,7 +12,7 @@ import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.Session
 
 internal enum class WorkspaceMode(val title: String) {
-    CHATS("Chats"), PROJECTS("Projects"), TOOLS("Tools"), SETTINGS("Settings"), TODAY("Today")
+    CHATS("Chats"), PROJECTS("Projects"), TASKS("Tasks"), TOOLS("Tools"), SETTINGS("Settings"), TODAY("Today")
 }
 
 // Shared with the single-line composer so both panes end on the same baseline.
@@ -20,23 +20,31 @@ internal val BottomControlHeight = 40.dp
 internal val BottomBarPadding = 4.dp
 
 @Composable
-internal fun WorkspaceModes(selected: WorkspaceMode, onSelect: (WorkspaceMode) -> Unit) {
+internal fun WorkspaceModes(selected: WorkspaceMode, includeTasks: Boolean = false, onSelect: (WorkspaceMode) -> Unit) {
     HorizontalDivider()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        Row(Modifier.fillMaxWidth().padding(vertical = BottomBarPadding)) {
-            WorkspaceMode.entries.forEach { mode ->
-                TextButton(onClick = { onSelect(mode) },
-                    modifier = Modifier.weight(1f).heightIn(min = BottomControlHeight),
-                    contentPadding = PaddingValues(horizontal = 1.dp, vertical = 6.dp),
-                    shape = MaterialTheme.shapes.small,
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = if (selected == mode) MaterialTheme.colorScheme.primaryContainer
-                            else androidx.compose.ui.graphics.Color.Transparent,
-                        contentColor = if (selected == mode) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant)) {
-                        Text(mode.title, style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1, softWrap = false,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val modes = WorkspaceMode.entries.filter { includeTasks || it != WorkspaceMode.TASKS }
+            val rows = if (includeTasks && maxWidth < 360.dp) modes.chunked(3) else listOf(modes)
+            Column(Modifier.padding(vertical = BottomBarPadding)) {
+                rows.forEach { row ->
+                    Row(Modifier.fillMaxWidth()) {
+                        row.forEach { mode ->
+                            TextButton(onClick = { onSelect(mode) },
+                                modifier = Modifier.weight(1f).heightIn(min = BottomControlHeight),
+                                contentPadding = PaddingValues(horizontal = 1.dp, vertical = 6.dp),
+                                shape = MaterialTheme.shapes.small,
+                                colors = ButtonDefaults.textButtonColors(
+                                    containerColor = if (selected == mode) MaterialTheme.colorScheme.primaryContainer
+                                        else androidx.compose.ui.graphics.Color.Transparent,
+                                    contentColor = if (selected == mode) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurfaceVariant)) {
+                                Text(mode.title, style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1, softWrap = false,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                        }
+                    }
                 }
             }
         }
