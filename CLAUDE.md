@@ -17,13 +17,21 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-31, experimental publication):** the user requested
+"push to github as the latest experimental" after the Kanban audit. Publish the
+verified app 0.18.2/build47 and compatible plugin 0.8.1 as the prerelease
+`android-v0.18.2-experimental.1`, including complete pinned source, roadmap and checksums.
+Push the release branch/tag and update download pointers. Keep the APK bytes already
+validated on the phone; publication does not require another server deployment.
+Moe remains a manual user update. This supersedes the audit-only publication scope below.
+
 **Current task authority (2026-10-31, Kanban bug audit):** the user asked what is
 next and to check for bugs again. Audit and repair the existing Kanban flow before
 adding execution controls. Branch `fix/kanban-reliability-0182`, app 0.18.2/build47;
 plugin runtime stays 0.8.1. Continue signed in-place phone upgrades and fixture tests,
 preserving personal data and unrelated Canvas fixtures. The local test gateway's
 Canvas/Kanban bundle remains compatible and needs no runtime update. Moe remains
-manual and this increment is not authorized for GitHub publication.
+manual. GitHub publication was subsequently authorized as recorded above.
 
 **Current task authority (2026-10-31, mobile Kanban):** implement native task
 creation/field editing after the initial board/comment/move slice, with durable
