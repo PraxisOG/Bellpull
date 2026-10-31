@@ -72,8 +72,13 @@ two desktop clients during the reply. Earlier isolated Pixel instrumentation pas
 touch editing, remote changes, cache/reconnect, Undo/Redo, capability discovery,
 and access through the full conversation menu.
 
-The combined Android debug app and instrumentation build pass. The focused suites
-run 37 model tests and 49 client tests without failures (one existing client skip).
+The combined Android debug app and instrumentation build pass. The complete JVM
+suites run 802 tests without failures (one existing client skip); all 199 screenshot
+baselines are unchanged and lint reports zero errors. This includes 37 model and
+49 client tests. All nine Canvas checks also pass on the unmodified stock Hermes
+v2026.9.24 image, including native tool dispatch through execution middleware.
+The test fixture binds both native plugin-manager accessors so it exercises the
+same isolated callbacks on older and newer supported hosts.
 The latest physical HTTPS/Tailscale test reached shared touch/edit/reconnect checks,
 then failed at opening Canvas from the actual conversation screen. That failure is
 unresolved; earlier preview results do not establish acceptance for this combined

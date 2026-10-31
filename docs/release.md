@@ -7,8 +7,10 @@ identity. Mobile adds touch editing, collapsed Drawing details, full-screen
 controls, cached viewing and Undo/Redo. The source is merged into the current
 experimental branch; no new APK/release assets or server deployment are included.
 
-The combined debug app and instrumentation build pass, with 37 model and 49 client
-tests completing without failures (one existing skip). Earlier isolated phone
+The combined debug app and instrumentation build pass, with 802 JVM tests
+completing without failures (one existing skip), 199 unchanged screenshot baselines
+and zero lint errors. Nine Canvas checks also pass on unmodified stock Hermes
+v2026.9.24, including native tool-call identity and grouped Undo. Earlier isolated phone
 checks passed. The latest HTTPS/Tailscale test reached shared editing/reconnect
 but failed its subsequent main-conversation Canvas-opening assertion; that check
 remains unresolved. Mobile selection-aware prompts and export controls are still

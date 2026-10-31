@@ -119,7 +119,11 @@ class CanvasTests(unittest.TestCase):
             def register_tool(self, **kwargs): registry.register(**kwargs)
         register(Context())
         try:
-            with patch.dict(os.environ, {"HERMES_HOME": str(self.home)}), patch("hermes_cli.plugins._delivery_manager", return_value=manager):
+            # Supported hosts obtain execution middleware through either accessor.
+            # Route both to this isolated manager; never use the process's plugins.
+            with patch.dict(os.environ, {"HERMES_HOME": str(self.home)}), \
+                    patch("hermes_cli.plugins.get_plugin_manager", return_value=manager), \
+                    patch("hermes_cli.plugins._delivery_manager", return_value=manager):
                 args = {"version": 1, "action": "create", "name": "Dispatched"}
                 result = json.loads(handle_function_call("bellpull_canvas", args, session_id="chat", turn_id="real-turn", tool_call_id="real-call", skip_pre_tool_call_hook=True))
                 self.assertNotIn("error", result, result)

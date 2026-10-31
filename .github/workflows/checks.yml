@@ -89,6 +89,14 @@ jobs:
           --entrypoint python
           nousresearch/hermes-agent:v2026.9.7@sha256:63bfb6d732f49a55d453e801057273785cc61e0f6ee43db3fa2f2a79846301b7
           -m unittest discover -s /opt/hermes/plugins/bellpull/tests -p test_planning.py -v
+      - name: Shared Canvas and native tool identities on unmodified stock Hermes
+        run: >-
+          docker run --rm --network none
+          -e HERMES_HOME=/tmp/bellpull-canvas-tests -e BELLPULL_NTFY_URL=
+          -v "$PWD/plugins/bellpull:/opt/hermes/plugins/bellpull:ro"
+          --entrypoint python
+          nousresearch/hermes-agent:v2026.9.24@sha256:2fd023efbb8d3d2b0ce1a73d028b07370cff34f567cfe0e999553e8c327ea283
+          -m unittest discover -s /opt/hermes/plugins/bellpull/tests -p test_canvas.py -v
       - name: Real adapter, SQLite, artifacts and native runs; fake inference
         run: >-
           docker run --rm --network none
