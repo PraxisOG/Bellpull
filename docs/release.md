@@ -1,3 +1,23 @@
+## Local Kanban reliability repair — 0.18.2 / build 47
+
+Fixes deleted tasks blocking unrelated edits, queue overflow during rapid actions,
+late callbacks recreating submitted drafts, Unicode text-limit mismatches and
+decoding native priorities outside the mobile editing range. Queue identities,
+unsent text and original draft revisions remain durable. Plugin runtime code stays
+at **0.8.1-integration-preview**; the test gateway needs no new deployment.
+
+Six regression cases reproduced the failures before repair. The native Unicode/
+priority contract is also covered on stock Hermes. This increment is local and
+unpublished; Moe remains a manual user deployment. Artifacts are under
+`/home/praxisog/Bellpull-builds/kanban-bugfix-development/`.
+Validation: 796 JVM tests, 200 plugin tests, 199 screenshot baselines and all four
+physical Kanban tests passed. JVM and plugin suites each retain one skip. Lint has
+zero errors; debug and signed release assembly pass. The existing test gateway's
+Canvas/Kanban capabilities and matching Kanban runtime were verified read-only.
+Signed build47 is installed in place with matching release bytes and preserved
+signing identity, app UID, data directories and original installation time.
+[Implementation and validation](PHASE-18-KANBAN.md#validation).
+
 ## Local Kanban creation/editing build — 0.18.1 / build 46
 
 Adds creation in triage and edits to title, description, assignee profile and

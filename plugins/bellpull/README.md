@@ -1,4 +1,4 @@
-> Current development pair: **Android 0.18.1 / build 46**, plugin **0.8.1-integration-preview**.
+> Current development pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
 > Adds authenticated native Kanban board/detail reads, task creation/field editing, comments, non-executing moves
 > and atomic operation receipts for offline recovery. See [Phase 18](../../docs/PHASE-18-KANBAN.md)
 > and the [API contract](../../docs/hermes-api.md#bellpull-native-kanban-extension--october-31-2026).
@@ -24,7 +24,9 @@
 
 This single plugin includes native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.18.1-experimental** (build 46) built from this branch. The separate Phase 6/8/9 preview plugin directories are
+Pair it with Android **0.18.2-experimental** (build 47) built from this branch.
+The 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1.
+The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
 Install the entire `plugins/bellpull/` directory using the stock-plugin procedure

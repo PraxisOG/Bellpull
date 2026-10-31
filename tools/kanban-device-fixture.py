@@ -25,6 +25,12 @@ async def serve(home):
         conn.close()
     kb.create_board("garden", name="Garden projects")
     kb.create_board("mobile-editing", name="Mobile editing")
+    kb.create_board("mobile-boundaries", name="Unicode boundaries")
+    conn = connect(db_path=kb.kanban_db_path(board="mobile-boundaries"))
+    try:
+        kb.create_task(conn, title="🔔" * 500, body="🔔" * 16384, priority=2**31, triage=True, board="mobile-boundaries")
+    finally:
+        conn.close()
     state = dict(posts=0, dropped=0, drop_next=False, task_id=task, runs=0)
 
     @web.middleware

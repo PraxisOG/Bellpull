@@ -177,6 +177,19 @@ class KanbanTests(unittest.TestCase):
         self.assertEqual(1, self.store.snapshot("default")["total"])
         self.assertEqual(result, self.store.receipt("default", body["operation_id"]))
 
+    def test_unicode_limits_and_full_width_native_priority_remain_readable(self):
+        fields = dict(title="🔔" * 500, body="🔔" * 16384, assignee=None, priority=0)
+        operation = {**self.field_operation(), "fields": fields}
+        created = self.store.mutate("default", operation)
+        self.assertEqual("applied", created["state"])
+        self.assertEqual(fields["title"], created["task"]["title"])
+        self.assertEqual(fields["body"], created["task"]["body"])
+        with self.store.connection("default") as conn:
+            tid = self.kb.create_task(conn, title="Native priority", priority=2**31, triage=True, board="default")
+        detail = self.store.detail("default", tid)["task"]
+        self.assertEqual(2**31, detail["priority"])
+        self.assertFalse(detail["editable"])
+
 
 class KanbanHttpTests(unittest.IsolatedAsyncioTestCase):
     async def test_gateway_auth_profile_prefix_discovery_and_no_inference(self):

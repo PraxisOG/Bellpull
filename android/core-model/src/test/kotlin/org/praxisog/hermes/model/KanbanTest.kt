@@ -2,6 +2,7 @@ package org.praxisog.hermes.model
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.serialization.json.Json
 
 class KanbanTest {
     private val board = KanbanBoard("a".repeat(32), "default", "Tasks", "b".repeat(64), "Desktop")
@@ -47,5 +48,29 @@ class KanbanTest {
         assertEquals(create, create.validated())
         rejects { create.copy(expectedRevision = task.revision).validated() }
         rejects { create.copy(status = "running").validated() }
+    }
+
+    @Test fun nativeUnicodeLimitsCountCharactersRatherThanUtf16Halves() {
+        val emoji = "\uD83D\uDD14"
+        val nativeBoard = board.copy(name = emoji.repeat(200), ownerName = emoji.repeat(200))
+        val nativeTask = task.copy(title = emoji.repeat(500), body = emoji.repeat(16384), result = emoji.repeat(16384),
+            comments = listOf(KanbanComment(1, "Desktop", emoji.repeat(16384), 1)))
+        val snapshot = KanbanSnapshot(board = nativeBoard, columns = KANBAN_COLUMNS, tasks = listOf(nativeTask), total = 1, complete = true, observedAt = 1)
+        assertEquals(snapshot, Json.decodeFromString<KanbanSnapshot>(Json.encodeToString(snapshot)).validated())
+        assertNotNull(KanbanFormDraft(task.id, task.revision, emoji.repeat(500), emoji.repeat(16384)).validated().fields())
+    }
+
+    @Test fun nativePriorityOutsideTheEditingRangeRemainsReadable() {
+        val native = """{"id":"task_1","title":"Native priority","status":"triage","revision":"${task.revision}","priority":2147483648,"editable":false}"""
+        assertEquals("2147483648", Json.decodeFromString<KanbanTask>(native).validated().priority.toString())
+    }
+
+    @Test fun textInputLimitsNeverSplitAnEmoji() {
+        val bell = "\uD83D\uDD14"
+        val clipped = ("a" + bell.repeat(500)).kanbanTake(500)
+        assertEquals(500, clipped.kanbanLength())
+        assertEquals("a" + bell.repeat(499), clipped)
+        assertEquals(clipped, KanbanTaskFields(clipped, "", null, 0).validated().title)
+        rejects { KanbanTaskFields(clipped + bell, "", null, 0).validated() }
     }
 }

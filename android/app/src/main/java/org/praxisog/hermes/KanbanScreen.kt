@@ -184,7 +184,7 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
                 }
             }
             if (task.status == "running") Text("Running work is controlled by its executor.", style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(editor, { editor = it.take(8000); workspace.draft(task.id, editor) }, label = { Text("Comment") },
+            OutlinedTextField(editor, { editor = it.kanbanTake(8000); workspace.draft(task.id, editor) }, label = { Text("Comment") },
                 minLines = 2, maxLines = 8, modifier = Modifier.fillMaxWidth())
             Button(onClick = { workspace.comment(task.id, editor) }, enabled = editor.isNotBlank() && pending == null && workspace.state.pending.size < 100) { Text("Add comment") }
         }
@@ -219,8 +219,8 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("$board · $owner", style = MaterialTheme.typography.bodySmall)
                     if (creating) Text("Creates a task in triage. Work starts only when you schedule it in Hermes.", style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(form.title, { update(form.copy(title = it.take(500))) }, label = { Text("Task title") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("kanban-title"))
-                    OutlinedTextField(form.body, { update(form.copy(body = it.take(16384))) }, label = { Text("Description") }, minLines = 3, maxLines = 8, modifier = Modifier.fillMaxWidth().testTag("kanban-body"))
+                    OutlinedTextField(form.title, { update(form.copy(title = it.kanbanTake(500))) }, label = { Text("Task title") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("kanban-title"))
+                    OutlinedTextField(form.body, { update(form.copy(body = it.kanbanTake(16384))) }, label = { Text("Description") }, minLines = 3, maxLines = 8, modifier = Modifier.fillMaxWidth().testTag("kanban-body"))
                     OutlinedTextField(form.assignee, { update(form.copy(assignee = it.take(64))) }, label = { Text("Assignee profile") }, singleLine = true,
                         supportingText = { Text("Leave blank for unassigned") }, modifier = Modifier.fillMaxWidth().testTag("kanban-assignee"))
                     OutlinedTextField(form.priority, { update(form.copy(priority = it.take(12))) }, label = { Text("Priority (higher first)") }, singleLine = true,

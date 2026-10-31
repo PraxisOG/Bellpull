@@ -1146,6 +1146,10 @@ four required `fields`: `title` (nonblank, at most 500 characters; trimmed), `bo
 and `priority` (signed 32-bit integer; higher values sort first). These operations
 cannot include a move or comment. JSON payloads are limited to 80,000 UTF-8 bytes
 after normalization with unescaped Unicode.
+Text limits count Unicode code points, matching Python's `len`; Android 0.18.2
+matches those limits and preserves complete surrogate pairs when limiting input.
+Task reads preserve native signed 64-bit priorities. Values outside the editing
+range remain readable with `editable=false`.
 
 Creation uses a client-local `task_id` of `draft_` plus 32 lowercase hex characters,
 and `expected_revision` of 64 zeros. The separate operation ID remains stable
@@ -1180,6 +1184,10 @@ original revision; background refresh cannot authorize overwriting a newer task.
 Pending creations are marked local until confirmed, including in Today. Unsent
 offline edits may be edited/cancelled. Queue edits must recheck delivery state under
 the synchronization lock; a stale UI item cannot remove an unknown operation.
+Queue/form capacity is also checked under that lock. A late editor callback cannot
+recreate a submitted or discarded form. A 404/410 for an unsent task lookup retains
+that edit as a conflict; unavailable receipts or admitted writes remain unknown.
+These per-task failures do not prevent unrelated queued tasks from synchronizing.
 Reconnect first refreshes and validates current task revision (or board creation support);
 stale edits require review. Sent-but-unresolved operations remain unknown until
 receipt recovery; cancelling a local item cannot revoke an admitted operation.

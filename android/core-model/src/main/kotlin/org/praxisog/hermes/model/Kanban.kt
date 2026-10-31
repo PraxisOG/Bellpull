@@ -9,6 +9,9 @@ private val hex64 = Regex("[a-f0-9]{64}")
 val KANBAN_EMPTY_REVISION = "0".repeat(64)
 fun kanbanSlug(value: String) = value.matches(Regex("[a-z0-9][a-z0-9_-]{0,63}"))
 fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
+// Match the native Python contract's Unicode character count and never split a surrogate pair.
+fun String.kanbanLength(): Int = codePointCount(0, length)
+fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, minOf(limit, kanbanLength())))
 
 @Serializable data class KanbanBoard(
     val id: String, val slug: String, val name: String,
@@ -17,7 +20,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     val description: String = "", val archived: Boolean = false, val scope: String = "installation",
     @SerialName("can_create") val canCreate: Boolean = false,
 ) {
-    fun validated() = apply { require(hex32.matches(id) && hex64.matches(ownerId) && kanbanSlug(slug)); require(name.isNotBlank() && name.length <= 200 && ownerName.length <= 200 && scope == "installation") }
+    fun validated() = apply { require(hex32.matches(id) && hex64.matches(ownerId) && kanbanSlug(slug)); require(name.isNotBlank() && name.kanbanLength() <= 200 && ownerName.kanbanLength() <= 200 && scope == "installation") }
     val key get() = "$ownerId/$id"
 }
 @Serializable data class KanbanComment(val id: Long, val author: String, val body: String, @SerialName("created_at") val createdAt: Long)
@@ -29,7 +32,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
 @Serializable data class KanbanTask(
     val id: String, val title: String, val status: String, val revision: String,
     val assignee: String? = null, @SerialName("project_id") val projectId: String? = null,
-    @SerialName("session_id") val sessionId: String? = null, val priority: Int = 0,
+    @SerialName("session_id") val sessionId: String? = null, val priority: Long = 0,
     @SerialName("current_run_id") val currentRunId: Long? = null,
     @SerialName("allowed_moves") val allowedMoves: List<String> = emptyList(),
     val body: String = "", val result: String = "",
@@ -40,10 +43,10 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
 ) {
     fun validated() = apply {
         require(kanbanTaskId(id) && hex64.matches(revision) && status in KANBAN_COLUMNS)
-        require(title.length <= 500 && body.length <= 16384 && result.length <= 16384)
+        require(title.kanbanLength() <= 500 && body.kanbanLength() <= 16384 && result.kanbanLength() <= 16384)
         require(allowedMoves.size <= 2 && allowedMoves.all { it in listOf("triage", "blocked") })
         require(comments.size <= 50 && runs.size <= 20 && files.size <= 50 && parents.size <= 100 && children.size <= 100)
-        require(comments.all { it.body.length <= 16384 })
+        require(comments.all { it.body.kanbanLength() <= 16384 })
     }
 }
 @Serializable data class KanbanBoards(val version: Int = 1, val boards: List<KanbanBoard>, @SerialName("observed_at_ms") val observedAt: Long) {
@@ -71,7 +74,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
 ) {
     fun validated() = apply {
         require(hex32.matches(operationId) && hex64.matches(ownerId) && hex32.matches(boardId) && kanbanTaskId(taskId) && hex64.matches(expectedRevision))
-        require((action == "comment" && !comment.isNullOrBlank() && comment.length <= 8000 && status == null && fields == null) ||
+        require((action == "comment" && !comment.isNullOrBlank() && comment.kanbanLength() <= 8000 && status == null && fields == null) ||
             (action == "move" && status in listOf("triage", "blocked") && comment == null && fields == null) ||
             (action in listOf("create", "edit") && fields != null && status == null && comment == null))
         fields?.validated()
@@ -92,7 +95,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     val state: String = "queued", val problem: String? = null)
 @Serializable data class KanbanTaskFields(val title: String, val body: String, val assignee: String?, val priority: Int) {
     fun validated() = apply {
-        require(title.isNotBlank() && title.length <= 500 && body.length <= 16384)
+        require(title.isNotBlank() && title.kanbanLength() <= 500 && body.kanbanLength() <= 16384)
         require(assignee == null || kanbanSlug(assignee))
     }
 }
@@ -103,7 +106,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
         KanbanTaskFields(title.trim(), body, assignee.trim().lowercase().ifBlank { null }, priority.toInt()).validated()
     }.getOrNull()
     fun validated() = apply {
-        require(kanbanTaskId(taskId) && hex64.matches(revision) && title.length <= 500 && body.length <= 16384 && assignee.length <= 64 && priority.length <= 12)
+        require(kanbanTaskId(taskId) && hex64.matches(revision) && title.kanbanLength() <= 500 && body.kanbanLength() <= 16384 && assignee.length <= 64 && priority.length <= 12)
     }
 }
 @Serializable data class KanbanLocalState(val boards: List<KanbanBoard> = emptyList(),
@@ -119,7 +122,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
             require(it.state in listOf("queued", "unknown", "conflict") && it.board.id == it.mutation.boardId && it.board.ownerId == it.mutation.ownerId)
         }
         require(pending.map { it.mutation.operationId }.distinct().size == pending.size)
-        require(drafts.values.all { it.length <= 8000 })
+        require(drafts.values.all { it.kanbanLength() <= 8000 })
         require(forms.size <= 100); forms.values.forEach { it.validated() }
     }
 }

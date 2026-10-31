@@ -17,6 +17,14 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-31, Kanban bug audit):** the user asked what is
+next and to check for bugs again. Audit and repair the existing Kanban flow before
+adding execution controls. Branch `fix/kanban-reliability-0182`, app 0.18.2/build47;
+plugin runtime stays 0.8.1. Continue signed in-place phone upgrades and fixture tests,
+preserving personal data and unrelated Canvas fixtures. The local test gateway's
+Canvas/Kanban bundle remains compatible and needs no runtime update. Moe remains
+manual and this increment is not authorized for GitHub publication.
+
 **Current task authority (2026-10-31, mobile Kanban):** implement native task
 creation/field editing after the initial board/comment/move slice, with durable
 offline drafts and receipt recovery. Branch `feature/mobile-kanban-editing-0181`,

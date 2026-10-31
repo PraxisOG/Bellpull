@@ -1,7 +1,7 @@
 # Phase 18: native mobile Kanban
 
-Development build 0.18.1-experimental (46), standard plugin 0.8.1-integration-preview.
-Branch `feature/mobile-kanban-editing-0181` follows the initial 0.18.0 board slice.
+Development build 0.18.2-experimental (47), standard plugin 0.8.1-integration-preview.
+Branch `fix/kanban-reliability-0182` repairs the 0.18.1 creation/editing increment.
 The local test Hermes has the new Kanban contract while preserving its existing
 Canvas preview. The user updates Moe manually. This increment is not published.
 
@@ -40,7 +40,8 @@ Snapshots contain the newest 500 tasks and disclose incompleteness; search is lo
 to those tasks. Details retain 50 comments, 20 attempts, 50 file references and
 100 dependencies per direction. Ten board snapshots and ten detailed tasks are
 cached per connection. Pending edits and saved task forms are each capped at 100.
-Titles allow 500 characters, descriptions 16,384, and priorities signed 32-bit integers.
+Titles allow 500 Unicode code points and descriptions 16,384. Editable priorities
+are signed 32-bit integers; reading preserves the full native signed 64-bit value.
 Receipt admission stops at
 20,000 operations per board; existing recovery evidence is retained.
 
@@ -48,12 +49,43 @@ Dependency editing, drag-and-drop, pagination, execution start/stop/resume/retry
 review completion and cross-installation aggregation remain follow-ons.
 File references show the owning device and path; native data supplies no content
 hash, which is explicitly shown as unavailable. File content is not copied.
-The twelve Kanban tests also pass on stock Hermes 0.21.5. Other installed versions
+The thirteen Kanban tests also pass on stock Hermes 0.21.5. Other installed versions
 need their own compatibility check before rollout.
 
 ## Validation
 
-October 31 validation: 789 Android JVM tests passed, one opt-in test skipped; all
+The 0.18.2 audit reproduced six failing regression cases before repair:
+
+- A deleted task blocked unrelated queued edits, both before admission and after
+  unknown delivery. Unsent edits now become reviewable conflicts; unresolved edits
+  retain their exact identity while other tasks continue synchronizing.
+- Rapid actions could exceed the 100-operation limit and make the whole saved
+  workspace unreadable after restart. Capacity is now checked inside the lock;
+  overflow comment/form text is preserved, and every cache write is validated.
+- A late form callback could recreate a submitted draft. Form updates now require
+  the same existing draft identity/revision; a closed editor has no active form.
+- Native emoji titles/descriptions within the server's character limits failed
+  Android's UTF-16 length checks. Input and validation now count Unicode code points
+  consistently and never truncate half of a surrogate pair.
+- A valid native priority above the mobile editing range broke board decoding.
+  Reading now uses a signed 64-bit value; editing retains its existing 32-bit limit.
+
+Plugin runtime code is unchanged; the installed 0.8.1 Kanban extension remains
+compatible. The added native boundary test passes on stock Hermes 0.21.5.
+
+Final 0.18.2 validation: 796 Android JVM tests passed, one opt-in test skipped;
+199 screenshot baselines matched. Debug/release assembly and lint passed with zero
+errors and 89 existing warnings. The isolated plugin suite passed 200 tests with
+one skip; all 13 Kanban tests passed on stock Hermes 0.21.5. All four physical
+Pixel tests passed, including real input at the Unicode title limit, native large
+priority/full description reads, encrypted draft restart and the previous three
+navigation/mutation/recovery checks. Read-only checks confirmed that test Hermes
+still exposes Canvas and Kanban with the exact compatible Kanban runtime module.
+Signed 0.18.2/build47 is installed in place on the Pixel. Installed APK bytes match
+the release artifact; signing identity, app UID, both app-data inodes and original
+installation time are unchanged. Signature verification and 16 KiB alignment pass.
+
+Previous 0.18.1 validation: 789 Android JVM tests passed, one opt-in test skipped; all
 199 screenshot baselines matched, including creation forms at cover/fold/keyboard
 heights. Debug build and lint passed with zero errors and 89 existing warnings.
 The isolated Hermes 0.21.1 plugin suite ran 200 tests with one skip and no failures;
@@ -86,11 +118,11 @@ board checks passed for create, duplicate replay, receipt lookup, edit, stale
 revision conflict and comment without execution. The validation board was archived.
 The standard plugin archive is separate from this Canvas-preserving test deployment.
 
-Signed 0.18.1/build46 is installed in place on the connected Pixel 10 Pro Fold.
-The installed APK matches the release bytes; signing lineage, app UID, credential/
-device-encrypted data inodes and original installation time are unchanged. Signature
-verification and 16 KiB alignment pass. Artifacts and validation logs are under
-`/home/praxisog/Bellpull-builds/kanban-editing-development/`.
+The previous signed 0.18.1/build46 upgrade preserved the Pixel's signing lineage,
+app UID, credential/device-encrypted data inodes and original installation time.
+Its artifacts remain under `/home/praxisog/Bellpull-builds/kanban-editing-development/`.
+The 0.18.2 audit artifacts are under
+`/home/praxisog/Bellpull-builds/kanban-bugfix-development/`.
 
 Useful commands from the repository root:
 

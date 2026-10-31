@@ -13,6 +13,7 @@ import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.*
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
 
 class KanbanWorkspaceTest {
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
@@ -32,6 +33,7 @@ class KanbanWorkspaceTest {
         var owner = board
         var offline = false
         var dropNextPost = false
+        var missingTasks = emptySet<String>()
         val posted = CopyOnWriteArrayList<KanbanMutation>()
         val calls = CopyOnWriteArrayList<String>()
         val receipts = mutableMapOf<String, KanbanReceipt>()
@@ -41,15 +43,19 @@ class KanbanWorkspaceTest {
             assertEquals("Bearer fixture", request.header("Authorization"))
             if (offline) throw IOException("Synthetic disconnection")
             val path = request.url.encodedPath
+            fun missing() = Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(404).message("Not Found")
+                .body("""{"error":{"message":"Task no longer exists","code":"not_found"}}""".toResponseBody("application/json".toMediaType())).build()
+            if (path.contains("/tasks/") && path.substringAfterLast('/') in missingTasks) return@addInterceptor missing()
             val body = when {
                 request.method == "POST" -> {
                     val buffer = Buffer(); request.body!!.writeTo(buffer)
                     val mutation = json.decodeFromString<KanbanMutation>(buffer.readUtf8())
+                    if (mutation.taskId in missingTasks) return@addInterceptor missing()
                     posted += mutation
                     val receipt = receipts.getOrPut(mutation.operationId) {
                         current = if (mutation.fields == null) current.copy(revision = "d".repeat(64), comments = listOf(KanbanComment(1, "Bellpull", mutation.comment.orEmpty(), 1)))
                         else mutation.fields!!.let { fields -> current.copy(id = if (mutation.action == "create") "t_native_created" else current.id,
-                            title = fields.title, body = fields.body, assignee = fields.assignee, priority = fields.priority, revision = "d".repeat(64)) }
+                            title = fields.title, body = fields.body, assignee = fields.assignee, priority = fields.priority.toLong(), revision = "d".repeat(64)) }
                         KanbanReceipt(board = owner, operationId = mutation.operationId, state = "applied", task = current, observedAt = 2000)
                     }
                     if (dropNextPost) { dropNextPost = false; throw IOException("Lost committed response") }
@@ -238,5 +244,74 @@ class KanbanWorkspaceTest {
         waitFor { !workspace.busy && workspace.state.pending.isEmpty() }
         assertEquals(1, host.posted.size)
         workspace.close(); host.api.close()
+    }
+
+    @Test fun deletedTaskDoesNotBlockUnrelatedQueuedEdits() {
+        val cache = Cache(); val host = Host(); host.missingTasks = setOf("deleted-task")
+        val missing = KanbanMutation("e".repeat(32), board.ownerId, board.id, "deleted-task", task.revision, "comment", comment = "Keep for review")
+        val valid = missing.copy(operationId = "f".repeat(32), taskId = task.id, comment = "Still deliver this")
+        cache.value = cache.value.copy(pending = listOf(KanbanPending(board, missing), KanbanPending(board, valid)))
+        val workspace = KanbanWorkspace(scope, cache); workspace.configure(host.api, true); workspace.refresh()
+        waitFor { host.calls.any { it.endsWith("/tasks/deleted-task") } && !workspace.busy }
+        assertEquals(listOf(valid), host.posted.toList())
+        assertEquals("conflict", workspace.state.pending.single().state)
+        assertEquals(missing, workspace.state.pending.single().mutation)
+        workspace.close(); host.api.close()
+    }
+
+    @Test fun unknownDeletedTaskKeepsItsIdentityWithoutBlockingOtherWork() {
+        val cache = Cache(); val host = Host(); host.missingTasks = setOf("deleted-task")
+        val missing = KanbanMutation("e".repeat(32), board.ownerId, board.id, "deleted-task", task.revision, "comment", comment = "Unresolved")
+        val valid = missing.copy(operationId = "f".repeat(32), taskId = task.id, comment = "Deliver separately")
+        cache.value = cache.value.copy(pending = listOf(KanbanPending(board, missing, "unknown"), KanbanPending(board, valid)))
+        val workspace = KanbanWorkspace(scope, cache); workspace.configure(host.api, true); workspace.refresh()
+        waitFor { host.calls.any { it.startsWith("POST") } && !workspace.busy }
+        assertEquals(listOf(valid), host.posted.toList())
+        assertEquals("unknown", workspace.state.pending.single().state)
+        assertEquals(missing, workspace.state.pending.single().mutation)
+        workspace.close(); host.api.close()
+    }
+
+    @Test fun rapidQueueActionsRespectCapacityAndRemainReadableAfterRestart() {
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val localScope = CoroutineScope(SupervisorJob() + dispatcher)
+        val cache = Cache()
+        val second = task.copy(id = "task-two")
+        cache.value = cache.value.copy(snapshots = listOf(snapshot().copy(tasks = listOf(task, second), total = 2)),
+            pending = (1..99).map { index -> KanbanPending(board, KanbanMutation(index.toString(16).padStart(32, '0'),
+                board.ownerId, board.id, "queued-$index", task.revision, "comment", comment = "Existing $index")) })
+        val workspace = KanbanWorkspace(localScope, cache)
+        try {
+            runBlocking(dispatcher) {
+                workspace.comment(task.id, "Last slot")
+                workspace.comment(second.id, "Must retain my draft")
+                workspace.view(true)
+            }
+            waitFor { workspace.state.boardView }
+            assertEquals(100, cache.value.pending.size)
+            assertEquals("Must retain my draft", workspace.draft(second.id))
+            workspace.close()
+            val restored = KanbanWorkspace(localScope, cache)
+            assertEquals(100, restored.state.pending.size); assertNull(restored.problem)
+            restored.close()
+        } finally { workspace.close(); localScope.cancel(); dispatcher.close() }
+    }
+
+    @Test fun lateFormCallbackCannotRecreateAnAlreadySubmittedDraft() {
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val localScope = CoroutineScope(SupervisorJob() + dispatcher)
+        val cache = Cache(); val workspace = KanbanWorkspace(localScope, cache)
+        try {
+            workspace.startForm(); waitFor { workspace.form != null }
+            val form = workspace.form!!.copy(title = "Submit once")
+            runBlocking(dispatcher) {
+                workspace.submitForm(form)
+                workspace.saveForm(form.copy(title = "Late callback"))
+                workspace.view(true)
+            }
+            waitFor { workspace.state.boardView }
+            assertEquals("Submit once", workspace.state.pending.single().mutation.fields!!.title)
+            assertTrue(cache.value.forms.isEmpty())
+        } finally { workspace.close(); localScope.cancel(); dispatcher.close() }
     }
 }

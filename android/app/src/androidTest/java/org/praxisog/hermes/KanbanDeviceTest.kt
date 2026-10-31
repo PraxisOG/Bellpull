@@ -134,12 +134,49 @@ class KanbanDeviceTest {
                 ui.tapText("Save changes")
                 ui.awaitMain("Native field edit failed") { !workspace.busy && workspace.state.pending.isEmpty() && workspace.detail?.task?.title == "Edited on the physical phone" }
                 assertEquals("triage", workspace.detail!!.task.status)
-                assertNull(workspace.detail!!.task.assignee); assertEquals(7, workspace.detail!!.task.priority)
+                assertNull(workspace.detail!!.task.assignee); assertEquals(7L, workspace.detail!!.task.priority)
                 ui.screenshot("kanban-edited-task")
             }
             val actual = control(board = "mobile-editing")["snapshot"]!!.jsonObject
             assertEquals(1, actual["total"]!!.jsonPrimitive.int)
             assertEquals("Edited on the physical phone", actual["tasks"]!!.jsonArray.single().jsonObject["title"]!!.jsonPrimitive.content)
+            assertEquals(0, control()["runs"]!!.jsonPrimitive.int)
+        } finally { ui.main { workspace.close(); cache.close(); scope.cancel() }; client.close() }
+    }
+
+    @Test fun unicodeNativeTasksAndTextLimitsSurviveRealInputAndDraftRestart() = ui.withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val client = HermesClient(origin, { token })
+        var cache = SessionCache(context, "kanban-unicode-device")
+        var workspace = KanbanWorkspace(scope, cache)
+        val bell = "\uD83D\uDD14"
+        val expected = "a" + bell.repeat(499)
+        try {
+            val snapshot = (client.kanbanBoard("mobile-boundaries") as HermesResult.Ok).value
+            val native = snapshot.tasks.single()
+            assertEquals(bell.repeat(500), native.title)
+            assertEquals(2147483648L, native.priority); assertFalse(native.editable)
+            val detail = (client.kanbanTask("mobile-boundaries", native.id) as HermesResult.Ok).value
+            assertEquals(bell.repeat(16384), detail.task.body)
+            ui.main { workspace.configure(client, true); workspace.refresh() }
+            ui.awaitMain("Boards did not load") { !workspace.busy && workspace.fresh }
+            ui.main { workspace.choose("mobile-boundaries") }
+            ui.awaitMain("Unicode board did not load") { !workspace.busy && workspace.snapshot?.board?.slug == "mobile-boundaries" }
+            ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+                scene.onActivity { activity -> activity.setContent { HermesTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    KanbanScreen(workspace, foreground = false)
+                } } } }
+                ui.tapText("New task")
+                ui.await("Task title field missing") { ui.find { it.viewIdResourceName == "kanban-title" } != null }
+                assertTrue(ui.find { it.viewIdResourceName == "kanban-title" }!!.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
+                    Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "a" + bell.repeat(500)) }))
+                ui.awaitMain("Emoji limit split or dropped text") { workspace.form?.title == expected }
+                ui.tapText("Keep draft")
+                ui.awaitMain("Editor did not close") { workspace.editorId == null }
+            }
+            ui.main { workspace.close(); cache.close(); cache = SessionCache(context, "kanban-unicode-device"); workspace = KanbanWorkspace(scope, cache); workspace.startForm() }
+            ui.awaitMain("Saved Unicode draft did not reopen") { workspace.form?.title == expected }
             assertEquals(0, control()["runs"]!!.jsonPrimitive.int)
         } finally { ui.main { workspace.close(); cache.close(); scope.cancel() }; client.close() }
     }
