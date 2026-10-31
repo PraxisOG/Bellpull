@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 val KANBAN_COLUMNS = listOf("triage", "todo", "scheduled", "ready", "running", "blocked", "review", "done", "archived")
 private val hex32 = Regex("[a-f0-9]{32}")
 private val hex64 = Regex("[a-f0-9]{64}")
+val KANBAN_EMPTY_REVISION = "0".repeat(64)
 fun kanbanSlug(value: String) = value.matches(Regex("[a-z0-9][a-z0-9_-]{0,63}"))
 fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
 
@@ -14,6 +15,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     @SerialName("owner_id") val ownerId: String,
     @SerialName("owner_name") val ownerName: String,
     val description: String = "", val archived: Boolean = false, val scope: String = "installation",
+    @SerialName("can_create") val canCreate: Boolean = false,
 ) {
     fun validated() = apply { require(hex32.matches(id) && hex64.matches(ownerId) && kanbanSlug(slug)); require(name.isNotBlank() && name.length <= 200 && ownerName.length <= 200 && scope == "installation") }
     val key get() = "$ownerId/$id"
@@ -34,6 +36,7 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     val comments: List<KanbanComment> = emptyList(), val runs: List<KanbanAttempt> = emptyList(),
     val parents: List<String> = emptyList(), val children: List<String> = emptyList(), val files: List<KanbanFile> = emptyList(),
     @SerialName("details_complete") val detailsComplete: Boolean = true,
+    val editable: Boolean = false,
 ) {
     fun validated() = apply {
         require(kanbanTaskId(id) && hex64.matches(revision) && status in KANBAN_COLUMNS)
@@ -64,11 +67,15 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     @SerialName("owner_id") val ownerId: String, @SerialName("board_id") val boardId: String,
     @SerialName("task_id") val taskId: String, @SerialName("expected_revision") val expectedRevision: String,
     val action: String, val status: String? = null, val comment: String? = null,
+    val fields: KanbanTaskFields? = null,
 ) {
     fun validated() = apply {
         require(hex32.matches(operationId) && hex64.matches(ownerId) && hex32.matches(boardId) && kanbanTaskId(taskId) && hex64.matches(expectedRevision))
-        require((action == "comment" && !comment.isNullOrBlank() && comment.length <= 8000 && status == null) ||
-            (action == "move" && status in listOf("triage", "blocked") && comment == null))
+        require((action == "comment" && !comment.isNullOrBlank() && comment.length <= 8000 && status == null && fields == null) ||
+            (action == "move" && status in listOf("triage", "blocked") && comment == null && fields == null) ||
+            (action in listOf("create", "edit") && fields != null && status == null && comment == null))
+        fields?.validated()
+        if (action == "create") require(taskId.matches(Regex("draft_[a-f0-9]{32}")) && expectedRevision == KANBAN_EMPTY_REVISION)
     }
 }
 @Serializable data class KanbanReceipt(val version: Int = 1, val board: KanbanBoard,
@@ -76,15 +83,34 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
     val task: KanbanTask? = null, @SerialName("observed_at_ms") val observedAt: Long = 0) {
     fun validated() = apply {
         require(version == 1 && hex32.matches(operationId) && state in listOf("applied", "conflict", "not_found")); board.validated()
-        if (state != "not_found") { require(task != null && observedAt > 0); task.validated() }
+        if (state != "not_found") require(observedAt > 0)
+        if (state == "applied") require(task != null)
+        task?.validated()
     }
 }
 @Serializable data class KanbanPending(val board: KanbanBoard, val mutation: KanbanMutation,
     val state: String = "queued", val problem: String? = null)
+@Serializable data class KanbanTaskFields(val title: String, val body: String, val assignee: String?, val priority: Int) {
+    fun validated() = apply {
+        require(title.isNotBlank() && title.length <= 500 && body.length <= 16384)
+        require(assignee == null || kanbanSlug(assignee))
+    }
+}
+/** Keep the opened revision with the draft so background refresh cannot authorize overwriting newer edits. */
+@Serializable data class KanbanFormDraft(val taskId: String, val revision: String,
+    val title: String = "", val body: String = "", val assignee: String = "", val priority: String = "0") {
+    fun fields(): KanbanTaskFields? = runCatching {
+        KanbanTaskFields(title.trim(), body, assignee.trim().lowercase().ifBlank { null }, priority.toInt()).validated()
+    }.getOrNull()
+    fun validated() = apply {
+        require(kanbanTaskId(taskId) && hex64.matches(revision) && title.length <= 500 && body.length <= 16384 && assignee.length <= 64 && priority.length <= 12)
+    }
+}
 @Serializable data class KanbanLocalState(val boards: List<KanbanBoard> = emptyList(),
     val snapshots: List<KanbanSnapshot> = emptyList(), val details: List<KanbanDetail> = emptyList(),
     val pending: List<KanbanPending> = emptyList(), val drafts: Map<String, String> = emptyMap(),
-    val selectedBoard: String? = null, val boardView: Boolean = false) {
+    val selectedBoard: String? = null, val boardView: Boolean = false,
+    val forms: Map<String, KanbanFormDraft> = emptyMap()) {
     fun validated() = apply {
         require(boards.size <= 100 && snapshots.size <= 10 && details.size <= 10 && pending.size <= 100)
         boards.forEach { it.validated() }; snapshots.forEach { it.validated() }; details.forEach { it.validated() }
@@ -94,5 +120,6 @@ fun kanbanTaskId(value: String) = value.matches(Regex("[a-zA-Z0-9_-]{1,128}"))
         }
         require(pending.map { it.mutation.operationId }.distinct().size == pending.size)
         require(drafts.values.all { it.length <= 8000 })
+        require(forms.size <= 100); forms.values.forEach { it.validated() }
     }
 }

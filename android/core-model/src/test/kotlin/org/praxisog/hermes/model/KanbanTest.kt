@@ -30,4 +30,22 @@ class KanbanTest {
         rejects { KanbanLocalState(pending = listOf(pending.copy(mutation = mutation.copy(ownerId = "e".repeat(64))))).validated() }
         rejects { KanbanReceipt(board = board, operationId = mutation.operationId, state = "applied").validated() }
     }
+    @Test fun taskFieldsRejectBadValuesButUnfinishedFormsCanBeSaved() {
+        val draft = KanbanFormDraft("draft_" + "d".repeat(32), KANBAN_EMPTY_REVISION, priority = "-")
+        assertEquals(draft, draft.validated()); assertNull(draft.fields())
+        assertEquals("work", draft.copy(title = "Task", assignee = " Work ", priority = "4").fields()!!.assignee)
+        rejects { KanbanTaskFields("", "", null, 0).validated() }
+        rejects { KanbanTaskFields("Task", "", "../work", 0).validated() }
+        rejects { KanbanTaskFields("Task", "x".repeat(16385), null, 0).validated() }
+    }
+    @Test fun rejectedCreationMayHaveNoNativeTaskButAppliedReceiptMustHaveOne() {
+        val receipt = KanbanReceipt(board = board, operationId = "d".repeat(32), state = "conflict", observedAt = 1)
+        assertEquals(receipt, receipt.validated())
+        rejects { receipt.copy(state = "applied").validated() }
+        val fields = KanbanTaskFields("Task", "Description", null, 0)
+        val create = KanbanMutation("d".repeat(32), board.ownerId, board.id, "draft_" + "e".repeat(32), KANBAN_EMPTY_REVISION, "create", fields = fields)
+        assertEquals(create, create.validated())
+        rejects { create.copy(expectedRevision = task.revision).validated() }
+        rejects { create.copy(status = "running").validated() }
+    }
 }

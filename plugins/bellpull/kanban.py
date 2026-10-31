@@ -5,6 +5,7 @@ transaction; an interrupted response can be recovered without another action.
 """
 import asyncio
 from contextlib import contextmanager
+from functools import lru_cache
 import hashlib
 import inspect
 import json
@@ -22,6 +23,8 @@ from .principal import artifact_scope
 
 COLUMNS = ("triage", "todo", "scheduled", "ready", "running", "blocked", "review", "done", "archived")
 LIMIT = 500
+EMPTY_REVISION = "0" * 64
+EDITABLE_STATUSES = ("triage", "todo", "scheduled", "ready", "blocked")
 
 
 def native():
@@ -48,6 +51,31 @@ def supported():
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+@lru_cache(maxsize=1)
+def editing_supported():
+    try:
+        create = native().create_task
+        return supported() and "allow_nested=True" in inspect.getsource(create) and all(
+            key in inspect.signature(create).parameters for key in ("triage", "board", "idempotency_key", "priority", "assignee"))
+    except (ImportError, AttributeError, OSError, TypeError):
+        return False
+
+
+def task_fields(value):
+    if not isinstance(value, dict) or set(value) != {"title", "body", "assignee", "priority"}:
+        raise ArtifactError("Task fields must include title, body, assignee and priority.", 400)
+    if not isinstance(value["title"], str) or not value["title"].strip() or len(value["title"]) > 500:
+        raise ArtifactError("A task title requires 1–500 characters.", 400)
+    if not isinstance(value["body"], str) or len(value["body"]) > 16384:
+        raise ArtifactError("Task descriptions are limited to 16,384 characters.", 400)
+    assignee = value["assignee"]
+    if assignee is not None and (not isinstance(assignee, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", assignee)):
+        raise ArtifactError("Assignee must be a lowercase Hermes profile name, or null for unassigned.", 400)
+    if type(value["priority"]) is not int or not -(2**31) <= value["priority"] < 2**31:
+        raise ArtifactError("Priority must be a 32-bit integer; higher values sort first.", 400)
+    return {**value, "title": value["title"].strip()}
 
 
 def identity(value):
@@ -116,7 +144,8 @@ class Boards:
         return dict(id=conn.execute("SELECT value FROM bellpull_kanban_meta WHERE key='board_id'").fetchone()[0],
                     slug=name, name=clipped(meta.get("name") or name, 200),
                     description=clipped(meta.get("description"), 2000), archived=bool(meta.get("archived")),
-                    owner_id=self.owner_id, owner_name=self.owner_name, scope="installation")
+                    owner_id=self.owner_id, owner_name=self.owner_name, scope="installation",
+                    can_create=editing_supported() and not meta.get("archived", False))
 
     def listing(self):
         result = []
@@ -139,12 +168,17 @@ class Boards:
         revision = digest({k: v for k, v in raw.items() if k not in ("last_heartbeat_at", "claim_expires")} | {"event": event})
         active = conn.execute("SELECT 1 FROM task_runs WHERE task_id=? AND ended_at IS NULL LIMIT 1", (tid,)).fetchone()
         movable = not active and not raw.get("claim_lock") and not raw.get("worker_pid")
+        editable = movable and raw["status"] in EDITABLE_STATUSES and editing_supported()
+        try:
+            task_fields(dict(title=raw["title"], body=raw.get("body") or "", assignee=raw.get("assignee"), priority=raw.get("priority", 0)))
+        except ArtifactError:
+            editable = False  # Never overwrite a field from a truncated/unsupported representation.
         moves = [s for s in ("triage", "blocked") if s != raw["status"]] if movable and raw["status"] in (
             "triage", "todo", "scheduled", "ready", "blocked") else []
         result = dict(id=tid, title=clipped(raw["title"], 500), status=raw["status"],
                       revision=revision, assignee=raw.get("assignee"), project_id=raw.get("project_id"),
                       session_id=raw.get("session_id"), priority=raw.get("priority", 0),
-                      current_run_id=raw.get("current_run_id"), allowed_moves=moves,
+                      current_run_id=raw.get("current_run_id"), allowed_moves=moves, editable=editable,
                       body=clipped(raw.get("body"), 1000), result=clipped(raw.get("result"), 1000))
         if detail:
             result.update(body=clipped(raw.get("body")), result=clipped(raw.get("result")))
@@ -200,12 +234,19 @@ class Boards:
         operation = identity(body.get("operation_id"))
         tid = task_id(body.get("task_id"))
         action = body.get("action")
-        if set(body) - {"operation_id", "task_id", "action", "owner_id", "board_id", "expected_revision", "status", "comment"}:
+        if set(body) - {"operation_id", "task_id", "action", "owner_id", "board_id", "expected_revision", "status", "comment", "fields"}:
             raise ArtifactError("Unknown Kanban operation fields.", 400)
-        if action not in ("move", "comment"):
+        if action not in ("move", "comment", "create", "edit"):
             raise ArtifactError("Unsupported Kanban action.", 400)
+        fields = task_fields(body.get("fields")) if action in ("create", "edit") else None
         if action == "comment" and (not isinstance(body.get("comment"), str) or not body["comment"].strip() or len(body["comment"]) > 8000):
             raise ArtifactError("Comments require 1–8000 characters.", 400)
+        if action == "create" and (not re.fullmatch(r"draft_[a-f0-9]{32}", tid) or body.get("expected_revision") != EMPTY_REVISION):
+            raise ArtifactError("Creation requires a local draft identity and an empty revision.", 400)
+        if fields is not None and (body.get("status") is not None or body.get("comment") is not None):
+            raise ArtifactError("Task field operations cannot include a move or comment.", 400)
+        if fields is None and body.get("fields") is not None:
+            raise ArtifactError("Task fields require a create/edit action.", 400)
         fingerprint = digest(body)
         with self.connection(name) as conn, database_api().write_txn(conn):
             board = self.board(conn, name)
@@ -218,28 +259,54 @@ class Boards:
                 return json.loads(previous[1])
             if conn.execute("SELECT COUNT(*) FROM bellpull_kanban_operations").fetchone()[0] >= 20000:
                 raise ArtifactError("Kanban operation receipt capacity reached; existing receipts remain available.", 409)
-            current = self.task(conn, tid)
+            current = None if action == "create" else self.task(conn, tid)
             error = None
             if board["archived"]:
                 error = "The board is archived."
-            elif body.get("expected_revision") != current["revision"]:
+            elif fields is not None and not editing_supported():
+                error = "This host cannot safely create or edit native tasks."
+            elif current is not None and body.get("expected_revision") != current["revision"]:
                 error = "Task changed on the server. Review the current task before applying this edit."
             elif action == "move" and body.get("status") not in current["allowed_moves"]:
                 error = "This move is unavailable. Active work must be managed by its executor."
+            elif action == "edit" and not current["editable"]:
+                error = "Task fields cannot be edited while work is active, completed, or outside mobile limits."
             if error is None:
-                if action == "comment":
+                if action == "create":
+                    try:
+                        with database_api().write_txn(conn, allow_nested=True):
+                            created = self.kb.create_task(conn, **fields, triage=True,
+                                board=name, created_by="Bellpull", idempotency_key="bellpull:" + operation)
+                            if self.kb.get_task(conn, created).status != "triage":
+                                raise ValueError("Native creation did not preserve triage; the task was rolled back.")
+                            # Native creation may silently drop an unresolved project link.
+                            # A phone request must preserve the board's project or roll back.
+                            project = self.metadata(name).get("project_id")
+                            if project and self.kb.get_task(conn, created).project_id != project:
+                                raise ValueError("This gateway cannot resolve the board's owning project. Create from its owner.")
+                        tid = created
+                    except ValueError as exc:
+                        error = str(exc)
+                elif action == "comment":
                     self.kb.add_comment(conn, tid, "Bellpull", body["comment"])
+                elif action == "edit":
+                    conn.execute("UPDATE tasks SET title=?,body=?,priority=? WHERE id=?",
+                                 (fields["title"], fields["body"], fields["priority"], tid))
+                    # Match native reassignment's failure bookkeeping without invoking
+                    # its independent commit/hook from inside the receipt transaction.
+                    if fields["assignee"] != current["assignee"]:
+                        conn.execute("UPDATE tasks SET assignee=?,consecutive_failures=0,last_failure_error=NULL WHERE id=?",
+                                     (fields["assignee"], tid))
+                        self.kb._append_event(conn, tid, "assigned", {"assignee": fields["assignee"]})
+                    self.kb._append_event(conn, tid, "updated", {"fields": list(fields), "source": "bellpull", "operation_id": operation})
                 else:
-                    # A narrow native-schema adapter: only park unclaimed work.
-                    # Never release dependencies, clear an active run, dispatch,
-                    # execute hooks, or invoke the model to perform a card move.
                     conn.execute("UPDATE tasks SET status=?, claim_lock=NULL, claim_expires=NULL, worker_pid=NULL WHERE id=?",
                                  (body["status"], tid))
                     self.kb._append_event(conn, tid, "status", {"status": body["status"], "previous_status": current["status"],
                                                                "source": "bellpull", "operation_id": operation})
             result = dict(version=1, board=board, operation_id=operation,
                           state="conflict" if error else "applied", message=error,
-                          task=self.task(conn, tid, True), observed_at_ms=int(time.time()*1000))
+                          task=None if action == "create" and error else self.task(conn, tid, True), observed_at_ms=int(time.time()*1000))
             conn.execute("INSERT INTO bellpull_kanban_operations VALUES (?,?,?)", (operation, fingerprint, json.dumps(result)))
             return result
 
@@ -254,7 +321,7 @@ def routes(adapter):
                 body = await request.json()
             except (ValueError, UnicodeError):
                 raise ArtifactError("Invalid Kanban JSON.", 400)
-            if len(json.dumps(body)) > 20000:
+            if len(json.dumps(body, ensure_ascii=False).encode()) > 80000:
                 raise ArtifactError("Kanban operation too large.", 413)
             result = await asyncio.to_thread(lambda: Boards().mutate(name, body))
         else:

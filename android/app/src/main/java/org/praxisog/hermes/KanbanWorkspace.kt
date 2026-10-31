@@ -28,6 +28,8 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         private set
     var selectedTask by mutableStateOf<String?>(null)
         private set
+    var editorId by mutableStateOf<String?>(null)
+        private set
     private var client: HermesClient? = null
     private var closed = false
     private val lock = Mutex()
@@ -36,7 +38,13 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
     val board get() = state.boards.firstOrNull { it.slug == state.selectedBoard }
     val snapshot get() = board?.let { b -> state.snapshots.firstOrNull { it.board.key == b.key } }
     val detail get() = board?.let { b -> state.details.firstOrNull { it.board.key == b.key && it.task.id == selectedTask } }
-    val task get() = detail?.task ?: snapshot?.tasks?.firstOrNull { it.id == selectedTask }
+    val task get() = detail?.task ?: visibleTasks.firstOrNull { it.id == selectedTask }
+    val visibleTasks get() = state.pending.filter { it.board.key == board?.key && it.mutation.action == "create" }.mapNotNull { item ->
+        item.mutation.fields?.let { fields -> KanbanTask(item.mutation.taskId, fields.title, "triage", KANBAN_EMPTY_REVISION,
+            assignee = fields.assignee, priority = fields.priority, body = fields.body) }
+    } + snapshot?.tasks.orEmpty()
+    val formKey get() = board?.let { "${it.key}/${editorId ?: "new"}" }
+    val form get() = formKey?.let { state.forms[it] }
     fun key(board: KanbanBoard, task: String) = "${board.key}/$task"
     fun pending(task: String) = state.pending.firstOrNull { it.board.key == board?.key && it.mutation.taskId == task }
     fun draft(task: String) = board?.let { state.drafts[key(it, task)].orEmpty() }.orEmpty()
@@ -69,7 +77,7 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
 
     fun choose(slug: String) {
         if (state.boards.none { it.slug == slug }) return
-        selectedTask = null; fresh = false
+        selectedTask = null; editorId = null; fresh = false
         local({ it.copy(selectedBoard = slug) }) { refresh() }
     }
     fun view(board: Boolean) = local({ it.copy(boardView = board) })
@@ -79,6 +87,63 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         local({ it.copy(selectedBoard = item.board.slug) }) { selectedTask = item.mutation.taskId; fresh = false; refresh() }
     }
     fun back() { selectedTask = null }
+    fun startForm(taskId: String? = null) {
+        val board = board ?: return
+        if (board.archived || (taskId == null && !board.canCreate)) return
+        val current = taskId?.let { id -> detail?.task?.takeIf { it.id == id && it.editable } }
+        if (taskId != null && current == null) return
+        val key = "${board.key}/${taskId ?: "new"}"
+        if (key !in state.forms && state.forms.size >= 100) { problem = "Too many saved task drafts. Discard a draft before starting another."; return }
+        val draft = if (current == null) KanbanFormDraft("draft_" + UUID.randomUUID().toString().replace("-", ""), KANBAN_EMPTY_REVISION)
+            else KanbanFormDraft(current.id, current.revision, current.title, current.body, current.assignee.orEmpty(), current.priority.toString())
+        local({ it.copy(forms = it.forms + (key to (it.forms[key] ?: draft))) }) { editorId = taskId ?: "new" }
+    }
+    fun saveForm(draft: KanbanFormDraft) {
+        if (editorId == null) return
+        val key = formKey ?: return
+        local({ it.copy(forms = it.forms + (key to draft.validated())) })
+    }
+    fun closeForm(discard: Boolean = false) {
+        val key = formKey
+        if (discard && key != null) local({ it.copy(forms = it.forms - key) }) { editorId = null }
+        else editorId = null
+    }
+    fun submitForm(draft: KanbanFormDraft) {
+        if (editorId == null || form?.taskId != draft.taskId || form?.revision != draft.revision) return
+        val board = board ?: return
+        val key = formKey ?: return
+        val fields = draft.fields() ?: return
+        val create = editorId == "new"
+        if (board.archived || (create && !board.canCreate) || pending(draft.taskId) != null || state.pending.size >= 100) return
+        val mutation = KanbanMutation(UUID.randomUUID().toString().replace("-", ""), board.ownerId, board.id,
+            draft.taskId, draft.revision, if (create) "create" else "edit", fields = fields).validated()
+        local({ old ->
+            if (old.pending.any { it.board.key == board.key && it.mutation.taskId == draft.taskId }) old
+            else old.copy(forms = old.forms - key, pending = old.pending + KanbanPending(board, mutation))
+        }) { editorId = null; selectedTask = draft.taskId; refresh() }
+    }
+    fun editPending(item: KanbanPending) {
+        if (item.state !in listOf("queued", "conflict") || item.board.key != board?.key) return
+        val fields = item.mutation.fields ?: return
+        val id = if (item.mutation.action == "create") "new" else item.mutation.taskId
+        val key = "${item.board.key}/$id"
+        if (key !in state.forms && state.forms.size >= 100) { problem = "Too many saved task drafts. Discard a draft first."; return }
+        val draft = KanbanFormDraft(item.mutation.taskId, item.mutation.expectedRevision, fields.title, fields.body, fields.assignee.orEmpty(), fields.priority.toString())
+        var opened = false
+        local({ old ->
+            // Delivery may acquire the lock before this tap. Never remove an
+            // admitted operation using the queued item captured by the UI.
+            val current = old.pending.firstOrNull { it.mutation.operationId == item.mutation.operationId }
+            if (current == null || current.state !in listOf("queued", "conflict") || current.mutation != item.mutation || board?.key != item.board.key) old
+            else if ((key !in old.forms && old.forms.size >= 100) || old.forms[key]?.let { it.taskId != draft.taskId } == true) {
+                problem = "Finish or discard another saved task draft before editing this one."
+                old
+            } else {
+                opened = true
+                old.copy(pending = old.pending - current, forms = old.forms + (key to draft))
+            }
+        }) { if (opened) editorId = id }
+    }
     fun draft(id: String, text: String) {
         val board = board ?: return
         if (text.length > 8000) return
@@ -113,12 +178,18 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
     /** An explicit review creates a new intent; it cannot change an unknown request. */
     fun applyReviewed(operation: String) {
         val item = state.pending.firstOrNull { it.mutation.operationId == operation && it.state == "conflict" } ?: return
-        val current = detail ?: return
-        if (!fresh || current.board.key != item.board.key || current.task.id != item.mutation.taskId || current.board.archived) return
-        if (item.mutation.action == "move" && item.mutation.status !in current.task.allowedMoves) return
+        if (!fresh || board?.key != item.board.key || board?.archived != false) return
+        val current = detail
+        val create = item.mutation.action == "create"
+        if (create) { if (board?.canCreate != true) return }
+        else {
+            if (current == null || current.board.key != item.board.key || current.task.id != item.mutation.taskId) return
+            if (item.mutation.action == "move" && item.mutation.status !in current.task.allowedMoves) return
+            if (item.mutation.action == "edit" && !current.task.editable) return
+        }
         local({ old -> old.copy(pending = old.pending.map { if (it.mutation.operationId != operation) it else
             it.copy(mutation = it.mutation.copy(operationId = UUID.randomUUID().toString().replace("-", ""),
-                expectedRevision = current.task.revision), state = "queued", problem = null) }) }) { refresh() }
+                expectedRevision = if (create) KANBAN_EMPTY_REVISION else current!!.task.revision), state = "queued", problem = null) }) }) { refresh() }
     }
 
     fun refresh() {
@@ -172,19 +243,22 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
                 if (closed) return
                 if (receipt is HermesResult.Err) { failure(receipt.error); return }
                 val value = (receipt as HermesResult.Ok).value
-                if (value.board.key != owner.key || (value.task != null && value.task?.id != pending.mutation.taskId)) {
+                if (value.board.key != owner.key || (pending.mutation.action != "create" && value.task != null && value.task?.id != pending.mutation.taskId)) {
                     problem = "Operation receipt belongs to a different board or task."; return
                 }
                 if (value.state != "not_found") { accept(pending, value); continue }
                 // Atomic, retained receipts make an identical retry safe. Its
                 // original revision stays intact; the server resolves conflicts.
                 shouldSend = true
+            } else if (pending.mutation.action == "create") {
+                if (!owner.canCreate) { update(pending, "conflict", "This board does not currently allow task creation."); continue }
             } else {
                 val latest = withContext(Dispatchers.IO) { api.kanbanTask(owner.slug, pending.mutation.taskId) }
                 if (closed) return
                 if (latest is HermesResult.Err) { failure(latest.error); return }
                 val value = (latest as HermesResult.Ok).value
-                if (value.board.key != owner.key || value.task.revision != pending.mutation.expectedRevision) {
+                if (value.board.key != owner.key || value.task.revision != pending.mutation.expectedRevision ||
+                    (pending.mutation.action == "edit" && !value.task.editable)) {
                     update(pending, "conflict", "Task changed. Open it and review this edit."); continue
                 }
             }
@@ -206,7 +280,7 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         val current = (refreshed as HermesResult.Ok).value
         if (current.board.key != currentBoard.key) { fresh = false; problem = "Board was replaced. Refresh to load its new identity."; return }
         save { it.copy(snapshots = (listOf(current) + it.snapshots.filterNot { s -> s.board.key == currentBoard.key }).take(10)) }
-        selectedTask?.let { id ->
+        selectedTask?.takeUnless { id -> pending(id)?.mutation?.action == "create" }?.let { id ->
             val detail = withContext(Dispatchers.IO) { api.kanbanTask(currentBoard.slug, id) }
             if (closed) return
             if (detail is HermesResult.Err) failure(detail.error)
@@ -221,7 +295,10 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         old.copy(pending = old.pending.map { if (it.mutation.operationId == item.mutation.operationId) it.copy(state = status, problem = message) else it })
     }
     private suspend fun accept(item: KanbanPending, receipt: KanbanReceipt) {
-        if (receipt.state == "applied") save { it.copy(pending = it.pending.filterNot { p -> p.mutation.operationId == item.mutation.operationId }) }
+        if (receipt.state == "applied") {
+            if (save { it.copy(pending = it.pending.filterNot { p -> p.mutation.operationId == item.mutation.operationId }) } &&
+                item.mutation.action == "create" && selectedTask == item.mutation.taskId) selectedTask = receipt.task?.id
+        }
         else update(item, "conflict", receipt.message ?: "Review this edit against the current task.")
     }
     fun close() { closed = true; syncJob?.cancel(); client = null }

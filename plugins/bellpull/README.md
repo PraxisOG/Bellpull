@@ -1,8 +1,9 @@
-> Current development pair: **Android 0.18.0 / build 45**, plugin **0.8.0-integration-preview**.
-> Adds authenticated native Kanban board/detail reads, comments, non-executing moves
+> Current development pair: **Android 0.18.1 / build 46**, plugin **0.8.1-integration-preview**.
+> Adds authenticated native Kanban board/detail reads, task creation/field editing, comments, non-executing moves
 > and atomic operation receipts for offline recovery. See [Phase 18](../../docs/PHASE-18-KANBAN.md)
 > and the [API contract](../../docs/hermes-api.md#bellpull-native-kanban-extension--october-31-2026).
-> This is a local development build; no personal server has been updated.
+> This is a local development build. The local test gateway has the Kanban extension
+> layered into its existing Canvas preview; the user updates Moe manually.
 
 > Previous experimental pair: **Android 0.15.0 / build 43**, plugin **0.7.0-integration-preview**.
 > Authenticated phone snapshots provide bounded context for new native API chats
@@ -19,17 +20,19 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.8.0-integration-preview
+# Bellpull integration plugin 0.8.1-integration-preview
 
 This single plugin includes native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair it with Android **0.18.0-experimental** (build 45) built from this branch. The separate Phase 6/8/9 preview plugin directories are
+Pair it with Android **0.18.1-experimental** (build 46) built from this branch. The separate Phase 6/8/9 preview plugin directories are
 superseded by this combined package; do not overlay individual module copies.
 
 Install the entire `plugins/bellpull/` directory using the stock-plugin procedure
 below, restart Hermes, and refresh authenticated capabilities in Bellpull. No core
 replacement, Docker, second scheduler or separate OpenCode server is required.
 `bellpull_kanban` requires the native Kanban database/transaction surface tested on Hermes 0.21.1 and 0.21.5;
+`bellpull_kanban_editing` additionally requires native creation with nested transaction support.
+New tasks enter triage; edits preserve execution state and cannot change active/claimed work.
 `bellpull_coding_activity` requires modern identity-bearing hooks;
 `bellpull_planning` requires the supported API handler surface;
 `bellpull_routines` additionally requires the per-profile native cron store.
@@ -42,6 +45,10 @@ plugin and restart for rollback; stored chat/session schemas are unchanged.
 Kanban adds `bellpull_kanban_meta` and `bellpull_kanban_operations` tables to each
 native board database. Preserve these identities and receipts through backups and
 rollback so unresolved phone edits retain their recovery evidence.
+The local test gateway reports `0.6.1-canvas-v1-preview+kanban.0.8.1`: this preserves
+its separately developed Canvas implementation. That deployment bundle is distinct
+from this standard 0.8.1 package; do not replace a Canvas preview with the standard
+package and expect Canvas to remain available.
 See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.md),
 [OpenCode scope](../../docs/PHASE-6-OPENCODE.md) and
 [planning scope](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).

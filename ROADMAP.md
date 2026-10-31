@@ -1,5 +1,5 @@
 > **Current phases:** see [docs/ROADMAP.md](docs/ROADMAP.md), updated October 31, 2026.
-> Native Hermes Kanban (Phase 18) has its first implementation; phase identifiers are not delivery order.
+> Native Hermes Kanban (Phase 18) includes task creation, field editing and offline recovery; phase identifiers are not delivery order.
 > The implementation notes below are historical; Phase 7 is now Hermes prompt
 > optimization rather than a Quick Chat app feature.
 

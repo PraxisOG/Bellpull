@@ -27,13 +27,13 @@ class KanbanDeviceTest {
     private val origin = "http://127.0.0.1:18658"
     private val token = "bellpull-kanban-device-fixture"
     private val ui = DeviceFixtureUi
-    private fun control(action: String = "inspect"): JsonObject {
+    private fun control(action: String = "inspect", board: String = "default"): JsonObject {
         val request = URI("$origin/fixture/kanban").toURL().openConnection() as HttpURLConnection
         request.connectTimeout = 5000; request.readTimeout = 5000
         request.setRequestProperty("Authorization", "Bearer $token")
         request.setRequestProperty("Content-Type", "application/json")
         request.requestMethod = "POST"; request.doOutput = true
-        request.outputStream.use { it.write("""{"action":"$action"}""".toByteArray()) }
+        request.outputStream.use { it.write("""{"action":"$action","board":"$board"}""".toByteArray()) }
         return try {
             assertEquals(200, request.responseCode)
             request.inputStream.bufferedReader().use { Json.parseToJsonElement(it.readText()).jsonObject }
@@ -73,6 +73,75 @@ class KanbanDeviceTest {
             ui.main { BellpullRuntime.get(context).disconnect() }
             secure.clear()
         }
+    }
+
+    @Test fun createAndEditWithRealTouchSurviveOfflineRestartAndLostCreateResponse() = ui.withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val client = HermesClient(origin, { token }, httpClient = HermesClient.defaultHttpClient().newBuilder().retryOnConnectionFailure(false).build())
+        var cache = SessionCache(context, "kanban-editing-device")
+        var workspace = KanbanWorkspace(scope, cache)
+        fun input(tag: String, value: String) {
+            ui.await("Missing task form field $tag") { ui.find { it.viewIdResourceName == tag } != null }
+            assertTrue(ui.find { it.viewIdResourceName == tag }!!.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
+                Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value) }))
+        }
+        fun sync() {
+            ui.main { workspace.refresh() }
+            ui.awaitMain("Editing board did not sync") { !workspace.busy && workspace.fresh && workspace.snapshot != null }
+        }
+        try {
+            assertTrue((client.capabilities() as HermesResult.Ok).value.features["bellpull_kanban_editing"] == true)
+            ui.main { workspace.configure(client, true) }; sync()
+            ui.main { workspace.choose("mobile-editing") }
+            ui.awaitMain("Editing board missing") { !workspace.busy && workspace.snapshot?.board?.slug == "mobile-editing" }
+            ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+                scene.onActivity { activity -> activity.setContent { HermesTheme(palette = Palette.MAROON) { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    KanbanScreen(workspace, foreground = false)
+                } } } }
+                ui.main { workspace.configure(null, false) }
+                ui.tapText("New task")
+                input("kanban-title", "Physical phone creation")
+                input("kanban-body", "Exact description retained offline")
+                input("kanban-assignee", "work")
+                input("kanban-priority", "3")
+                ui.screenshot("kanban-create-form")
+                ui.tapText("Create task")
+                ui.awaitMain("Offline creation not queued") { workspace.state.pending.singleOrNull()?.mutation?.action == "create" }
+                ui.screenshot("kanban-pending-creation")
+            }
+            val localId = workspace.state.pending.single().mutation.taskId
+            ui.main { workspace.close(); cache.close(); cache = SessionCache(context, "kanban-editing-device"); workspace = KanbanWorkspace(scope, cache) }
+            assertEquals("Exact description retained offline", workspace.state.pending.single().mutation.fields!!.body)
+            control("drop")
+            ui.main { workspace.open(localId); workspace.configure(client, true); workspace.refresh() }
+            ui.awaitMain("Lost create response did not remain unknown") { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "unknown" && workspace.problem != null }
+            val posts = control()["posts"]!!.jsonPrimitive.int
+            ui.main { workspace.close(); cache.close(); cache = SessionCache(context, "kanban-editing-device"); workspace = KanbanWorkspace(scope, cache); workspace.open(localId); workspace.configure(client, true) }
+            sync()
+            ui.awaitMain("Created task receipt did not restore native identity") { !workspace.busy && workspace.state.pending.isEmpty() && workspace.detail?.task?.title == "Physical phone creation" }
+            assertEquals(posts, control()["posts"]!!.jsonPrimitive.int)
+            val created = workspace.detail!!.task
+            assertNotEquals(localId, created.id); assertEquals("triage", created.status)
+            ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+                scene.onActivity { activity -> activity.setContent { HermesTheme(palette = Palette.MAROON) { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    KanbanScreen(workspace, foreground = false)
+                } } } }
+                ui.tapText("Edit task")
+                input("kanban-title", "Edited on the physical phone")
+                input("kanban-assignee", "")
+                input("kanban-priority", "7")
+                ui.tapText("Save changes")
+                ui.awaitMain("Native field edit failed") { !workspace.busy && workspace.state.pending.isEmpty() && workspace.detail?.task?.title == "Edited on the physical phone" }
+                assertEquals("triage", workspace.detail!!.task.status)
+                assertNull(workspace.detail!!.task.assignee); assertEquals(7, workspace.detail!!.task.priority)
+                ui.screenshot("kanban-edited-task")
+            }
+            val actual = control(board = "mobile-editing")["snapshot"]!!.jsonObject
+            assertEquals(1, actual["total"]!!.jsonPrimitive.int)
+            assertEquals("Edited on the physical phone", actual["tasks"]!!.jsonArray.single().jsonObject["title"]!!.jsonPrimitive.content)
+            assertEquals(0, control()["runs"]!!.jsonPrimitive.int)
+        } finally { ui.main { workspace.close(); cache.close(); scope.cancel() }; client.close() }
     }
 
     @Test fun nativeBoardTouchOfflineRestartLostResponseAndConcurrentEdit() = ui.withWindows {

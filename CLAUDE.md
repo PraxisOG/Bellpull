@@ -17,6 +17,16 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-10-31, mobile Kanban):** implement native task
+creation/field editing after the initial board/comment/move slice, with durable
+offline drafts and receipt recovery. Branch `feature/mobile-kanban-editing-0181`,
+app 0.18.1/build46 and standard plugin 0.8.1. The user said: "I manually update
+moe, update the test hermes for testing." Update only the local test Hermes,
+preserving its existing Canvas preview, configuration, sessions and model defaults.
+Continue fixture-device validation and signed in-place phone upgrades with personal
+data intact. Moe deployment is manual; no GitHub publication is requested for this
+increment. Earlier publication permissions below describe historical tasks.
+
 **Current task authority (2026-10-23, voice speaker):** make Telecom voice mode
 use the phone loudspeaker instead of its earpiece, preserving car/headset routes.
 Branch `fix/voice-speaker-01410`, app 0.14.10/build42; plugin stays 0.6.2.

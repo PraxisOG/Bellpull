@@ -5,12 +5,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import org.praxisog.hermes.model.*
 
@@ -25,6 +31,11 @@ import org.praxisog.hermes.model.*
     var now by remember { mutableLongStateOf(clock()) }
     LaunchedEffect(foreground) { if (foreground) while (true) { now = clock(); delay(10_000) } }
     var queueOpen by remember { mutableStateOf(false) }
+    if (workspace.editorId != null) workspace.form?.let { form ->
+        KanbanTaskEditor(form, workspace.editorId == "new", workspace.board?.name.orEmpty(), workspace.board?.ownerName.orEmpty(),
+            workspace.state.pending.size < 100, workspace.problem, workspace::saveForm, workspace::submitForm,
+            { workspace.closeForm() }, { workspace.closeForm(discard = true) })
+    }
     if (queueOpen) AlertDialog(onDismissRequest = { queueOpen = false }, title = { Text("Pending task edits") },
         confirmButton = { TextButton(onClick = { queueOpen = false }) { Text("Close") } }, text = {
             LazyColumn(Modifier.heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -33,6 +44,7 @@ import org.praxisog.hermes.model.*
                     Text("${item.mutation.taskId} · ${item.mutation.action} · ${item.state}")
                     Text(item.problem ?: "Waiting for confirmation")
                     item.mutation.comment?.let { Text(it, maxLines = 4, overflow = TextOverflow.Ellipsis) }
+                    item.mutation.fields?.let { Text("${it.title} · priority ${it.priority} · ${it.assignee ?: "Unassigned"}") }
                     if (workspace.state.boards.any { it.key == item.board.key }) TextButton(onClick = {
                         workspace.review(item); queueOpen = false
                     }) { Text("Open task") }
@@ -43,7 +55,7 @@ import org.praxisog.hermes.model.*
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var chooseBoard by remember { mutableStateOf(false) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Box {
+            Box(Modifier.weight(1f)) {
                 TextButton(onClick = { chooseBoard = true }, enabled = workspace.state.boards.isNotEmpty()) {
                     Text(workspace.board?.name ?: "Task boards", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -52,6 +64,7 @@ import org.praxisog.hermes.model.*
                         onClick = { chooseBoard = false; workspace.choose(board.slug) }) }
                 }
             }
+            if (workspace.board?.canCreate == true) TextButton(onClick = { workspace.startForm() }) { Text("New task") }
             TextButton(onClick = workspace::refresh, enabled = workspace.supported && !workspace.busy) { Text("Refresh") }
         }
         workspace.board?.let { Text("${it.ownerName} · ${if (it.archived) "Archived board" else "Board owner"}", style = MaterialTheme.typography.labelMedium) }
@@ -76,7 +89,7 @@ import org.praxisog.hermes.model.*
                 FilterChip(!workspace.state.boardView, { workspace.view(false) }, label = { Text("List") })
                 FilterChip(workspace.state.boardView, { workspace.view(true) }, label = { Text("Board") })
             }
-            val tasks = snapshot.tasks.filter { query.isBlank() || listOf(it.title, it.id, it.assignee.orEmpty(), it.body).any { text -> text.contains(query, true) } }
+            val tasks = workspace.visibleTasks.filter { query.isBlank() || listOf(it.title, it.id, it.assignee.orEmpty(), it.body).any { text -> text.contains(query, true) } }
             if (tasks.isEmpty()) Text(if (query.isBlank()) "This board has no tasks." else "No matching loaded tasks.")
             if (workspace.state.boardView) {
                 Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -110,8 +123,12 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
             Text(task.title, style = MaterialTheme.typography.titleSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
             Text("${task.status} · ${task.assignee ?: "Unassigned"}", style = MaterialTheme.typography.bodySmall)
             task.projectId?.let { Text("Project: $it", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            if (pending != null) Text(if (pending.mutation.action == "move") "Move to ${pending.mutation.status} · ${pending.state}"
-                else "Comment · ${pending.state}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            if (pending != null) Text(when (pending.mutation.action) {
+                "move" -> "Move to ${pending.mutation.status} · ${pending.state}"
+                "create" -> "Pending creation · ${pending.state}"
+                "edit" -> "Field edits · ${pending.state}"
+                else -> "Comment · ${pending.state}"
+            }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -124,18 +141,25 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
         item {
             Text(task.title, style = MaterialTheme.typography.titleLarge)
             Text("${task.status} · ${task.assignee ?: "Unassigned"}")
-            Text("Task ${task.id}", style = MaterialTheme.typography.bodySmall)
+            Text(if (pending?.mutation?.action == "create") "Local draft · not yet confirmed by Hermes" else "Task ${task.id}", style = MaterialTheme.typography.bodySmall)
+            Text("Priority ${task.priority}", style = MaterialTheme.typography.bodySmall)
+            if (task.editable && workspace.detail != null && pending == null) TextButton(onClick = { workspace.startForm(task.id) }) { Text("Edit task") }
             task.projectId?.let { Text("Project $it", style = MaterialTheme.typography.bodySmall) }
             if (task.body.isNotEmpty()) Text(task.body)
             task.sessionId?.let { TextButton(onClick = { openSession(it) }) { Text("Open conversation") } }
         }
-        if (workspace.detail == null) item { Text("Showing the saved task excerpt. Refresh to load full details.") }
+        if (workspace.detail == null && pending?.mutation?.action != "create") item { Text("Showing the saved task excerpt. Refresh to load full details.") }
         if (!task.detailsComplete) item { Text("Details are bounded; older entries or longer text are not included.") }
         if (pending != null) item {
             OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
                 Text("${pending.mutation.action.replaceFirstChar { it.uppercase() }} · ${pending.state}", style = MaterialTheme.typography.titleSmall)
                 pending.mutation.comment?.let { Text(it) }
                 pending.mutation.status?.let { Text("Requested move: $it") }
+                pending.mutation.fields?.let { fields ->
+                    Text("Requested title: ${fields.title}")
+                    Text(fields.body, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                    Text("Assignee: ${fields.assignee ?: "Unassigned"} · priority ${fields.priority}")
+                }
                 Text(pending.problem ?: "Saved on this phone; waiting for Hermes confirmation.", style = MaterialTheme.typography.bodySmall)
                 if (pending.state in listOf("queued", "conflict")) {
                     Row {
@@ -143,12 +167,16 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
                         if (pending.mutation.comment != null) TextButton(onClick = {
                             editor = pending.mutation.comment.orEmpty(); workspace.discard(pending.mutation.operationId, edit = true)
                         }) { Text("Edit comment") }
+                        if (pending.mutation.fields != null) TextButton(onClick = { workspace.editPending(pending) }) { Text("Edit draft") }
                     }
-                    if (pending.state == "conflict") TextButton(onClick = { workspace.applyReviewed(pending.mutation.operationId) }, enabled = workspace.fresh && workspace.detail != null) { Text("Apply to current task") }
+                    if (pending.state == "conflict") TextButton(onClick = { workspace.applyReviewed(pending.mutation.operationId) },
+                        enabled = workspace.fresh && (workspace.detail != null || pending.mutation.action == "create")) {
+                        Text(if (pending.mutation.action == "create") "Retry creation" else "Apply to current task")
+                    }
                 } else Text("Delivery is unresolved. Refresh checks its receipt before any retry.", style = MaterialTheme.typography.bodySmall)
             } }
         }
-        if (workspace.board?.archived == false) item {
+        if (workspace.board?.archived == false && pending?.mutation?.action != "create") item {
             if (pending == null && task.allowedMoves.isNotEmpty()) {
                 Text("Move task", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -179,6 +207,37 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
     }
 }
 
+@Composable internal fun KanbanTaskEditor(initial: KanbanFormDraft, creating: Boolean, board: String, owner: String,
+    enabled: Boolean, error: String?, onChange: (KanbanFormDraft) -> Unit, onSave: (KanbanFormDraft) -> Unit,
+    onDismiss: () -> Unit, onDiscard: () -> Unit) {
+    var form by remember(initial.taskId) { mutableStateOf(initial) }
+    fun update(next: KanbanFormDraft) { form = next; onChange(next) }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.semantics { testTagsAsResourceId = true }.imePadding().padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.9f), shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (creating) "New task" else "Edit task", style = MaterialTheme.typography.titleLarge)
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("$board · $owner", style = MaterialTheme.typography.bodySmall)
+                    if (creating) Text("Creates a task in triage. Work starts only when you schedule it in Hermes.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(form.title, { update(form.copy(title = it.take(500))) }, label = { Text("Task title") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("kanban-title"))
+                    OutlinedTextField(form.body, { update(form.copy(body = it.take(16384))) }, label = { Text("Description") }, minLines = 3, maxLines = 8, modifier = Modifier.fillMaxWidth().testTag("kanban-body"))
+                    OutlinedTextField(form.assignee, { update(form.copy(assignee = it.take(64))) }, label = { Text("Assignee profile") }, singleLine = true,
+                        supportingText = { Text("Leave blank for unassigned") }, modifier = Modifier.fillMaxWidth().testTag("kanban-assignee"))
+                    OutlinedTextField(form.priority, { update(form.copy(priority = it.take(12))) }, label = { Text("Priority (higher first)") }, singleLine = true,
+                        isError = form.priority.toIntOrNull() == null, modifier = Modifier.fillMaxWidth().testTag("kanban-priority"))
+                    if (form.assignee.isNotBlank() && !kanbanSlug(form.assignee.trim().lowercase())) Text("Use a profile name with letters, numbers, hyphens or underscores.", color = MaterialTheme.colorScheme.error)
+                    error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                }
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDiscard) { Text("Discard draft") }
+                    TextButton(onClick = onDismiss) { Text("Keep draft") }
+                    Button(onClick = { onSave(form) }, enabled = enabled && form.fields() != null) { Text(if (creating) "Create task" else "Save changes") }
+                }
+            }
+        }
+    }
+}
+
 @Composable internal fun KanbanToday(workspace: KanbanWorkspace, foreground: Boolean, open: (String) -> Unit) {
     LaunchedEffect(workspace, foreground, workspace.supported) { if (foreground) while (true) { workspace.refresh(); delay(30_000) } }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -189,7 +248,7 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
         Text(workspace.board?.let { "${it.name} · ${it.ownerName}" } ?: "Choose a board in Tasks", style = MaterialTheme.typography.bodySmall)
         Text(kanbanAge(snapshot?.observedAt, now, workspace.fresh), style = MaterialTheme.typography.bodySmall)
         workspace.problem?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        val tasks = snapshot?.tasks.orEmpty().filter { it.status !in listOf("done", "archived") }
+        val tasks = workspace.visibleTasks.filter { it.status !in listOf("done", "archived") }
         if (tasks.isEmpty()) Text(if (snapshot == null) "Tasks have not synced yet." else "No open tasks in this snapshot.")
         tasks.take(5).forEach { task -> KanbanCard(task, workspace.pending(task.id)) { open(task.id) } }
         if (tasks.size > 5 || snapshot?.complete == false) TextButton(onClick = { open("") }) { Text("Open full task board") }

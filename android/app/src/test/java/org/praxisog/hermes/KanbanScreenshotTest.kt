@@ -5,6 +5,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.semantics.SemanticsActions
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import kotlinx.coroutines.*
 import org.junit.*
 import org.junit.Assert.*
@@ -83,4 +84,15 @@ class KanbanScreenshotTest {
         compose.waitUntil(5000) { compose.waitForIdle(); workspace.state.pending.isEmpty() }
         compose.onNodeWithText("Comment", substring = false).assertTextContains("Saved for later")
     }
+    private fun editor() {
+        compose.setContent { HermesTheme(palette = Palette.MAROON) {
+            KanbanTaskEditor(KanbanFormDraft("draft_" + "e".repeat(32), KANBAN_EMPTY_REVISION, "Plan the mobile release", "Keep the work in triage until reviewed.", "work", "2"),
+                true, "Home projects", "Desktop Hermes", true, null, {}, {}, {}, {})
+        } }
+        compose.waitForIdle(); captureScreenRoboImage()
+        compose.onNodeWithText("Create task").assertIsDisplayed().assertIsEnabled()
+    }
+    @Test fun newTaskEditorCover() = editor()
+    @Test @Config(qualifiers = "w840dp-h900dp-night") fun newTaskEditorUnfolded() = editor()
+    @Test @Config(qualifiers = "w393dp-h420dp") fun taskEditorKeepsSaveReachableAtKeyboardHeight() = editor()
 }

@@ -17,14 +17,15 @@ import java.util.concurrent.CopyOnWriteArrayList
 class KanbanWorkspaceTest {
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val board = KanbanBoard("b".repeat(32), "default", "Work", "a".repeat(64), "Desktop")
-    private val task = KanbanTask("task-one", "Finish mobile board", "triage", "c".repeat(64), allowedMoves = listOf("blocked"))
+    private val board = KanbanBoard("b".repeat(32), "default", "Work", "a".repeat(64), "Desktop", canCreate = true)
+    private val task = KanbanTask("task-one", "Finish mobile board", "triage", "c".repeat(64), allowedMoves = listOf("blocked"), editable = true)
     private fun snapshot(b: KanbanBoard = board, t: KanbanTask = task) = KanbanSnapshot(board = b, columns = KANBAN_COLUMNS, tasks = listOf(t), total = 1, complete = true, observedAt = 1000)
     private inner class Cache : KanbanCache {
         @Volatile var value = KanbanLocalState(boards = listOf(board), snapshots = listOf(snapshot()), selectedBoard = "default")
+        @Volatile var writes = 0
         var writable = true
         override fun readKanban() = value
-        override fun writeKanban(value: KanbanLocalState): Boolean { if (!writable) return false; this.value = value; return true }
+        override fun writeKanban(value: KanbanLocalState): Boolean { if (!writable) return false; this.value = value; writes++; return true }
     }
     private inner class Host {
         var current = task
@@ -46,7 +47,9 @@ class KanbanWorkspaceTest {
                     val mutation = json.decodeFromString<KanbanMutation>(buffer.readUtf8())
                     posted += mutation
                     val receipt = receipts.getOrPut(mutation.operationId) {
-                        current = current.copy(revision = "d".repeat(64), comments = listOf(KanbanComment(1, "Bellpull", mutation.comment.orEmpty(), 1)))
+                        current = if (mutation.fields == null) current.copy(revision = "d".repeat(64), comments = listOf(KanbanComment(1, "Bellpull", mutation.comment.orEmpty(), 1)))
+                        else mutation.fields!!.let { fields -> current.copy(id = if (mutation.action == "create") "t_native_created" else current.id,
+                            title = fields.title, body = fields.body, assignee = fields.assignee, priority = fields.priority, revision = "d".repeat(64)) }
                         KanbanReceipt(board = owner, operationId = mutation.operationId, state = "applied", task = current, observedAt = 2000)
                     }
                     if (dropNextPost) { dropNextPost = false; throw IOException("Lost committed response") }
@@ -159,5 +162,81 @@ class KanbanWorkspaceTest {
         restored.discard(mutation.operationId)
         Thread.sleep(50); assertEquals("unknown", restored.state.pending.single().state)
         restored.close()
+    }
+
+    @Test fun unsentCreationAndFormSurviveRestartWithNativeIdentityAdoptedOnlyAfterReceipt() {
+        val cache = Cache(); val host = Host()
+        var workspace = KanbanWorkspace(scope, cache)
+        workspace.startForm(); waitFor { workspace.form != null }
+        val form = workspace.form!!.copy(title = "Create while offline", body = "Exact draft", assignee = "work", priority = "5")
+        workspace.saveForm(form); waitFor { cache.value.forms.values.single().title == form.title }
+        workspace.close(); workspace = KanbanWorkspace(scope, cache)
+        workspace.startForm(); waitFor { workspace.form != null }
+        assertEquals(form, workspace.form)
+        workspace.submitForm(workspace.form!!); waitFor { workspace.state.pending.size == 1 }
+        val operation = workspace.state.pending.single().mutation
+        assertEquals("create", operation.action); assertEquals(form.taskId, workspace.visibleTasks.first().id)
+        assertTrue(host.calls.isEmpty())
+        workspace.close(); workspace = KanbanWorkspace(scope, cache)
+        workspace.open(form.taskId); workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.isEmpty() && workspace.detail?.task?.id == "t_native_created" }
+        assertEquals(operation, host.posted.single()); assertEquals("t_native_created", workspace.selectedTask)
+        assertEquals("Exact draft", workspace.task!!.body); workspace.close(); host.api.close()
+    }
+
+    @Test fun lostCreateResponseRecoversServerAssignedIdWithoutDuplicateOrDraftLookup() {
+        val cache = Cache(); val host = Host(); host.dropNextPost = true
+        var workspace = KanbanWorkspace(scope, cache)
+        workspace.startForm(); waitFor { workspace.form != null }
+        val form = workspace.form!!.copy(title = "Create once")
+        workspace.configure(host.api, true); workspace.submitForm(form)
+        waitFor { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "unknown" }
+        workspace.close(); workspace = KanbanWorkspace(scope, cache)
+        workspace.open(form.taskId); workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.isEmpty() && workspace.selectedTask == "t_native_created" }
+        assertEquals(1, host.posted.size)
+        assertTrue(host.calls.none { it.contains("/tasks/draft_") })
+        workspace.close(); host.api.close()
+    }
+
+    @Test fun backgroundRefreshCannotReplaceTheVersionCapturedByAnOpenEditor() {
+        val cache = Cache(); val host = Host()
+        val workspace = KanbanWorkspace(scope, cache)
+        workspace.configure(host.api, true); workspace.open(task.id)
+        waitFor { !workspace.busy && workspace.detail != null }
+        workspace.startForm(task.id); waitFor { workspace.form != null }
+        val edited = workspace.form!!.copy(title = "My title")
+        host.current = task.copy(title = "Concurrent desktop title", revision = "f".repeat(64))
+        workspace.refresh(); waitFor { !workspace.busy && workspace.detail?.task?.title == host.current.title }
+        workspace.submitForm(edited)
+        waitFor { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "conflict" }
+        assertEquals(task.revision, workspace.state.pending.single().mutation.expectedRevision)
+        assertTrue(host.posted.isEmpty())
+        workspace.applyReviewed(workspace.state.pending.single().mutation.operationId)
+        waitFor { !workspace.busy && workspace.state.pending.isEmpty() }
+        assertEquals("My title", host.current.title)
+        assertEquals("f".repeat(64), host.posted.single().expectedRevision)
+        workspace.close(); host.api.close()
+    }
+
+    @Test fun staleQueuedEditTapCannotRemoveAnOperationWithUnknownDelivery() {
+        val cache = Cache(); val host = Host(); host.dropNextPost = true
+        val workspace = KanbanWorkspace(scope, cache)
+        workspace.startForm(); waitFor { workspace.form != null }
+        workspace.submitForm(workspace.form!!.copy(title = "Keep the delivery receipt"))
+        waitFor { workspace.state.pending.size == 1 }
+        val queued = workspace.state.pending.single()
+        workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "unknown" }
+        val writes = cache.writes
+        workspace.editPending(queued)
+        waitFor { cache.writes > writes }
+        assertEquals("unknown", cache.value.pending.single().state)
+        assertEquals(queued.mutation, cache.value.pending.single().mutation)
+        assertTrue(cache.value.forms.isEmpty())
+        workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.isEmpty() }
+        assertEquals(1, host.posted.size)
+        workspace.close(); host.api.close()
     }
 }

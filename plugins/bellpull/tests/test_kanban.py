@@ -12,7 +12,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
 from plugins.bellpull.http import wire
-from plugins.bellpull.kanban import Boards, native
+from plugins.bellpull.kanban import Boards, native, database_api, EMPTY_REVISION
 from plugins.bellpull.artifacts import ArtifactError
 
 
@@ -24,7 +24,7 @@ class KanbanTests(unittest.TestCase):
         self.env.start()
         self.store = Boards()
         self.kb = native()
-        conn = self.kb.connect(board="default")
+        conn = database_api().connect(db_path=self.kb.kanban_db_path(board="default"))
         try:
             self.tid = self.kb.create_task(conn, title="Ship the phone board", body="Keep existing work", triage=True, board="default")
         finally:
@@ -66,7 +66,7 @@ class KanbanTests(unittest.TestCase):
 
     def test_native_concurrent_edit_rejects_stale_request_and_persists_receipt(self):
         body = self.operation()
-        conn = self.kb.connect(board="default")
+        conn = database_api().connect(db_path=self.kb.kanban_db_path(board="default"))
         try: self.kb.add_comment(conn, self.tid, "Desktop", "Changed independently")
         finally: conn.close()
         result = self.store.mutate("default", body)
@@ -114,6 +114,68 @@ class KanbanTests(unittest.TestCase):
             with self.assertRaises(ArtifactError): self.store.snapshot(name)
         with patch.dict(os.environ, {"HERMES_KANBAN_DB": "/tmp/worker.sqlite"}):
             with self.assertRaises(ArtifactError): self.store.snapshot("default")
+
+    def field_operation(self, action="create"):
+        body = self.operation()
+        body.pop("comment")
+        body.update(action=action, fields=dict(title="Created from mobile", body="Complete description", assignee="work", priority=4))
+        if action == "create": body.update(task_id="draft_" + uuid.uuid4().hex, expected_revision=EMPTY_REVISION)
+        return body
+
+    def test_concurrent_create_and_restart_receipt_have_one_native_triage_task(self):
+        body = self.field_operation()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(lambda _: Boards().mutate("default", body), range(4)))
+        self.assertTrue(all(r == results[0] for r in results))
+        result = results[0]
+        self.assertEqual("applied", result["state"])
+        self.assertEqual("triage", result["task"]["status"])
+        self.assertEqual("work", result["task"]["assignee"])
+        self.assertEqual(4, result["task"]["priority"])
+        self.assertNotEqual(body["task_id"], result["task"]["id"])
+        self.assertEqual(2, self.store.snapshot("default")["total"])
+        self.assertEqual([], result["task"]["runs"])
+        self.assertEqual(result, Boards().receipt("default", body["operation_id"]))
+
+    def test_create_receipt_failure_rolls_back_task_and_retries_once(self):
+        body = self.field_operation()
+        with self.store.connection("default") as conn:
+            conn.execute("CREATE TRIGGER fail_create_receipt BEFORE INSERT ON bellpull_kanban_operations BEGIN SELECT RAISE(ABORT, 'fixture crash'); END")
+        with self.assertRaises(Exception): self.store.mutate("default", body)
+        self.assertEqual(1, self.store.snapshot("default")["total"])
+        self.assertEqual("not_found", self.store.receipt("default", body["operation_id"])["state"])
+        with self.store.connection("default") as conn: conn.execute("DROP TRIGGER fail_create_receipt")
+        self.assertEqual("applied", self.store.mutate("default", body)["state"])
+
+    def test_field_edit_is_atomic_preserves_lifecycle_and_rejects_stale_or_claimed_work(self):
+        body = self.field_operation("edit")
+        with self.store.connection("default") as conn:
+            conn.execute("UPDATE tasks SET consecutive_failures=3,last_failure_error='old' WHERE id=?", (self.tid,))
+        body["expected_revision"] = self.store.detail("default", self.tid)["task"]["revision"]
+        result = self.store.mutate("default", body)
+        self.assertEqual("applied", result["state"])
+        self.assertEqual("triage", result["task"]["status"])
+        self.assertEqual("Complete description", result["task"]["body"])
+        with self.store.connection("default") as conn:
+            self.assertEqual((0, None), tuple(conn.execute("SELECT consecutive_failures,last_failure_error FROM tasks WHERE id=?", (self.tid,)).fetchone()))
+        self.assertEqual("conflict", self.store.mutate("default", {**body, "operation_id": uuid.uuid4().hex})["state"])
+        with self.store.connection("default") as conn:
+            conn.execute("UPDATE tasks SET claim_lock='worker' WHERE id=?", (self.tid,))
+        claimed = self.field_operation("edit")
+        self.assertEqual("conflict", self.store.mutate("default", claimed)["state"])
+        self.assertFalse(self.store.detail("default", self.tid)["task"]["editable"])
+
+    def test_invalid_fields_and_unresolved_project_create_do_not_change_native_data(self):
+        body = self.field_operation()
+        for field, value in [("title", " "), ("body", "x" * 16385), ("assignee", "../work"), ("priority", True)]:
+            with self.assertRaises(ArtifactError): self.store.mutate("default", {**body, "fields": {**body["fields"], field: value}})
+        original = self.store.metadata
+        with patch.object(self.store, "metadata", side_effect=lambda name: {**original(name), "project_id": "missing-project"}):
+            result = self.store.mutate("default", body)
+        self.assertEqual("conflict", result["state"])
+        self.assertIsNone(result["task"])
+        self.assertEqual(1, self.store.snapshot("default")["total"])
+        self.assertEqual(result, self.store.receipt("default", body["operation_id"]))
 
 
 class KanbanHttpTests(unittest.IsolatedAsyncioTestCase):

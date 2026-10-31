@@ -24,6 +24,7 @@ async def serve(home):
     finally:
         conn.close()
     kb.create_board("garden", name="Garden projects")
+    kb.create_board("mobile-editing", name="Mobile editing")
     state = dict(posts=0, dropped=0, drop_next=False, task_id=task, runs=0)
 
     @web.middleware
@@ -52,7 +53,8 @@ async def serve(home):
         error = adapter._check_auth(request)
         if error is not None:
             return error
-        command = (await request.json()).get("action")
+        body = await request.json()
+        command = body.get("action")
         if command == "drop":
             state["drop_next"] = True
         elif command == "edit":
@@ -61,7 +63,7 @@ async def serve(home):
                 kb.add_comment(conn, task, "Desktop", "Concurrent desktop update")
             finally:
                 conn.close()
-        return web.json_response(dict(state, task=Boards().detail("default", task)["task"]))
+        return web.json_response(dict(state, task=Boards().detail("default", task)["task"], snapshot=Boards().snapshot(body.get("board", "default"))))
     app.router.add_post("/fixture/kanban", control)
     runner = web.AppRunner(app)
     await runner.setup()

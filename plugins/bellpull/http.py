@@ -107,6 +107,7 @@ def wire(app, adapter):
                 "bellpull_snapshot_paging": compatible,
                 "bellpull_projects": projects_ready,
                 "bellpull_kanban": files_ready and kanban.supported(),
+                "bellpull_kanban_editing": files_ready and kanban.editing_supported(),
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding.supported,
                 "bellpull_planning": projects_ready,

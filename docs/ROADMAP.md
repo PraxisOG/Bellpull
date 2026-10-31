@@ -5,9 +5,9 @@ later decisions. This is a plan with implementation status, not a completion cla
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-Current development build: app **0.18.0-experimental / build 45**, plugin
-**0.8.0-integration-preview**, on `feature/mobile-kanban-0180`.
-The October 31 implementation adds the **first native Kanban slice**.
+Current development build: app **0.18.1-experimental / build 46**, plugin
+**0.8.1-integration-preview**, on `feature/mobile-kanban-editing-0181`.
+The October 31 implementation includes native Kanban reading, creation and field editing.
 Phase 18 is a new identifier; existing phase numbers and release references are
 retained. Delivery order is **18A → 18B → 18C → 18D**, ahead of deferred Phase 16
 and final-polish Phase 17. This build is local; it is not a published release.
@@ -38,12 +38,12 @@ and final-polish Phase 17. This build is local; it is not a published release.
 | 8 | Persistent reminders and native Hermes routines | Preview; background/offline reminder delivery belongs to Phase 10 |
 | 9 | Phone calendar management and visual day/week blocks | Preview; selected calendars, separate write opt-in, explicit proposal Apply |
 | 10 | Local notification inbox, offline reminders and delivery | Experimental framework; real Doze/reboot acceptance remains open |
-| 11 | Today dashboard | Implemented overview; native Kanban task summary follows Phase 18C and the reliability work in issue #28 |
+| 11 | Today dashboard | Implemented overview and shared-cache native task preview; the reliability work in issue #28 remains open |
 | 12 | Phone notification context | Early implementation: opt-in encrypted history, exclusions, retention and per-server bounded context |
 | 13 | On-device LLM feasibility | Experimental local chat lab; E2B CPU works, Vulkan fails correctness checks |
 | 14 | Offline conversations and reconnection | Experimental integrated fallback, local compaction and reviewed resync |
 | 15 | Phone assistant replacement and device actions | First experimental slice: default-assistant picker/entry, bounded phone commands, speech and chat handoff |
-| 18 | Shared native Hermes Kanban | First slice implemented: authenticated plugin contract, board/list/detail cache, comments, non-executing moves, durable offline queue and a Today preview. Broader lifecycle controls remain open. |
+| 18 | Shared native Hermes Kanban | Implemented: authenticated plugin contract, board/list/detail cache, task creation and field editing, comments, non-executing moves, durable drafts/queue and a Today preview. Broader lifecycle controls remain open. |
 | 16 | Android Auto | Separate deferred investigation |
 | 17 | Public release polish, widgets and Quick Settings | Final polish |
 
@@ -66,10 +66,11 @@ supersede the original scope. Verify actual implementation status in the reposit
 
 Existing foundation: Phases 0–3. Preserve and repair rather than rebuild.
 Active roadmap: Phases 4–15. Phase 15 was activated October 28.
-Active feature: Phase 18, native Hermes Kanban, selected October 31. The first slice covers
-the plugin contract, board reading, comments, non-executing moves and offline
-reconciliation, with a shared-cache task preview in Today. Broader lifecycle,
-reliability and deployed-host acceptance work remains open.
+Active feature: Phase 18, native Hermes Kanban, selected October 31. Implemented scope covers
+the plugin contract, board reading, task creation, field editing, comments,
+non-executing moves and offline reconciliation, with a shared-cache task preview in Today.
+The local test Hermes is updated; the user handles Moe deployment manually.
+Broader lifecycle, reliability and other deployed-host acceptance work remains open.
 Deferred work: Phase 16; broader assistant capabilities remain follow-on work.
 Final polish: Phase 17. Widgets and Quick Settings belong here.
 
@@ -288,10 +289,10 @@ routes can coexist; local inference need not handle every task.
 
 ## Next feature phase
 
-### Phase 18 · Shared native Hermes Kanban — FIRST SLICE IMPLEMENTED
+### Phase 18 · Shared native Hermes Kanban — READING AND EDITING IMPLEMENTED
 
 **Outcome:** open the phone and see the same native task board owned by the
-selected Hermes installation, inspect a task's work, move a card, and comment.
+selected Hermes installation, create a task, edit its fields, inspect its work, move a card, and comment.
 Use a compact list on the cover screen and a board with task details on the
 unfolded display. Reading, navigation and ordinary card edits require no model call.
 
@@ -317,13 +318,14 @@ implement this board. Shared ownership and contracts are the compatibility targe
   records; the owning Hermes installation remains the authority.
 
 **18A · Establish the plugin contract.** Infrastructure dependency, first.
-Implemented in plugin 0.8.0 against the inspected native Hermes 0.21.1 fixture.
+Implemented in plugin 0.8.1 against native Hermes 0.21.1 and 0.21.5 fixtures,
+with authenticated mutation checks on the local 0.21.5 test gateway.
 [The contract](hermes-api.md#bellpull-native-kanban-extension--october-31-2026)
 defines discovery, board incarnation and installation ownership, bounded snapshots,
 freshness, errors, revision conflicts and retained atomic receipts. Native boards
 are installation-wide; phone caches and pending edits remain connection-isolated.
 Validation against each deployed host remains a rollout check.
-Moves/comments need stable operation identity and a documented way to determine
+Creation, field edits, moves and comments use stable operation identity and a documented way to determine
 whether an operation was applied after its response is lost. Specify which native
 transitions can dispatch work before exposing them as a simple card move.
 Capture synthetic response fixtures for supported and unavailable servers.
@@ -372,8 +374,15 @@ an alert, read receipt or dismissed notification does not complete a task. Show
 snapshot age and pending/unknown edits consistently. Acceptance: board and Today
 agree online and offline without a second task database or model call.
 
-**Follow-ons:** task creation and richer editing, explicit claim/start/stop/retry
-controls, cross-installation board aggregation, and approval-queue integration need
+**Creation and field editing — implemented in 0.18.1.** New tasks enter triage
+without dispatch. Title, description, assignee profile and priority can be edited
+for inactive, unclaimed tasks. Encrypted form drafts retain their original task
+revision through refresh/restart; pending creations remain visibly local until a
+receipt supplies the native task ID. Creation and editing use the same atomic
+receipt and conflict-review contract as moves/comments.
+
+**Follow-ons:** explicit claim/start/stop/retry controls, dependency editing,
+cross-installation board aggregation, and approval-queue integration need
 their own verified contracts and scope. Card moves that trigger execution must use
 explicit action semantics rather than silently starting work. The voice approval
 queue in [#37](https://github.com/PraxisOG/Bellpull/issues/37) remains separate;

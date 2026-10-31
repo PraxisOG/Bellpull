@@ -1,10 +1,30 @@
-## Local Kanban development build — 0.18.0 / build 45
+## Local Kanban creation/editing build — 0.18.1 / build 46
+
+Adds creation in triage and edits to title, description, assignee profile and
+priority. Encrypted forms retain their original revision through refresh/restart;
+queued creations recover the native task ID from atomic receipts. Active work
+cannot be edited, and stale UI actions cannot discard unknown delivery.
+Requires standard plugin **0.8.1-integration-preview** for the new controls.
+
+The local test Hermes was updated while preserving its separately developed Canvas
+preview, configuration and 68 sessions. Its composite plugin reports
+`0.6.1-canvas-v1-preview+kanban.0.8.1`. Moe remains a manual user deployment.
+Signed build46 is installed in place on the Pixel 10 Pro Fold with matching APK
+bytes, signing identity, app UID and data directories. Validation: 789 JVM tests,
+199 screenshot baselines and all three physical Kanban tests passed; lint has zero
+errors. The plugin suite passed 199 tests with one skip; JVM checks also have one
+opt-in skip. The test gateway passed create/edit/conflict/receipt checks without execution.
+Local artifacts are under `/home/praxisog/Bellpull-builds/kanban-editing-development/`.
+This increment has not been published.
+[Implementation, validation and remaining scope](PHASE-18-KANBAN.md).
+
+## Initial Kanban development build — 0.18.0 / build 45
 
 Adds native task board/list/detail views, comments, non-executing moves to triage or
 blocked, encrypted offline queues with receipt recovery, and a Today task preview.
 Requires matching plugin **0.8.0-integration-preview** on a compatible Hermes host.
 [Implementation, validation and remaining scope](PHASE-18-KANBAN.md).
-This build is local and has not been published or deployed to a personal server.
+This local build was installed in place before the creation/editing increment.
 
 ## Settings controls — app 0.15.1 / build 44
 
