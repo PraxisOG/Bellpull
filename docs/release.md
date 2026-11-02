@@ -1,3 +1,35 @@
+## Experimental Canvas and plugin reload release — 0.19.0 / build 48
+
+Published as [android-v0.19.0-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1),
+paired with plugin **0.8.3-reload-preview**. The release combines the existing
+Kanban controls with shared desktop/mobile Canvas, streamed drawing operations,
+touch editing and Undo/Redo. It also restores Bellpull routes after unchanged
+plugin rediscovery, preserves active runs and honors explicit plugin disable.
+Replacing plugin code still requires a gateway restart.
+
+Validation: 802 Android JVM checks (801 passed, one existing skip), 199 unchanged
+screenshot comparisons, debug assembly and lint passed. Lint reports zero errors
+and 91 warnings. The plugin suite passed 215 tests with one skip; six rediscovery
+checks passed on each supported stock Hermes 0.21.1 and 0.21.5. The isolated
+wireless Pixel reload test passed, covering retained board/run state and disable/
+enable behavior. Signed assembly and signature checks passed; publication evidence
+and checksums accompany the release assets. The signed build48 APK was installed
+over build47 through wireless ADB; installed bytes match the release, and app UID,
+data directory and original installation time are unchanged. Personal profiles
+were not opened for acceptance.
+
+Known experimental limit: the latest HTTPS/Tailscale Canvas device test reached
+shared editing/reconnect but failed its subsequent main-conversation opening
+assertion. That remains unresolved; this release does not claim complete Canvas
+phone acceptance. Mobile selection-aware prompts and export controls are follow-up
+work. Integration-status UI (#42) remains proposed work, not an included feature.
+
+Install the signed APK over the current app to preserve data. Install the matching
+plugin bundle and restart the gateway for Canvas and reload recovery. Moe remains
+a manual user deployment. Assets include the APK, complete matching plugin,
+source with pinned submodules, roadmap and SHA-256 checksums.
+[Canvas scope and limits](SHARED-CANVAS.md) · [Reload behavior and evidence](PLUGIN-REDISCOVERY.md).
+
 ## Experimental Canvas source integration — 0.19.0 / build 48
 
 Combines the published 0.18.2 Kanban release with shared conversation Canvas and

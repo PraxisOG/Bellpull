@@ -1,7 +1,6 @@
-> **Experimental source: 0.19.0 / build 48 — shared mobile/desktop Canvas.**
-> This branch combines the published 0.18.2 Kanban work with the shared canvas tool,
-> streamed drawing updates and mobile touch controls. [Implementation and remaining validation](docs/SHARED-CANVAS.md).
-> Downloads below remain the published 0.18.2 release; the source merge does not publish a new APK.
+> **Experimental 0.19.0 / build 48 — shared Canvas and plugin reload recovery.**
+> Includes Bellpull plugin **0.8.3-reload-preview**. Canvas remains experimental;
+> the main-conversation opening check on the phone is unresolved. [Validation and limits](docs/release.md).
 
 <div align="center">
 
@@ -14,10 +13,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.18.2-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.19.0-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1)
+[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1)
 
 </div>
 
@@ -46,7 +45,7 @@ the project, coding and calendar panels show the development preview.*
 | :--- | :--- |
 | **Chat and recovery** | Stream text/thinking, inspect tool activity, preserve drafts, recover admitted runs, branch and edit where the server supports it. |
 | **Native tasks** | Browse native Kanban boards, create tasks in triage, edit task fields, add comments, park unclaimed cards in triage/blocked, and recover offline drafts and edits. [Scope and validation](docs/PHASE-18-KANBAN.md). |
-| **Shared Canvas (0.19.0 source)** | Continue the same drawing in an existing desktop or mobile conversation, with streamed updates, touch editing and Undo/Redo. Drawing data is collapsed. [Contract and acceptance limits](docs/SHARED-CANVAS.md). |
+| **Shared Canvas (experimental)** | Continue the same drawing in an existing desktop or mobile conversation, with streamed updates, touch editing and Undo/Redo. Drawing data is collapsed. [Contract and acceptance limits](docs/SHARED-CANVAS.md). |
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
@@ -65,8 +64,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.18.2-experimental / build 47**
-> pairs with Bellpull plugin **0.8.1-integration-preview**. Server features need
+> **This is an experimental prerelease:** Android **0.19.0-experimental / build 48**
+> pairs with Bellpull plugin **0.8.3-reload-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework
@@ -91,7 +90,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1), or [build from the release source](docs/BUILDING.md).
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1), or [build from the release source](docs/BUILDING.md).
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -100,16 +99,16 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull-source-0.18.2.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/Bellpull-source-0.19.0.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-The release includes the [**matching plugin 0.8.1 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/bellpull-plugin-0.8.1-integration-preview.tar.gz).
-Update older plugins to enable Tasks; an existing 0.8.1 installation already supports
-this APK. Unpack the archive, enter its directory and back up the data home, then
+The release includes the [**matching plugin 0.8.3 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/bellpull-plugin-0.8.3-reload-preview.tar.gz).
+Update the plugin to enable shared Canvas and recover handlers after rediscovery.
+Restart the gateway after replacing the plugin code. Unpack the archive, enter its directory and back up the data home, then
 preview the installer:
 
 ```bash
@@ -157,14 +156,13 @@ isolation, malformed audio, overload, authentication and cleanup. See the
 
 ## For contributors and agents
 
-The published experimental app and plugin source is tagged **`android-v0.18.2-experimental.1`**.
-Use that release tag to reproduce its APK and matching plugin. Current experimental
-source on `fix/kanban-reliability-0182` includes **0.19.0 / build 48** and plugin
-**0.8.2-canvas-v1-preview**; see [Canvas scope and validation](docs/SHARED-CANVAS.md).
+The published experimental app and plugin source is tagged **`android-v0.19.0-experimental.1`**.
+Use that release tag to reproduce its APK and matching plugin. The release source
+is on `fix/plugin-rediscovery-39`; see [Canvas scope and validation](docs/SHARED-CANVAS.md).
 Earlier versions remain in Git history and release tags.
 
 ```bash
-git clone --recurse-submodules --branch android-v0.18.2-experimental.1 https://github.com/PraxisOG/Bellpull.git
+git clone --recurse-submodules --branch android-v0.19.0-experimental.1 https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
 ```

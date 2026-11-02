@@ -1,5 +1,5 @@
-> Experimental source: app 0.19.0 / build 48, plugin 0.8.2-canvas-v1-preview.
-> Published downloads remain 0.18.2 / plugin 0.8.1. See [Shared Canvas](SHARED-CANVAS.md)
+> Experimental release: app 0.19.0 / build 48, plugin 0.8.3-reload-preview.
+> See [release validation and known limits](release.md), [Shared Canvas](SHARED-CANVAS.md)
 > and [Phase 18](PHASE-18-KANBAN.md).
 
 ## Car audio and streaming speech experiment
@@ -13,17 +13,16 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 # Build the experimental preview
 
 This branch builds **0.19.0-experimental / build 48**, with the
-**0.8.2-canvas-v1-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
+**0.8.3-reload-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Clone `fix/kanban-reliability-0182` recursively for the combined Canvas source.
-To reproduce the published 0.18.2 release instead, use its immutable tag:
+Clone the immutable release tag recursively to reproduce the experimental APK:
 
 ```bash
-git clone --recurse-submodules --branch android-v0.18.2-experimental.1 \
+git clone --recurse-submodules --branch android-v0.19.0-experimental.1 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
@@ -42,13 +41,13 @@ To reproduce a release, fetch and check out its tag, then run
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
 **not** include submodule contents. Use the recursive clone above, or download
-**Bellpull-source-0.18.2.tar.gz**, which includes this release's tracked
+**Bellpull-source-0.19.0.tar.gz**, which includes this release's tracked
 source and native trees. That archive also contains
 `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.18.2.tar.gz
-cd Bellpull-source-0.18.2
+tar -xzf Bellpull-source-0.19.0.tar.gz
+cd Bellpull-source-0.19.0
 ```
 
 ## Toolchain

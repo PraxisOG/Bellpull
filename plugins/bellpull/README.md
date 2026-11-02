@@ -1,11 +1,12 @@
-> Current development source: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
+> Current experimental pair: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
 > Restores Bellpull after unchanged-plugin rediscovery, while explicit disable still revokes access.
 > [Reload behavior, validation and upgrade requirements](../../docs/PLUGIN-REDISCOVERY.md).
 > Adds the shared `bellpull_canvas` tool, authenticated snapshots/mutations and live events
 > to the 0.18.2 Kanban baseline. [Contract and remaining acceptance](../../docs/SHARED-CANVAS.md).
-> This source merge does not deploy a plugin or change the published release assets.
+> [Download the matching experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1).
+> Install the complete plugin bundle and restart the gateway; Moe remains a manual user deployment.
 
-> Published experimental pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
+> Previous experimental pair: **Android 0.18.2 / build 47**, plugin **0.8.1-integration-preview**.
 > Adds authenticated native Kanban board/detail reads, task creation/field editing, comments, non-executing moves
 > and atomic operation receipts for offline recovery. See [Phase 18](../../docs/PHASE-18-KANBAN.md)
 > and the [API contract](../../docs/hermes-api.md#bellpull-native-kanban-extension--october-31-2026).
@@ -57,9 +58,9 @@ native board database. Preserve these identities and receipts through backups an
 rollback so unresolved phone edits retain their recovery evidence.
 The local test gateway reports `0.6.1-canvas-v1-preview+kanban.0.8.1`: this preserves
 its separately developed Canvas implementation. That deployment bundle is distinct
-from the published standard 0.8.1 package, which does not contain Canvas. This
-0.8.2 source includes both features; the source merge does not replace that live
-deployment or consolidate separately managed plugins.
+from the earlier standard 0.8.1 package, which does not contain Canvas. The
+0.8.3 release includes both features plus reload recovery. Publication does not
+replace a live deployment or consolidate separately managed plugins.
 See [combined integration evidence and acceptance](../../docs/INTEGRATION-6-8-9.md),
 [OpenCode scope](../../docs/PHASE-6-OPENCODE.md) and
 [planning scope](../../docs/PHASE-8-9-REMINDERS-CALENDAR.md).
