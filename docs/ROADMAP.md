@@ -26,6 +26,11 @@ and final-polish Phase 17. Published as [android-v0.18.2-experimental.1](https:/
 [Phone loudspeaker repair and manual checklist](release.md#phone-loudspeaker--01410--build-42).
 [Current reliability evidence](EXPERIMENTAL-ISSUE-REPAIRS.md#october-15-re-audit).
 
+[Unified Bellpull client and plugin plan](UNIFIED-BELLPULL-PLAN.md) proposes one
+plugin contract for Android and desktop, targeted server reliability work and a
+staged repository consolidation. It is forward-looking architecture work, not a
+new numbered phase or a change to the current deployment scope.
+
 ## At a glance
 
 | Phase | Focus | Current status |
