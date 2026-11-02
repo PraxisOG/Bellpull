@@ -1,4 +1,6 @@
-> Current experimental source: **Android 0.19.0 / build 48**, plugin **0.8.2-canvas-v1-preview**.
+> Current development source: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
+> Restores Bellpull after unchanged-plugin rediscovery, while explicit disable still revokes access.
+> [Reload behavior, validation and upgrade requirements](../../docs/PLUGIN-REDISCOVERY.md).
 > Adds the shared `bellpull_canvas` tool, authenticated snapshots/mutations and live events
 > to the 0.18.2 Kanban baseline. [Contract and remaining acceptance](../../docs/SHARED-CANVAS.md).
 > This source merge does not deploy a plugin or change the published release assets.
@@ -25,7 +27,7 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.8.2-canvas-v1-preview
+# Bellpull integration plugin 0.8.3-reload-preview
 
 This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.

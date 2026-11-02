@@ -34,8 +34,11 @@ class SpeechProxy:
         self.session = aiohttp.ClientSession(headers=self.headers, auto_decompress=False, trace_configs=[trace])
 
     def stop(self):
-        if self.loop is not None and not self.loop.is_closed():
-            self.loop.call_soon_threadsafe(lambda: self.loop.create_task(self.close()))
+        session = self.session
+        if session is not None and self.loop is not None and not self.loop.is_closed():
+            # A delayed unload must close the old transport, never a session
+            # created by a subsequent successful plugin registration.
+            self.loop.call_soon_threadsafe(lambda: self.loop.create_task(session.close()))
 
     async def close(self):
         if self.session is not None:

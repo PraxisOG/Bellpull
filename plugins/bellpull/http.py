@@ -2,6 +2,7 @@
 import asyncio
 from functools import partial
 import json
+import logging
 import os
 from pathlib import Path
 import time
@@ -42,19 +43,23 @@ def wire(app, adapter):
     relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"))
     sampler = Sampler()
     speech = SpeechProxy()
-    app.on_startup.append(speech.start)
     snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
     context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
     models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
-    app.on_startup.append(coding.start)
     housekeeping = {}
     active = True
-    def stop():
-        nonlocal active
-        active = False
+    closed = False
+    started = False
+    generation = 0
+    restart_required = False
+    loop = asyncio.get_running_loop()
+    lifecycle_lock = asyncio.Lock()
+    pending = set()
+
+    def deactivate():
         stop_context()
         stop_models()
         stop_streaming()
@@ -62,19 +67,107 @@ def wire(app, adapter):
         snapshots.close()
         relay.stop()
         speech.stop()
-    async def close():
+
+    async def drain():
         await coding.close()
-        stop_context()
-        stop_models()
-        stop_streaming()
-        snapshots.close()
         await relay.close()
         await speech.close()
+
+    async def start(_app):
+        nonlocal started
+        started = True
+        if active:
+            await speech.start(_app)
+            await coding.start(_app)
+    app.on_startup.append(start)
+
+    def schedule(callback):
+        if loop.is_closed():
+            return
+        try:
+            current = asyncio.get_running_loop()
+        except RuntimeError:
+            current = None
+        if current is loop:
+            callback()
+        else:
+            loop.call_soon_threadsafe(callback)
+
+    def stop():
+        nonlocal active, generation
+        active = False  # Revoke routes immediately, including worker-thread unload.
+        generation += 1
+        schedule(deactivate)
+
+    async def reactivate(ticket):
+        nonlocal active, restart_required, stop_streaming, stop_models, stop_context
+        async with lifecycle_lock:
+            if closed or ticket != generation:
+                return
+            try:
+                deactivate()
+                await drain()
+                if closed or ticket != generation:
+                    return
+                _, stop_streaming = streaming.wire(adapter)
+                _, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
+                _, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
+                snapshots.closed = False
+                relay.closed = False
+                coding.active = True
+                if coding.registry is not None:
+                    with coding.registry._lock:
+                        coding.registry._bellpull_coding_observers.add(coding)
+                if started:
+                    await speech.start(app)
+                    await coding.start(app)
+                if closed or ticket != generation:
+                    deactivate()
+                    await drain()
+                    return
+                active = True
+            except Exception:
+                restart_required = True
+                deactivate()
+                await drain()
+                logging.getLogger(__name__).exception("Bellpull reload failed; gateway restart required")
+
+    def resume(same_bundle):
+        nonlocal active, restart_required, generation
+        if closed:
+            return
+        if not same_bundle:
+            restart_required = True
+            stop()
+            return
+        if restart_required:
+            return
+        active = False
+        generation += 1
+        ticket = generation
+        def launch():
+            task = loop.create_task(reactivate(ticket))
+            pending.add(task)
+            task.add_done_callback(pending.discard)
+        schedule(launch)
+
+    async def close():
+        nonlocal closed
+        closed = True
+        stop()
+        async with lifecycle_lock:
+            await drain()
+        if pending:
+            await asyncio.gather(*tuple(pending), return_exceptions=True)
 
     def authenticated(handler):
         async def guarded(request):
             if not active:
-                return web.json_response({"error": {"message": "Bellpull was unloaded; restart the gateway"}}, status=503)
+                return web.json_response({"error": {
+                    "code": "bellpull_restart_required" if restart_required else "bellpull_unavailable",
+                    "message": "Bellpull bundle or configuration changed; restart the gateway when idle" if restart_required
+                        else "Bellpull is unloaded or reloading; reconnect after it is enabled",
+                    "restart_required": restart_required}}, status=503, headers={"Cache-Control": "no-store"})
             if not callable(getattr(adapter, "_expected_api_key", None)) or not callable(getattr(adapter, "_check_auth", None)):
                 return web.json_response({"error": {"message": "Unsupported Hermes authentication contract"}}, status=503)
             if not adapter._expected_api_key():
@@ -236,4 +329,5 @@ def wire(app, adapter):
         for prefix in ("", "/p/{profile}"):
             app.router.add_route(method, prefix + path, authenticated(handler))
     stop.coding = coding
+    stop.resume = resume
     return stop
