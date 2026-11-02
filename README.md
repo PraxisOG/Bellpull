@@ -1,5 +1,6 @@
-> **Latest experimental release: [Bellpull 0.18.2 — native Kanban and offline editing](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.18.2-experimental.1).**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/Bellpull.apk) · [Plugin 0.8.1](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.18.2-experimental.1/bellpull-plugin-0.8.1-integration-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.18.2-experimental.1/docs/BUILDING.md) · [Updated phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.18.2-experimental.1/docs/ROADMAP.md)
+> **Latest experimental release: [Bellpull 0.19.0 — shared Canvas and plugin reload recovery](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1).**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/Bellpull.apk) · [Plugin 0.8.3](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.19.0-experimental.1/bellpull-plugin-0.8.3-reload-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.19.0-experimental.1/docs/BUILDING.md) · [Updated phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.19.0-experimental.1/docs/ROADMAP.md)
+> Canvas remains experimental: the main-conversation opening check on the phone is unresolved. See the release notes for validation and limits.
 
 <div align="center">
 
