@@ -179,6 +179,7 @@ be run indiscriminately against a configured personal app.
 | :--- | :--- |
 | [Build from source](docs/BUILDING.md) | Recursive clone, complete source archive, pinned dependencies and signing. |
 | [Phase roadmap](docs/ROADMAP.md) | Implementation status and active work: native Hermes Kanban (Phase 18). |
+| [Unified Bellpull plan](docs/UNIFIED-BELLPULL-PLAN.md) | Shared Android/desktop plugin architecture, targeted backend work and proposed repository consolidation. |
 | [Handoff](docs/HANDOFF.md) | Current evidence, limitations and historical decisions. |
 | [API contract](docs/hermes-api.md) | Verified native contracts and Bellpull-owned routes. |
 | [Repository instructions](CLAUDE.md) | Scope, dependencies and deployment boundaries. |
