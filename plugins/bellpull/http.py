@@ -16,7 +16,7 @@ from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
 from .speech import SpeechProxy
-from . import canvas
+from . import canvas, native_attachments
 
 
 def wire(app, adapter):
@@ -47,6 +47,7 @@ def wire(app, adapter):
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
     context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
+    attachments_ready, stop_attachments = native_attachments.wire(app, adapter) if files_ready and stock_models_ready and not host_ready else (False, lambda: None)
     models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
     housekeeping = {}
@@ -60,6 +61,7 @@ def wire(app, adapter):
     pending = set()
 
     def deactivate():
+        stop_attachments()
         stop_context()
         stop_models()
         stop_streaming()
@@ -100,7 +102,7 @@ def wire(app, adapter):
         schedule(deactivate)
 
     async def reactivate(ticket):
-        nonlocal active, restart_required, stop_streaming, stop_models, stop_context
+        nonlocal active, restart_required, stop_streaming, stop_models, stop_context, stop_attachments
         async with lifecycle_lock:
             if closed or ticket != generation:
                 return
@@ -112,6 +114,7 @@ def wire(app, adapter):
                 _, stop_streaming = streaming.wire(adapter)
                 _, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
                 _, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
+                _, stop_attachments = native_attachments.wire(app, adapter) if attachments_ready else (False, lambda: None)
                 snapshots.closed = False
                 relay.closed = False
                 coding.active = True
@@ -195,7 +198,7 @@ def wire(app, adapter):
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
                 "bellpull_native_model_controls": stock_models_ready,
-                "bellpull_run_attachments": host_ready,
+                "bellpull_run_attachments": host_ready or attachments_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
                 "bellpull_snapshot_paging": compatible,
@@ -213,7 +216,7 @@ def wire(app, adapter):
                 "bellpull_speech": True,
                 "bellpull_routines": projects_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
-            "note": "" if host_ready else ("Model controls use native Hermes request options. Chat attachments require the optional run extension."
+            "note": "" if host_ready or attachments_ready else ("Model controls use native Hermes request options. Chat attachments are unavailable on this host."
                 if models_ready else "Persistent file sharing is plugin-owned. Model controls and chat attachments are unavailable on this host.")},
             headers={"Cache-Control": "no-store"})
 

@@ -556,6 +556,40 @@ unchanged-key replay returning the original run without inference, and changed
 effort under that key returning 409. See
 [reproducible checks and limits](evidence/vllm-reasoning-20261022/README.md).
 
+### Stock Hermes chat attachments — November 2, 2026 repair
+
+The mobile repair branch enables `bellpull_run_attachments:true` on the tested
+stock hosts without the legacy core extension. The wire request stays unchanged:
+`POST /v1/runs` carries a required `Idempotency-Key`, existing `session_id`, text
+`input`, the version-1 `bellpull` envelope with `selection` and `artifact_ids`, and
+the identical native `model`, `provider`, `model_options` selection.
+
+Native Hermes computes the original fingerprint and checks its durable journal.
+Only a genuinely new request validates files and model capabilities, before the
+native reservation. Replays and key conflicts bypass file/catalog rediscovery;
+deleting a file after admission cannot create a second run. The plugin wraps the
+adapter's existing lookup/reserve and agent-creation boundaries using per-request
+context, supplies bounded document paths and selected-model image content, and
+keeps the original text in message history. Native run ownership, status, stop,
+approvals and retention remain authoritative. Concurrent requests use separate
+contexts; unload rejects new file handoffs and reload reuses the existing bridge.
+
+PNG/JPEG/WebP require confirmed vision capability. SVG is accepted as
+`image/svg+xml`, preserved as a source document and supplied as a bounded read-file
+path rather than an unsupported vision payload. The Android client renders SVG
+locally. Native preview has a 2 MiB source limit and 2048-pixel maximum side;
+scripts, foreign content, raster embeds, external resources and document types
+are excluded, and reference cycles/expansion are bounded. Original downloads
+remain unchanged. Upload limits remain eight files and 25 MiB total per turn.
+
+On newer hosts with a desktop-owned live Bot Chat, attachment submissions into
+that leased conversation are rejected before execution: its text-only mailbox
+does not carry attachment context. Close that desktop conversation or use another
+chat. Ordinary native text dispatch is unaffected.
+
+Evidence and remaining device/car checks:
+[mobile repair record](MOBILE-BUG-REPAIRS-2026-11-02.md).
+
 The separate `plugins/bellpull_gpu` Hermes plugin registers authenticated GET
 `/api/bellpull/plugins/gpu` (and the native `/p/{profile}` prefix). Response is
 `{version:1,checked_at,refresh_seconds:15,cards:[...],errors:[...],scale_note}`.
