@@ -17,6 +17,14 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-02, install mobile repairs):** the user requested
+installing the newest repairs on the phone. Prepare Android 0.19.1/build49 and
+matching plugin 0.8.4-mobile-fixes-preview. Use the existing release certificate
+and signing lineage for an in-place upgrade, preserving personal data and model
+choices. Package the complete plugin for the user's manual Moe update. The user
+also asked whether experimental was pushed; this is a status question, not new
+publication authorization. Keep the result local unless publication is requested.
+
 **Current task authority (2026-11-02, prioritized mobile bugs):** the user asked
 to prioritize mobile bug requests and start repairs using the local Hermes
 container. The selected batch is #47, #48, #37, #24, #16 and #27. Work is on

@@ -1,4 +1,9 @@
-> **Experimental 0.19.0 / build 48 — shared Canvas and plugin reload recovery.**
+> **Local repair candidate: Android 0.19.1 / build 49, plugin 0.8.4-mobile-fixes-preview.**
+> Fixes chat attachments, voice approval interruptions, noise settings and native SVG previews.
+> This candidate is not published. [Repair checks and installation status](docs/MOBILE-BUG-REPAIRS-2026-11-02.md).
+> The release download links below still refer to published 0.19.0.
+
+> **Published experimental 0.19.0 / build 48 — shared Canvas and plugin reload recovery.**
 > Includes Bellpull plugin **0.8.3-reload-preview**. Canvas remains experimental;
 > the main-conversation opening check on the phone is unresolved. [Validation and limits](docs/release.md).
 

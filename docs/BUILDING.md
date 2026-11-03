@@ -1,10 +1,11 @@
-> Experimental release: app 0.19.0 / build 48, plugin 0.8.3-reload-preview.
+> Local repair candidate: app 0.19.1 / build 49, plugin 0.8.4-mobile-fixes-preview.
+> Not yet published; the immutable release instructions below reproduce published 0.19.0.
 > See [release validation and known limits](release.md), [Shared Canvas](SHARED-CANVAS.md)
 > and [Phase 18](PHASE-18-KANBAN.md).
 
 ## Car audio and streaming speech experiment
 
-This branch builds **0.19.0-experimental / build 48**. Initialize submodules
+This branch builds **0.19.1-experimental / build 49**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -12,14 +13,14 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.19.0-experimental / build 48**, with the
-**0.8.3-reload-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
+This branch builds **0.19.1-experimental / build 49**, with the
+**0.8.4-mobile-fixes-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Clone the immutable release tag recursively to reproduce the experimental APK:
+Clone the last published immutable release tag recursively to reproduce 0.19.0 (not this local repair candidate):
 
 ```bash
 git clone --recurse-submodules --branch android-v0.19.0-experimental.1 \

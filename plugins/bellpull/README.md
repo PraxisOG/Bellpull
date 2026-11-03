@@ -1,4 +1,11 @@
-> Current experimental pair: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
+> Local repair candidate: **Android 0.19.1 / build 49**, plugin **0.8.4-mobile-fixes-preview**.
+> Adds stock-Hermes chat attachment handoff and SVG artifact MIME support.
+> Existing Canvas, Kanban, reasoning and reload fixes are retained. Native Android
+> SVG previews and the voice/noise UI changes require the matching app update.
+> Not yet published. Install the complete bundle, restart the gateway when idle,
+> and reconnect Bellpull. Moe remains a manual user deployment.
+
+> Previous published experimental pair: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
 > Restores Bellpull after unchanged-plugin rediscovery, while explicit disable still revokes access.
 > [Reload behavior, validation and upgrade requirements](../../docs/PLUGIN-REDISCOVERY.md).
 > Adds the shared `bellpull_canvas` tool, authenticated snapshots/mutations and live events
@@ -28,11 +35,11 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.8.3-reload-preview
+# Bellpull integration plugin 0.8.4-mobile-fixes-preview
 
 This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair this source with Android **0.19.0-experimental** (build 48).
+Pair this source with Android **0.19.1-experimental** (build 49).
 The published 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1,
 but shared Canvas requires the separately advertised `bellpull_canvas` capability.
 The separate Phase 6/8/9 preview plugin directories are
@@ -157,10 +164,13 @@ it for authenticated discovery and subsequent requests. A syntactically valid UR
 does not enable a profile on the server; use that native profile's own key.
 
 File downloads are independent of model controls and chat input attachments.
-Stock installs advertise `bellpull_run_attachments: false` unless the optional
-legacy run extension is present. The app explains this and preserves attachment
-drafts instead of silently sending a text-only request. Generated files remain
-downloadable. The ordinary native chat/run engine is unchanged.
+Plugin 0.8.4 adds attachment handoff to supported stock Hermes native runs and
+advertises `bellpull_run_attachments: true` after verifying the required adapter
+interfaces. Native authentication, fingerprints, admission and replay remain
+authoritative. Unsupported hosts still advertise false; the app preserves the
+draft rather than silently sending text alone. PNG/JPEG/WebP require the selected
+model's confirmed vision support; SVG is a source document, without changing the
+selected model. See [the verified contract](../../docs/hermes-api.md#stock-hermes-chat-attachments--november-2-2026-repair).
 
 Before upgrading, back up the existing plugin and the profile data home,
 including `bellpull/principal-id`, `bellpull-artifacts`, and `bellpull-projects`. Install the replacement

@@ -71,6 +71,22 @@ and chosen output engine. Noise rejection needs listening in the owner's actual
 environment. These are not established by JVM tests or synthetic inference.
 
 No GitHub issue has been closed and no release has been published by this work.
-The normal phone app and main local gateway plugin retain their previous installed
-versions. This branch contains the repairs; fixture acceptance uses a separate
+At the initial repair handoff, the normal phone app and main local gateway plugin
+retained their previous installed versions. Fixture acceptance used a separate
 package, loopback port and disposable server home.
+
+## Signed phone update follow-up
+
+The user subsequently requested installation. The candidate is Android
+**0.19.1-experimental / build 49**, paired with plugin
+**0.8.4-mobile-fixes-preview**. The signed APK uses the existing release certificate
+and preview-to-release lineage; the prior installed APK is retained locally.
+Installation verification is recorded below after the in-place update completes.
+
+The plugin is required for stock-Hermes chat attachment handoff and SVG MIME
+support. Android-only voice approval/noise controls work without the new plugin;
+SVG previews also need the new app. Install the whole plugin bundle, restart the
+gateway when idle, and reconnect the app to refresh capabilities. Moe remains a
+manual user deployment. No server deployment or GitHub publication is part of
+this phone-install follow-up. The latest published experimental remains 0.19.0.
+
