@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
@@ -205,16 +207,15 @@ internal fun LocalSpeechSettings(lab: SpeechLab, beforeChange: () -> Unit, enabl
     FilterChip(true, {}, enabled = available, label = { Text("CPU") })
     Text("Actual backend: ${lab.actualBackend?.takeIf { lab.runtime.loadedModel != null } ?: "No model loaded"}", style = MaterialTheme.typography.bodySmall)
     Text("This SDK supports CPU only. Switching models unloads the previous model first.", style = MaterialTheme.typography.bodySmall)
+    NoiseToleranceSettings(model.id, model.label, lab.tuning.vadThreshold, available) { threshold ->
+        beforeChange(); lab.tune(lab.tuning.copy(vadThreshold = threshold))
+    }
     SettingsSection("Model settings", "Saved separately for each model") {
         var update by remember(model.id, lab.tuning) { mutableIntStateOf(lab.tuning.updateMs) }
-        var threshold by remember(model.id, lab.tuning) { mutableFloatStateOf(lab.tuning.vadThreshold) }
         Text("Streaming update interval: ${formatSpeech(update / 1000.0)} s")
         Slider(update.toFloat(), { update = it.toInt() }, enabled = available, valueRange = 200f..2000f)
         Text("Minimum interval between partial decoding passes; stretches under load. Used by chunked recognition benchmarks.", style = MaterialTheme.typography.bodySmall)
-        Text("Moonshine speech threshold: ${formatSpeech(threshold.toDouble())}")
-        Slider(threshold, { threshold = it }, enabled = available, valueRange = .1f.. .9f)
-        Text("Native voice-activity probability threshold; higher values require stronger speech evidence. This does not control Bellpull's end-of-turn pause.", style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(enabled = available, onClick = { beforeChange(); lab.tune(SpeechTuning(update, threshold)) }) { Text("Save model settings") }
+        OutlinedButton(enabled = available, onClick = { beforeChange(); lab.tune(lab.tuning.copy(updateMs = update)) }) { Text("Save model settings") }
     }
     if (lab.busy) {
         Text(lab.operation)
@@ -223,6 +224,22 @@ internal fun LocalSpeechSettings(lab: SpeechLab, beforeChange: () -> Unit, enabl
         TextButton(onClick = lab::cancel) { Text("Stop experiment") }
     }
     lab.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
+}
+
+@Composable
+internal fun NoiseToleranceSettings(modelId: String, modelLabel: String, savedThreshold: Float,
+    enabled: Boolean, onSave: (Float) -> Unit) {
+    var threshold by remember(modelId, savedThreshold) { mutableFloatStateOf(savedThreshold) }
+    Text("Noise tolerance", style = MaterialTheme.typography.titleSmall)
+    Text("$modelLabel · ${formatSpeech(threshold.toDouble())}", style = MaterialTheme.typography.bodySmall)
+    Slider(threshold, { threshold = it }, enabled = enabled, valueRange = .1f.. .9f, steps = 7,
+        modifier = Modifier.semantics { contentDescription = "Noise tolerance" })
+    Text("Higher values ignore more background noise, but may miss quiet speech. Default: 0.50. Saved for this on-device model; applies on its next load.",
+        style = MaterialTheme.typography.bodySmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(enabled = enabled && threshold != savedThreshold, onClick = { onSave(threshold) }) { Text("Save noise tolerance") }
+        TextButton(enabled = enabled && threshold != .5f, onClick = { threshold = .5f }) { Text("Reset") }
+    }
 }
 
 @Composable
