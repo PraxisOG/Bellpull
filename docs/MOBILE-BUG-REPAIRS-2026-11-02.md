@@ -81,7 +81,20 @@ The user subsequently requested installation. The candidate is Android
 **0.19.1-experimental / build 49**, paired with plugin
 **0.8.4-mobile-fixes-preview**. The signed APK uses the existing release certificate
 and preview-to-release lineage; the prior installed APK is retained locally.
-Installation verification is recorded below after the in-place update completes.
+Installed and verified on the wireless Pixel 10 Pro Fold: version 0.19.1,
+build 49. The APK bytes match the signed artifact; the release certificate, app
+UID, data-directory path and original installation time are preserved. No app
+data was cleared and no personal profile was opened for acceptance.
+
+ADB's incremental attempt failed while parsing the manifest. The successful
+method copied the entire APK with compression, checked its SHA-256 on the phone,
+then used `pm install -r`. The temporary device copy was removed afterward.
+[Install verification](evidence/mobile-bugs-20261102/install-0.19.1.json).
+
+Local artifacts and the retained previous APK are in
+`/home/praxisog/Bellpull-builds/mobile-bugs-0.19.1/`. `SHA256SUMS` covers the new
+APK, complete plugin archive and source metadata. Every packaged plugin file
+was compared with source after a disposable-home installation.
 
 The plugin is required for stock-Hermes chat attachment handoff and SVG MIME
 support. Android-only voice approval/noise controls work without the new plugin;
@@ -89,4 +102,3 @@ SVG previews also need the new app. Install the whole plugin bundle, restart the
 gateway when idle, and reconnect the app to refresh capabilities. Moe remains a
 manual user deployment. No server deployment or GitHub publication is part of
 this phone-install follow-up. The latest published experimental remains 0.19.0.
-

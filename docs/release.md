@@ -1,3 +1,23 @@
+## Local mobile repair installation — 0.19.1 / build 49
+
+Installed in place on the owner's Pixel after the requested mobile repairs.
+The signed artifact and installed APK have the same SHA-256; the release signer,
+app UID, data-directory path and original installation time are preserved.
+ADB incremental installation failed; a complete checksum-verified copy followed
+by `pm install -r` succeeded. Existing app data was not cleared.
+
+Includes native chat attachment handoff, uninterrupted voice during pending
+approvals, per-model noise tolerance and bounded native SVG previews. Server-side
+attachment/MIME changes require the matching **0.8.4-mobile-fixes-preview** plugin.
+The complete plugin is packaged for manual installation and gateway restart; no
+live server was upgraded. Prior repair validation remains 814 Android tests,
+45 backend checks, screenshot/lint checks and isolated physical phone acceptance.
+Signed release assembly, certificate and 16 KiB alignment verification also pass.
+
+This is a local installed build, not a published release. The current GitHub
+experimental release remains 0.19.0. Runtime source is `8fdb6b1` on
+`fix/mobile-bugs-20261102`. [Repair and installation evidence](MOBILE-BUG-REPAIRS-2026-11-02.md).
+
 ## Experimental Canvas and plugin reload release — 0.19.0 / build 48
 
 Published as [android-v0.19.0-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.19.0-experimental.1),
