@@ -203,7 +203,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
-        notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty()) { it == visibleSessionId || voice?.sessionId == it }
+        notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty(),
+            isVoiceActive = { voice != null || voiceRequestedSession != null }) { it == visibleSessionId || voice?.sessionId == it }
         next.onReply = { id, message ->
             syncOfflineMemory()
             delivery?.receive(org.praxisog.hermes.model.InboxEntry("reply:$id:${message.id}", "reply",

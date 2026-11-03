@@ -12,12 +12,16 @@ import kotlinx.coroutines.*
 internal class ReplyNotifications(private val context: Context, private val scope: CoroutineScope,
                                   private val cache: SessionCache?, private val store: HermesStore,
                                   private val profileId: String = SecureConnectionStore.LEGACY,
+                                  private val isVoiceActive: () -> Boolean = { false },
                                   private val isVisible: (String) -> Boolean = { false }) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val pending = mutableMapOf<String, Job>()
     init {
         manager.createNotificationChannel(NotificationChannel(REPLIES, "Replies", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(ATTENTION, "Needs attention", NotificationManager.IMPORTANCE_HIGH))
+        manager.createNotificationChannel(NotificationChannel(VOICE_ATTENTION, "Approvals during voice", NotificationManager.IMPORTANCE_LOW).apply {
+            setSound(null, null); enableVibration(false)
+        })
     }
     fun reply(id: String, messageId: Int) {
         pending[id]?.cancel()
@@ -32,9 +36,11 @@ internal class ReplyNotifications(private val context: Context, private val scop
         }
     }
     fun attention(id: String, identity: String) {
-        if (isVisible(id)) { cache?.rememberNotified(identity); return }
+        val quiet = isVoiceActive()
+        if (isVisible(id) && !quiet) { cache?.rememberNotified(identity); return }
         if (!enabled() || cache?.wasNotified(identity) == true) return
-        post(id, "attention", if (identity.startsWith("approval:")) "Hermes needs your approval" else "A run needs your attention", ATTENTION)
+        post(id, "attention", if (identity.startsWith("approval:")) "Hermes needs your approval" else "A run needs your attention",
+            if (quiet) VOICE_ATTENTION else ATTENTION)
         cache?.rememberNotified(identity)
     }
     fun read(id: String) { manager.cancel("$profileId:reply:$id", 0) }
@@ -43,6 +49,9 @@ internal class ReplyNotifications(private val context: Context, private val scop
     private fun post(id: String, kind: String, text: String, channel: String) {
         val title = (store.sessions as? UiState.Ready)?.value?.firstOrNull { it.id == id }?.title?.takeIf { it.isNotBlank() } ?: "Bellpull"
         val notification = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
+            .apply { if (channel == VOICE_ATTENTION) {
+                setGroup("bellpull_voice_attention"); setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
+            } }
             .setContentTitle(title).setContentText(text).setContentIntent(openChat(context, id, profileId))
             .setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_notification)
@@ -52,6 +61,7 @@ internal class ReplyNotifications(private val context: Context, private val scop
     companion object {
         const val REPLIES = "bellpull_replies"
         const val ATTENTION = "bellpull_attention"
+        const val VOICE_ATTENTION = "bellpull_voice_attention"
         const val EXTRA_SESSION = "bellpull_notification_session"
         const val EXTRA_PROFILE = "bellpull_notification_profile"
         fun openChat(context: Context, id: String, profileId: String = SecureConnectionStore.LEGACY): PendingIntent = PendingIntent.getActivity(context, 0,

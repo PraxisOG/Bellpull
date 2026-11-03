@@ -280,13 +280,13 @@ class VoiceSessionTest {
         target.selection = false; await { voice.state == VoiceState.PAUSED }
         late(); assertTrue(target.sent.isEmpty()); assertFalse(capture.active)
     }
-    @Test fun approvalPausesMicAndDoesNotSpeakOrAnswerTheApproval() {
+    @Test fun historyReviewPausesMicUntilTheUserReviewsIt() {
         voice.start(); utterance(); output.complete()
         target.value = VoiceRun("run-1", busy = true, attention = true)
         await { voice.state == VoiceState.PAUSED }; assertFalse(capture.active); assertEquals(1, target.sent.size)
         voice.resume(); assertEquals(VoiceState.PAUSED, voice.state); assertFalse(capture.active)
     }
-    @Test fun existingTypedRunsAlsoPauseVoiceAndResumeRequiresApprovalOrConnectionRecovery() {
+    @Test fun existingTypedRunsNeedingReviewPauseVoiceAndResumeRequiresRecovery() {
         voice.start()
         target.value = VoiceRun("typed-run", busy = true, attention = true)
         await { voice.state == VoiceState.PAUSED }
@@ -299,6 +299,40 @@ class VoiceSessionTest {
         target.value = VoiceRun("typed-run", final = true); tick()
         voice.resume(); assertEquals(VoiceState.LISTENING, voice.state); assertTrue(capture.active)
         assertTrue(target.sent.isEmpty()); assertTrue(output.said.isEmpty())
+    }
+    @Test fun approvalKeepsPlaybackAndMicActiveAndContinuesTheSameRunAfterResolution() {
+        voice.start(); utterance(); output.complete()
+        target.value = VoiceRun("run-1", busy = true, text = "First sentence. More")
+        await { voice.state == VoiceState.SPEAKING }
+        val playback = output.completion
+        target.value = target.value.copy(approvalPending = true)
+        await { voice.notice == APPROVAL_WAITING }
+        assertTrue(capture.active); assertSame(playback, output.completion)
+        assertEquals(VoiceState.SPEAKING, voice.state)
+        assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
+        output.complete()
+        target.value = target.value.copy(approvalPending = false, busy = false, final = true, text = "First sentence. More detail.")
+        await { output.said.last() == "More detail." }
+        output.complete()
+        await { voice.state == VoiceState.LISTENING }
+        assertNull(voice.notice); assertEquals(1, target.sent.size)
+    }
+    @Test fun wordsDuringApprovalWaitWithoutAnsweringOrCancelingIt() {
+        voice.start(); utterance(); output.complete()
+        target.value = target.value.copy(approvalPending = true)
+        await { voice.notice == APPROVAL_WAITING }
+        recognized = "Save this follow-up question."
+        utterance()
+        assertEquals(VoiceState.WAITING, voice.state)
+        assertTrue(capture.active); assertEquals(recognized, voice.queuedText)
+        assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
+        target.value = target.value.copy(approvalPending = false)
+        tick()
+        assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
+        target.value = target.value.copy(busy = false, final = true)
+        await { output.said.size == 2 }
+        output.complete()
+        assertEquals(2, target.sent.size); assertEquals(0, target.canceled)
     }
     @Test fun transcriptionFailureStopsMicAndKeepsHermesUntouched() {
         failure = true; voice.start(); utterance()

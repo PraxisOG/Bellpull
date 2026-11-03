@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.collectLatest
 import org.praxisog.hermes.core.PrivateTranscription
 
 internal enum class VoiceMode { CALL, CONVERSATION, DICTATION, PUSH_TO_TALK }
+internal const val APPROVAL_WAITING = "Approval waiting in chat. Voice stays on; new words will wait until this run finishes."
 internal enum class VoiceState(val label: String) {
     READY("Ready for your next turn"), STARTING("Starting voice…"), LISTENING("Listening"), RECORDING("Listening to you…"),
     TRANSCRIBING("Transcribing…"), REVIEW("Review your words"), WORKING("Hermes is working…"),
@@ -14,7 +15,7 @@ internal enum class VoiceState(val label: String) {
 internal data class VoiceRun(val identity: String? = null, val busy: Boolean = false, val text: String = "",
     val final: Boolean = false, val attention: Boolean = false, val error: String? = null, val connectionLost: Boolean = false, val admitted: Boolean = true,
     val activities: List<VoiceActivity> = emptyList(), val stopRequested: Boolean = false, val stopError: String? = null,
-    val executing: Boolean = busy)
+    val executing: Boolean = busy, val approvalPending: Boolean = false)
 internal interface VoiceConversation {
     val selected: Boolean
     val ready: Boolean
@@ -52,7 +53,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             durable?.submission?.completionOutput?.takeIf { durable.submission.terminal } ?:
                 if (turn is TurnState.Idle && durable == null) savedLegacyReply.orEmpty() else text,
             durable?.submission?.terminal ?: (turn is TurnState.Finished || turn is TurnState.Idle || turn is TurnState.StoppedByUser),
-            durable?.approval != null || durable?.submission?.historyNeedsReview == true || durable?.submission?.status == "review",
+            durable?.submission?.historyNeedsReview == true || durable?.submission?.status == "review",
             if (turn is TurnState.Failed) turn.error.toUserMessage() else if (durable?.submission?.status in setOf("failed", "rejected", "interrupted"))
                 "Hermes could not finish this turn. Review the chat before retrying." else null,
             durable?.notice?.startsWith("Connection lost.") == true || turn is TurnState.Truncated,
@@ -60,7 +61,8 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             voiceActivities((turn as? TurnState.Streaming)?.parts.orEmpty()),
             durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
             durable?.notice?.takeIf { it.startsWith("Stop was not confirmed.") },
-            durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming)
+            durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming,
+            approvalPending = durable?.approval != null)
     }
     override fun send(text: String): Boolean {
         if (!ready || run().busy) return false
@@ -153,6 +155,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (!selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
                 if (state == VoiceState.PAUSED) return@collectLatest
                 listeningBlock(run)?.let { pause(it); return@collectLatest }
+                if (run.approvalPending) notice = APPROVAL_WAITING
+                else if (notice == APPROVAL_WAITING) notice = null
                 if (interrupting) {
                     if (run.stopError != null) { pause(run.stopError); return@collectLatest }
                     if (!run.busy) {
@@ -180,7 +184,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                     finished = true
                     if (!speaking && speech.isEmpty() && activitySpeech.isEmpty() && !tentative && !audioSuspended) turnDone()
                 } else if (!speaking && !audioSuspended && state !in setOf(VoiceState.RECORDING, VoiceState.TRANSCRIBING, VoiceState.REVIEW)) {
-                    state = if (queuedText.isNotBlank()) VoiceState.WAITING else VoiceState.WORKING
+                    state = if (queuedText.isNotBlank() || run.approvalPending) VoiceState.WAITING else VoiceState.WORKING
                 }
             }
         }
@@ -368,7 +372,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             interruptCurrentRun()
             queuedText = transcript
             transcript = queuedText; saveTranscript(queuedText)
-            state = VoiceState.WAITING; notice = "Stopping the previous reply before sending your new turn…"; openMic(); return
+            state = VoiceState.WAITING
+            notice = if (conversation.run().approvalPending) APPROVAL_WAITING else "Stopping the previous reply before sending your new turn…"
+            openMic(); return
         }
         val text = transcript
         queuedText = ""; completingTurn = true
@@ -394,7 +400,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     /** Stop uses the chat's existing cancellation path, only after non-echo speech is recognized. */
     private fun interruptCurrentRun() {
-        if (!conversation.run().busy || interrupting) return
+        if (!conversation.run().busy || conversation.run().approvalPending || interrupting) return
         interrupting = true; suppressed = true; speech.clear(); activitySpeech.clear(); awaitingAdmission = false; pendingForAdmission = false
         val identity = conversation.run().identity
         interruption = scope.launch {
