@@ -19,7 +19,7 @@ _ID = re.compile(r"[a-f0-9]{32}")
 _SCOPE = re.compile(r"[a-f0-9]{64}")
 _SESSION = re.compile(r"[a-zA-Z0-9_-]{1,200}")
 _TYPES = {
-    "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp",
+    "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/svg+xml": ".svg",
     "application/pdf": ".pdf", "text/plain": ".txt", "text/markdown": ".md",
     "text/csv": ".csv", "application/json": ".json", "application/zip": ".zip",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",

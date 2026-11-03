@@ -37,7 +37,7 @@ import java.io.File
 
 private data class PreviewPage(val bitmap: Bitmap, val count: Int)
 
-/** Native image/PDF rendering only: artifacts never receive a WebView or bridge credentials. */
+/** Native image/SVG/PDF rendering only: artifacts never receive a WebView or bridge credentials. */
 @Composable
 internal fun ArtifactPreview(workspace: Phase3Workspace, item: Artifact, modifier: Modifier = Modifier, onDock: (() -> Unit)? = null, onClose: () -> Unit) {
     val context = LocalContext.current
@@ -47,7 +47,7 @@ internal fun ArtifactPreview(workspace: Phase3Workspace, item: Artifact, modifie
     var page by remember(item.id) { mutableIntStateOf(0) }
     var rendered by remember(item.id) { mutableStateOf<PreviewPage?>(null) }
     var loading by remember(item.id) { mutableStateOf(true) }
-    val previewable = item.mime == "application/pdf" || item.mime in setOf("image/png", "image/jpeg", "image/webp")
+    val previewable = item.mime == "application/pdf" || item.mime in setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml")
     LaunchedEffect(workspace, item.id) {
         if (!item.available) { loadError = "This file is no longer available on the server."; loading = false; return@LaunchedEffect }
         file = workspace.download(item)
@@ -175,6 +175,7 @@ internal fun ArtifactPreviewHeader(name: String, onClose: () -> Unit) {
 }
 
 private fun render(file: File, mime: String, pageIndex: Int): PreviewPage {
+    if (mime == "image/svg+xml") return PreviewPage(SvgPreview.render(file), 1)
     if (mime == "application/pdf") {
         PdfRenderer(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)).use { renderer ->
             require(renderer.pageCount > 0)

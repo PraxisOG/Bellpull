@@ -43,6 +43,17 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(409, ctx.exception.status)
         self.assertEqual(1, len(self.a.list()))
 
+    def test_svg_upload_and_agent_publication_preserve_original_and_mime(self):
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><rect width="40" height="20"/></svg>'
+        row = self.a.store([svg], session_id="chat_a", name="drawing.svg", mime="image/svg+xml")
+        self.assertEqual("image/svg+xml", row["mime"])
+        self.assertEqual(svg, self.a.path(row["id"])[0].read_bytes())
+        folder = self.a.output_directory("chat_a")
+        (folder / "diagram.svg").write_bytes(svg)
+        published = self.a.collect_outputs("chat_a", "svg-result")
+        self.assertEqual("image/svg+xml", published[0]["mime"])
+        self.assertEqual(svg, self.a.path(published[0]["id"])[0].read_bytes())
+
     def test_cancelled_or_oversize_upload_leaves_no_record_or_temporary_file(self):
         def broken():
             yield b"partial"

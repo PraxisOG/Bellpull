@@ -55,7 +55,8 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
                 } finally { transfer = null; temporary.delete() }
             }
             target.setLastModified(System.currentTimeMillis())
-            val bitmap = decode(target) ?: return@withLock null
+            val bitmap = if (item.mime == "image/svg+xml") SvgPreview.render(target, 768) else decode(target)
+            if (bitmap == null) return@withLock null
             if (closed) return@withLock null
             cache.put(key, bitmap)
             var bytes = 0L
@@ -68,7 +69,8 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
     fun close() { closed = true; transfer?.cancel(); cache.evictAll() }
     companion object {
         fun eligible(item: Artifact) = item.available && !item.deleted && item.size in 1..8L * 1024 * 1024 &&
-            item.mime in setOf("image/png", "image/jpeg", "image/webp") &&
+            item.mime in setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml") &&
+            (item.mime != "image/svg+xml" || item.size <= SvgPreview.MAX_BYTES) &&
             item.id.matches(Regex("[a-f0-9]{32}")) && item.sha256.matches(Regex("[a-f0-9]{64}"))
         internal fun decode(file: File): Bitmap? {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

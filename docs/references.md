@@ -14,6 +14,14 @@ This file is the canonical borrow list. `ROADMAP.md` § Revised borrow list is t
 content in schedule context; if they drift, this file wins for *what* to borrow and the
 roadmap wins for *when*.
 
+## Native SVG previews (November 2, 2026)
+
+Use [AndroidSVG 1.4](https://bigbadaboom.github.io/androidsvg/), dependency
+`com.caverock:androidsvg-aar:1.4`, explicitly approved by the user. Its native
+Canvas renderer runs behind bounded static XML sanitization; custom entities and
+external resources are disabled. Keep original files for Save/Share and reuse
+the existing artifact zoom controls. The Apache-2.0 license ships in APK assets.
+
 ## Kokoro output (October 22, 2026)
 
 Use the [Kokoro v1.0 ONNX export](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)

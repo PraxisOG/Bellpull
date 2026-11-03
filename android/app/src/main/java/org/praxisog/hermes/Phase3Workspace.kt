@@ -163,7 +163,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                 val selected = selections[id] ?: loadSelection(id) ?: return@launch
                 if (files.sumOf { it.size } > LIMIT) { errors[id] = "Combined attachments exceed 25 MiB."; return@launch }
                 val route = catalog?.models?.find { it.model == selected.model && it.provider == selected.provider }
-                if (files.any { it.mime.startsWith("image/") } && route?.vision != true) {
+                if (files.any { it.mime in setOf("image/png", "image/jpeg", "image/webp") } && route?.vision != true) {
                     errors[id] = "Select a model with confirmed vision support before sending images."; return@launch
                 }
                 for (file in files) {
@@ -230,7 +230,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     fun close() { closed = true; thumbnails.close(); transfers.values.forEach { it.cancel() }; transfers.clear() }
     companion object {
         const val LIMIT = 25L * 1024 * 1024
-        val ALLOWED = setOf("image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain", "text/markdown",
+        val ALLOWED = setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/pdf", "text/plain", "text/markdown",
             "text/csv", "application/json", "application/zip", "application/octet-stream",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
