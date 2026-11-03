@@ -17,6 +17,15 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-02, prioritized mobile bugs):** the user asked
+to prioritize mobile bug requests and start repairs using the local Hermes
+container. The selected batch is #47, #48, #37, #24, #16 and #27. Work is on
+`fix/mobile-bugs-20261102` from the published 0.19.0
+source. Use disposable homes and the fixture APK for device acceptance. The user
+explicitly approved AndroidSVG 1.4 for native SVG previews, with external resources
+and XML entities disabled. Preserve personal app data and the separately managed
+Moe server. See `docs/MOBILE-BUG-REPAIRS-2026-11-02.md` for priorities and evidence.
+
 **Current task authority (2026-10-31, shared Canvas merge):** the user requested
 merging the working mobile Canvas changes before returning to desktop development.
 Integrate into the latest experimental source based on published 0.18.2/build47,
@@ -593,6 +602,8 @@ that installation; preserve the signing lineage and app data.
   unused Google Material and WorkManager transitives excluded. Qwen's pinned CPU runtime/GGML and Sherpa-ONNX 1.13.8 with bundled ONNX
   Runtime (including its existing JSON dependency) are also user-approved for
   voice output. This does not authorize Google LiteRT/Tensor libraries.
+  AndroidSVG 1.4 is user-approved (2026-11-02) for native static SVG previews,
+  with external resources and custom XML entities disabled.
   OkHttp was chosen over `HttpURLConnection` for the SSE path specifically because a
   long-lived stream needs clean cancellation and a bounded connect timeout with no read
   timeout; `HttpURLConnection.disconnect()` mid-read is not well defined.
