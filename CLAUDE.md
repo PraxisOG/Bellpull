@@ -17,6 +17,15 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-03, Tools cleanup):** use
+`feature/tools-cleanup-20261103` from `9a918df`. Replace the inline attachment list
+with eight recent previews and a right-aligned Search library, condense GPUs into
+expandable summaries, and remove redundant Tools shortcuts/status. The user
+confirmed direct server uploads in Tools while preserving chat's attachment plus.
+Use the existing file API and a separate durable upload queue; never start a run
+for a Tools upload. Validate with disposable local Hermes/phone fixtures. No new
+dependency, release, personal-app update or Moe deployment is part of this task.
+
 **Current task authority (2026-11-03, chat display repairs):** build on the completed
 Kanban work at `09f585f` using `fix/chat-display-20261103`. Fix Thinking interaction
 in long responses; add local display switches for terminal calls, thinking and

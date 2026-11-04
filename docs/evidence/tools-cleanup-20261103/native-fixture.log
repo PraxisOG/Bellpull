@@ -1,0 +1,123 @@
+INFO:run_agent:No .env file found. Using system environment variables.
+INFO:hermes_cli.plugins:Plugin 'browser-browser-use' registered browser provider: browser-use
+INFO:hermes_cli.plugins:Plugin 'browser-browserbase' registered browser provider: browserbase
+INFO:hermes_cli.plugins:Plugin 'browser-firecrawl' registered browser provider: firecrawl
+INFO:hermes_cli.plugins:Plugin 'deepinfra' registered image_gen provider: deepinfra
+INFO:hermes_cli.plugins:Plugin 'fal' registered image_gen provider: fal
+INFO:hermes_cli.plugins:Plugin 'krea' registered image_gen provider: krea
+INFO:hermes_cli.plugins:Plugin 'meta-ai-image-gen' registered image_gen provider: meta-ai
+INFO:hermes_cli.plugins:Plugin 'openai' registered image_gen provider: openai
+INFO:hermes_cli.plugins:Plugin 'openai-codex' registered image_gen provider: openai-codex
+INFO:hermes_cli.plugins:Plugin 'openrouter' registered image_gen provider: openrouter
+INFO:hermes_cli.plugins:Plugin 'openrouter' registered image_gen provider: nous
+INFO:hermes_cli.plugins:Plugin 'xai' registered image_gen provider: xai
+INFO:hermes_cli.plugins:Plugin 'deepinfra' registered video_gen provider: deepinfra
+INFO:hermes_cli.plugins:Plugin 'fal' registered video_gen provider: fal
+INFO:hermes_cli.plugins:Plugin 'openrouter' registered video_gen provider: openrouter
+INFO:hermes_cli.plugins:Plugin 'xai' registered video_gen provider: xai
+INFO:hermes_cli.plugins:Plugin 'web-brave-free' registered web provider: brave-free
+INFO:hermes_cli.plugins:Plugin 'web-ddgs' registered web provider: ddgs
+INFO:hermes_cli.plugins:Plugin 'web-exa' registered web provider: exa
+INFO:hermes_cli.plugins:Plugin 'web-firecrawl' registered web provider: firecrawl
+INFO:hermes_cli.plugins:Plugin 'web-keenable' registered web provider: keenable
+INFO:hermes_cli.plugins:Plugin 'web-openai-native' registered web provider: openai-native
+INFO:hermes_cli.plugins:Plugin 'web-parallel' registered web provider: parallel
+INFO:hermes_cli.plugins:Plugin 'web-perplexity' registered web provider: perplexity
+INFO:hermes_cli.plugins:Plugin 'web-searxng' registered web provider: searxng
+INFO:hermes_cli.plugins:Plugin 'web-tavily' registered web provider: tavily
+INFO:hermes_cli.plugins:Plugin 'web-xai' registered web provider: xai
+INFO:hermes_cli.plugins:Plugin discovery complete: 59 found, 53 enabled
+WARNING:hermes_state:state.db: on-disk journal_mode was delete and has been switched to WAL. This rewrites the database header and persists after this process exits. If delete was a deliberate choice (for example the mitigation for the SQLite WAL-reset bug, or a WAL-unsafe filesystem), setting it with PRAGMA on the file will not survive -- every open re-applies the configured mode. Set `database.journal_mode: delete` in config.yaml to make it stick. This message fires once per process per database.
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:03:58 +0000] "POST /api/sessions HTTP/1.1" 201 744 "-" "Python/3.13 aiohttp/3.14.3"
+READY http://127.0.0.1:18662 · synthetic attachment agent
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:57 +0000] "POST /api/sessions HTTP/1.1" 201 758 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:57 +0000] "PUT /api/bellpull/artifacts/a97d84242cd6486bbd1d236e2757e835?session_id=api_1793754417_6e3a9328&name=Sample+1.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/4989eddcaffb49b08b1fec4814ba7c32?session_id=api_1793754417_6e3a9328&name=Sample+2.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/4440978cb463411eaca82192632e27b1?session_id=api_1793754417_6e3a9328&name=Sample+3.pdf HTTP/1.1" 201 609 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/1af689bd9ff94b639ca56092738292c2?session_id=api_1793754417_6e3a9328&name=Sample+4.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/c17081ce7c734085800333b79c566aee?session_id=api_1793754417_6e3a9328&name=Sample+5.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/aeb3128fbfe2483e921792a8b36677c1?session_id=api_1793754417_6e3a9328&name=Sample+6.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/a57edc1563164c419efd429ed8e38081?session_id=api_1793754417_6e3a9328&name=Sample+7.pdf HTTP/1.1" 201 609 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:58 +0000] "PUT /api/bellpull/artifacts/b8ee758f32ad4dcc8efda88bbda8b5a5?session_id=api_1793754417_6e3a9328&name=Sample+8.png HTTP/1.1" 201 602 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:59 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 3714 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:59 +0000] "GET /api/bellpull/artifacts/b8ee758f32ad4dcc8efda88bbda8b5a5/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:06:59 +0000] "GET /api/bellpull/artifacts/a57edc1563164c419efd429ed8e38081/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/aeb3128fbfe2483e921792a8b36677c1/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/c17081ce7c734085800333b79c566aee/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/1af689bd9ff94b639ca56092738292c2/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/4440978cb463411eaca82192632e27b1/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/4989eddcaffb49b08b1fec4814ba7c32/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:00 +0000] "GET /api/bellpull/artifacts/a97d84242cd6486bbd1d236e2757e835/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:07:03 +0000] "GET /api/bellpull/artifacts/a57edc1563164c419efd429ed8e38081/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:08:39 +0000] "POST /api/sessions HTTP/1.1" 400 323 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:10 +0000] "POST /api/sessions HTTP/1.1" 400 323 "-" "curl/8.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:32 +0000] "POST /api/sessions HTTP/1.1" 201 789 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/b470cec249db4774aefd76b16f2a742c?session_id=api_1793754572_c5debb1e&name=Sample+1.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/dda53c228a144c82848b76a4d18c9ca8?session_id=api_1793754572_c5debb1e&name=Sample+2.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/420c3678726540569117752b89785ca3?session_id=api_1793754572_c5debb1e&name=Sample+3.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/4340c74aad474402a823d13a22d6da6f?session_id=api_1793754572_c5debb1e&name=Sample+4.png HTTP/1.1" 201 602 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/7904c8776bec4dfbae061ad2198b77da?session_id=api_1793754572_c5debb1e&name=Sample+5.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:33 +0000] "PUT /api/bellpull/artifacts/ffb1327b9af34aa2b9d51014cf27d0b6?session_id=api_1793754572_c5debb1e&name=Sample+6.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:34 +0000] "PUT /api/bellpull/artifacts/a7e4894a610a4eb88cef611675e6b102?session_id=api_1793754572_c5debb1e&name=Sample+7.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:34 +0000] "PUT /api/bellpull/artifacts/ad044dd49a7c4574afc7cb639d71012c?session_id=api_1793754572_c5debb1e&name=Sample+8.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:34 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 7061 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:34 +0000] "GET /api/bellpull/artifacts/ad044dd49a7c4574afc7cb639d71012c/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:34 +0000] "GET /api/bellpull/artifacts/a7e4894a610a4eb88cef611675e6b102/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/ffb1327b9af34aa2b9d51014cf27d0b6/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/7904c8776bec4dfbae061ad2198b77da/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/4340c74aad474402a823d13a22d6da6f/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/420c3678726540569117752b89785ca3/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/dda53c228a144c82848b76a4d18c9ca8/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:35 +0000] "GET /api/bellpull/artifacts/b470cec249db4774aefd76b16f2a742c/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:38 +0000] "GET /api/bellpull/artifacts/a7e4894a610a4eb88cef611675e6b102/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:41 +0000] "PUT /api/bellpull/artifacts/a72dacb9840c4d949f9241942ea14e49?session_id=api_1793754572_c5debb1e&name=Direct+upload.txt HTTP/1.1" 201 608 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:09:41 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 7481 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:22 +0000] "POST /api/sessions HTTP/1.1" 201 789 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/449ca52dc5bb48308f4b38d0a22b2796?session_id=api_1793754682_71c754ea&name=Sample+1.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/b67dbadd109d4f4784a5da6d491fc36e?session_id=api_1793754682_71c754ea&name=Sample+2.png HTTP/1.1" 201 602 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/4a287dc99b9b4271a4fdae0935831609?session_id=api_1793754682_71c754ea&name=Sample+3.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/343ee251c52041c980e0dd5d686353f4?session_id=api_1793754682_71c754ea&name=Sample+4.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/8c80dfc02bca4e699e938195bfaf8774?session_id=api_1793754682_71c754ea&name=Sample+5.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/3cc3370a25474f29ac606c7d3cc42ca8?session_id=api_1793754682_71c754ea&name=Sample+6.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:23 +0000] "PUT /api/bellpull/artifacts/368a45911a87492f8c39dea29343af8a?session_id=api_1793754682_71c754ea&name=Sample+7.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:24 +0000] "PUT /api/bellpull/artifacts/d023c10f9cb34918bdf4f22eed76301d?session_id=api_1793754682_71c754ea&name=Sample+8.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:24 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 10830 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:24 +0000] "GET /api/bellpull/artifacts/d023c10f9cb34918bdf4f22eed76301d/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:24 +0000] "GET /api/bellpull/artifacts/368a45911a87492f8c39dea29343af8a/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:24 +0000] "GET /api/bellpull/artifacts/3cc3370a25474f29ac606c7d3cc42ca8/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:25 +0000] "GET /api/bellpull/artifacts/8c80dfc02bca4e699e938195bfaf8774/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:25 +0000] "GET /api/bellpull/artifacts/343ee251c52041c980e0dd5d686353f4/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:25 +0000] "GET /api/bellpull/artifacts/4a287dc99b9b4271a4fdae0935831609/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:25 +0000] "GET /api/bellpull/artifacts/b67dbadd109d4f4784a5da6d491fc36e/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:25 +0000] "GET /api/bellpull/artifacts/449ca52dc5bb48308f4b38d0a22b2796/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:27 +0000] "GET /api/bellpull/artifacts/368a45911a87492f8c39dea29343af8a/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:31 +0000] "PUT /api/bellpull/artifacts/fc82ad1da86947f4b4819d43cc59b9b3?session_id=api_1793754682_71c754ea&name=Direct+upload.txt HTTP/1.1" 201 608 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:31 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 11250 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:39 +0000] "GET /api/sessions/api_1793754682_71c754ea/messages HTTP/1.1" 200 308 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:39 +0000] "GET /api/bellpull/artifacts?session_id=api_1793754682_71c754ea HTTP/1.1" 200 4137 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:11:39 +0000] "GET /api/bellpull/artifacts/fc82ad1da86947f4b4819d43cc59b9b3/content HTTP/1.1" 200 302 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:02 +0000] "POST /api/sessions HTTP/1.1" 201 789 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:02 +0000] "PUT /api/bellpull/artifacts/b9e2b50681754f0c9742dbe6c6184a14?session_id=api_1793754962_269f895e&name=Sample+1.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/20b8951d35d54147b5e1a24827be3b81?session_id=api_1793754962_269f895e&name=Sample+2.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/3029017ffc18485687397c1d09173fff?session_id=api_1793754962_269f895e&name=Sample+3.pdf HTTP/1.1" 201 609 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/f40d4930c4c047ad87a73d884ffcffb0?session_id=api_1793754962_269f895e&name=Sample+4.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/04d71e72053b4593a5d19689b0a73586?session_id=api_1793754962_269f895e&name=Sample+5.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/9f935c05004d433e915ee8380278a144?session_id=api_1793754962_269f895e&name=Sample+6.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/a33f7dcb6c8e4cdaac958140aa005cf4?session_id=api_1793754962_269f895e&name=Sample+7.pdf HTTP/1.1" 201 610 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:03 +0000] "PUT /api/bellpull/artifacts/39d3b8cb48ef48a0b0e91ba829dee8e1?session_id=api_1793754962_269f895e&name=Sample+8.png HTTP/1.1" 201 603 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:04 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 14597 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:04 +0000] "GET /api/bellpull/artifacts/39d3b8cb48ef48a0b0e91ba829dee8e1/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:04 +0000] "GET /api/bellpull/artifacts/a33f7dcb6c8e4cdaac958140aa005cf4/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/9f935c05004d433e915ee8380278a144/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/04d71e72053b4593a5d19689b0a73586/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/f40d4930c4c047ad87a73d884ffcffb0/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/3029017ffc18485687397c1d09173fff/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/20b8951d35d54147b5e1a24827be3b81/content HTTP/1.1" 200 563 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:05 +0000] "GET /api/bellpull/artifacts/b9e2b50681754f0c9742dbe6c6184a14/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:07 +0000] "GET /api/bellpull/artifacts/a33f7dcb6c8e4cdaac958140aa005cf4/content HTTP/1.1" 200 8363 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:11 +0000] "PUT /api/bellpull/artifacts/c69b10ae77a14365875087faf975a8fe?session_id=api_1793754962_269f895e&name=Direct+upload.txt HTTP/1.1" 201 607 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:11 +0000] "GET /api/bellpull/artifacts HTTP/1.1" 200 15016 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:20 +0000] "GET /api/sessions/api_1793754962_269f895e/messages HTTP/1.1" 200 308 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:20 +0000] "GET /api/bellpull/artifacts?session_id=api_1793754962_269f895e HTTP/1.1" 200 4136 "-" "okhttp/5.5.0"
+INFO:aiohttp.access:127.0.0.1 [04/Nov/2026:01:16:20 +0000] "GET /api/bellpull/artifacts/c69b10ae77a14365875087faf975a8fe/content HTTP/1.1" 200 302 "-" "okhttp/5.5.0"
+Completed fixture executions: 0
