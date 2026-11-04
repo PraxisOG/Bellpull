@@ -1,0 +1,9 @@
+Executing <Task pending name='Task-2' coro=<KanbanHttpTests.test_gateway_auth_profile_prefix_discovery_and_no_inference() running at /opt/hermes/plugins/bellpull/tests/test_kanban.py:280> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 1.935 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/kanban/boards' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/kanban/boards/default/hierarchy' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/work/api/bellpull/kanban/boards/default/hierarchy' user_agent='Python/3.13 aiohttp/3.14.3'
+.................
+----------------------------------------------------------------------
+Ran 17 tests in 9.307s
+
+OK

@@ -17,6 +17,13 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-03, compact Kanban and Tree):** implement on
+`feature/kanban-tree-20261103`, based on `fix/mobile-bugs-20261102` at `7de6b73`
+(which contains `android-v0.19.0-experimental.1`). Add explicit containment without
+changing dependencies or execution. Use the local Hermes container and disposable
+fixture app for validation. Deliver reviewable source; no release publication,
+personal app replacement or Moe deployment. See `docs/KANBAN-TREE.md`.
+
 **Current task authority (2026-11-02, install mobile repairs):** the user requested
 installing the newest repairs on the phone. Prepare Android 0.19.1/build49 and
 matching plugin 0.8.4-mobile-fixes-preview. Use the existing release certificate
