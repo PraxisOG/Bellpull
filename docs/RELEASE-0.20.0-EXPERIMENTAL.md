@@ -35,10 +35,14 @@ Earlier slice evidence also covers native Tree edits/recovery, board chat naviga
 Thinking interaction, Tools uploads and file previews on the phone.
 
 On stock Hermes 0.21.5, 31 native Kanban, rediscovery and attachment checks passed
-using disposable local Docker homes. The complete plugin suite runs separately
-against the freshly built documented legacy host fixture. Native attachment
+using disposable local Docker homes. The complete plugin suite passed **226 tests**
+with **three platform-specific skips** against the freshly built documented legacy
+host fixture. Native attachment
 capabilities are checked independently of private host-source compatibility;
 the native-only lifecycle check belongs to the stock host suite.
+[Full plugin results](evidence/release-0.20.0/plugin-tests.log) ·
+[stock host results](evidence/release-0.20.0/native-tests.log).
+The new source history also passed the secret scan.
 
 The signed APK was installed over 0.19.1/build49 on the Pixel. Installed bytes
 match the release SHA-256, and app ID, data directory and original installation

@@ -1,0 +1,474 @@
+test_completed_identity_survives_adapter_restart (test_approvals.Phase2Test.test_completed_identity_survives_adapter_restart) ... Executing <Task pending name='Task-1' coro=<Phase2Test.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_approvals.py:50> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.137 seconds
+state.db: on-disk journal_mode was delete and has been switched to WAL. This rewrites the database header and persists after this process exits. If delete was a deliberate choice (for example the mitigation for the SQLite WAL-reset bug, or a WAL-unsafe filesystem), setting it with PRAGMA on the file will not survive -- every open re-applies the configured mode. Set `database.journal_mode: delete` in config.yaml to make it stick. This message fires once per process per database.
+ok
+test_dead_owner_is_interrupted_without_starting_an_executor (test_approvals.Phase2Test.test_dead_owner_is_interrupted_without_starting_an_executor) ... /usr/lib/python3.13/linecache.py:184: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee153d66b0>
+  def lazycache(filename, module_globals):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_idempotency_same_payload_reuses_run_changed_payload_conflicts (test_approvals.Phase2Test.test_idempotency_same_payload_reuses_run_changed_payload_conflicts) ... ok
+test_invalid_opt_in_rejected (test_approvals.Phase2Test.test_invalid_opt_in_rejected) ... ok
+test_notification_proxy_requires_auth_before_broker_access (test_approvals.Phase2Test.test_notification_proxy_requires_auth_before_broker_access) ... API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/events' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_notification_subscription_uses_valid_topic_and_filters_hint (test_approvals.Phase2Test.test_notification_subscription_uses_valid_topic_and_filters_hint) ... ok
+test_parallel_approvals_cannot_resolve_another_runs_request (test_approvals.Phase2Test.test_parallel_approvals_cannot_resolve_another_runs_request) ... ok
+test_real_gate_accepts_once_and_rejects_replay (test_approvals.Phase2Test.test_real_gate_accepts_once_and_rejects_replay) ... ok
+test_timeout_denies_and_resets_worker_approval_context (test_approvals.Phase2Test.test_timeout_denies_and_resets_worker_approval_context) ... ok
+test_unattended_run_stays_denied_beside_interactive_run (test_approvals.Phase2Test.test_unattended_run_stays_denied_beside_interactive_run) ... ok
+test_ambiguous_compression_children_fail_closed (test_artifact_lineage.ArtifactLineageTest.test_ambiguous_compression_children_fail_closed) ... ok
+test_branches_reset_delegates_and_other_profiles_remain_distinct (test_artifact_lineage.ArtifactLineageTest.test_branches_reset_delegates_and_other_profiles_remain_distinct) ... ok
+test_exact_prefix_links_survive_branch_compression_without_inheriting_other_files (test_artifact_lineage.ArtifactLineageTest.test_exact_prefix_links_survive_branch_compression_without_inheriting_other_files) ... ok
+test_old_and_new_files_are_visible_across_multiple_compression_generations (test_artifact_lineage.ArtifactLineageTest.test_old_and_new_files_are_visible_across_multiple_compression_generations) ... ok
+test_cancelled_or_oversize_upload_leaves_no_record_or_temporary_file (test_artifacts.ArtifactTests.test_cancelled_or_oversize_upload_leaves_no_record_or_temporary_file) ... ok
+test_generated_files_are_immutable_scoped_and_do_not_follow_links (test_artifacts.ArtifactTests.test_generated_files_are_immutable_scoped_and_do_not_follow_links) ... ok
+test_missing_content_is_unavailable_not_a_successful_empty_download (test_artifacts.ArtifactTests.test_missing_content_is_unavailable_not_a_successful_empty_download) ... ok
+test_paths_and_cross_conversation_associations_are_rejected (test_artifacts.ArtifactTests.test_paths_and_cross_conversation_associations_are_rejected) ... ok
+test_repeatable_download_survives_store_reopen_and_is_scoped (test_artifacts.ArtifactTests.test_repeatable_download_survives_store_reopen_and_is_scoped) ... ok
+test_retried_upload_deduplicates_but_changes_conflict (test_artifacts.ArtifactTests.test_retried_upload_deduplicates_but_changes_conflict) ... ok
+test_svg_upload_and_agent_publication_preserve_original_and_mime (test_artifacts.ArtifactTests.test_svg_upload_and_agent_publication_preserve_original_and_mime) ... ok
+test_authentication_is_required (test_branches.SelectedReplyForkTest.test_authentication_is_required) ... Executing <Task pending name='Task-259' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.514 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/sessions/source/fork-at-message' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_branch_appears_first_even_when_selected_messages_are_old (test_branches.SelectedReplyForkTest.test_branch_appears_first_even_when_selected_messages_are_old) ... Executing <Task pending name='Task-272' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.523 seconds
+Executing <Task pending name='Task-278' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.171 seconds
+ok
+test_branch_inherits_project_and_can_be_unfiled_independently (test_branches.SelectedReplyForkTest.test_branch_inherits_project_and_can_be_unfiled_independently) ... Executing <Task pending name='Task-285' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.524 seconds
+Executing <Task pending name='Task-297' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.158 seconds
+ok
+test_compressed_source_branches_the_transcript_shown_by_history (test_branches.SelectedReplyForkTest.test_compressed_source_branches_the_transcript_shown_by_history) ... Executing <Task pending name='Task-308' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.519 seconds
+Executing <Task pending name='Task-314' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.171 seconds
+ok
+test_concurrent_same_id_creates_once (test_branches.SelectedReplyForkTest.test_concurrent_same_id_creates_once) ... Executing <Task pending name='Task-321' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.514 seconds
+Executing <Task pending name='Task-332' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.162 seconds
+ok
+test_copy_failure_rolls_back_session_and_messages (test_branches.SelectedReplyForkTest.test_copy_failure_rolls_back_session_and_messages) ... Executing <Task pending name='Task-341' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.515 seconds
+Executing <Task pending name='Task-347' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.162 seconds
+Error handling request from 127.0.0.1
+Traceback (most recent call last):
+  File "/opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py", line 575, in _handle_request
+    resp = await request_handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_app.py", line 559, in _handle
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hermes/plugins/bellpull/http.py", line 190, in guarded
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hermes/plugins/bellpull/branches.py", line 22, in _handle_fork_at_message
+    return await _fork_at_message(adapter, db, source_id, fork_id, body, artifact_store=store_for(adapter, request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hermes/plugins/bellpull/branches.py", line 112, in _fork_at_message
+    fork, error, mapping = await asyncio.to_thread(db._execute_write, _atomic)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/opt/hermes/hermes_state.py", line 803, in _execute_write
+    result = fn(self._conn)
+  File "/opt/hermes/plugins/bellpull/branches.py", line 101, in _atomic
+    count, tool_count = db._insert_message_rows(conn, fork_id, messages)
+                        ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/unittest/mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/unittest/mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/unittest/mock.py", line 1234, in _execute_mock_call
+    result = effect(*args, **kwargs)
+  File "/opt/hermes/plugins/bellpull/tests/test_branches.py", line 178, in fail_after_insert
+    raise RuntimeError("Injected copy failure")
+RuntimeError: Injected copy failure
+ok
+test_edit_first_prompt_clones_empty_session_and_model (test_branches.SelectedReplyForkTest.test_edit_first_prompt_clones_empty_session_and_model) ... Executing <Task pending name='Task-352' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.519 seconds
+Executing <Task pending name='Task-358' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.162 seconds
+ok
+test_edit_later_prompt_retains_only_prior_path (test_branches.SelectedReplyForkTest.test_edit_later_prompt_retains_only_prior_path) ... Executing <Task pending name='Task-365' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.516 seconds
+Executing <Task pending name='Task-371' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.161 seconds
+ok
+test_edit_rejects_assistant_and_invalid_ids (test_branches.SelectedReplyForkTest.test_edit_rejects_assistant_and_invalid_ids) ... Executing <Task pending name='Task-378' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.537 seconds
+Executing <Task finished name='Task-384' coro=<RequestHandler._handle_request() done, defined at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:565> result=(<Response Bad Request eof>, False) created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.168 seconds
+ok
+test_edit_requires_authentication (test_branches.SelectedReplyForkTest.test_edit_requires_authentication) ... Executing <Task pending name='Task-403' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.540 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/sessions/source/fork-before-message' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_exact_prefix_preserves_original_model_and_visible_lineage (test_branches.SelectedReplyForkTest.test_exact_prefix_preserves_original_model_and_visible_lineage) ... Executing <Task pending name='Task-416' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.539 seconds
+Executing <Task pending name='Task-422' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.178 seconds
+ok
+test_explicit_plugin_capability_is_advertised_without_mutating_native_flags (test_branches.SelectedReplyForkTest.test_explicit_plugin_capability_is_advertised_without_mutating_native_flags) ... Executing <Task pending name='Task-429' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.541 seconds
+ok
+test_foreign_message_is_rejected (test_branches.SelectedReplyForkTest.test_foreign_message_is_rejected) ... Executing <Task pending name='Task-441' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.542 seconds
+Executing <Task pending name='Task-447' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.169 seconds
+ok
+test_invalid_cutoffs_do_not_create_or_change_anything (test_branches.SelectedReplyForkTest.test_invalid_cutoffs_do_not_create_or_change_anything) ... Executing <Task pending name='Task-454' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.541 seconds
+Executing <Task finished name='Task-460' coro=<RequestHandler._handle_request() done, defined at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:565> result=(<Response Bad Request eof>, False) created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.171 seconds
+ok
+test_legacy_full_fork_still_uses_existing_contract (test_branches.SelectedReplyForkTest.test_legacy_full_fork_still_uses_existing_contract) ... Executing <Task pending name='Task-479' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.547 seconds
+ok
+test_title_conflict_leaves_no_partial_branch (test_branches.SelectedReplyForkTest.test_title_conflict_leaves_no_partial_branch) ... Executing <Task pending name='Task-492' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.543 seconds
+Executing <Task pending name='Task-498' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.178 seconds
+ok
+test_tool_prefix_retains_completed_calls_and_drops_pending_selected_call (test_branches.SelectedReplyForkTest.test_tool_prefix_retains_completed_calls_and_drops_pending_selected_call) ... Executing <Task pending name='Task-505' coro=<SelectedReplyForkTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_branches.py:44> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.533 seconds
+Executing <Task pending name='Task-511' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.151 seconds
+ok
+test_native_auth_two_clients_live_updates_and_reconnect (test_canvas.CanvasHttpTests.test_native_auth_two_clients_live_updates_and_reconnect) ... Executing <Task pending name='Task-519' coro=<CanvasHttpTests.test_native_auth_two_clients_live_updates_and_reconnect() running at /opt/hermes/plugins/bellpull/tests/test_canvas.py:154> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.143 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/sessions/chat/canvas' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_compaction_preserves_canvas_but_ordinary_fork_does_not (test_canvas.CanvasTests.test_compaction_preserves_canvas_but_ordinary_fork_does_not) ... ok
+test_concurrent_edits_have_one_winner_and_no_lost_update (test_canvas.CanvasTests.test_concurrent_edits_have_one_winner_and_no_lost_update) ... ok
+test_gap_resets_from_authoritative_snapshot (test_canvas.CanvasTests.test_gap_resets_from_authoritative_snapshot) ... ok
+test_invalid_batches_stop_and_foreign_session_do_not_change_state (test_canvas.CanvasTests.test_invalid_batches_stop_and_foreign_session_do_not_change_state) ... ok
+test_model_turn_groups_undo_and_manual_edit_fences_remaining_calls (test_canvas.CanvasTests.test_model_turn_groups_undo_and_manual_edit_fences_remaining_calls) ... ok
+test_real_native_tool_dispatch_supplies_identity_even_when_pre_hook_was_already_called (test_canvas.CanvasTests.test_real_native_tool_dispatch_supplies_identity_even_when_pre_hook_was_already_called) ... ok
+test_tool_uses_native_identity_and_current_session_only (test_canvas.CanvasTests.test_tool_uses_native_identity_and_current_session_only) ... ok
+test_two_devices_share_committed_steps_and_reconnect_without_reexecution (test_canvas.CanvasTests.test_two_devices_share_committed_steps_and_reconnect_without_reexecution) ... ok
+test_compression_generations_share_work_but_forks_and_profiles_do_not (test_coding.CodingTest.test_compression_generations_share_work_but_forks_and_profiles_do_not) ... ok
+test_evicted_journal_forces_snapshot_and_explicit_gap (test_coding.CodingTest.test_evicted_journal_forces_snapshot_and_explicit_gap) ... ok
+test_only_exact_simple_json_launches_are_candidates (test_coding.CodingTest.test_only_exact_simple_json_launches_are_candidates) ... ok
+test_other_busy_conversations_cannot_starve_a_snapshot (test_coding.CodingTest.test_other_busy_conversations_cannot_starve_a_snapshot) ... ok
+test_plain_permission_warning_never_becomes_a_request (test_coding.CodingTest.test_plain_permission_warning_never_becomes_a_request) ... ok
+test_replay_is_idempotent_and_cursors_survive_reopening (test_coding.CodingTest.test_replay_is_idempotent_and_cursors_survive_reopening) ... ok
+test_restart_unknown_and_process_incarnation_mismatch_never_becomes_success (test_coding.CodingTest.test_restart_unknown_and_process_incarnation_mismatch_never_becomes_success) ... ok
+test_retention_preserves_live_work_and_reports_expired_activity (test_coding.CodingTest.test_retention_preserves_live_work_and_reports_expired_activity) ... ok
+test_schema_mismatch_and_nested_foreign_session_are_rejected (test_coding.CodingTest.test_schema_mismatch_and_nested_foreign_session_are_rejected) ... /usr/lib/python3.13/json/decoder.py:361: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee14062020>
+  obj, end = self.scan_once(s, idx)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/json/decoder.py:361: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee140624d0>
+  obj, end = self.scan_once(s, idx)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_split_lines_unicode_crlf_updates_and_foreign_sessions (test_coding.CodingTest.test_split_lines_unicode_crlf_updates_and_foreign_sessions) ... ok
+test_tail_loss_marks_gap_and_step_finish_does_not_complete_process (test_coding.CodingTest.test_tail_loss_marks_gap_and_step_finish_does_not_complete_process) ... ok
+test_terminal_fallback_is_inert_and_removes_escape_sequences (test_coding.CodingTest.test_terminal_fallback_is_inert_and_removes_escape_sequences) ... ok
+test_tool_receipt_requires_exact_live_turn_process_and_owner (test_coding.CodingTest.test_tool_receipt_requires_exact_live_turn_process_and_owner) ... ok
+test_unterminated_foreign_frame_is_not_rendered_on_exit (test_coding.CodingTest.test_unterminated_foreign_frame_is_not_rendered_on_exit) ... ok
+test_changed_and_untracked_files_have_opaque_readonly_diff_ids (test_coding.WorkspaceTest.test_changed_and_untracked_files_have_opaque_readonly_diff_ids) ... ok
+test_clean_and_smudge_filters_never_run_during_listing_or_preview (test_coding.WorkspaceTest.test_clean_and_smudge_filters_never_run_during_listing_or_preview) ... ok
+test_git_timeout_kills_the_process_group (test_coding.WorkspaceTest.test_git_timeout_kills_the_process_group) ... ok
+test_hard_links_are_excluded_from_tracked_and_untracked_previews (test_coding.WorkspaceTest.test_hard_links_are_excluded_from_tracked_and_untracked_previews) ... ok
+test_parent_repository_is_not_silently_granted_and_fsmonitor_does_not_run (test_coding.WorkspaceTest.test_parent_repository_is_not_silently_granted_and_fsmonitor_does_not_run) ... ok
+test_process_filter_never_runs_during_listing_or_preview (test_coding.WorkspaceTest.test_process_filter_never_runs_during_listing_or_preview) ... ok
+test_staged_changes_and_deletions_compare_raw_head_to_worktree (test_coding.WorkspaceTest.test_staged_changes_and_deletions_compare_raw_head_to_worktree) ... ok
+test_symlinks_binary_large_files_and_unknown_ids_are_rejected (test_coding.WorkspaceTest.test_symlinks_binary_large_files_and_unknown_ids_are_rejected) ... ok
+test_unborn_head_keeps_tracked_file_preview (test_coding.WorkspaceTest.test_unborn_head_keeps_tracked_file_preview) ... ok
+test_stock_admission_coding_and_planning_share_one_plugin_and_one_run (test_coding_native.CodingNativeTest.test_stock_admission_coding_and_planning_share_one_plugin_and_one_run) ... skipped 'Host lacks native ownership/output tracking; unsupported-host rejection is tested separately'
+test_older_stock_declines_activity_without_admitting_inference (test_coding_native.UnsupportedCodingNativeTest.test_older_stock_declines_activity_without_admitting_inference) ... /opt/hermes/gateway/platforms/api_server.py:3856: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  self._app["api_server_adapter"] = self
+Executing <Task pending name='Task-549' coro=<UnsupportedCodingNativeTest.test_older_stock_declines_activity_without_admitting_inference() running at /opt/hermes/plugins/bellpull/tests/test_coding_native.py:142> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.248 seconds
+Executing <Task pending name='Task-558' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.121 seconds
+ok
+test_clean_manifest_discovery_and_native_profile_rejection (test_installation.InstallationTest.test_clean_manifest_discovery_and_native_profile_rejection) ... Executing <Task pending name='Task-567' coro=<InstallationTest.test_clean_manifest_discovery_and_native_profile_rejection() running at /opt/hermes/plugins/bellpull/tests/test_installation.py:87> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.237 seconds
+ok
+test_failed_route_installation_restores_native_callback_factories (test_installation.InstallationTest.test_failed_route_installation_restores_native_callback_factories) ... ok
+test_native_adapter_startup_discovers_plugin_and_shutdown_closes_it (test_installation.InstallationTest.test_native_adapter_startup_discovers_plugin_and_shutdown_closes_it) ... /usr/lib/python3.13/copy.py:221: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0ec26a70>
+  for key, value in x.items():
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+Executing <Task pending name='Task-587' coro=<InstallationTest.test_native_adapter_startup_discovers_plugin_and_shutdown_closes_it() running at /opt/hermes/plugins/bellpull/tests/test_installation.py:65> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.254 seconds
+ok
+test_unreviewed_host_source_gates_private_features_and_checks_native_contracts (test_installation.InstallationTest.test_unreviewed_host_source_gates_private_features_and_checks_native_contracts) ... ok
+test_gateway_auth_profile_prefix_discovery_and_no_inference (test_kanban.KanbanHttpTests.test_gateway_auth_profile_prefix_discovery_and_no_inference) ... Executing <Task pending name='Task-623' coro=<KanbanHttpTests.test_gateway_auth_profile_prefix_discovery_and_no_inference() running at /opt/hermes/plugins/bellpull/tests/test_kanban.py:280> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.111 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/kanban/boards' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/kanban/boards/default/hierarchy' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/work/api/bellpull/kanban/boards/default/hierarchy' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_active_claim_and_replaced_board_are_never_mutated (test_kanban.KanbanTests.test_active_claim_and_replaced_board_are_never_mutated) ... ok
+test_atomic_receipt_failure_rolls_back_native_comment (test_kanban.KanbanTests.test_atomic_receipt_failure_rolls_back_native_comment) ... ok
+test_bounded_snapshot_and_path_rejection (test_kanban.KanbanTests.test_bounded_snapshot_and_path_rejection) ... ok
+test_concurrent_create_and_restart_receipt_have_one_native_triage_task (test_kanban.KanbanTests.test_concurrent_create_and_restart_receipt_have_one_native_triage_task) ... ok
+test_concurrent_reparent_cannot_commit_a_cycle (test_kanban.KanbanTests.test_concurrent_reparent_cannot_commit_a_cycle) ... ok
+test_containment_is_recursive_atomic_and_independent_of_dependencies (test_kanban.KanbanTests.test_containment_is_recursive_atomic_and_independent_of_dependencies) ... ok
+test_containment_receipt_rollback_active_and_stale_guard (test_kanban.KanbanTests.test_containment_receipt_rollback_active_and_stale_guard) ... ok
+test_create_receipt_failure_rolls_back_task_and_retries_once (test_kanban.KanbanTests.test_create_receipt_failure_rolls_back_task_and_retries_once) ... ok
+test_field_edit_is_atomic_preserves_lifecycle_and_rejects_stale_or_claimed_work (test_kanban.KanbanTests.test_field_edit_is_atomic_preserves_lifecycle_and_rejects_stale_or_claimed_work) ... ok
+test_hierarchy_pages_include_old_ancestors_and_reject_mixed_snapshots (test_kanban.KanbanTests.test_hierarchy_pages_include_old_ancestors_and_reject_mixed_snapshots) ... ok
+test_invalid_fields_and_unresolved_project_create_do_not_change_native_data (test_kanban.KanbanTests.test_invalid_fields_and_unresolved_project_create_do_not_change_native_data) ... ok
+test_lost_response_restart_and_concurrent_retry_create_one_native_comment (test_kanban.KanbanTests.test_lost_response_restart_and_concurrent_retry_create_one_native_comment) ... ok
+test_native_concurrent_edit_rejects_stale_request_and_persists_receipt (test_kanban.KanbanTests.test_native_concurrent_edit_rejects_stale_request_and_persists_receipt) ... ok
+test_native_snapshot_and_details_preserve_installation_and_board_identity (test_kanban.KanbanTests.test_native_snapshot_and_details_preserve_installation_and_board_identity) ... ok
+test_nonexecuting_move_and_rejected_execution_transitions (test_kanban.KanbanTests.test_nonexecuting_move_and_rejected_execution_transitions) ... ok
+test_unicode_limits_and_full_width_native_priority_remain_readable (test_kanban.KanbanTests.test_unicode_limits_and_full_width_native_priority_remain_readable) ... ok
+test_branch_and_edit_links_follow_only_proven_prefix_and_survive_rotation (test_lifecycle.LifecycleTest.test_branch_and_edit_links_follow_only_proven_prefix_and_survive_rotation) ... ok
+test_cleanup_keeps_ongoing_uploads_and_all_persistent_files (test_lifecycle.LifecycleTest.test_cleanup_keeps_ongoing_uploads_and_all_persistent_files) ... ok
+test_delete_is_idempotent_and_retry_cannot_resurrect_a_file (test_lifecycle.LifecycleTest.test_delete_is_idempotent_and_retry_cannot_resurrect_a_file) ... ok
+test_migration_requires_explicit_offline_acknowledgment (test_lifecycle.LifecycleTest.test_migration_requires_explicit_offline_acknowledgment) ... ok
+test_more_than_64_new_outputs_are_collected (test_lifecycle.LifecycleTest.test_more_than_64_new_outputs_are_collected) ... ok
+test_offline_migration_preserves_ids_metadata_and_original_downloads (test_lifecycle.LifecycleTest.test_offline_migration_preserves_ids_metadata_and_original_downloads) ... ok
+test_old_outputs_do_not_starve_a_new_run (test_lifecycle.LifecycleTest.test_old_outputs_do_not_starve_a_new_run) ... ok
+test_principal_survives_rotation_and_concurrent_initialization (test_lifecycle.LifecycleTest.test_principal_survives_rotation_and_concurrent_initialization) ... ok
+test_quota_and_unsafe_outputs_are_visible_without_hiding_good_files (test_lifecycle.LifecycleTest.test_quota_and_unsafe_outputs_are_visible_without_hiding_good_files) ... ok
+test_repeated_runs_keep_their_own_generated_file_associations (test_lifecycle.LifecycleTest.test_repeated_runs_keep_their_own_generated_file_associations) ... ok
+test_separate_profiles_have_separate_artifact_authorities (test_lifecycle.LifecycleTest.test_separate_profiles_have_separate_artifact_authorities) ... ok
+test_foreign_session_and_unauthenticated_requests_cannot_use_files (test_native_attachments.NativeAttachmentsTest.test_foreign_session_and_unauthenticated_requests_cannot_use_files) ... Executing <Task pending name='Task-641' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.122 seconds
+Executing <Task pending name='Task-644' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-649' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.166 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/v1/runs' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_image_reaches_selected_model_and_text_only_model_rejects_before_reservation (test_native_attachments.NativeAttachmentsTest.test_image_reaches_selected_model_and_text_only_model_rejects_before_reservation) ... Executing <Task pending name='Task-663' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.126 seconds
+Executing <Task pending name='Task-666' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-671' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.167 seconds
+/usr/lib/python3.13/copy.py:221: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0e80b100>
+  for key, value in x.items():
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/copy.py:221: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0e80a5c0>
+  for key, value in x.items():
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_live_desktop_owner_is_not_sent_a_text_only_attachment_turn (test_native_attachments.NativeAttachmentsTest.test_live_desktop_owner_is_not_sent_a_text_only_attachment_turn) ... Executing <Task pending name='Task-698' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.115 seconds
+skipped 'This host predates live Bot Chat ownership'
+test_replay_after_deleted_file_and_catalog_failure_has_one_execution (test_native_attachments.NativeAttachmentsTest.test_replay_after_deleted_file_and_catalog_failure_has_one_execution) ... Executing <Task pending name='Task-711' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.117 seconds
+Executing <Task pending name='Task-714' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-719' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.167 seconds
+ok
+test_simultaneous_requests_keep_conversation_files_separate (test_native_attachments.NativeAttachmentsTest.test_simultaneous_requests_keep_conversation_files_separate) ... Executing <Task pending name='Task-751' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+Executing <Task pending name='Task-754' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-759' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.175 seconds
+ok
+test_stock_capability_upload_handoff_history_and_output (test_native_attachments.NativeAttachmentsTest.test_stock_capability_upload_handoff_history_and_output) ... Executing <Task pending name='Task-815' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+Executing <Task pending name='Task-818' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-824' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.175 seconds
+ok
+test_svg_is_a_document_for_text_models_without_silent_vision_delegation (test_native_attachments.NativeAttachmentsTest.test_svg_is_a_document_for_text_models_without_silent_vision_delegation) ... Executing <Task pending name='Task-850' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+Executing <Task pending name='Task-853' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-858' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.167 seconds
+ok
+test_unload_rejects_new_attachments_and_reactivation_reuses_bridge (test_native_attachments.NativeAttachmentsTest.test_unload_rejects_new_attachments_and_reactivation_reuses_bridge) ... Executing <Task pending name='Task-884' coro=<NativeAttachmentsTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_native_attachments.py:66> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.112 seconds
+skipped 'Patched hosts use the host bridge; native lifecycle is checked on stock Hermes'
+test_named_moe_catalog_keeps_route_identity_and_limits_efforts (test_native_runs.CatalogTest.test_named_moe_catalog_keeps_route_identity_and_limits_efforts) ... ok
+test_native_capability_dataclass_and_unconfigured_routes (test_native_runs.CatalogTest.test_native_capability_dataclass_and_unconfigured_routes) ... ok
+test_auth_repeatable_download_unicode_filename_and_missing_content (test_native_runs.HttpTest.test_auth_repeatable_download_unicode_filename_and_missing_content) ... Executing <Task pending name='Task-900' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-905' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.167 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/11111111111111111111111111111111/content' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_bearer_rotation_keeps_files_but_revokes_old_credentials (test_native_runs.HttpTest.test_bearer_rotation_keeps_files_but_revokes_old_credentials) ... API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/99999999999999999999999999999999/content' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_binary_upload_over_json_limit_and_oversize_rejection (test_native_runs.HttpTest.test_binary_upload_over_json_limit_and_oversize_rejection) ... /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/payload.py:362: ResourceWarning: Sending a large body directly with raw bytes might lock the event loop. You should probably pass an io.BytesIO object instead
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_concurrent_retries_admit_one_executor_and_one_output_directory (test_native_runs.HttpTest.test_concurrent_retries_admit_one_executor_and_one_output_directory) ... ok
+test_model_choice_is_session_scoped_and_legacy_durable_run_obeys_lock (test_native_runs.HttpTest.test_model_choice_is_session_scoped_and_legacy_durable_run_obeys_lock) ... ok
+test_moe_rejects_invalid_choices_without_poisoning_lock_and_resets_old_lock (test_native_runs.HttpTest.test_moe_rejects_invalid_choices_without_poisoning_lock_and_resets_old_lock) ... ok
+test_native_multipart_images_durable_replay_and_generated_artifact (test_native_runs.HttpTest.test_native_multipart_images_durable_replay_and_generated_artifact) ... ok
+test_new_run_rejected_at_full_capacity_creates_no_run_outputs (test_native_runs.HttpTest.test_new_run_rejected_at_full_capacity_creates_no_run_outputs) ... ok
+test_reasoning_controls_reach_real_hermes_transport (test_native_runs.HttpTest.test_reasoning_controls_reach_real_hermes_transport) ... <frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee153985e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee153d5f30>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee153d66b0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee1492df30>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee1492f5b0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee1492f880>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee147916c0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee14791e40>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee14696200>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee146973d0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_unsupported_vision_and_reasoning_rejected_without_inference (test_native_runs.HttpTest.test_unsupported_vision_and_reasoning_rejected_without_inference) ... ok
+test_changed_retry_conflicts_and_no_partial_import (test_offline.OfflineTests.test_changed_retry_conflicts_and_no_partial_import) ... ok
+test_import_is_searchable_and_retries_do_not_duplicate_memory_results (test_offline.OfflineTests.test_import_is_searchable_and_retries_do_not_duplicate_memory_results) ... ok
+test_memory_deleted_and_disabled_entries_disappear (test_offline.OfflineTests.test_memory_deleted_and_disabled_entries_disappear) ... ok
+test_profile_database_isolation (test_offline.OfflineTests.test_profile_database_isolation) ... ok
+test_reject_tool_calls_roles_and_oversized_input (test_offline.OfflineTests.test_reject_tool_calls_roles_and_oversized_input) ... ok
+test_retry_and_concurrent_import_are_exactly_once_and_source_untouched (test_offline.OfflineTests.test_retry_and_concurrent_import_are_exactly_once_and_source_untouched) ... ok
+test_transaction_rolls_back_if_message_import_fails (test_offline.OfflineTests.test_transaction_rolls_back_if_message_import_fails) ... ok
+test_621_messages_keep_snapshot_when_new_message_arrives (test_pagination.PagingTest.test_621_messages_keep_snapshot_when_new_message_arrives) ... Executing <Task pending name='Task-1158' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.493 seconds
+Executing <Task pending name='Task-1160' coro=<PagingTest.test_621_messages_keep_snapshot_when_new_message_arrives() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:55> wait_for=<Future pending cb=[BaseSelectorEventLoop._sock_write_done()(), Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 5.851 seconds
+ok
+test_compacted_prompt_is_archived_but_final_reply_remains_in_fresh_snapshot (test_pagination.PagingTest.test_compacted_prompt_is_archived_but_final_reply_remains_in_fresh_snapshot) ... Executing <Task pending name='Task-1171' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.459 seconds
+ok
+test_compressed_conversation_snapshot_resolves_saved_tip (test_pagination.PagingTest.test_compressed_conversation_snapshot_resolves_saved_tip) ... Executing <Task pending name='Task-1184' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.480 seconds
+ok
+test_cursors_are_authenticated_scoped_and_explicitly_expire (test_pagination.PagingTest.test_cursors_are_authenticated_scoped_and_explicitly_expire) ... Executing <Task pending name='Task-1196' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.461 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/sessions' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/sessions?source=cli&cursor=e147e418e27940318c4336df785fc17e:1' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_snapshot_keeps_450_rows_exactly_once_during_new_activity (test_pagination.PagingTest.test_snapshot_keeps_450_rows_exactly_once_during_new_activity) ... Executing <Task pending name='Task-1213' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.461 seconds
+Executing <Task pending name='Task-1215' coro=<PagingTest.test_snapshot_keeps_450_rows_exactly_once_during_new_activity() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:36> wait_for=<Future pending cb=[BaseSelectorEventLoop._sock_write_done()(), Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 4.096 seconds
+ok
+test_unconfigured_auth_is_closed (test_pagination.PagingTest.test_unconfigured_auth_is_closed) ... Executing <Task pending name='Task-1228' coro=<PagingTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_pagination.py:25> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.471 seconds
+ok
+test_real_profile_auth_upload_and_native_run_prompt_lifecycle (test_phone_context.PhoneContextHttpTest.test_real_profile_auth_upload_and_native_run_prompt_lifecycle) ... Executing <Task pending name='Task-1241' coro=<PhoneContextHttpTest.test_real_profile_auth_upload_and_native_run_prompt_lifecycle() running at /opt/hermes/plugins/bellpull/tests/test_phone_context.py:194> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.121 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='PUT' path='/p/alpha/api/bellpull/context/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='PUT' path='/p/alpha/api/bellpull/context/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_bounds_and_calendar_window_and_removed_state (test_phone_context.PhoneContextTest.test_bounds_and_calendar_window_and_removed_state) ... ok
+test_context_is_profile_scoped_and_does_not_create_hermes_sessions (test_phone_context.PhoneContextTest.test_context_is_profile_scoped_and_does_not_create_hermes_sessions) ... ok
+test_disabling_a_source_scrubs_frozen_data_even_with_unchanged_policy_key (test_phone_context.PhoneContextTest.test_disabling_a_source_scrubs_frozen_data_even_with_unchanged_policy_key) ... ok
+test_expired_payloads_are_scrubbed_but_revision_tombstones_remain (test_phone_context.PhoneContextTest.test_expired_payloads_are_scrubbed_but_revision_tombstones_remain) ... ok
+test_first_snapshot_is_stable_on_retries_and_followups (test_phone_context.PhoneContextTest.test_first_snapshot_is_stable_on_retries_and_followups) ... ok
+test_invalid_or_oversized_payloads_never_partially_commit (test_phone_context.PhoneContextTest.test_invalid_or_oversized_payloads_never_partially_commit) ... ok
+test_late_conversation_cannot_extend_the_device_cache_expiry (test_phone_context.PhoneContextTest.test_late_conversation_cannot_extend_the_device_cache_expiry) ... ok
+test_native_adapter_scope_and_prompt_tail_and_unload (test_phone_context.PhoneContextTest.test_native_adapter_scope_and_prompt_tail_and_unload) ... ok
+test_revocation_and_exclusion_scrub_frozen_snapshots_without_reseeding_chat (test_phone_context.PhoneContextTest.test_revocation_and_exclusion_scrub_frozen_snapshots_without_reseeding_chat) ... ok
+test_unknown_host_keeps_its_original_method (test_phone_context.PhoneContextTest.test_unknown_host_keeps_its_original_method) ... ok
+test_upload_is_idempotent_and_reordering_cannot_restore_revoked_data (test_phone_context.PhoneContextTest.test_upload_is_idempotent_and_reordering_cannot_restore_revoked_data) ... ok
+test_native_auth_plugin_discovery_retry_and_phone_cache (test_planning.PlanningHttpTest.test_native_auth_plugin_discovery_retry_and_phone_cache) ... Executing <Task pending name='Task-1286' coro=<PlanningHttpTest.test_native_auth_plugin_discovery_retry_and_phone_cache() running at /opt/hermes/plugins/bellpull/tests/test_planning.py:310> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/planning' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1289' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-1293' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.197 seconds
+Executing <Task pending name='Task-1286' coro=<PlanningHttpTest.test_native_auth_plugin_discovery_retry_and_phone_cache() running at /opt/hermes/plugins/bellpull/tests/test_planning.py:327> wait_for=<Task pending name='Task-1301' coro=<_wait_for_close() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/connector.py:123> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/connector.py:497> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.196 seconds
+ok
+test_busy_only_cache_strips_details_and_revoke_clears_proposals (test_planning.PlanningTest.test_busy_only_cache_strips_details_and_revoke_clears_proposals) ... ok
+test_busy_only_policy_change_fences_detailed_upload (test_planning.PlanningTest.test_busy_only_policy_change_fences_detailed_upload) ... ok
+test_delete_and_retry_do_not_create_another_reminder (test_planning.PlanningTest.test_delete_and_retry_do_not_create_another_reminder) ... ok
+test_existing_terminal_history_is_pruned_and_receipts_are_bounded (test_planning.PlanningTest.test_existing_terminal_history_is_pruned_and_receipts_are_bounded) ... ok
+test_generation_and_revoke_tombstone_survive_restart (test_planning.PlanningTest.test_generation_and_revoke_tombstone_survive_restart) ... ok
+test_interrupted_native_creation_is_uncertain_and_never_repeated (test_planning.PlanningTest.test_interrupted_native_creation_is_uncertain_and_never_repeated) ... /opt/hermes/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py:843: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee14403b50>
+  method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/hermes/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py:843: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee14400040>
+  method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_legacy_client_pairs_until_a_revoke_then_gets_actionable_error (test_planning.PlanningTest.test_legacy_client_pairs_until_a_revoke_then_gets_actionable_error) ... ok
+test_legacy_upload_is_rejected_after_first_policy_acknowledgement (test_planning.PlanningTest.test_legacy_upload_is_rejected_after_first_policy_acknowledgement) ... ok
+test_native_jobs_cannot_cross_profile_store_contexts (test_planning.PlanningTest.test_native_jobs_cannot_cross_profile_store_contexts) ... ok
+test_native_scheduler_create_pause_resume_edit_cancel_without_inference (test_planning.PlanningTest.test_native_scheduler_create_pause_resume_edit_cancel_without_inference) ... ok
+test_over_100_create_resolve_cycles_and_evicted_retries_survive_restart (test_planning.PlanningTest.test_over_100_create_resolve_cycles_and_evicted_retries_survive_restart) ... ok
+test_pending_limit_is_shared_across_devices_and_resolution_frees_capacity (test_planning.PlanningTest.test_pending_limit_is_shared_across_devices_and_resolution_frees_capacity) ... ok
+test_pending_proposals_never_hide_behind_newer_resolved_history (test_planning.PlanningTest.test_pending_proposals_never_hide_behind_newer_resolved_history) ... ok
+test_reminder_retry_conflict_snooze_and_completion_survive_restart (test_planning.PlanningTest.test_reminder_retry_conflict_snooze_and_completion_survive_restart) ... ok
+test_revoke_between_calendar_read_and_proposal_commit_rejects_stale_details (test_planning.PlanningTest.test_revoke_between_calendar_read_and_proposal_commit_rejects_stale_details) ... ok
+test_revoke_scrubs_retained_proposals_but_blocks_replay_after_resharing (test_planning.PlanningTest.test_revoke_scrubs_retained_proposals_but_blocks_replay_after_resharing) ... ok
+test_revoke_then_fresh_upload_with_acknowledged_generation (test_planning.PlanningTest.test_revoke_then_fresh_upload_with_acknowledged_generation) ... ok
+test_revoked_pending_proposal_cannot_be_recreated_by_an_old_retry (test_planning.PlanningTest.test_revoked_pending_proposal_cannot_be_recreated_by_an_old_retry) ... ok
+test_selection_narrowing_revoke_fences_broader_snapshot (test_planning.PlanningTest.test_selection_narrowing_revoke_fences_broader_snapshot) ... ok
+test_stale_and_foreign_calendar_references_are_rejected (test_planning.PlanningTest.test_stale_and_foreign_calendar_references_are_rejected) ... ok
+test_symlink_storage_and_invalid_times_are_rejected (test_planning.PlanningTest.test_symlink_storage_and_invalid_times_are_rejected) ... ok
+test_terminal_retention_evicts_oldest_creation_not_pending_rows (test_planning.PlanningTest.test_terminal_retention_evicts_oldest_creation_not_pending_rows) ... ok
+test_upgrade_scrubs_old_receipts_for_an_already_revoked_device (test_planning.PlanningTest.test_upgrade_scrubs_old_receipts_for_an_already_revoked_device) ... ok
+test_upload_after_revoke_rejects_old_and_legacy_generations (test_planning.PlanningTest.test_upload_after_revoke_rejects_old_and_legacy_generations) ... ok
+test_reasoning_arrives_before_completion_through_stock_native_stream (test_portable.PortableTest.test_reasoning_arrives_before_completion_through_stock_native_stream) ... /opt/hermes/gateway/platforms/api_server.py:3856: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  self._app["api_server_adapter"] = self
+Executing <Task pending name='Task-1309' coro=<PortableTest.test_reasoning_arrives_before_completion_through_stock_native_stream() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:67> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.244 seconds
+ok
+test_stock_outputs_auth_restart_and_unchanged_core (test_portable.PortableTest.test_stock_outputs_auth_restart_and_unchanged_core) ... Executing <Task pending name='Task-1334' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:122> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.246 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/sessions/api_1793761845_15a09d7b/voice-title' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1334' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:159> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.495 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/19b3f8078a51f8f644e0e2bc8c9bf4ca/content' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/19b3f8078a51f8f644e0e2bc8c9bf4ca/content' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1334' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:184> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.138 seconds
+ok
+test_tool_rejects_model_supplied_session_and_unsafe_outputs (test_portable.PortableTest.test_tool_rejects_model_supplied_session_and_unsafe_outputs) ... Executing <Task finished name='Task-1377' coro=<PortableTest.test_tool_rejects_model_supplied_session_and_unsafe_outputs() done, defined at /opt/hermes/plugins/bellpull/tests/test_portable.py:195> result=None created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.791 seconds
+ok
+test_native_profile_scopes_isolate_artifacts_branches_runs_and_approvals (test_profiles.ProfileTest.test_native_profile_scopes_isolate_artifacts_branches_runs_and_approvals) ... Executing <Task pending name='Task-1382' coro=<ProfileTest.test_native_profile_scopes_isolate_artifacts_branches_runs_and_approvals() running at /opt/hermes/plugins/bellpull/tests/test_profiles.py:40> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.125 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/alpha/api/bellpull/capabilities' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/alpha/api/bellpull/offline/memory' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/alpha/api/bellpull/sessions/api_1793761847_e27222ca/canvas' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/alpha/api/bellpull/projects' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1385' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-1405' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.168 seconds
+Executing <Task pending name='Task-1385' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:679> wait_for=<Task pending name='Task-1407' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.162 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/alpha/api/bellpull/offline/handoff' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_native_auth_creation_retry_and_project_snapshot (test_projects.ProjectHttpTests.test_native_auth_creation_retry_and_project_snapshot) ... Executing <Task pending name='Task-1432' coro=<ProjectHttpTests.test_native_auth_creation_retry_and_project_snapshot() running at /opt/hermes/plugins/bellpull/tests/test_projects.py:311> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/projects' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_primary_workflow_survives_adapter_restart_compaction_and_continuation (test_projects.ProjectHttpTests.test_primary_workflow_survives_adapter_restart_compaction_and_continuation) ... Executing <Task pending name='Task-1452' coro=<ProjectHttpTests.test_primary_workflow_survives_adapter_restart_compaction_and_continuation() running at /opt/hermes/plugins/bellpull/tests/test_projects.py:242> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.113 seconds
+Executing <Task pending name='Task-1472' coro=<RequestHandler._handle_request() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:575> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[Task.task_wakeup()] created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:675> took 0.157 seconds
+ok
+test_archive_retains_membership_but_rejects_new_members_until_restored (test_projects.ProjectTests.test_archive_retains_membership_but_rejects_new_members_until_restored) ... ok
+test_branch_inherits_once_is_not_pinned_and_can_be_moved_independently (test_projects.ProjectTests.test_branch_inherits_once_is_not_pinned_and_can_be_moved_independently) ... ok
+test_compaction_multiple_generations_preserve_membership_and_pins (test_projects.ProjectTests.test_compaction_multiple_generations_preserve_membership_and_pins) ... ok
+test_create_rename_and_reopen_preserve_display_fields (test_projects.ProjectTests.test_create_rename_and_reopen_preserve_display_fields) ... ok
+test_creation_intent_survives_interruption_without_duplicate_chat (test_projects.ProjectTests.test_creation_intent_survives_interruption_without_duplicate_chat) ... ok
+test_invalid_fields_and_unknown_sessions_fail_without_mutation (test_projects.ProjectTests.test_invalid_fields_and_unknown_sessions_fail_without_mutation) ... ok
+test_move_during_continuation_transition_keeps_latest_single_membership (test_projects.ProjectTests.test_move_during_continuation_transition_keeps_latest_single_membership) ... ok
+test_move_pin_delete_and_retry_never_delete_the_native_conversation (test_projects.ProjectTests.test_move_pin_delete_and_retry_never_delete_the_native_conversation) ... ok
+test_pending_creation_cannot_create_into_deleted_or_archived_project (test_projects.ProjectTests.test_pending_creation_cannot_create_into_deleted_or_archived_project) ... ok
+test_plain_children_delegates_and_separate_profiles_do_not_inherit (test_projects.ProjectTests.test_plain_children_delegates_and_separate_profiles_do_not_inherit) ... ok
+test_revisions_and_operation_fingerprints_prevent_lost_updates (test_projects.ProjectTests.test_revisions_and_operation_fingerprints_prevent_lost_updates) ... ok
+test_unfiled_pin_survives_move_delete_restart_and_profile_isolation (test_projects.ProjectTests.test_unfiled_pin_survives_move_delete_restart_and_profile_isolation) ... ok
+test_exact_model_capabilities_and_validation (test_reasoning.ReasoningTest.test_exact_model_capabilities_and_validation) ... ok
+test_named_provider_normalization_preserves_each_wire_choice (test_reasoning.ReasoningTest.test_named_provider_normalization_preserves_each_wire_choice) ... <frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0f937f10>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0f9374c0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0e6a58a0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<frozen importlib._bootstrap>:488: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x79ee0e6a53f0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_old_invalid_lock_rejected_before_agent_and_default_recovers (test_reasoning.ReasoningTest.test_old_invalid_lock_rejected_before_agent_and_default_recovers) ... ok
+test_other_resolved_model_does_not_inherit_named_alias_controls (test_reasoning.ReasoningTest.test_other_resolved_model_does_not_inherit_named_alias_controls) ... ok
+test_stock_adapter_forwards_each_choice_to_actual_http_body_and_unloads (test_reasoning.ReasoningTest.test_stock_adapter_forwards_each_choice_to_actual_http_body_and_unloads) ... ok
+test_unknown_host_is_not_modified (test_reasoning.ReasoningTest.test_unknown_host_is_not_modified) ... ok
+test_changed_bundle_requires_restart_and_other_manager_cannot_reactivate (test_rediscovery.RediscoveryTest.test_changed_bundle_requires_restart_and_other_manager_cannot_reactivate) ... /opt/hermes/gateway/platforms/api_server.py:3856: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  self._app["api_server_adapter"] = self
+Executing <Task pending name='Task-1487' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.247 seconds
+Executing <Task pending name='Task-1491' coro=<RediscoveryTest.test_changed_bundle_requires_restart_and_other_manager_cannot_reactivate() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:185> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.132 seconds
+ok
+test_disable_wins_over_pending_reload_recovery (test_rediscovery.RediscoveryTest.test_disable_wins_over_pending_reload_recovery) ... Executing <Task pending name='Task-1515' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.241 seconds
+Executing <Task pending name='Task-1519' coro=<RediscoveryTest.test_disable_wins_over_pending_reload_recovery() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:137> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.304 seconds
+ok
+test_explicit_disable_stays_revoked_after_rewire (test_rediscovery.RediscoveryTest.test_explicit_disable_stays_revoked_after_rewire) ... Executing <Task pending name='Task-1539' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.215 seconds
+ok
+test_reload_preserves_active_run_and_idempotent_replay (test_rediscovery.RediscoveryTest.test_reload_preserves_active_run_and_idempotent_replay) ... Executing <Task pending name='Task-1556' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.227 seconds
+Executing <Task pending name='Task-1565' coro=<_execute_run() running at /opt/hermes/gateway/platforms/api_server_runs.py:618> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[set.discard()] created at /usr/lib/python3.13/asyncio/tasks.py:410> took 0.469 seconds
+ok
+test_repeated_rediscovery_preserves_routes_auth_and_saved_session (test_rediscovery.RediscoveryTest.test_repeated_rediscovery_preserves_routes_auth_and_saved_session) ... Executing <Task pending name='Task-1584' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.220 seconds
+Executing <Task pending name='Task-1588' coro=<RediscoveryTest.test_repeated_rediscovery_preserves_routes_auth_and_saved_session() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:108> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.110 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/capabilities' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1588' coro=<RediscoveryTest.test_repeated_rediscovery_preserves_routes_auth_and_saved_session() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:108> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.104 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/capabilities' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-1588' coro=<RediscoveryTest.test_repeated_rediscovery_preserves_routes_auth_and_saved_session() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:108> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.104 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/capabilities' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_worker_rediscovery_and_config_disable_do_not_leave_live_observers (test_rediscovery.RediscoveryTest.test_worker_rediscovery_and_config_disable_do_not_leave_live_observers) ... Executing <Task pending name='Task-1640' coro=<RediscoveryTest.asyncSetUp() running at /opt/hermes/plugins/bellpull/tests/test_rediscovery.py:56> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.216 seconds
+ok
+test_changed_staging_copy_is_retained_and_outside_files_cannot_be_retired (test_sharing.SharingTest.test_changed_staging_copy_is_retained_and_outside_files_cannot_be_retired) ... ok
+test_failed_blob_commit_keeps_staging_for_retry (test_sharing.SharingTest.test_failed_blob_commit_keeps_staging_for_retry) ... ok
+test_failed_old_files_do_not_starve_new_name_after_collection_limit (test_sharing.SharingTest.test_failed_old_files_do_not_starve_new_name_after_collection_limit) ... ok
+test_interruption_after_commit_retries_same_identity_before_retiring (test_sharing.SharingTest.test_interruption_after_commit_retries_same_identity_before_retiring) ... ok
+test_more_than_1000_historical_publications_do_not_starve_new_outputs (test_sharing.SharingTest.test_more_than_1000_historical_publications_do_not_starve_new_outputs) ... ok
+test_publish_retry_delete_and_housekeeping_leave_no_retired_source_bytes (test_sharing.SharingTest.test_publish_retry_delete_and_housekeeping_leave_no_retired_source_bytes) ... ok
+test_quota_failure_preserves_unpublished_files_and_recovers (test_sharing.SharingTest.test_quota_failure_preserves_unpublished_files_and_recovers) ... ok
+test_limits_and_validation (test_speech.SpeechTest.test_limits_and_validation) ... /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/payload.py:362: ResourceWarning: Sending a large body directly with raw bytes might lock the event loop. You should probably pass an io.BytesIO object instead
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_passthrough_timeout_and_refused (test_speech.SpeechTest.test_passthrough_timeout_and_refused) ... ok
+test_stream_cancel_closes_helper_and_old_helper_preserves_404 (test_speech.SpeechTest.test_stream_cancel_closes_helper_and_old_helper_preserves_404) ... /usr/lib/python3.13/asyncio/tasks.py:507: DeprecationWarning: float parameter 'receive_timeout' is deprecated, please use parameter 'timeout=ClientWSTimeout(ws_receive=...)'
+  return await fut
+ok
+test_streamed_input_returns_partial_before_finish_and_uses_helper_key (test_speech.SpeechTest.test_streamed_input_returns_partial_before_finish_and_uses_helper_key) ... ok
+test_success_and_helper_auth (test_speech.SpeechTest.test_success_and_helper_auth) ... ok
+test_tts_stream_delivers_pcm_before_helper_finishes (test_speech.SpeechTest.test_tts_stream_delivers_pcm_before_helper_finishes) ... ok
+test_websocket_redirect_never_reaches_redirect_target (test_speech.SpeechTest.test_websocket_redirect_never_reaches_redirect_target) ... ok
+test_wire_auth_and_capability (test_speech.SpeechTest.test_wire_auth_and_capability) ... API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_existing_reasoning_callback_and_other_surfaces_are_preserved (test_streaming.StreamingTest.test_existing_reasoning_callback_and_other_surfaces_are_preserved) ... ok
+test_older_native_factory_connects_the_existing_agent_callback_attribute (test_streaming.StreamingTest.test_older_native_factory_connects_the_existing_agent_callback_attribute) ... ok
+test_runs_remain_separate_and_native_preview_falls_back_per_response (test_streaming.StreamingTest.test_runs_remain_separate_and_native_preview_falls_back_per_response) ... ok
+test_unload_restores_callbacks_and_fences_already_created_agents (test_streaming.StreamingTest.test_unload_restores_callbacks_and_fences_already_created_agents) ... ok
+test_unsupported_adapter_keeps_its_original_behavior (test_streaming.StreamingTest.test_unsupported_adapter_keeps_its_original_behavior) ... ok
+test_concurrent_manual_rename_always_wins (test_titles.VoiceTitleTests.test_concurrent_manual_rename_always_wins) ... ok
+test_missing_invalid_and_duplicate_names (test_titles.VoiceTitleTests.test_missing_invalid_and_duplicate_names) ... ok
+test_repair_wrapper_title_is_idempotent_and_remains_automatic (test_titles.VoiceTitleTests.test_repair_wrapper_title_is_idempotent_and_remains_automatic) ... ok
+test_user_legacy_and_llm_titles_are_preserved (test_titles.VoiceTitleTests.test_user_legacy_and_llm_titles_are_preserved) ... ok
+test_unload_cancels_real_open_broker_subscription (test_unload.UnloadTest.test_unload_cancels_real_open_broker_subscription) ... /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_urldispatcher.py:192: DeprecationWarning: Bare functions are deprecated, use async ones
+  warnings.warn(
+ok
+
+----------------------------------------------------------------------
+Ran 229 tests in 196.223s
+
+OK (skipped=3)
