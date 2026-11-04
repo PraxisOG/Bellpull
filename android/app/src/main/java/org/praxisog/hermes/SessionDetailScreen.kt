@@ -106,6 +106,7 @@ internal fun SessionDetailScreen(
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     messageStats: Map<Int, MessageInfo> = emptyMap(),
+    display: ChatDisplayOptions = ChatDisplayOptions(),
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
     val composerDraft = draft ?: localDraft
@@ -192,15 +193,29 @@ internal fun SessionDetailScreen(
     }
     // A tool-only assistant envelope is represented by its result bars. Keep calls whose
     // results are absent inspectable too, without adding an empty Hermes bubble.
-    val visibleMessages = remember(messages, callsWithoutResults) {
+    val canonicalMessages = remember(messages, callsWithoutResults) {
         messages.filterNot { it.role == "assistant" && it.content.isNullOrBlank() &&
             callsWithoutResults[it.id].isNullOrEmpty() && it.finishReason != "length" && it.reasoning.isNullOrBlank() && it.reasoningContent.isNullOrBlank() }
     }
+    val visibleMessages = remember(canonicalMessages, toolCalls, callsWithoutResults, display) {
+        canonicalMessages.filter { message -> when (message.role) {
+            "tool" -> display.showsTool(message.toolName ?: toolCalls[message.toolCallId]?.function?.name, message.content)
+            "assistant" -> !message.content.isNullOrBlank() || message.finishReason == "length" ||
+                (!display.hideThinking && (!message.reasoning.isNullOrBlank() || !message.reasoningContent.isNullOrBlank())) ||
+                callsWithoutResults[message.id].orEmpty().any { display.showsTool(it.function?.name) }
+            else -> true
+        } }
+    }
     val groups = remember(visibleMessages) { groupTranscript(visibleMessages) }
     val entries = remember(groups, artifacts) { responseBlocks(artifactTranscript(groups, artifacts)) }
-    val projection = remember(turn, visibleMessages, runSubmission) { projectLiveHistory(turn, visibleMessages, runSubmission) }
+    val sourceBlocks = remember(canonicalMessages, artifacts) { responseBlocks(artifactTranscript(groupTranscript(canonicalMessages), artifacts)) }
+    val sourceByMessage = remember(sourceBlocks) { buildMap { sourceBlocks.forEach { block -> block.messages.forEach { put(it.id, block) } } } }
+    val sourceByEntry = remember(sourceBlocks) { buildMap { sourceBlocks.forEach { block -> block.entries.forEach { put(it.key, block) } } } }
+    fun sourceBlock(block: ResponseBlock) = block.messages.firstNotNullOfOrNull { sourceByMessage[it.id] }
+        ?: block.entries.firstNotNullOfOrNull { sourceByEntry[it.key] } ?: block
+    val projection = remember(turn, canonicalMessages, runSubmission) { projectLiveHistory(turn, canonicalMessages, runSubmission) }
     val liveInLastBubble = pendingUserText == null && entries.lastOrNull()?.let { block ->
-        block.assistant && block.messages.any { it.id == projection.appendTo }
+        block.assistant && sourceBlock(block).messages.any { it.id == projection.appendTo }
     } == true
     val latestReply = messages.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
     val readCallback by rememberUpdatedState(onReadThrough)
@@ -226,169 +241,176 @@ internal fun SessionDetailScreen(
                 onDismissNavigation()
             })
     }
-    Surface(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.weight(1f)) {
-                when (history) {
-                    is UiState.Loading -> Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) { CircularProgressIndicator() }
+    val activity = remember(turn) { responseActivity(turn) }
+    androidx.compose.runtime.CompositionLocalProvider(LocalChatDisplay provides display,
+        LocalResponseActivity provides activity, LocalTranscriptInteraction provides { followingTail = false }) {
+        Surface(modifier = modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f)) {
+                    when (history) {
+                        is UiState.Loading -> Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator() }
 
-                    is UiState.Failed -> Column(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("Could not load this session", style = MaterialTheme.typography.titleMedium)
-                        Text(history.error.toUserMessage(), style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = onRetry) { Text("Try again") }
-                    }
+                        is UiState.Failed -> Column(
+                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text("Could not load this session", style = MaterialTheme.typography.titleMedium)
+                            Text(history.error.toUserMessage(), style = MaterialTheme.typography.bodyMedium)
+                            Button(onClick = onRetry) { Text("Try again") }
+                        }
 
-                    is UiState.Ready -> {
-                        if (history.value.isEmpty() && artifacts.isEmpty() && turn is TurnState.Idle && pendingUserText == null) {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(28.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                BellpullMark(size = 48.dp)
-                                Text("What are we working on?", style = MaterialTheme.typography.titleLarge,
-                                    textAlign = TextAlign.Center)
-                                Text("Ask a question, explore an idea, or give Hermes a task.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center)
-                            }
-                        } else {
-                            val itemCount = entries.size + (if (pendingUserText == null) 0 else 1) +
-                                (if (turn is TurnState.Idle || liveInLastBubble) 0 else 1)
-                            LaunchedEffect(entries, turn, pendingUserText) {
-                                if (itemCount > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
-                                    listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
+                        is UiState.Ready -> {
+                            if (history.value.isEmpty() && artifacts.isEmpty() && turn is TurnState.Idle && pendingUserText == null) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize().padding(28.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    BellpullMark(size = 48.dp)
+                                    Text("What are we working on?", style = MaterialTheme.typography.titleLarge,
+                                        textAlign = TextAlign.Center)
+                                    Text("Ask a question, explore an idea, or give Hermes a task.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center)
                                 }
-                            }
-                            // Pane slides rewrap earlier rows even if the final row's height is unchanged.
-                            // Reader intent survives those resizes, keyboard changes and incoming content.
-                            LaunchedEffect(listState) {
-                                snapshotFlow {
-                                    val info = listState.layoutInfo
-                                    listOf(info.totalItemsCount, info.visibleItemsInfo.lastOrNull()?.size ?: 0,
-                                        info.viewportSize.width, info.viewportEndOffset,
-                                        if (listState.canScrollForward) 1 else 0,
-                                        if (listState.isScrollInProgress) 1 else 0)
-                                }.collect { layout ->
-                                    val count = layout.first()
-                                    if (count > 0 && followingTail && !browsingHistory &&
-                                        listState.canScrollForward && !listState.isScrollInProgress) {
-                                        listState.scrollToItem(count - 1, SCROLL_TO_ITEM_END)
+                            } else {
+                                val itemCount = entries.size + (if (pendingUserText == null) 0 else 1) +
+                                    (if (turn is TurnState.Idle || liveInLastBubble) 0 else 1)
+                                LaunchedEffect(entries, turn, pendingUserText) {
+                                    if (itemCount > 0 && followingTail && !browsingHistory && !listState.isScrollInProgress) {
+                                        listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END)
                                     }
                                 }
-                            }
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize().testTag("transcript").nestedScroll(readerScroll),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                items(entries, key = { it.key }) { block ->
-                                    val renderEntry: @Composable (TranscriptEntry) -> Unit = { entry ->
-                                        if (entry.artifact != null) ArtifactRow(entry.artifact, onDownloadArtifact, onViewArtifact)
-                                        else {
-                                            val group = requireNotNull(entry.group)
-                                            val render: @Composable (Message) -> Unit = { message ->
-                                                val target = remember { BringIntoViewRequester() }
-                                                LaunchedEffect(highlightedId) {
-                                                    if (highlightedId == message.id) {
-                                                        androidx.compose.runtime.withFrameNanos { }
-                                                        target.bringIntoView()
-                                                    }
-                                                }
-                                                Box(Modifier.testTag("message-${message.id}")
-                                                    .then(if (block.assistant) Modifier.semantics(mergeDescendants = true) {} else Modifier)
-                                                    .bringIntoViewRequester(target).then(
-                                                    if (highlightedId == message.id) Modifier.border(2.dp,
-                                                        MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium).padding(6.dp)
-                                                    else Modifier)) {
-                                                    MessageView(message, toolCalls[message.toolCallId], callsWithoutResults[message.id].orEmpty(),
-                                                        collapseThinking, onFollowUp = { quoteMessage = it }, groupedTool = group.tools,
-                                                        canEdit = editingEnabled && !branchingSession && turn !is TurnState.Streaming,
-                                                        onEdit = { editingMessageId = it.id; editedText = it.content.orEmpty() },
-                                                        dense = denseChatWindow, onSelectText = { selectingMessage = it })
-                                                }
-                                            }
-                                            if (group.tools) ToolGroup(group.messages.size,
-                                                forceExpanded = group.messages.any { it.id == highlightedId }) {
-                                                group.messages.forEachIndexed { index, message ->
-                                                    if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
-                                                    androidx.compose.runtime.key(message.id) { render(message) }
-                                                }
-                                            } else render(group.messages.single())
+                                // Pane slides rewrap earlier rows even if the final row's height is unchanged.
+                                // Reader intent survives those resizes, keyboard changes and incoming content.
+                                LaunchedEffect(listState) {
+                                    snapshotFlow {
+                                        val info = listState.layoutInfo
+                                        listOf(info.totalItemsCount, info.visibleItemsInfo.lastOrNull()?.size ?: 0,
+                                            info.viewportSize.width, info.viewportEndOffset,
+                                            if (listState.canScrollForward) 1 else 0,
+                                            if (listState.isScrollInProgress) 1 else 0)
+                                    }.collect { layout ->
+                                        val count = layout.first()
+                                        if (count > 0 && followingTail && !browsingHistory &&
+                                            listState.canScrollForward && !listState.isScrollInProgress) {
+                                            listState.scrollToItem(count - 1, SCROLL_TO_ITEM_END)
                                         }
                                     }
-                                    if (block.assistant) {
-                                        val canonical = block.actionMessage
-                                        val liveText = if (liveInLastBubble && block == entries.last()) (projection.turn as? TurnState.Streaming)?.let { live ->
-                                            live.parts.filterIsInstance<LivePart.Prose>().filter { !it.thinking }.joinToString("\n\n") { it.text }.ifBlank { live.text }
-                                        }.orEmpty() else ""
-                                        val message = if (liveText.isNotBlank()) canonical.copy(content = listOf(canonical.content.orEmpty(), liveText)
-                                            .filter { it.isNotBlank() }.joinToString("\n\n")) else canonical
-                                        val canBranch = branchingEnabled && !branchingSession && turn !is TurnState.Streaming &&
-                                            block.messages.any { it.role == "assistant" }
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            if (!denseChatWindow) AssistantHeading()
-                                            MessageBubble(message, denseChatWindow, { selectingMessage = it },
-                                                reading = readingMessageId == message.id, onRead = onReadMessage,
-                                                onBranch = onBranchMessage, canBranch = canBranch,
-                                                onInfo = { infoMessage = it },
-                                                onFollowUp = { quoteMessage = it }) {
-                                                Column {
-                                                    block.entries.forEach { entry ->
-                                                        androidx.compose.runtime.key(entry.key) { renderEntry(entry) }
+                                }
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize().testTag("transcript").pauseTranscriptFollow { followingTail = false }.nestedScroll(readerScroll),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    items(entries, key = { it.key }) { block ->
+                                        val renderEntry: @Composable (TranscriptEntry) -> Unit = { entry ->
+                                            if (entry.artifact != null) ArtifactRow(entry.artifact, onDownloadArtifact, onViewArtifact)
+                                            else {
+                                                val group = requireNotNull(entry.group)
+                                                val render: @Composable (Message) -> Unit = { message ->
+                                                    val target = remember { BringIntoViewRequester() }
+                                                    LaunchedEffect(highlightedId) {
+                                                        if (highlightedId == message.id) {
+                                                            androidx.compose.runtime.withFrameNanos { }
+                                                            target.bringIntoView()
+                                                        }
                                                     }
-                                                    if (liveInLastBubble && block == entries.last()) TurnView(projection.turn,
-                                                        onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
-                                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
-                                                        denseChatWindow, { selectingMessage = it }, embedded = true)
+                                                    Box(Modifier.testTag("message-${message.id}")
+                                                        .then(if (block.assistant) Modifier.semantics(mergeDescendants = true) {} else Modifier)
+                                                        .bringIntoViewRequester(target).then(
+                                                        if (highlightedId == message.id) Modifier.border(2.dp,
+                                                            MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium).padding(6.dp)
+                                                        else Modifier)) {
+                                                        MessageView(message, toolCalls[message.toolCallId], callsWithoutResults[message.id].orEmpty().filter { display.showsTool(it.function?.name) },
+                                                            collapseThinking, onFollowUp = { quoteMessage = it }, groupedTool = group.tools,
+                                                            canEdit = editingEnabled && !branchingSession && turn !is TurnState.Streaming,
+                                                            onEdit = { editingMessageId = it.id; editedText = it.content.orEmpty() },
+                                                            dense = denseChatWindow, onSelectText = { selectingMessage = it })
+                                                    }
                                                 }
+                                                if (group.tools) ToolGroup(group.messages.size,
+                                                    forceExpanded = group.messages.any { it.id == highlightedId } ||
+                                                        (display.hideTerminalCalls && group.messages.any {
+                                                            activityKind(it.toolName ?: toolCalls[it.toolCallId]?.function?.name) == ActivityKind.TERMINAL
+                                                        })) {
+                                                    group.messages.forEachIndexed { index, message ->
+                                                        if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
+                                                        androidx.compose.runtime.key(message.id) { render(message) }
+                                                    }
+                                                } else render(group.messages.single())
                                             }
-                                            if (!denseChatWindow && !message.content.isNullOrBlank()) MessageActions(message,
-                                                readingMessageId == message.id, onReadMessage, onBranchMessage, canBranch,
-                                                { quoteMessage = it }, { selectingMessage = it })
                                         }
-                                    } else block.entries.forEach { renderEntry(it) }
+                                        if (block.assistant) {
+                                            val canonical = sourceBlock(block).actionMessage
+                                            val liveText = if (liveInLastBubble && block == entries.last()) (projection.turn as? TurnState.Streaming)?.let { live ->
+                                                live.parts.filterIsInstance<LivePart.Prose>().filter { !it.thinking }.joinToString("\n\n") { it.text }.ifBlank { live.text }
+                                            }.orEmpty() else ""
+                                            val message = if (liveText.isNotBlank()) canonical.copy(content = listOf(canonical.content.orEmpty(), liveText)
+                                                .filter { it.isNotBlank() }.joinToString("\n\n")) else canonical
+                                            val canBranch = branchingEnabled && !branchingSession && turn !is TurnState.Streaming &&
+                                                sourceBlock(block).messages.any { it.role == "assistant" }
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                if (!denseChatWindow) AssistantHeading()
+                                                MessageBubble(message, denseChatWindow, { selectingMessage = it },
+                                                    reading = readingMessageId == message.id, onRead = onReadMessage,
+                                                    onBranch = onBranchMessage, canBranch = canBranch,
+                                                    onInfo = { infoMessage = it },
+                                                    onFollowUp = { quoteMessage = it }) {
+                                                    Column {
+                                                        block.entries.forEach { entry ->
+                                                            androidx.compose.runtime.key(entry.key) { renderEntry(entry) }
+                                                        }
+                                                        if (liveInLastBubble && block == entries.last()) TurnView(projection.turn,
+                                                            onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
+                                                            seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
+                                                            denseChatWindow, { selectingMessage = it }, embedded = true)
+                                                    }
+                                                }
+                                                if (!denseChatWindow && !message.content.isNullOrBlank()) MessageActions(message,
+                                                    readingMessageId == message.id, onReadMessage, onBranchMessage, canBranch,
+                                                    { quoteMessage = it }, { selectingMessage = it })
+                                            }
+                                        } else block.entries.forEach { renderEntry(it) }
+                                    }
+                                    if (pendingUserText != null) item(key = "pending-user") {
+                                        PendingUserMessage(pendingUserText, denseChatWindow) { selectingMessage = it }
+                                    }
+                                    if (turn !is TurnState.Idle && !liveInLastBubble) {
+                                        item(key = "live-turn") { TurnView(projection.turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
+                                            seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
+                                            denseChatWindow, { selectingMessage = it }) }
+                                    }
                                 }
-                                if (pendingUserText != null) item(key = "pending-user") {
-                                    PendingUserMessage(pendingUserText, denseChatWindow) { selectingMessage = it }
-                                }
-                                if (turn !is TurnState.Idle && !liveInLastBubble) {
-                                    item(key = "live-turn") { TurnView(projection.turn, onReadMessage, readingMessageId == Int.MIN_VALUE, collapseThinking, reduceMotion,
-                                        seenToolRows, { if (it !in seenToolRows) seenToolRows = seenToolRows + it },
-                                        denseChatWindow, { selectingMessage = it }) }
-                                }
-                            }
-                            if (browsingHistory || listState.canScrollForward) {
-                                Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                                    shape = MaterialTheme.shapes.large, tonalElevation = 6.dp, shadowElevation = 2.dp) {
-                                    TextButton(onClick = {
-                                        browsingHistory = false
-                                        followingTail = true
-                                        highlightedId = null
-                                        scope.launch { listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END) }
-                                    }) { Text("Jump to latest ↓") }
+                                if (browsingHistory || listState.canScrollForward) {
+                                    Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                                        shape = MaterialTheme.shapes.large, tonalElevation = 6.dp, shadowElevation = 2.dp) {
+                                        TextButton(onClick = {
+                                            browsingHistory = false
+                                            followingTail = true
+                                            highlightedId = null
+                                            scope.launch { listState.scrollToItem(itemCount - 1, SCROLL_TO_ITEM_END) }
+                                        }) { Text("Jump to latest ↓") }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                if (branchingSession) {
+                    Text("Creating branch…", style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                }
+                attachmentStrip?.invoke()
+                Composer(turn = turn, onSend = onSend, onStop = onStop, busy = branchingSession, sendBlocked = sendBlocked,
+                    draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus, leading = composerLeading)
             }
-            if (branchingSession) {
-                Text("Creating branch…", style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            }
-            attachmentStrip?.invoke()
-            Composer(turn = turn, onSend = onSend, onStop = onStop, busy = branchingSession, sendBlocked = sendBlocked,
-                draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus, leading = composerLeading)
         }
     }
 }
@@ -493,7 +515,7 @@ private fun TurnView(turn: TurnState, onRead: (Message) -> Unit, reading: Boolea
                         else {
                             if (turn.reasoning.isNotBlank()) ThinkingBlock(turn.reasoning, collapseThinking)
                             if (turn.text.isNotEmpty()) prose(turn.text)
-                            turn.runningTool?.let {
+                            turn.runningTool?.takeIf { LocalChatDisplay.current.showsTool(turn.runningToolName, it) }?.let {
                                 ToolResultView(toolName = turn.runningToolName, rawContent = it, running = true)
                             }
                         }

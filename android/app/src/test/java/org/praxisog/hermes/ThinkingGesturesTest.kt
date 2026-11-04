@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -43,6 +45,21 @@ class ThinkingGesturesTest {
         compose.onNodeWithText("Reasoning body available for selection").assertDoesNotExist()
         compose.onAllNodesWithText("Thinking ▾")[1].performScrollTo().performTouchInput { click() }
         compose.onNodeWithText("Second reasoning block", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+    }
+    @Test fun expandingThinkingAtTailOfLongResponseKeepsHeaderReachableDuringUpdates() {
+        val longAnswer = "A long response still needs working controls. ".repeat(1000)
+        val thought = "Review the current result.\n".repeat(80)
+        var streaming by androidx.compose.runtime.mutableStateOf(TurnState.Streaming(longAnswer, parts = listOf(
+            LivePart.Prose("answer", longAnswer), LivePart.Prose("thought", thought, true))))
+        compose.setContent { HermesTheme {
+            SessionDetailScreen(UiState.Ready(listOf(Message(1, role = "user", content = "Review this"))), streaming,
+                { false }, {}, {}, denseChatWindow = true, reduceMotion = true)
+        } }
+        compose.onNodeWithText("Thinking ▾").assertIsDisplayed().performTouchInput { click() }
+        compose.onNodeWithText("Thinking ▴").assertIsDisplayed()
+        compose.runOnIdle { streaming = streaming.copy(parts = streaming.parts + LivePart.Prose("more", "More output. ".repeat(100))) }
+        compose.onNodeWithText("Thinking ▴").assertIsDisplayed().performTouchInput { click() }
+        compose.onNodeWithText("Thinking ▾").assertIsDisplayed()
     }
     @Test fun longPressStillOpensMessageActions() {
         show()

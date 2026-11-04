@@ -322,7 +322,7 @@ internal fun HermesApp(
                                             messageStats = messageStats,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,
-                                            collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion,
+                                            collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion, display = preferences.chatDisplay,
                                             denseChatWindow = preferences.denseChatWindow,
                                             pendingUserText = pendingUserText,
                                             sendBlocked = disconnected || fallbackBanner != null || runPresentation?.busy == true || uploading,

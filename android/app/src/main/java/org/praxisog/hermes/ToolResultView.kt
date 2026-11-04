@@ -60,6 +60,7 @@ internal fun ToolResultView(
     grouped: Boolean = false,
     statusOverride: String? = null,
 ) {
+    val interact = LocalTranscriptInteraction.current
     val parsed = remember(rawContent, running) { if (running) null else ToolResult.parse(rawContent) }
     var expanded by remember(toolName, rawContent, arguments) { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
@@ -88,7 +89,7 @@ internal fun ToolResultView(
         color = container,
         shape = if (grouped || embedded) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.small,
         border = if (grouped || embedded) null else BorderStroke(1.dp, outline),
-        modifier = modifier.fillMaxWidth().responseRowEdges().clickable(onClickLabel = "Open $title details") { expanded = true },
+        modifier = modifier.fillMaxWidth().responseRowEdges().clickable(onClickLabel = "Open $title details") { interact(); expanded = true },
     ) {
         Row(
             modifier = Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 4.dp),

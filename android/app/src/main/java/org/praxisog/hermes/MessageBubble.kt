@@ -1,14 +1,17 @@
 package org.praxisog.hermes
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -19,7 +22,7 @@ internal val ResponseBubbleShape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
 internal val LocalInResponseBubble = staticCompositionLocalOf { false }
 
 /** Adjacent rows draw on the same boundary, so their separators share one stroke.
- * The parent Surface clips these square rows to the response's outer corners. */
+ * The parent bubble clips drawing of these square rows to its outer corners. */
 @Composable
 internal fun Modifier.responseRowEdges(): Modifier {
     if (!LocalInResponseBubble.current) return this
@@ -44,24 +47,36 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
     // Freeze the selected text while streaming continues behind the menu.
     var selected by remember(message.id) { mutableStateOf<Message?>(null) }
     Box(modifier.testTag("bubble-${message.id}")) {
-        Surface(color = if (user) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-            contentColor = if (user) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-            shape = if (user) RoundedCornerShape(18.dp) else ResponseBubbleShape,
-            border = if (user) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth().messageLongPress { selected = message }
-                .semantics { contentDescription = if (user) "Your message" else "Hermes response" }) {
-            if (!user && content != null) CompositionLocalProvider(LocalInResponseBubble provides true) {
-                content()
-            } else Column(Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (user && !dense) Text("You", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary)
-                if (content != null) content()
-                else if (user) UserMessageText(message.content.orEmpty())
-                else Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge)
-                if (user && !dense && onFollowUp != null) Row {
-                    TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
-                    if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
+        if (!user) {
+            // A whole response can exceed the graphics-layer outline's hit-test bounds.
+            // Clip drawing only; keep disclosure hit testing in ordinary layout coordinates.
+            Column(Modifier.fillMaxWidth().messageLongPress { selected = message }
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ResponseBubbleShape)
+                .drawWithCache {
+                    val path = Path().apply { addOutline(ResponseBubbleShape.createOutline(size, layoutDirection, this@drawWithCache)) }
+                    onDrawWithContent { clipPath(path) { this@onDrawWithContent.drawContent() } }
+                }.semantics { contentDescription = "Hermes response" }) {
+                CompositionLocalProvider(LocalInResponseBubble provides true,
+                    LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                    if (content != null) content()
+                    else Text(transcriptText(message.content.orEmpty()), style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp))
+                }
+            }
+        } else {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth().messageLongPress { selected = message }
+                    .semantics { contentDescription = "Your message" }) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = if (dense) 8.dp else 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (!dense) Text("You", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                    if (content != null) content() else UserMessageText(message.content.orEmpty())
+                    if (!dense && onFollowUp != null) Row {
+                        TextButton(onClick = { onFollowUp(message) }) { Text("Follow up") }
+                        if (canEdit) TextButton(onClick = { onEdit(message) }) { Text("Fork & edit") }
+                    }
                 }
             }
         }

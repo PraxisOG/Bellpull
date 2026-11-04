@@ -29,6 +29,10 @@ internal enum class Palette(val label: String, val seed: Long) {
 internal data class BellpullPreferences(
     val appearance: Appearance = Appearance.SYSTEM,
     val collapseThinking: Boolean = true,
+    val hideTerminalCalls: Boolean = false,
+    val hideThinking: Boolean = false,
+    val thinkingPreview: Boolean = false,
+    val activityCounts: Boolean = true,
     val reduceMotion: Boolean = false,
     val palette: Palette = Palette.NEUTRAL,
     val customAccent: String = "59091E",
@@ -51,6 +55,10 @@ internal class BellpullSettings(context: Context) {
         appearance = runCatching { Appearance.valueOf(prefs.getString("appearance", "SYSTEM")!!) }
             .getOrDefault(Appearance.SYSTEM),
         collapseThinking = prefs.getBoolean("collapse_thinking", true),
+        hideTerminalCalls = prefs.getBoolean("hide_terminal_calls", false),
+        hideThinking = prefs.getBoolean("hide_thinking", false),
+        thinkingPreview = prefs.getBoolean("thinking_preview", false),
+        activityCounts = prefs.getBoolean("activity_counts", true),
         reduceMotion = prefs.getBoolean("reduce_motion", false),
         palette = runCatching { Palette.valueOf(prefs.getString("palette", "NEUTRAL")!!) }.getOrDefault(Palette.NEUTRAL),
         customAccent = normalizedAccent(prefs.getString("custom_accent", "59091E").orEmpty()) ?: "59091E",
@@ -68,6 +76,10 @@ internal class BellpullSettings(context: Context) {
         value = validated
         prefs.edit().putString("appearance", validated.appearance.name)
             .putBoolean("collapse_thinking", validated.collapseThinking)
+            .putBoolean("hide_terminal_calls", validated.hideTerminalCalls)
+            .putBoolean("hide_thinking", validated.hideThinking)
+            .putBoolean("thinking_preview", validated.thinkingPreview)
+            .putBoolean("activity_counts", validated.activityCounts)
             .putBoolean("reduce_motion", validated.reduceMotion)
             .putBoolean("immersive_mode", validated.immersiveMode)
             .putBoolean("dense_chat_window", validated.denseChatWindow)
@@ -176,8 +188,16 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                 preferences.titleOnlyConversations) { onChange(preferences.copy(titleOnlyConversations = it)) }
             PreferenceSwitch("Larger labeled controls", "Show labels and larger icons on navigation controls.",
                 preferences.labeledControls) { onChange(preferences.copy(labeledControls = it)) }
+            PreferenceSwitch("Hide terminal calls", "Hide routine terminal rows. Errors, refusals and warnings remain visible.",
+                preferences.hideTerminalCalls) { onChange(preferences.copy(hideTerminalCalls = it)) }
+            PreferenceSwitch("Hide thinking", "Hide thinking blocks in chat. This does not change the model's thinking level.",
+                preferences.hideThinking) { onChange(preferences.copy(hideThinking = it)) }
+            PreferenceSwitch("Thinking previews", "Show the first short excerpt beside a collapsed Thinking label.",
+                preferences.thinkingPreview, enabled = !preferences.hideThinking) { onChange(preferences.copy(thinkingPreview = it)) }
+            PreferenceSwitch("Activity counts", "Show received thinking, terminal, search and other tool counts beneath the live response.",
+                preferences.activityCounts) { onChange(preferences.copy(activityCounts = it)) }
             PreferenceSwitch("Collapse thinking by default", "You can expand each thinking block.",
-                preferences.collapseThinking) { onChange(preferences.copy(collapseThinking = it)) }
+                preferences.collapseThinking, enabled = !preferences.hideThinking) { onChange(preferences.copy(collapseThinking = it)) }
             PreferenceSwitch("Reduce motion", "Open panels and show new tool rows without animation.",
                 preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
             PreferenceSwitch("Immersive mode", "Experimental. Hide system bars; swipe from an edge to reveal them.",
@@ -248,3 +268,5 @@ internal fun ReplyNotificationSettings(checked: Boolean, useRelay: Boolean, prob
     problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     TextButton(onClick = onSystemSettings) { Text("Android notification settings") }
 }
+
+internal val BellpullPreferences.chatDisplay get() = ChatDisplayOptions(hideTerminalCalls, hideThinking, thinkingPreview, activityCounts)

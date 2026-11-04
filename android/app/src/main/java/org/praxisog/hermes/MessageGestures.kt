@@ -59,3 +59,17 @@ internal fun Modifier.collapseOnTap(onCollapse: () -> Unit): Modifier {
         }
     }
 }
+
+/** Pause following on down, before a growing stream can move a disclosure under the finger.
+ * Observe only: child buttons, selection and scrolling still receive the entire gesture. */
+@Composable
+internal fun Modifier.pauseTranscriptFollow(onTouch: () -> Unit): Modifier {
+    val pause by rememberUpdatedState(onTouch)
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            pause()
+            waitForUpOrCancellation(pass = PointerEventPass.Final)
+        }
+    }
+}

@@ -43,7 +43,7 @@ class BellpullInteractionTest {
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Display").performClick()
-        compose.onNodeWithText("Collapse thinking by default").assertIsDisplayed()
+        compose.onNodeWithText("Collapse thinking by default").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Chats").performClick()
         compose.onNodeWithText("Draft for A").assertIsDisplayed()
         assertEquals("Draft for B", drafts[UiFixtures.sessions[1].id].text)

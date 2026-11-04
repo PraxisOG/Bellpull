@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
@@ -25,12 +26,16 @@ internal fun transcriptText(text: String): String = text.lineSequence().dropWhil
 
 @Composable
 internal fun ThinkingBlock(text: String, collapseByDefault: Boolean) {
+    val display = LocalChatDisplay.current
+    if (display.hideThinking) return
+    val interact = LocalTranscriptInteraction.current
+    val preview = remember(text, display.thinkingPreview) { if (display.thinkingPreview) thinkingPreview(text) else "" }
     var expanded by rememberSaveable { mutableStateOf(!collapseByDefault) }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.responseRowEdges(),
         shape = if (LocalInResponseBubble.current) androidx.compose.ui.graphics.RectangleShape else MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth()) {
-            CompactDisclosure(if (expanded) "Thinking ▴" else "Thinking ▾") { expanded = !expanded }
-            if (expanded) SelectionContainer(Modifier.collapseOnTap { expanded = false }) {
+            CompactDisclosure(if (expanded) "Thinking ▴" else "Thinking ▾", preview = if (expanded) "" else preview) { expanded = !expanded }
+            if (expanded) SelectionContainer(Modifier.collapseOnTap { interact(); expanded = false }) {
                 Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
             }
         }
@@ -53,17 +58,28 @@ internal fun WorkingRow(label: String, reduceMotion: Boolean) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.size(6.dp).alpha(opacity).background(MaterialTheme.colorScheme.primary,
                 androidx.compose.foundation.shape.CircleShape).testTag("working-indicator"))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                val activity = LocalResponseActivity.current.label
+                if (LocalChatDisplay.current.activityCounts && activity.isNotEmpty()) Text(activity,
+                    style = MaterialTheme.typography.labelSmall, modifier = Modifier.testTag("response-activity-counts"))
+            }
         }
     }
 }
 
 @Composable
-private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+private fun CompactDisclosure(label: String, modifier: Modifier = Modifier, preview: String = "", onClick: () -> Unit) {
+    val interact = LocalTranscriptInteraction.current
+    Box(modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = { interact(); onClick() })
         .heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            if (preview.isNotEmpty()) Text("— $preview", modifier = Modifier.weight(1f).testTag("thinking-preview"),
+                style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -153,6 +169,7 @@ internal fun ToolGroup(count: Int, forceExpanded: Boolean = false, content: @Com
 @Composable
 internal fun LiveTranscriptView(parts: List<LivePart>, collapseThinking: Boolean, reduceMotion: Boolean,
     seenRows: List<String>, onRowSeen: (String) -> Unit, prose: @Composable (String) -> Unit) {
+    val display = LocalChatDisplay.current
     parts.forEach { part ->
         key(part.id) {
             when (part) {
@@ -160,22 +177,25 @@ internal fun LiveTranscriptView(parts: List<LivePart>, collapseThinking: Boolean
                     if (part.thinking) ThinkingBlock(part.text, collapseThinking)
                     else prose(part.text)
                 }
-                is LivePart.Tools -> ToolGroup(part.rows.size) {
-                    part.rows.forEachIndexed { index, row ->
-                        key(row.id) {
-                            val skipMotion = reduceMotion || !android.animation.ValueAnimator.areAnimatorsEnabled()
-                            var visible by remember { mutableStateOf(skipMotion || row.id in seenRows) }
-                            LaunchedEffect(row.id) { onRowSeen(row.id); visible = true }
-                            androidx.compose.animation.AnimatedVisibility(visible,
-                                enter = if (skipMotion) androidx.compose.animation.EnterTransition.None else
-                                    androidx.compose.animation.expandVertically(expandFrom = androidx.compose.ui.Alignment.Top) +
-                                    androidx.compose.animation.slideInVertically { -it / 2 },
-                                exit = androidx.compose.animation.ExitTransition.None) {
-                                Column {
-                                    if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
-                                    ToolResultView(row.name, rawContent = null, arguments = row.preview,
-                                        running = row.running, grouped = true,
-                                        statusOverride = if (row.running) "Running…" else "Finished")
+                is LivePart.Tools -> {
+                    val rows = part.rows.filter { display.showsTool(it.name) }
+                    if (rows.isNotEmpty()) ToolGroup(rows.size) {
+                        rows.forEachIndexed { index, row ->
+                            key(row.id) {
+                                val skipMotion = reduceMotion || !android.animation.ValueAnimator.areAnimatorsEnabled()
+                                var visible by remember { mutableStateOf(skipMotion || row.id in seenRows) }
+                                LaunchedEffect(row.id) { onRowSeen(row.id); visible = true }
+                                androidx.compose.animation.AnimatedVisibility(visible,
+                                    enter = if (skipMotion) androidx.compose.animation.EnterTransition.None else
+                                        androidx.compose.animation.expandVertically(expandFrom = androidx.compose.ui.Alignment.Top) +
+                                        androidx.compose.animation.slideInVertically { -it / 2 },
+                                    exit = androidx.compose.animation.ExitTransition.None) {
+                                    Column {
+                                        if (index > 0 && !LocalInResponseBubble.current) HorizontalDivider()
+                                        ToolResultView(row.name, rawContent = null, arguments = row.preview,
+                                            running = row.running, grouped = true,
+                                            statusOverride = if (row.running) "Running…" else "Finished")
+                                    }
                                 }
                             }
                         }
