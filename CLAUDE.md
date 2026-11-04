@@ -17,6 +17,16 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-03, conversation refresh and publication):** add
+pull-to-refresh on `feature/conversations-pull-refresh-20261103` from `de02c78`,
+preserving cached rows, filters and request ordering. The user then explicitly
+requested publishing all accumulated work as the latest GitHub experimental and
+installing it on the phone. Prepare Android 0.20.0/build50 and the complete matching
+plugin 0.9.0-kanban-tree-preview on `release/0.20.0-experimental`; validate, sign
+with the existing lineage, publish source/tag/assets and install in place with
+personal data preserved. Use disposable fixtures for acceptance. Moe remains a
+manual user update. This supersedes the local-only scope of the slices below.
+
 **Current task authority (2026-11-03, board chat shortcut):** build on `b837387`
 using `feature/kanban-board-chats-20261103`. Add a visible board-level chat control
 using explicit task-origin chat links: open one directly or choose among distinct

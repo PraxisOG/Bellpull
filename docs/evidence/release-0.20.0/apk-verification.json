@@ -1,0 +1,9 @@
+{
+  "package": "package: name='org.praxisog.hermes' versionCode='50' versionName='0.20.0-experimental' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+  "same_signers": true,
+  "certificates": [
+    "c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf"
+  ],
+  "alignment_16k": true,
+  "apk_sha256": "b3d9d4a5145d044584b3bb32d6e6509dba80f50c7d06ec3c89831d95a8c3959e"
+}

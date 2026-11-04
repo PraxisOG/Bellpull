@@ -1,9 +1,9 @@
-> Local repair candidate: **Android 0.19.1 / build 49**, plugin **0.8.4-mobile-fixes-preview**.
-> Adds stock-Hermes chat attachment handoff and SVG artifact MIME support.
-> Existing Canvas, Kanban, reasoning and reload fixes are retained. Native Android
-> SVG previews and the voice/noise UI changes require the matching app update.
-> Not yet published. Install the complete bundle, restart the gateway when idle,
-> and reconnect Bellpull. Moe remains a manual user deployment.
+> Current experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
+> Adds explicit task/subtask containment and complete hierarchy pagination while
+> preserving dependency and scheduling semantics. Includes chat attachment handoff,
+> SVG MIME support, Canvas, reasoning and plugin reload recovery.
+> [Download the matching release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).
+> Install the complete bundle and restart the gateway when idle. Moe remains a manual user update.
 
 > Previous published experimental pair: **Android 0.19.0 / build 48**, plugin **0.8.3-reload-preview**.
 > Restores Bellpull after unchanged-plugin rediscovery, while explicit disable still revokes access.
@@ -35,7 +35,7 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.8.4-mobile-fixes-preview
+# Bellpull integration plugin 0.9.0-kanban-tree-preview
 
 This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.

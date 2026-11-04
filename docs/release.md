@@ -1,3 +1,17 @@
+## Experimental workspace release — 0.20.0 / build 50
+
+[Download Android 0.20.0 and plugin 0.9.0-kanban-tree-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).
+Includes compact Kanban and nested tasks, board chat shortcuts, conversation
+pull-to-refresh, chat activity display controls, compact Tools and direct server
+uploads, plus the 0.19.1 attachment/voice/noise/SVG repairs.
+
+Android checks: 876 passed and one optional skip, 218 screenshot comparisons,
+lint and signed release assembly. Refresh gestures passed physical phone checks
+at narrow and unfolded widths. Install the complete matching plugin for the new
+task hierarchy support; Moe remains a manual user update. The older Canvas
+phone-opening acceptance limitation remains recorded.
+[Changes, validation and limitations](RELEASE-0.20.0-EXPERIMENTAL.md).
+
 ## Local mobile repair installation — 0.19.1 / build 49
 
 Installed in place on the owner's Pixel after the requested mobile repairs.
