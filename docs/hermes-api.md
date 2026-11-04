@@ -1235,3 +1235,22 @@ receipt recovery; cancelling a local item cannot revoke an admitted operation.
 400/404/409/410/413/503 errors use the existing Bellpull error envelope. Capability
 absence leaves cached reading available and remote writes disabled. No push feed
 is promised; foreground polling and explicit refresh use these GET routes.
+# Kanban containment and complete hierarchy (development)
+
+Boards advertise `hierarchy: true` and `can_contain` (false when archived).
+Task records add nullable `container_id`, integer direct `subtask_count`, and
+`can_reparent` (false during active execution). These are not dependency links.
+
+`GET /api/bellpull/kanban/boards/{board}/hierarchy` returns version 1, board,
+tasks (up to 500), total, revision (SHA-256), next_after (nullable task ID),
+complete, and observed_at_ms. Subsequent requests send `after` and `revision`.
+The server returns 409 if the revision changed; restart pagination. An empty page
+is genuinely empty only when complete is true. No newest-task cutoff applies.
+
+Existing mutation and receipt routes accept action `contain`, with nullable
+`container_id` (null means top level), the child's expected_revision and the
+existing operation/owner/board identity fields. Creation optionally accepts
+container_id atomically with fields. Field edits leave containment unchanged.
+Missing parents, self-parenting, cycles, active work, archived boards and stale
+child revisions produce durable conflict receipts. Old clients and old queued
+payloads remain valid. A new client uses hierarchy only on advertised boards.

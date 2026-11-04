@@ -190,6 +190,14 @@ class HermesClient(
     fun kanbanBoards(): HermesResult<KanbanBoards> = get("/api/bellpull/kanban/boards") { json.decodeFromString<KanbanBoards>(it).validated() }
     private fun kanbanPath(board: String): String { require(kanbanSlug(board)); return "/api/bellpull/kanban/boards/$board" }
     fun kanbanBoard(board: String): HermesResult<KanbanSnapshot> = get(kanbanPath(board)) { json.decodeFromString<KanbanSnapshot>(it).validated().also { value -> require(value.board.slug == board) } }
+    fun kanbanHierarchy(board: String, after: String? = null, revision: String? = null): HermesResult<KanbanHierarchy> {
+        require(after == null || kanbanTaskId(after))
+        require(revision == null || revision.matches(Regex("[a-f0-9]{64}")))
+        val query = if (after == null) "" else "?after=$after&revision=$revision"
+        return get(kanbanPath(board) + "/hierarchy" + query) {
+            json.decodeFromString<KanbanHierarchy>(it).validated(page = true).also { require(it.board.slug == board) }
+        }
+    }
     fun kanbanTask(board: String, task: String): HermesResult<KanbanDetail> {
         require(kanbanTaskId(task))
         return get(kanbanPath(board) + "/tasks/$task") { json.decodeFromString<KanbanDetail>(it).validated().also { value -> require(value.board.slug == board && value.task.id == task) } }

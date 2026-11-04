@@ -40,6 +40,83 @@ class KanbanTests(unittest.TestCase):
                     board_id=snapshot["board"]["id"], task_id=self.tid,
                     expected_revision=snapshot["tasks"][0]["revision"], action="comment", comment="From the phone", **values)
 
+    def contain(self, child, parent):
+        snap = self.store.snapshot("default")
+        return dict(operation_id=uuid.uuid4().hex, owner_id=snap["board"]["owner_id"], board_id=snap["board"]["id"],
+            task_id=child, expected_revision=self.store.detail("default", child)["task"]["revision"],
+            action="contain", container_id=parent)
+
+    def create_child(self, parent=None, title="Nested task"):
+        body = self.contain(self.tid, parent)
+        body.update(action="create", task_id="draft_" + uuid.uuid4().hex, expected_revision=EMPTY_REVISION,
+                    fields=dict(title=title, body="", assignee=None, priority=0))
+        result = self.store.mutate("default", body)
+        self.assertEqual("applied", result["state"])
+        return result["task"]["id"]
+
+    def test_containment_is_recursive_atomic_and_independent_of_dependencies(self):
+        child = self.create_child(self.tid)
+        leaf = self.create_child(child)
+        detail = self.store.detail("default", child)["task"]
+        self.assertEqual(self.tid, detail["container_id"])
+        self.assertEqual(1, detail["subtask_count"])
+        self.assertEqual([], detail["parents"])
+        self.assertEqual([], detail["children"])
+        self.assertEqual("triage", detail["status"])
+        self.assertEqual([], detail["runs"])
+        for parent in (self.tid, child, leaf):
+            result = self.store.mutate("default", self.contain(self.tid, parent))
+            self.assertEqual("conflict", result["state"])
+            self.assertIn("cycle", result["message"])
+        missing = self.store.mutate("default", self.contain(child, "missing"))
+        self.assertEqual("conflict", missing["state"])
+        body = self.contain(child, None)
+        first = self.store.mutate("default", body)
+        self.assertEqual(first, Boards().mutate("default", body))
+        self.assertIsNone(first["task"]["container_id"])
+        self.assertEqual(0, self.store.detail("default", self.tid)["task"]["subtask_count"])
+
+    def test_concurrent_reparent_cannot_commit_a_cycle(self):
+        other = self.create_child()
+        requests = [self.contain(self.tid, other), self.contain(other, self.tid)]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda body: Boards().mutate("default", body), requests))
+        self.assertEqual(["applied", "conflict"], sorted(result["state"] for result in results))
+        for tid in (self.tid, other):
+            self.assertEqual("triage", self.store.detail("default", tid)["task"]["status"])
+
+    def test_containment_receipt_rollback_active_and_stale_guard(self):
+        child = self.create_child()
+        body = self.contain(child, self.tid)
+        with self.store.connection("default") as conn:
+            conn.execute("CREATE TRIGGER fail_containment BEFORE INSERT ON bellpull_kanban_operations BEGIN SELECT RAISE(ABORT, 'fixture'); END")
+        with self.assertRaises(Exception): self.store.mutate("default", body)
+        self.assertIsNone(self.store.detail("default", child)["task"]["container_id"])
+        with self.store.connection("default") as conn:
+            conn.execute("DROP TRIGGER fail_containment")
+            conn.execute("UPDATE tasks SET claim_lock='worker' WHERE id=?", (child,))
+        self.assertEqual("conflict", self.store.mutate("default", self.contain(child, self.tid))["state"])
+        self.assertEqual("conflict", self.store.mutate("default", body)["state"])
+
+    def test_hierarchy_pages_include_old_ancestors_and_reject_mixed_snapshots(self):
+        child = self.create_child(self.tid)
+        # Populate beyond the legacy newest-500 cutoff without scheduling work.
+        with self.store.connection("default") as conn, database_api().write_txn(conn):
+            conn.executemany("INSERT INTO tasks(id,title,status,created_at) VALUES (?,?,?,?)",
+                [("z%04d" % i, "Old/new task", "triage", 9999999999999) for i in range(501)])
+        self.assertNotIn(self.tid, [t["id"] for t in self.store.snapshot("default")["tasks"]])
+        page = self.store.hierarchy("default")
+        self.assertFalse(page["complete"])
+        last = self.store.hierarchy("default", page["next_after"], page["revision"])
+        self.assertTrue(last["complete"])
+        tasks = page["tasks"] + last["tasks"]
+        self.assertEqual(503, len({t["id"] for t in tasks}))
+        self.assertEqual(self.tid, next(t for t in tasks if t["id"] == child)["container_id"])
+        self.store.mutate("default", self.contain(child, None))
+        with self.assertRaises(ArtifactError) as err:
+            self.store.hierarchy("default", page["next_after"], page["revision"])
+        self.assertEqual(409, err.exception.status)
+
     def test_native_snapshot_and_details_preserve_installation_and_board_identity(self):
         snapshot = self.store.snapshot("default")
         self.assertEqual("Fixture desktop", snapshot["board"]["owner_name"])
@@ -211,6 +288,10 @@ class KanbanHttpTests(unittest.IsolatedAsyncioTestCase):
                     response = await client.get(prefix + path, headers=headers)
                     self.assertEqual(200, response.status, await response.text())
                     self.assertEqual("default", (await response.json())["boards"][0]["slug"])
+                    self.assertEqual(401, (await client.get(prefix + path + "/default/hierarchy")).status)
+                    hierarchy = await client.get(prefix + path + "/default/hierarchy", headers=headers)
+                    self.assertEqual(200, hierarchy.status)
+                    self.assertTrue((await hierarchy.json())["complete"])
             finally:
                 await client.close()
                 for database in adapter._session_dbs.values(): database.close()

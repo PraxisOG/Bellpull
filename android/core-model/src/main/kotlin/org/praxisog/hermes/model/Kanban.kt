@@ -19,6 +19,7 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
     @SerialName("owner_name") val ownerName: String,
     val description: String = "", val archived: Boolean = false, val scope: String = "installation",
     @SerialName("can_create") val canCreate: Boolean = false,
+    val hierarchy: Boolean = false, @SerialName("can_contain") val canContain: Boolean = false,
 ) {
     fun validated() = apply { require(hex32.matches(id) && hex64.matches(ownerId) && kanbanSlug(slug)); require(name.isNotBlank() && name.kanbanLength() <= 200 && ownerName.kanbanLength() <= 200 && scope == "installation") }
     val key get() = "$ownerId/$id"
@@ -40,8 +41,12 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
     val parents: List<String> = emptyList(), val children: List<String> = emptyList(), val files: List<KanbanFile> = emptyList(),
     @SerialName("details_complete") val detailsComplete: Boolean = true,
     val editable: Boolean = false,
+    @SerialName("container_id") val containerId: String? = null,
+    @SerialName("subtask_count") val subtaskCount: Int = 0,
+    @SerialName("can_reparent") val canReparent: Boolean = false,
 ) {
     fun validated() = apply {
+        require(containerId == null || kanbanTaskId(containerId)); require(subtaskCount >= 0)
         require(kanbanTaskId(id) && hex64.matches(revision) && status in KANBAN_COLUMNS)
         require(title.kanbanLength() <= 500 && body.kanbanLength() <= 16384 && result.kanbanLength() <= 16384)
         require(allowedMoves.size <= 2 && allowedMoves.all { it in listOf("triage", "blocked") })
@@ -71,12 +76,15 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
     @SerialName("task_id") val taskId: String, @SerialName("expected_revision") val expectedRevision: String,
     val action: String, val status: String? = null, val comment: String? = null,
     val fields: KanbanTaskFields? = null,
+    @SerialName("container_id") val containerId: String? = null,
 ) {
     fun validated() = apply {
         require(hex32.matches(operationId) && hex64.matches(ownerId) && hex32.matches(boardId) && kanbanTaskId(taskId) && hex64.matches(expectedRevision))
         require((action == "comment" && !comment.isNullOrBlank() && comment.kanbanLength() <= 8000 && status == null && fields == null) ||
             (action == "move" && status in listOf("triage", "blocked") && comment == null && fields == null) ||
-            (action in listOf("create", "edit") && fields != null && status == null && comment == null))
+            (action in listOf("create", "edit") && fields != null && status == null && comment == null) ||
+            (action == "contain" && fields == null && status == null && comment == null))
+        require(containerId == null || (action in listOf("create", "contain") && kanbanTaskId(containerId) && containerId != taskId))
         fields?.validated()
         if (action == "create") require(taskId.matches(Regex("draft_[a-f0-9]{32}")) && expectedRevision == KANBAN_EMPTY_REVISION)
     }
@@ -101,11 +109,12 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
 }
 /** Keep the opened revision with the draft so background refresh cannot authorize overwriting newer edits. */
 @Serializable data class KanbanFormDraft(val taskId: String, val revision: String,
-    val title: String = "", val body: String = "", val assignee: String = "", val priority: String = "0") {
+    val title: String = "", val body: String = "", val assignee: String = "", val priority: String = "0", val containerId: String? = null) {
     fun fields(): KanbanTaskFields? = runCatching {
         KanbanTaskFields(title.trim(), body, assignee.trim().lowercase().ifBlank { null }, priority.toInt()).validated()
     }.getOrNull()
     fun validated() = apply {
+        require(containerId == null || (kanbanTaskId(containerId) && containerId != taskId))
         require(kanbanTaskId(taskId) && hex64.matches(revision) && title.kanbanLength() <= 500 && body.kanbanLength() <= 16384 && assignee.length <= 64 && priority.length <= 12)
     }
 }
@@ -113,8 +122,13 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
     val snapshots: List<KanbanSnapshot> = emptyList(), val details: List<KanbanDetail> = emptyList(),
     val pending: List<KanbanPending> = emptyList(), val drafts: Map<String, String> = emptyMap(),
     val selectedBoard: String? = null, val boardView: Boolean = false,
-    val forms: Map<String, KanbanFormDraft> = emptyMap()) {
+    val forms: Map<String, KanbanFormDraft> = emptyMap(),
+    val hierarchies: List<KanbanHierarchy> = emptyList(),
+    val viewMode: String? = null, val expanded: Map<String, Set<String>> = emptyMap()) {
     fun validated() = apply {
+        require(viewMode == null || viewMode in listOf("List", "Board", "Tree"))
+        require(hierarchies.size <= 3 && expanded.size <= 100); hierarchies.forEach { it.validated() }
+        require(expanded.values.all { ids -> ids.size <= 100000 && ids.all(::kanbanTaskId) })
         require(boards.size <= 100 && snapshots.size <= 10 && details.size <= 10 && pending.size <= 100)
         boards.forEach { it.validated() }; snapshots.forEach { it.validated() }; details.forEach { it.validated() }
         pending.forEach {
@@ -124,5 +138,110 @@ fun String.kanbanTake(limit: Int): String = substring(0, offsetByCodePoints(0, m
         require(pending.map { it.mutation.operationId }.distinct().size == pending.size)
         require(drafts.values.all { it.kanbanLength() <= 8000 })
         require(forms.size <= 100); forms.values.forEach { it.validated() }
+    }
+}
+
+/** Complete-board cache is separate from the backward-compatible newest-500 snapshot. */
+@Serializable data class KanbanHierarchy(val version: Int = 1, val board: KanbanBoard,
+    val tasks: List<KanbanTask>, val total: Int, val revision: String,
+    @SerialName("next_after") val nextAfter: String? = null, val complete: Boolean,
+    @SerialName("observed_at_ms") val observedAt: Long) {
+    fun validated(page: Boolean = false) = apply {
+        require(version == 1 && hex64.matches(revision) && observedAt > 0)
+        require(tasks.size <= (if (page) 500 else 100000) && total >= tasks.size)
+        require(nextAfter == null || kanbanTaskId(nextAfter))
+        require(complete == (nextAfter == null))
+        if (!page && complete) require(total == tasks.size)
+        board.validated(); tasks.forEach { it.validated() }
+        require(tasks.map { it.id }.toSet().size == tasks.size)
+    }
+}
+
+/** Iterative traversal keeps deep trees safe; dependency links never enter this index. */
+class KanbanTree(tasks: List<KanbanTask>, val complete: Boolean) {
+    val byId = tasks.associateBy { it.id }
+    val children = byId.values.groupBy { it.containerId }
+    private val ordered = mutableListOf<Pair<KanbanTask, Int>>()
+    val progress = mutableMapOf<String, Pair<Int, Int>>()
+    val incomplete = mutableSetOf<String>()
+    val orphaned = mutableSetOf<String>()
+    init {
+        val visited = mutableSetOf<String>()
+        val traversedChildren = mutableMapOf<String, MutableList<KanbanTask>>()
+        fun walk(root: KanbanTask) {
+            if (!visited.add(root.id)) return
+            val stack = ArrayDeque<Pair<KanbanTask, Int>>()
+            stack.addLast(root to 0)
+            while (stack.isNotEmpty()) {
+                val (task, depth) = stack.removeLast()
+                ordered.add(task to depth)
+                children[task.id].orEmpty().asReversed().forEach {
+                    if (visited.add(it.id)) {
+                        traversedChildren.getOrPut(task.id) { mutableListOf() }.add(it)
+                        stack.addLast(it to depth + 1)
+                    } else { incomplete.add(task.id); incomplete.add(it.id) }
+                }
+            }
+        }
+        byId.values.filter { it.containerId == null || it.containerId !in byId }.forEach {
+            if (it.containerId != null) orphaned.add(it.id)
+            walk(it)
+        }
+        // Corrupt legacy/imported cycles remain visible, never silently disappear.
+        byId.values.forEach { if (it.id !in visited) { orphaned.add(it.id); walk(it) } }
+        ordered.asReversed().forEach { (task, _) ->
+            val kids = traversedChildren[task.id].orEmpty()
+            if (!complete || kids.size != task.subtaskCount || task.id in orphaned) incomplete.add(task.id)
+            var done = 0; var total = 0
+            kids.forEach { child ->
+                val nested = progress[child.id]
+                if (nested == null) incomplete.add(task.id)
+                else { done += nested.first; total += nested.second }
+                if (child.status == "done") done++
+                total++
+                if (child.id in incomplete) incomplete.add(task.id)
+            }
+            progress[task.id] = done to total
+        }
+    }
+    fun parentCandidates(child: String): List<KanbanTask> {
+        val excluded = mutableSetOf<String>()
+        val queue = ArrayDeque<String>(); queue.addLast(child)
+        while (queue.isNotEmpty()) {
+            val id = queue.removeLast()
+            if (excluded.add(id)) children[id].orEmpty().forEach { queue.addLast(it.id) }
+        }
+        return byId.values.filter { it.id !in excluded && !it.id.startsWith("draft_") &&
+            (orphaned.isEmpty() || canContain(child, it.id)) }
+    }
+    fun canContain(child: String, parent: String?): Boolean {
+        val seen = mutableSetOf(child)
+        var node = parent
+        while (node != null) {
+            if (!seen.add(node)) return false
+            node = byId[node]?.containerId ?: return node in byId
+        }
+        return true
+    }
+    fun rows(expanded: Set<String>, query: String): List<Pair<KanbanTask, Int>> {
+        val matches = if (query.isBlank()) null else mutableSetOf<String>().also { visible ->
+            byId.values.filter { task -> listOf(task.title, task.id, task.body, task.assignee.orEmpty()).any { it.contains(query, true) } }.forEach { task ->
+                var node: String? = task.id
+                val seen = mutableSetOf<String>()
+                while (node != null && seen.add(node) && visible.add(node)) { node = byId[node]?.containerId }
+            }
+        }
+        val result = mutableListOf<Pair<KanbanTask, Int>>()
+        var hiddenBelow: Int? = null
+        ordered.forEach { row ->
+            val (task, depth) = row
+            if (matches != null) { if (task.id in matches) result.add(row) }
+            else {
+                if (hiddenBelow != null && depth > hiddenBelow) return@forEach
+                hiddenBelow = if (task.id !in expanded) depth else null
+                result.add(row)
+            }
+        }
+        return result
     }
 }

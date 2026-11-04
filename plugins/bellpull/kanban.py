@@ -135,6 +135,8 @@ class Boards:
                 conn.execute("INSERT OR IGNORE INTO bellpull_kanban_meta VALUES ('board_id', ?)", (uuid.uuid4().hex,))
                 conn.execute("""CREATE TABLE IF NOT EXISTS bellpull_kanban_operations (
                     id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL)""")
+                conn.execute("CREATE TABLE IF NOT EXISTS bellpull_kanban_containment (child_id TEXT PRIMARY KEY, parent_id TEXT NOT NULL)")
+                conn.execute("CREATE INDEX IF NOT EXISTS bellpull_containment_parent ON bellpull_kanban_containment(parent_id)")
             yield conn
         finally:
             conn.close()
@@ -145,7 +147,8 @@ class Boards:
                     slug=name, name=clipped(meta.get("name") or name, 200),
                     description=clipped(meta.get("description"), 2000), archived=bool(meta.get("archived")),
                     owner_id=self.owner_id, owner_name=self.owner_name, scope="installation",
-                    can_create=editing_supported() and not meta.get("archived", False))
+                    can_create=editing_supported() and not meta.get("archived", False),
+                    hierarchy=True, can_contain=not meta.get("archived", False))
 
     def listing(self):
         result = []
@@ -180,6 +183,9 @@ class Boards:
                       session_id=raw.get("session_id"), priority=raw.get("priority", 0),
                       current_run_id=raw.get("current_run_id"), allowed_moves=moves, editable=editable,
                       body=clipped(raw.get("body"), 1000), result=clipped(raw.get("result"), 1000))
+        container = conn.execute("SELECT parent_id FROM bellpull_kanban_containment WHERE child_id=?", (tid,)).fetchone()
+        result.update(container_id=container[0] if container else None, can_reparent=bool(movable and raw["status"] != "running"),
+                      subtask_count=conn.execute("SELECT COUNT(*) FROM bellpull_kanban_containment c JOIN tasks t ON t.id=c.child_id WHERE parent_id=?", (tid,)).fetchone()[0])
         if detail:
             result.update(body=clipped(raw.get("body")), result=clipped(raw.get("result")))
             queries = {
@@ -217,6 +223,55 @@ class Boards:
             return dict(version=1, board=board, columns=list(COLUMNS), tasks=[self.task(conn, tid) for tid in ids],
                         total=total, complete=total <= LIMIT, observed_at_ms=int(time.time()*1000))
 
+    def hierarchy(self, name, after=None, revision=None):
+        if after is not None:
+            task_id(after)
+            if not isinstance(revision, str) or not re.fullmatch(r"[a-f0-9]{64}", revision):
+                raise ArtifactError("Hierarchy continuation requires its revision.", 400)
+        with self.connection(name) as conn:
+            conn.execute("BEGIN")
+            # Fingerprint every native row (except volatile leases), relationships and
+            # events. A concurrent edit between HTTP pages invalidates continuation.
+            hasher = hashlib.sha256()
+            total = 0
+            for row in conn.execute("SELECT * FROM tasks ORDER BY id"):
+                hasher.update(digest({k: v for k, v in dict(row).items()
+                    if k not in ("last_heartbeat_at", "claim_expires")}).encode())
+                total += 1
+            for row in conn.execute("SELECT child_id,parent_id FROM bellpull_kanban_containment ORDER BY child_id"):
+                hasher.update(json.dumps(list(row)).encode())
+            hasher.update(str(conn.execute("SELECT COALESCE(MAX(id),0) FROM task_events").fetchone()[0]).encode())
+            token = hasher.hexdigest()
+            if revision is not None and revision != token:
+                raise ArtifactError("Hierarchy changed while loading. Refresh to restart.", 409)
+            ids = [r[0] for r in conn.execute("SELECT id FROM tasks WHERE id>? ORDER BY id LIMIT ?", (after or "", LIMIT + 1))]
+            more = len(ids) > LIMIT
+            ids = ids[:LIMIT]
+            return dict(version=1, board=self.board(conn, name), tasks=[self.task(conn, tid) for tid in ids],
+                        total=total, revision=token, next_after=ids[-1] if more else None,
+                        complete=not more, observed_at_ms=int(time.time()*1000))
+
+    def containment_error(self, conn, child, parent):
+        if parent is None:
+            return None
+        seen = {child}
+        node = parent
+        while node is not None:
+            if node in seen:
+                return "Containing parent would create a cycle. Choose another task."
+            seen.add(node)
+            if not conn.execute("SELECT 1 FROM tasks WHERE id=?", (node,)).fetchone():
+                return "Containing parent is unavailable. Choose an existing task on this board."
+            row = conn.execute("SELECT parent_id FROM bellpull_kanban_containment WHERE child_id=?", (node,)).fetchone()
+            node = row[0] if row else None
+        return None
+
+    def set_container(self, conn, child, parent, operation):
+        conn.execute("DELETE FROM bellpull_kanban_containment WHERE child_id=?", (child,))
+        if parent is not None:
+            conn.execute("INSERT INTO bellpull_kanban_containment VALUES (?,?)", (child, parent))
+        self.kb._append_event(conn, child, "bellpull_containment", {"container_id": parent, "operation_id": operation})
+
     def detail(self, name, tid):
         with self.connection(name) as conn:
             conn.execute("BEGIN")
@@ -234,9 +289,9 @@ class Boards:
         operation = identity(body.get("operation_id"))
         tid = task_id(body.get("task_id"))
         action = body.get("action")
-        if set(body) - {"operation_id", "task_id", "action", "owner_id", "board_id", "expected_revision", "status", "comment", "fields"}:
+        if set(body) - {"operation_id", "task_id", "action", "owner_id", "board_id", "expected_revision", "status", "comment", "fields", "container_id"}:
             raise ArtifactError("Unknown Kanban operation fields.", 400)
-        if action not in ("move", "comment", "create", "edit"):
+        if action not in ("move", "comment", "create", "edit", "contain"):
             raise ArtifactError("Unsupported Kanban action.", 400)
         fields = task_fields(body.get("fields")) if action in ("create", "edit") else None
         if action == "comment" and (not isinstance(body.get("comment"), str) or not body["comment"].strip() or len(body["comment"]) > 8000):
@@ -247,6 +302,12 @@ class Boards:
             raise ArtifactError("Task field operations cannot include a move or comment.", 400)
         if fields is None and body.get("fields") is not None:
             raise ArtifactError("Task fields require a create/edit action.", 400)
+        parent = body.get("container_id")
+        if parent is not None:
+            task_id(parent)
+        if (parent is not None and action not in ("create", "contain")) or (action == "contain" and
+                any(body.get(k) is not None for k in ("fields", "status", "comment"))):
+            raise ArtifactError("Containment requires a create or contain operation.", 400)
         fingerprint = digest(body)
         with self.connection(name) as conn, database_api().write_txn(conn):
             board = self.board(conn, name)
@@ -271,6 +332,10 @@ class Boards:
                 error = "This move is unavailable. Active work must be managed by its executor."
             elif action == "edit" and not current["editable"]:
                 error = "Task fields cannot be edited while work is active, completed, or outside mobile limits."
+            elif action == "contain" and not current["can_reparent"]:
+                error = "Containment cannot change while work is active."
+            if error is None and action in ("create", "contain"):
+                error = self.containment_error(conn, tid, parent)
             if error is None:
                 if action == "create":
                     try:
@@ -284,9 +349,13 @@ class Boards:
                             project = self.metadata(name).get("project_id")
                             if project and self.kb.get_task(conn, created).project_id != project:
                                 raise ValueError("This gateway cannot resolve the board's owning project. Create from its owner.")
+                            if parent is not None:
+                                self.set_container(conn, created, parent, operation)
                         tid = created
                     except ValueError as exc:
                         error = str(exc)
+                elif action == "contain":
+                    self.set_container(conn, tid, parent, operation)
                 elif action == "comment":
                     self.kb.add_comment(conn, tid, "Bellpull", body["comment"])
                 elif action == "edit":
@@ -327,6 +396,9 @@ def routes(adapter):
         else:
             result = await asyncio.to_thread(lambda: Boards().snapshot(name))
         return web.json_response(result, headers={"Cache-Control": "no-store"})
+    async def hierarchy(request):
+        return web.json_response(await asyncio.to_thread(lambda: Boards().hierarchy(request.match_info["board"],
+            request.query.get("after"), request.query.get("revision"))), headers={"Cache-Control": "no-store"})
     async def detail(request):
         return web.json_response(await asyncio.to_thread(lambda: Boards().detail(request.match_info["board"], request.match_info["task"])), headers={"Cache-Control": "no-store"})
     async def receipt(request):
@@ -334,5 +406,6 @@ def routes(adapter):
     return [("GET", "/api/bellpull/kanban/boards", listing),
             ("GET", "/api/bellpull/kanban/boards/{board}", board),
             ("POST", "/api/bellpull/kanban/boards/{board}", board),
+            ("GET", "/api/bellpull/kanban/boards/{board}/hierarchy", hierarchy),
             ("GET", "/api/bellpull/kanban/boards/{board}/tasks/{task}", detail),
             ("GET", "/api/bellpull/kanban/boards/{board}/operations/{operation}", receipt)]
