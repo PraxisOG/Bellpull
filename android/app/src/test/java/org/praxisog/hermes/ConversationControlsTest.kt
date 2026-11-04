@@ -28,6 +28,7 @@ class ConversationControlsTest {
 
     private fun app(
         creating: Boolean = false,
+        kanban: KanbanWorkspace? = null,
         history: UiState<List<Message>> = UiState.Ready(longHistory),
         onNew: () -> Unit = {},
         openId: () -> String = { "api_1_alpha" },
@@ -38,7 +39,7 @@ class ConversationControlsTest {
             HermesApp(sessions = UiState.Ready(UiFixtures.sessions), history = history,
                 turn = turn(), openSessionId = openId(), openSession = UiFixtures.sessions.first(), now = UiFixtures.NOW,
                 onOpenSession = {}, onCloseSession = {}, onSend = { false }, onStop = {}, onRetrySessions = {},
-                onRetryHistory = {}, onNewSession = onNew, creatingSession = creating, createError = createError)
+                onRetryHistory = {}, onNewSession = onNew, creatingSession = creating, createError = createError, kanban = kanban)
         }
     }
 
@@ -63,6 +64,30 @@ class ConversationControlsTest {
         compose.waitForIdle()
         compose.runOnIdle { sessions.value = listOf(branch) + sessions.value }
         compose.onNodeWithText("Newly created branch").assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = "w840dp-h900dp") fun tasksToolbarRoutesPlusAndOverflowToSelectedBoard() {
+        val board = org.praxisog.hermes.model.KanbanBoard("a".repeat(32), "work", "Work board", "b".repeat(64), "Desktop", canCreate = true)
+        var saved = org.praxisog.hermes.model.KanbanLocalState(boards = listOf(board), selectedBoard = board.slug)
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+        val workspace = KanbanWorkspace(scope, object : KanbanCache {
+            override fun readKanban() = saved
+            override fun writeKanban(value: org.praxisog.hermes.model.KanbanLocalState): Boolean { saved = value; return true }
+        })
+        try {
+            var chats = 0
+            app(onNew = { chats++ }, kanban = workspace)
+            compose.onNodeWithText("Tasks").performClick()
+            compose.onNodeWithTag("toolbar-new-task").performClick()
+            compose.waitUntil(5000) { compose.waitForIdle(); workspace.editorId == "new" }
+            assertEquals(0, chats)
+            assertEquals(board.key + "/new", workspace.formKey)
+            compose.onNodeWithText("Keep draft").performClick()
+            compose.onNodeWithContentDescription("More options").performClick()
+            compose.onNodeWithText("Search tasks").assertIsDisplayed()
+            compose.onNodeWithText("Switch board").assertIsDisplayed()
+            compose.onNodeWithText("Search in chat").assertDoesNotExist()
+        } finally { workspace.close(); scope.coroutineContext[kotlinx.coroutines.Job]?.cancel() }
     }
 
     @Test fun newChatButtonWorksAndShareOpensAndroidChooser() {

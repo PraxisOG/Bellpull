@@ -32,6 +32,8 @@ class KanbanWorkspaceTest {
         var current = task
         var owner = board
         var offline = false
+        var hierarchyPages: List<KanbanHierarchy> = emptyList()
+        var failHierarchyAfterFirst = false
         var dropNextPost = false
         var missingTasks = emptySet<String>()
         val posted = CopyOnWriteArrayList<KanbanMutation>()
@@ -46,14 +48,17 @@ class KanbanWorkspaceTest {
             fun missing() = Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(404).message("Not Found")
                 .body("""{"error":{"message":"Task no longer exists","code":"not_found"}}""".toResponseBody("application/json".toMediaType())).build()
             if (path.contains("/tasks/") && path.substringAfterLast('/') in missingTasks) return@addInterceptor missing()
+            if (path.endsWith("/hierarchy") && failHierarchyAfterFirst && request.url.queryParameter("after") != null) return@addInterceptor missing()
             val body = when {
+                path.endsWith("/hierarchy") -> json.encodeToString(hierarchyPages[if (request.url.queryParameter("after") == null) 0 else 1])
                 request.method == "POST" -> {
                     val buffer = Buffer(); request.body!!.writeTo(buffer)
                     val mutation = json.decodeFromString<KanbanMutation>(buffer.readUtf8())
                     if (mutation.taskId in missingTasks) return@addInterceptor missing()
                     posted += mutation
                     val receipt = receipts.getOrPut(mutation.operationId) {
-                        current = if (mutation.fields == null) current.copy(revision = "d".repeat(64), comments = listOf(KanbanComment(1, "Bellpull", mutation.comment.orEmpty(), 1)))
+                        current = if (mutation.action == "contain") current.copy(revision = "d".repeat(64), containerId = mutation.containerId)
+                        else if (mutation.fields == null) current.copy(revision = "d".repeat(64), comments = listOf(KanbanComment(1, "Bellpull", mutation.comment.orEmpty(), 1)))
                         else mutation.fields!!.let { fields -> current.copy(id = if (mutation.action == "create") "t_native_created" else current.id,
                             title = fields.title, body = fields.body, assignee = fields.assignee, priority = fields.priority.toLong(), revision = "d".repeat(64)) }
                         KanbanReceipt(board = owner, operationId = mutation.operationId, state = "applied", task = current, observedAt = 2000)
@@ -74,6 +79,69 @@ class KanbanWorkspaceTest {
         while (!check()) { if (System.nanoTime() > until) error("Timed out"); Thread.sleep(10) }
     }
     @After fun cleanup() { scope.cancel() }
+
+    @Test fun completeHierarchyLoadsAcrossPagesAndFailedRefreshKeepsOfflineTree() {
+        val cache = Cache(); val host = Host()
+        host.owner = board.copy(hierarchy = true, canContain = true)
+        val parent = task.copy(id = "old-parent", subtaskCount = 1)
+        val child = task.copy(containerId = parent.id)
+        fun pages(revision: String) = listOf(
+            KanbanHierarchy(board = host.owner, tasks = listOf(parent), total = 2, revision = revision, nextAfter = parent.id, complete = false, observedAt = 2000),
+            KanbanHierarchy(board = host.owner, tasks = listOf(child), total = 2, revision = revision, complete = true, observedAt = 2000))
+        host.hierarchyPages = pages("e".repeat(64))
+        var workspace = KanbanWorkspace(scope, cache)
+        workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.hierarchy?.complete == true }
+        assertEquals(listOf(parent.id, child.id), workspace.visibleTasks.map { it.id })
+        workspace.view("Tree"); workspace.expand(parent.id)
+        waitFor { workspace.viewMode == "Tree" && parent.id in workspace.expanded }
+        host.hierarchyPages = pages("f".repeat(64)); host.failHierarchyAfterFirst = true
+        workspace.refresh()
+        waitFor { !workspace.busy && workspace.hierarchyProblem != null }
+        assertEquals("e".repeat(64), workspace.hierarchy!!.revision)
+        workspace.close(); workspace = KanbanWorkspace(scope, cache)
+        assertEquals(2, workspace.visibleTasks.size); assertEquals("Tree", workspace.viewMode)
+        assertTrue(parent.id in workspace.expanded)
+        assertEquals(0 to 1, workspace.tree.progress[parent.id])
+    }
+    @Test fun queuedContainmentIsKeptForReviewWhenServerLosesSupport() {
+        val cache = Cache(); val host = Host()
+        val capable = board.copy(canContain = true)
+        host.current = task.copy(canReparent = true)
+        cache.value = cache.value.copy(boards = listOf(capable), snapshots = listOf(snapshot(capable, host.current)))
+        val workspace = KanbanWorkspace(scope, cache)
+        workspace.reparent(task.id, null)
+        waitFor { workspace.state.pending.size == 1 }
+        val original = workspace.state.pending.single().mutation
+        workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "conflict" }
+        assertEquals(original, workspace.state.pending.single().mutation)
+        assertTrue(host.posted.isEmpty())
+    }
+
+    @Test fun offlineContainmentUsesSameImmutableReceiptRecoveryAndCannotSelfParent() {
+        val cache = Cache(); val host = Host()
+        val parent = task.copy(id = "parent")
+        host.owner = board.copy(canContain = true)
+        host.current = task.copy(canReparent = true)
+        cache.value = cache.value.copy(boards = listOf(host.owner), snapshots = listOf(snapshot(host.owner, host.current).copy(tasks = listOf(host.current, parent), total = 2)))
+        var workspace = KanbanWorkspace(scope, cache)
+        workspace.reparent(task.id, task.id)
+        Thread.sleep(50); assertTrue(workspace.state.pending.isEmpty())
+        workspace.reparent(task.id, parent.id)
+        waitFor { workspace.state.pending.size == 1 }
+        val original = workspace.state.pending.single().mutation
+        workspace.close(); workspace = KanbanWorkspace(scope, cache)
+        assertEquals(original, workspace.state.pending.single().mutation)
+        host.dropNextPost = true
+        workspace.configure(host.api, true); workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.singleOrNull()?.state == "unknown" }
+        assertEquals(original, workspace.state.pending.single().mutation)
+        workspace.refresh()
+        waitFor { !workspace.busy && workspace.state.pending.isEmpty() }
+        assertEquals(1, host.posted.size)
+        assertEquals(parent.id, host.current.containerId); assertEquals("triage", host.current.status)
+    }
 
     @Test fun offlineDraftAndQueuedCommentSurviveRestartThenSendOnceToTheirOwner() {
         val cache = Cache(); val host = Host()

@@ -264,7 +264,9 @@ internal fun HermesApp(
                     }
                     val detailPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
-                            ConversationToolbar(
+                            if (mode == WorkspaceMode.TASKS) KanbanToolbar(kanban, sideBySide, sideBySide && showList,
+                                { if (sideBySide) showList = !showList else drawerOnCover = true })
+                            else ConversationToolbar(
                                 title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
                                     ?: (if (disconnected) "Bellpull" else "Conversation") else mode.title,
                                 showList = sideBySide && showList, sideBySide = sideBySide,
@@ -287,7 +289,7 @@ internal fun HermesApp(
                                 showContext = sideBySide && showContext,
                                 onContext = { canvas?.visible = false; if (sideBySide) showContext = !showContext else infoSheet = true })
                             if (mode == WorkspaceMode.CHATS) fallbackBanner?.invoke()
-                            if (createError != null) NewChatFailure(createError)
+                            if (mode == WorkspaceMode.CHATS && createError != null) NewChatFailure(createError)
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
                                     notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings,

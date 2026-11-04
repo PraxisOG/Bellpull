@@ -31,6 +31,19 @@ async def serve(home):
         kb.create_task(conn, title="🔔" * 500, body="🔔" * 16384, priority=2**31, triage=True, board="mobile-boundaries")
     finally:
         conn.close()
+    kb.create_board("tree-fixture", name="Nested release plan")
+    store = Boards()
+    snapshot = store.snapshot("tree-fixture")
+    import uuid
+    parent = None
+    for level in range(7):
+        result = store.mutate("tree-fixture", dict(operation_id=uuid.uuid4().hex,
+            owner_id=snapshot["board"]["owner_id"], board_id=snapshot["board"]["id"],
+            task_id="draft_" + uuid.uuid4().hex, expected_revision="0" * 64, action="create", container_id=parent,
+            fields=dict(title="Release plan" if level == 0 else "Nested step " + str(level), body="Fixture subtask", priority=0, assignee=None)))
+        parent = result["task"]["id"]
+    with store.connection("tree-fixture") as conn:
+        conn.execute("UPDATE tasks SET status='done' WHERE id=?", (parent,))
     state = dict(posts=0, dropped=0, drop_next=False, task_id=task, runs=0)
 
     @web.middleware

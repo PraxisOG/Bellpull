@@ -40,6 +40,56 @@ class KanbanDeviceTest {
         } finally { request.disconnect() }
     }
 
+    @Test fun nestedTreeKeepsExpansionAndCreatesSubtaskThroughToolbar() = ui.withWindows {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val client = HermesClient(origin, { token })
+        var saved = KanbanLocalState()
+        val workspace = KanbanWorkspace(scope, object : KanbanCache {
+            override fun readKanban() = saved
+            override fun writeKanban(value: KanbanLocalState): Boolean { saved = value; return true }
+        })
+        try {
+            ui.main { workspace.configure(client, true); workspace.refresh() }
+            ui.awaitMain("Initial hierarchy did not load") { !workspace.busy && workspace.hierarchy != null }
+            ui.main { workspace.choose("tree-fixture") }
+            ui.awaitMain("Nested fixture did not load") { !workspace.busy && workspace.hierarchy?.board?.slug == "tree-fixture" }
+            ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+                scene.onActivity { activity -> activity.setContent { HermesTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    Column { KanbanToolbar(workspace, false, false, {}); KanbanScreen(workspace, false) }
+                } } } }
+                ui.tapText("Tree"); ui.tapText("Expand all")
+                ui.await("Nested descendants missing") { ui.text("Nested step 6") != null }
+                ui.screenshot("kanban-tree-device")
+                ui.tapText("Nested step 1")
+                ui.awaitMain("Task detail did not load") { !workspace.busy && workspace.detail?.task?.title == "Nested step 1" }
+                ui.tapText("Back to board")
+                ui.await("Expansion was lost") { ui.text("Nested step 6") != null }
+                ui.tapText("Collapse all")
+                ui.awaitMain("Collapse failed") { workspace.expanded.isEmpty() }
+                ui.tapText("Release plan")
+                ui.awaitMain("Parent detail not ready") { !workspace.busy && workspace.detail?.task?.title == "Release plan" }
+                ui.tapText("Add subtask")
+                ui.await("Subtask form absent") { ui.find { it.viewIdResourceName == "kanban-title" } != null }
+                assertTrue(ui.find { it.viewIdResourceName == "kanban-title" }!!.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
+                    Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Phone subtask") }))
+                ui.tapText("Create task")
+                ui.awaitMain("Subtask creation failed") { !workspace.busy && workspace.detail?.task?.title == "Phone subtask" }
+                assertNotNull(workspace.detail!!.task.containerId)
+                assertEquals("triage", workspace.detail!!.task.status)
+                assertTrue(workspace.detail!!.task.parents.isEmpty())
+                ui.screenshot("kanban-tree-subtask-device")
+                ui.tapText("Change parent")
+                ui.await("Parent picker missing") { ui.text("Containing parent") != null }
+                ui.screenshot("kanban-parent-picker-device")
+                ui.tapText("Top level (no parent)")
+                ui.awaitMain("Changing parent failed") { !workspace.busy && workspace.state.pending.isEmpty() && workspace.detail?.task?.containerId == null }
+                assertEquals("triage", workspace.detail!!.task.status)
+            }
+            assertEquals(0, control()["runs"]!!.jsonPrimitive.int)
+        } finally { workspace.close(); scope.cancel() }
+    }
+
     @Test fun mainNavigationShowsBoardsAndTodayOpensTheSameTask() = ui.withWindows {
         val context = ApplicationProvider.getApplicationContext<Context>()
         ui.main { BellpullRuntime.get(context).disconnect() }
@@ -55,10 +105,12 @@ class KanbanDeviceTest {
                 ui.tapText("Board")
                 ui.await("Column view missing") { ui.text("Triage · 0") != null || ui.text("Triage · 1") != null }
                 ui.screenshot("kanban-main-board-unfolded")
-                ui.tapText("Default")
+                ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "More options" }))
+                ui.tapText("Switch board")
                 ui.tapText("Garden projects · Kanban fixture desktop")
                 ui.await("Board selector did not switch") { ui.text("This board has no tasks.") != null }
-                ui.tapText("Garden projects")
+                ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "More options" }))
+                ui.tapText("Switch board")
                 ui.tapText("Default · Kanban fixture desktop")
                 ui.awaitMain("Default board did not return") { BellpullRuntime.get(context).kanban?.board?.slug == "default" }
                 ui.tapText("Today")
@@ -97,10 +149,10 @@ class KanbanDeviceTest {
             ui.awaitMain("Editing board missing") { !workspace.busy && workspace.snapshot?.board?.slug == "mobile-editing" }
             ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
                 scene.onActivity { activity -> activity.setContent { HermesTheme(palette = Palette.MAROON) { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-                    KanbanScreen(workspace, foreground = false)
+                    Column { KanbanToolbar(workspace, false, false, {}); KanbanScreen(workspace, foreground = false) }
                 } } } }
                 ui.main { workspace.configure(null, false) }
-                ui.tapText("New task")
+                ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "New task" }))
                 input("kanban-title", "Physical phone creation")
                 input("kanban-body", "Exact description retained offline")
                 input("kanban-assignee", "work")
@@ -125,7 +177,7 @@ class KanbanDeviceTest {
             assertNotEquals(localId, created.id); assertEquals("triage", created.status)
             ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
                 scene.onActivity { activity -> activity.setContent { HermesTheme(palette = Palette.MAROON) { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-                    KanbanScreen(workspace, foreground = false)
+                    Column { KanbanToolbar(workspace, false, false, {}); KanbanScreen(workspace, foreground = false) }
                 } } } }
                 ui.tapText("Edit task")
                 input("kanban-title", "Edited on the physical phone")
@@ -165,9 +217,9 @@ class KanbanDeviceTest {
             ui.awaitMain("Unicode board did not load") { !workspace.busy && workspace.snapshot?.board?.slug == "mobile-boundaries" }
             ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
                 scene.onActivity { activity -> activity.setContent { HermesTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-                    KanbanScreen(workspace, foreground = false)
+                    Column { KanbanToolbar(workspace, false, false, {}); KanbanScreen(workspace, foreground = false) }
                 } } } }
-                ui.tapText("New task")
+                ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "New task" }))
                 ui.await("Task title field missing") { ui.find { it.viewIdResourceName == "kanban-title" } != null }
                 assertTrue(ui.find { it.viewIdResourceName == "kanban-title" }!!.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
                     Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "a" + bell.repeat(500)) }))
@@ -202,7 +254,7 @@ class KanbanDeviceTest {
             ui.awaitMain("Task details missing") { workspace.detail != null && !workspace.busy }
             ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
                 scene.onActivity { activity -> activity.setContent { HermesTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-                    KanbanScreen(workspace, foreground = false)
+                    Column { KanbanToolbar(workspace, false, false, {}); KanbanScreen(workspace, foreground = false) }
                 } } } }
                 ui.await("Task title missing") { ui.text("Ship the mobile board") != null }
                 ui.screenshot("kanban-detail-unfolded")

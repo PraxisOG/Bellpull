@@ -38,6 +38,8 @@ internal fun ConversationToolbar(
     onActivity: (() -> Unit)? = null,
     onCanvas: (() -> Unit)? = null,
     thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
+    primaryAction: (@Composable () -> Unit)? = null,
+    menuContent: (@Composable (() -> Unit) -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var thinkingOpen by remember { mutableStateOf(false) }
@@ -67,7 +69,8 @@ internal fun ConversationToolbar(
     val actions: @Composable () -> Unit = {
         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                NewChatButton(onNewSession, creatingSession, highlighted = false, onNewLocal = onNewLocal)
+                if (primaryAction != null) primaryAction()
+                else NewChatButton(onNewSession, creatingSession, highlighted = false, onNewLocal = onNewLocal)
                 Box {
                     val actionTint = MaterialTheme.colorScheme.primary
                     NavigationAction("More", { thinkingOpen = false; menuOpen = true }, description = "More options") {
@@ -76,7 +79,8 @@ internal fun ConversationToolbar(
                         }
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = dismissMenus) {
-                        if (thinkingOpen && thinkingMenu != null && hasSession) {
+                        if (menuContent != null) menuContent(dismissMenus)
+                        else if (thinkingOpen && thinkingMenu != null && hasSession) {
                             DropdownMenuItem(text = { Text("Thinking level") },
                                 leadingIcon = { Text("‹") },
                                 modifier = Modifier.semantics { contentDescription = "Back to more options" },

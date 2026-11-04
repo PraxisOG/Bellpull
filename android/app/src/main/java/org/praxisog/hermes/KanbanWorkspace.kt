@@ -30,6 +30,17 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         private set
     var editorId by mutableStateOf<String?>(null)
         private set
+    var searchOpen by mutableStateOf(false)
+    var query by mutableStateOf("")
+    var hierarchyProblem by mutableStateOf<String?>(null)
+        private set
+    var hierarchyLoaded by mutableIntStateOf(0)
+        private set
+    val hierarchy get() = board?.let { b -> state.hierarchies.firstOrNull { it.board.key == b.key } }
+    val viewMode get() = state.viewMode ?: if (state.boardView) "Board" else "List"
+    val expanded get() = state.expanded[board?.key].orEmpty()
+    val tree get() = KanbanTree(visibleTasks, hierarchy?.complete == true)
+    val canCreate get() = board?.let { it.canCreate && !it.archived } == true && !busy && state.pending.size < 100
     private var client: HermesClient? = null
     private var closed = false
     private val lock = Mutex()
@@ -41,8 +52,8 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
     val task get() = detail?.task ?: visibleTasks.firstOrNull { it.id == selectedTask }
     val visibleTasks get() = state.pending.filter { it.board.key == board?.key && it.mutation.action == "create" }.mapNotNull { item ->
         item.mutation.fields?.let { fields -> KanbanTask(item.mutation.taskId, fields.title, "triage", KANBAN_EMPTY_REVISION,
-            assignee = fields.assignee, priority = fields.priority.toLong(), body = fields.body) }
-    } + snapshot?.tasks.orEmpty()
+            assignee = fields.assignee, priority = fields.priority.toLong(), body = fields.body, containerId = item.mutation.containerId) }
+    } + (hierarchy?.tasks ?: snapshot?.tasks).orEmpty()
     val formKey get() = editorId?.let { id -> board?.let { "${it.key}/$id" } }
     val form get() = formKey?.let { state.forms[it] }
     fun key(board: KanbanBoard, task: String) = "${board.key}/$task"
@@ -77,24 +88,34 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
 
     fun choose(slug: String) {
         if (state.boards.none { it.slug == slug }) return
-        selectedTask = null; editorId = null; fresh = false
+        selectedTask = null; editorId = null; fresh = false; query = ""; searchOpen = false; hierarchyProblem = null
         local({ it.copy(selectedBoard = slug) }) { refresh() }
     }
-    fun view(board: Boolean) = local({ it.copy(boardView = board) })
+    fun view(board: Boolean) = view(if (board) "Board" else "List")
+    fun view(mode: String) { if (mode in listOf("List", "Board", "Tree")) local({ it.copy(viewMode = mode, boardView = mode == "Board") }) }
+    fun expand(id: String) {
+        val key = board?.key ?: return
+        local({ it.copy(expanded = it.expanded + (key to it.expanded[key].orEmpty().let { ids -> if (id in ids) ids - id else ids + id })) })
+    }
+    fun expandAll(expand: Boolean) {
+        val key = board?.key ?: return
+        val ids = if (expand) visibleTasks.map { it.id }.toSet() else emptySet()
+        local({ it.copy(expanded = it.expanded + (key to ids)) })
+    }
     fun open(id: String) { if (!kanbanTaskId(id)) return; selectedTask = id; refresh() }
     fun review(item: KanbanPending) {
         if (state.boards.none { it.key == item.board.key }) return
         local({ it.copy(selectedBoard = item.board.slug) }) { selectedTask = item.mutation.taskId; fresh = false; refresh() }
     }
     fun back() { selectedTask = null }
-    fun startForm(taskId: String? = null) {
+    fun startForm(taskId: String? = null, containerId: String? = null) {
         val board = board ?: return
-        if (board.archived || (taskId == null && !board.canCreate)) return
+        if (board.archived || busy || (taskId == null && !board.canCreate) || (containerId != null && (!board.canContain || containerId.startsWith("draft_")))) return
         val current = taskId?.let { id -> detail?.task?.takeIf { it.id == id && it.editable } }
         if (taskId != null && current == null) return
         val key = "${board.key}/${taskId ?: "new"}"
         if (key !in state.forms && state.forms.size >= 100) { problem = "Too many saved task drafts. Discard a draft before starting another."; return }
-        val draft = if (current == null) KanbanFormDraft("draft_" + UUID.randomUUID().toString().replace("-", ""), KANBAN_EMPTY_REVISION)
+        val draft = if (current == null) KanbanFormDraft("draft_" + UUID.randomUUID().toString().replace("-", ""), KANBAN_EMPTY_REVISION, containerId = containerId)
             else KanbanFormDraft(current.id, current.revision, current.title, current.body, current.assignee.orEmpty(), current.priority.toString())
         var opened = false
         local({ old ->
@@ -130,7 +151,7 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         val create = editorId == "new"
         if (board.archived || (create && !board.canCreate) || pending(draft.taskId) != null || state.pending.size >= 100) return
         val mutation = KanbanMutation(UUID.randomUUID().toString().replace("-", ""), board.ownerId, board.id,
-            draft.taskId, draft.revision, if (create) "create" else "edit", fields = fields).validated()
+            draft.taskId, draft.revision, if (create) "create" else "edit", fields = fields, containerId = if (create) draft.containerId else null).validated()
         var queued = false
         local({ old ->
             if (old.forms[key]?.taskId != draft.taskId || old.forms[key]?.revision != draft.revision ||
@@ -150,7 +171,7 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         val id = if (item.mutation.action == "create") "new" else item.mutation.taskId
         val key = "${item.board.key}/$id"
         if (key !in state.forms && state.forms.size >= 100) { problem = "Too many saved task drafts. Discard a draft first."; return }
-        val draft = KanbanFormDraft(item.mutation.taskId, item.mutation.expectedRevision, fields.title, fields.body, fields.assignee.orEmpty(), fields.priority.toString())
+        val draft = KanbanFormDraft(item.mutation.taskId, item.mutation.expectedRevision, fields.title, fields.body, fields.assignee.orEmpty(), fields.priority.toString(), item.mutation.containerId)
         var opened = false
         local({ old ->
             // Delivery may acquire the lock before this tap. Never remove an
@@ -174,14 +195,16 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
 
     fun comment(id: String, text: String = draft(id)) = enqueue(id, "comment", null, text)
     fun move(id: String, target: String) = enqueue(id, "move", target, null)
-    private fun enqueue(id: String, action: String, target: String?, text: String?) {
+    fun reparent(id: String, parent: String?) = enqueue(id, "contain", null, null, parent)
+    private fun enqueue(id: String, action: String, target: String?, text: String?, parent: String? = null) {
         val board = board ?: return
-        val task = detail?.task?.takeIf { it.id == id } ?: snapshot?.tasks?.firstOrNull { it.id == id } ?: return
+        val task = detail?.task?.takeIf { it.id == id } ?: visibleTasks.firstOrNull { it.id == id } ?: return
         if (board.archived || pending(id) != null) return
         if (action == "comment" && text.isNullOrBlank()) return
         if (action == "move" && target !in task.allowedMoves) return
+        if (action == "contain" && (!board.canContain || !task.canReparent || !tree.canContain(id, parent))) return
         val mutation = KanbanMutation(UUID.randomUUID().toString().replace("-", ""), board.ownerId, board.id,
-            id, task.revision, action, target, text).validated()
+            id, task.revision, action, target, text, containerId = parent).validated()
         var queued = false
         local({ old ->
             if (old.pending.any { it.board.key == board.key && it.mutation.taskId == id }) old
@@ -215,6 +238,7 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
             if (current == null || current.board.key != item.board.key || current.task.id != item.mutation.taskId) return
             if (item.mutation.action == "move" && item.mutation.status !in current.task.allowedMoves) return
             if (item.mutation.action == "edit" && !current.task.editable) return
+            if (item.mutation.action == "contain" && (!current.task.canReparent || board?.canContain != true || !tree.canContain(current.task.id, item.mutation.containerId))) return
         }
         local({ old -> old.copy(pending = old.pending.map { if (it.mutation.operationId != operation) it else
             it.copy(mutation = it.mutation.copy(operationId = UUID.randomUUID().toString().replace("-", ""),
@@ -305,6 +329,10 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
                     update(pending, "conflict", "Task changed. Open it and review this edit."); continue
                 }
             }
+            if (shouldSend && (pending.mutation.action == "contain" || pending.mutation.containerId != null) && !owner.canContain) {
+                update(pending, if (pending.state == "queued") "conflict" else "unknown", "This server no longer supports containment. Restore the plugin before retrying this edit.")
+                continue
+            }
             if (shouldSend) {
                 if (!update(pending, "unknown", "Checking delivery with Hermes…")) return
                 val receipt = withContext(Dispatchers.IO) { api.kanbanMutation(owner.slug, pending.mutation) }
@@ -327,6 +355,8 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
         val current = (refreshed as HermesResult.Ok).value
         if (current.board.key != currentBoard.key) { fresh = false; problem = "Board was replaced. Refresh to load its new identity."; return }
         save { it.copy(snapshots = (listOf(current) + it.snapshots.filterNot { s -> s.board.key == currentBoard.key }).take(10)) }
+        if (currentBoard.hierarchy) loadHierarchy(api, currentBoard)
+        else hierarchyProblem = "This server has no containment API. Update the Bellpull plugin to load a tree."
         selectedTask?.takeUnless { id -> pending(id)?.mutation?.action == "create" }?.let { id ->
             val detail = withContext(Dispatchers.IO) { api.kanbanTask(currentBoard.slug, id) }
             if (closed) return
@@ -335,6 +365,45 @@ internal class KanbanWorkspace(private val scope: CoroutineScope, private val ca
                 val value = (detail as HermesResult.Ok).value
                 if (value.board.key == currentBoard.key) save { it.copy(details = (listOf(value) + it.details.filterNot { d -> d.board.key == value.board.key && d.task.id == id }).take(10)) }
             }
+        }
+    }
+
+    private suspend fun loadHierarchy(api: HermesClient, board: KanbanBoard) {
+        hierarchyLoaded = 0
+        var after: String? = null
+        var revision: String? = null
+        val tasks = mutableListOf<KanbanTask>()
+        val ids = mutableSetOf<String>()
+        while (!closed) {
+            val result = withContext(Dispatchers.IO) { api.kanbanHierarchy(board.slug, after, revision) }
+            if (result is HermesResult.Err) {
+                hierarchyProblem = "Hierarchy unavailable: ${result.error.toUserMessage()}. Refresh to retry; saved tasks are retained."
+                return
+            }
+            val page = (result as HermesResult.Ok).value
+            if (page.board.key != board.key || (revision != null && page.revision != revision) ||
+                page.tasks.any { !ids.add(it.id) } || (!page.complete && (page.tasks.isEmpty() || page.nextAfter != page.tasks.last().id))) {
+                hierarchyProblem = "Hierarchy changed or returned an invalid page. Refresh to retry."
+                return
+            }
+            val cached = hierarchy
+            if (after == null && cached?.revision == page.revision && cached.complete && cached.total == page.total) {
+                if (save { it.copy(hierarchies = it.hierarchies.map { h -> if (h.board.key == board.key) h.copy(observedAt = page.observedAt) else h }) }) hierarchyProblem = null
+                return
+            }
+            revision = page.revision
+            tasks.addAll(page.tasks)
+            hierarchyLoaded = tasks.size
+            if (tasks.size > 100000 || tasks.size > page.total || (page.complete && tasks.size != page.total)) {
+                hierarchyProblem = "Hierarchy exceeds the phone cache limit or is incomplete. Saved tasks are retained."
+                return
+            }
+            if (page.complete) {
+                if (save { it.copy(hierarchies = (listOf(page.copy(tasks = tasks.toList())) +
+                    it.hierarchies.filterNot { h -> h.board.key == board.key }).take(3)) }) hierarchyProblem = null
+                return
+            }
+            after = page.nextAfter
         }
     }
 
