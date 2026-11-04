@@ -22,6 +22,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     var defaultSelection by mutableStateOf(cache.defaultModel()); private set
     var drafts by mutableStateOf(cache.draftFiles()); private set
     var artifacts by mutableStateOf<List<Artifact>>(emptyList()); private set
+    var artifactsLoading by mutableStateOf(false); private set
     var storage by mutableStateOf<ArtifactStorage?>(null); private set
     var warnings by mutableStateOf<List<ArtifactWarning>>(emptyList()); private set
     val errors = mutableStateMapOf<String, String>()
@@ -31,6 +32,11 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     private val transfers = java.util.concurrent.ConcurrentHashMap<String, HermesClient.Streaming>()
     private val sendGenerations = mutableMapOf<String, Int>()
     private val imports = kotlinx.coroutines.sync.Mutex()
+    var serverUploading by mutableStateOf(false); private set
+    var serverUploadedCount by mutableIntStateOf(0); private set
+    @Volatile private var serverUploadGeneration = 0
+    private val serverTransferLock = Any()
+    private var artifactRefreshGeneration = 0
     @Volatile private var closed = false
 
     init {
@@ -44,7 +50,8 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         drafts = values
         return true
     }
-    fun filesFor(sessionId: String?) = drafts.filter { it.sessionId == sessionId }
+    fun filesFor(sessionId: String?) = drafts.filter { it.sessionId == sessionId && !it.uploadOnly }
+    val serverUploads get() = drafts.filter { it.uploadOnly }
     private fun local(id: String): File { require(id.matches(Regex("[a-f0-9]{32}"))); return File(root, id) }
 
     suspend fun refreshCatalog() {
@@ -81,18 +88,22 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     fun clearDefault() { if (cache.writeDefaultModel(null)) defaultSelection = null }
     fun applyDefaultToNewSession(id: String) { defaultSelection?.let { choose(id, it) {} } }
 
-    fun addUris(sessionId: String, uris: List<Uri>) {
+    fun addUris(sessionId: String, uris: List<Uri>, uploadOnly: Boolean = false) {
         if (closed) return
-        if (!runAttachmentsSupported) {
-            errors[sessionId] = "This server cannot receive chat attachments. Your draft is saved."
+        val errorKey = if (uploadOnly) "upload-import" else sessionId
+        val importKey = if (uploadOnly) "uploads" else sessionId
+        val uploadGeneration = serverUploadGeneration
+        if (if (uploadOnly) !filesSupported else !runAttachmentsSupported) {
+            errors[errorKey] = "This server cannot receive ${if (uploadOnly) "files" else "chat attachments"}. Your draft is saved."
             return
         }
-        importing[sessionId] = (importing[sessionId] ?: 0) + 1
+        errors.remove(errorKey)
+        importing[importKey] = (importing[importKey] ?: 0) + 1
         scope.launch {
             imports.lock()
             try { for (uri in uris) {
                 if (closed) return@launch
-                if (filesFor(sessionId).size >= 8) { errors[sessionId] = "Choose up to eight attachments."; break }
+                if ((if (uploadOnly) serverUploads else filesFor(sessionId)).size >= 8) { errors[errorKey] = "Choose up to eight attachments."; break }
                 val identity = UUID.randomUUID().toString().replace("-", "")
                 val target = local(identity)
                 val result = withContext(Dispatchers.IO) { runCatching {
@@ -118,17 +129,25 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                         }
                     } }
                     require(total > 0) { "The selected file is empty." }
-                    DraftFile(identity, sessionId, name, mime, total)
+                    DraftFile(identity, sessionId, name, mime, total, uploadOnly = uploadOnly)
                 } }
                 result.fold(onSuccess = { file ->
-                    if (closed || !persist(drafts + file)) { target.delete(); if (!closed) errors[sessionId] = "Could not save the attachment draft." }
-                    else errors.remove(sessionId)
-                }, onFailure = { target.delete(); if (!closed) errors[sessionId] = it.message ?: "Could not read this file." })
-            } } finally { imports.unlock(); if (!closed) importing[sessionId] = ((importing[sessionId] ?: 1) - 1).coerceAtLeast(0) }
+                    if (closed || !persist(drafts + file)) { target.delete(); if (!closed) errors[errorKey] = "Could not save the attachment draft." }
+                }, onFailure = { target.delete(); if (!closed) errors[errorKey] = it.message ?: "Could not read this file." })
+            } } finally {
+                imports.unlock()
+                if (!closed) {
+                    importing[importKey] = ((importing[importKey] ?: 1) - 1).coerceAtLeast(0)
+                    if (uploadOnly && importing[importKey] == 0 && uploadGeneration == serverUploadGeneration) uploadServerFiles()
+                }
+            }
         }
     }
     fun remove(id: String) {
-        drafts.find { it.id == id }?.sessionId?.let { if (sending[it] == true) cancel(it) }
+        drafts.find { it.id == id }?.let {
+            if (it.uploadOnly && serverUploading) cancelServerUploads()
+            else if (!it.uploadOnly && sending[it.sessionId] == true) cancel(it.sessionId)
+        }
         transfers.remove(id)?.cancel()
         if (persist(drafts.filterNot { it.id == id })) { local(id).delete(); progress.remove(id) }
     }
@@ -137,6 +156,50 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         filesFor(sessionId).forEach { transfers[it.id]?.cancel() }
         sending[sessionId] = false
         errors[sessionId] = "Upload cancelled. Your draft and files are saved."
+    }
+    /** Standalone transfer queue. Never changes chat drafts, selects models or starts a run. */
+    fun uploadServerFiles() {
+        if (closed || !filesSupported || serverUploading || (importing["uploads"] ?: 0) > 0 || serverUploads.isEmpty()) return
+        val generation = synchronized(serverTransferLock) { ++serverUploadGeneration }
+        fun active() = !closed && serverUploading && serverUploadGeneration == generation
+        serverUploading = true; serverUploadedCount = 0; errors.remove("uploads")
+        scope.launch {
+            try {
+                while (active()) {
+                    val file = serverUploads.firstOrNull() ?: break
+                    var transfer: HermesClient.Streaming? = null
+                    val result = withContext(Dispatchers.IO) { client.uploadArtifact(local(file.id), file,
+                        onStart = { handle ->
+                            transfer = handle
+                            synchronized(serverTransferLock) { if (active()) transfers[file.id] = handle else handle.cancel() }
+                        },
+                        onProgress = { bytes -> scope.launch { if (active()) progress[file.id] = bytes.toFloat() / file.size } }) }
+                    transfer?.let { transfers.remove(file.id, it) }
+                    if (!active()) return@launch
+                    when (result) {
+                        is HermesResult.Err -> { fail("uploads", result.error); return@launch }
+                        is HermesResult.Ok -> {
+                            if (!persist(drafts.filterNot { it.id == file.id })) {
+                                errors["uploads"] = "File uploaded, but local progress could not be saved. Retry uses the same file identity."
+                                return@launch
+                            }
+                            local(file.id).delete(); progress.remove(file.id)
+                            serverUploadedCount++
+                        }
+                    }
+                }
+            } finally {
+                if (!closed && serverUploadGeneration == generation) { serverUploading = false; refreshArtifacts() }
+            }
+        }
+    }
+    fun cancelServerUploads() {
+        synchronized(serverTransferLock) {
+            serverUploadGeneration++
+            serverUploads.forEach { transfers.remove(it.id)?.cancel() }
+            serverUploading = false
+        }
+        errors["uploads"] = "Upload cancelled. Files are saved for retry."
     }
     fun accepted(record: RunSubmission) {
         val ids = record.bellpull?.artifactIds.orEmpty().toSet()
@@ -193,14 +256,17 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     }
     fun refreshArtifacts() {
         if (!filesSupported || closed) return
+        val generation = ++artifactRefreshGeneration
+        artifactsLoading = true
         scope.launch {
             when (val result = withContext(Dispatchers.IO) { client.artifacts() }) {
-                is HermesResult.Ok -> if (!closed) {
+                is HermesResult.Ok -> if (!closed && generation == artifactRefreshGeneration) {
                     artifacts = result.value.data; storage = result.value.storage
                     warnings = result.value.warnings; errors.remove("artifacts")
                 }
-                is HermesResult.Err -> fail("artifacts", result.error)
+                is HermesResult.Err -> if (generation == artifactRefreshGeneration) fail("artifacts", result.error)
             }
+            if (!closed && generation == artifactRefreshGeneration) artifactsLoading = false
         }
     }
     fun deleteArtifact(item: Artifact) {
@@ -227,7 +293,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         } finally { temporary.delete(); transfers.remove(item.id) }
     }
     fun cancelDownload(id: String) { transfers[id]?.cancel() }
-    fun close() { closed = true; thumbnails.close(); transfers.values.forEach { it.cancel() }; transfers.clear() }
+    fun close() = synchronized(serverTransferLock) { closed = true; thumbnails.close(); transfers.values.forEach { it.cancel() }; transfers.clear() }
     companion object {
         const val LIMIT = 25L * 1024 * 1024
         val ALLOWED = setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/pdf", "text/plain", "text/markdown",

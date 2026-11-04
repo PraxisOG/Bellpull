@@ -53,4 +53,4 @@ data class ModelSelection(val model: String, val provider: String,
 
 /** Metadata is encrypted with the profile; content lives in profile-private files. */
 @Serializable data class DraftFile(val id: String, val sessionId: String, val name: String, val mime: String,
-    val size: Long, val uploaded: Boolean = false)
+    val size: Long, val uploaded: Boolean = false, val uploadOnly: Boolean = false)
