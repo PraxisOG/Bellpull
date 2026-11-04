@@ -5,12 +5,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -18,14 +21,10 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.*
 
 @Composable
-internal fun FileSharingStatus(filesSupported: Boolean, inputsSupported: Boolean, onRefresh: () -> Unit) {
-    if (filesSupported && inputsSupported) return
-    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-        Text(if (filesSupported) "File sharing available" else "Server cannot share files", style = MaterialTheme.typography.titleSmall)
-        Text(if (filesSupported)
-            "Generated files are available here. This server does not support attaching files to chat messages."
-        else "The Bellpull plugin is missing or unavailable on this server. Generated files cannot appear here until file sharing is enabled.",
-            style = MaterialTheme.typography.bodySmall)
+internal fun FileSharingStatus(filesSupported: Boolean, onRefresh: () -> Unit) {
+    if (filesSupported) return
+    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Text("Server file sharing is unavailable.", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = onRefresh) { Text("Check server again") }
     }
 }
@@ -109,45 +108,54 @@ internal fun AttachmentBrowser(items: List<Artifact>, sessions: List<Session>, e
     var selectedSession by rememberSaveable { mutableStateOf<String?>(null) }
     var filterMenu by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Artifact?>(null) }
-    Text("Attachments", style = MaterialTheme.typography.titleMedium)
-    storage?.let { Text("${it.usedBytes / (1024 * 1024)} of ${it.quotaBytes / (1024 * 1024)} MiB used · Files kept until deleted",
-        style = MaterialTheme.typography.bodySmall) }
-    warnings.take(5).forEach { Text("${it.name}: ${it.message}", style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error) }
-    deleting?.let { item -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete file?") },
-        text = { Text("Delete ${item.name} from the server? This removes its content from all conversations and branches. The history keeps an unavailable-file reference.") },
-        confirmButton = { TextButton(onClick = { onDelete?.invoke(item); deleting = null }) { Text("Delete") } },
-        dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } }) }
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box {
-            TextButton(onClick = { filterMenu = true }) { Text(if (selectedSession == null) "All conversations ▾" else "Conversation ▾") }
-            DropdownMenu(filterMenu, { filterMenu = false }) {
-                DropdownMenuItem(text = { Text("All conversations") }, onClick = { selectedSession = null; filterMenu = false })
-                items.flatMap { listOf(it.sessionId) + it.sessionIds }.distinct().forEach { id -> DropdownMenuItem(
-                    text = { Text(sessions.find { it.id == id }?.title ?: id, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    onClick = { selectedSession = id; filterMenu = false }) }
+    var query by rememberSaveable { mutableStateOf("") }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Attachments", style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(query, { query = it }, singleLine = true, label = { Text("Search files") },
+            trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text("Clear") } },
+            modifier = Modifier.fillMaxWidth())
+        storage?.let { Text("${it.usedBytes / (1024 * 1024)} of ${it.quotaBytes / (1024 * 1024)} MiB used · Files kept until deleted",
+            style = MaterialTheme.typography.bodySmall) }
+        warnings.take(5).forEach { Text("${it.name}: ${it.message}", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error) }
+        deleting?.let { item -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete file?") },
+            text = { Text("Delete ${item.name} from the server? This removes its content from all conversations and branches. The history keeps an unavailable-file reference.") },
+            confirmButton = { TextButton(onClick = { onDelete?.invoke(item); deleting = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } }) }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box {
+                TextButton(onClick = { filterMenu = true }) { Text(if (selectedSession == null) "All conversations ▾" else "Conversation ▾") }
+                DropdownMenu(filterMenu, { filterMenu = false }) {
+                    DropdownMenuItem(text = { Text("All conversations") }, onClick = { selectedSession = null; filterMenu = false })
+                    items.flatMap { listOf(it.sessionId) + it.sessionIds }.distinct().forEach { id -> DropdownMenuItem(
+                        text = { Text(sessions.find { it.id == id }?.title ?: id, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        onClick = { selectedSession = id; filterMenu = false }) }
+                }
             }
+            TextButton(onClick = onRefresh) { Text("Refresh") }
         }
-        TextButton(onClick = onRefresh) { Text("Refresh") }
-    }
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        listOf("Date", "Name", "Type", "Size").forEach { label -> FilterChip(order == label, { order = label }, label = { Text(label) }) }
-    }
-    error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-    val visible = items.mapNotNull { item -> selectedSession?.let(item::forSession) ?: item.takeIf { selectedSession == null } }.let { values -> when (order) {
-        "Name" -> values.sortedBy { it.name.lowercase() }; "Type" -> values.sortedBy { it.mime }
-        "Size" -> values.sortedByDescending { it.size }; else -> values.sortedByDescending { it.createdAt }
-    } }
-    if (visible.isEmpty()) Text("No attachments yet.", style = MaterialTheme.typography.bodySmall)
-    visible.forEach { item -> OutlinedCard(onClick = { onPreview(item) }, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(10.dp)) {
-            Text(item.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${item.mime.substringAfterLast('/')} · ${(item.size + 1023) / 1024} KB · ${if (item.source == "agent") "Generated" else "Uploaded"}" +
-                if (item.deleted) " · Deleted" else if (item.available) "" else " · Unavailable", style = MaterialTheme.typography.labelSmall)
-            TextButton(onClick = { onSource(item.sessionId) }, contentPadding = PaddingValues(0.dp)) {
-                Text(sessions.find { it.id == item.sessionId }?.title ?: "Open source conversation", maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (onDelete != null && !item.deleted) TextButton(onClick = { deleting = item }, contentPadding = PaddingValues(0.dp)) { Text("Delete file") }
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            listOf("Date", "Name", "Type", "Size").forEach { label -> FilterChip(order == label, { order = label }, label = { Text(label) }) }
         }
-    } }
+        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+        val visible = items.mapNotNull { item -> selectedSession?.let(item::forSession) ?: item.takeIf { selectedSession == null } }
+            .filter { query.isBlank() || it.name.contains(query.trim(), true) || it.mime.contains(query.trim(), true) }.let { values -> when (order) {
+            "Name" -> values.sortedBy { it.name.lowercase() }; "Type" -> values.sortedBy { it.mime }
+            "Size" -> values.sortedByDescending { it.size }; else -> values.sortedByDescending { it.createdAt }
+        } }
+        if (visible.isEmpty()) Text(if (items.isEmpty()) "No attachments yet." else "No matching files.", style = MaterialTheme.typography.bodySmall)
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(visible, key = { it.id }) { item -> OutlinedCard(onClick = { onPreview(item) }, modifier = Modifier.fillMaxWidth().testTag("library-file-${item.id}")) {
+                Column(Modifier.padding(10.dp)) {
+                    Text(item.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${item.mime.substringAfterLast('/')} · ${(item.size + 1023) / 1024} KB · ${if (item.source == "agent") "Generated" else "Uploaded"}" +
+                        if (item.deleted) " · Deleted" else if (item.available) "" else " · Unavailable", style = MaterialTheme.typography.labelSmall)
+                    TextButton(onClick = { onSource(item.sessionId) }, contentPadding = PaddingValues(0.dp)) {
+                        Text(sessions.find { it.id == item.sessionId }?.title ?: "Open source conversation", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (onDelete != null && !item.deleted) TextButton(onClick = { deleting = item }, contentPadding = PaddingValues(0.dp)) { Text("Delete file") }
+                }
+            } }
+        }
+    }
 }

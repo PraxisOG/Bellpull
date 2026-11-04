@@ -1,14 +1,20 @@
 package org.praxisog.hermes
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -51,26 +57,41 @@ internal fun GpuPanel(readings: GpuTelemetry?, error: String?, now: Double) {
         error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
         readings?.cards?.forEach { card -> key(card.id) {
             val stale = error != null || card.stale || now - card.sampledAt > 45
+            var expanded by rememberSaveable(card.id) { mutableStateOf(false) }
+            val primary = primaryGpuSensor(card)
             OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(card.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button) { expanded = !expanded }
+                    .semantics { contentDescription = "${card.name} sensor details"; stateDescription = if (expanded) "Expanded" else "Collapsed" }
+                    .padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(card.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (stale) Text("Stale", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(if (expanded) "  ▴" else "  ▾")
+                    }
+                    if (primary != null) TemperatureBar(primary, stale, details = false)
+                    else Text("Temperature unavailable", style = MaterialTheme.typography.labelSmall)
+                }
+                if (expanded) Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp).testTag("gpu-details-${card.id}"),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(card.busId.ifBlank { card.id }, style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     card.sensors.forEach { sensor -> TemperatureBar(sensor, stale) }
                     Text((if (stale) "Stale · " else "Sample · ") + DateFormat.getTimeInstance(DateFormat.MEDIUM)
                         .format(Date((card.sampledAt * 1000).toLong())), style = MaterialTheme.typography.labelSmall,
                         color = if (stale) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                    readings.scaleNote.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         } }
         readings?.errors?.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        readings?.scaleNote?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (readings != null && readings.cards.isEmpty() && readings.errors.isEmpty() && error == null)
+            Text("No GPU sensors available.", style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
-private fun TemperatureBar(sensor: GpuSensor, stale: Boolean) {
+private fun TemperatureBar(sensor: GpuSensor, stale: Boolean, details: Boolean = true) {
     val value = sensor.celsius?.takeIf { it.isFinite() }
     val markerColor = MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -86,7 +107,14 @@ private fun TemperatureBar(sensor: GpuSensor, stale: Boolean) {
         }
         Text(value?.let { "${it.toInt()}°C" } ?: "N/A", Modifier.width(40.dp), style = MaterialTheme.typography.labelSmall)
     }
-    Text("${sensor.scaleMin.toInt()}–${sensor.scaleMax.toInt()}°C" +
+    if (details) Text("${sensor.scaleMin.toInt()}–${sensor.scaleMax.toInt()}°C" +
         (sensor.slowdownCelsius?.let { " · driver slowdown ${it.toInt()}°C" } ?: ""),
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Prefer the core/edge reading; label a fallback sensor honestly when that is unavailable. */
+internal fun primaryGpuSensor(card: GpuCard): GpuSensor? {
+    val valid = card.sensors.filter { it.celsius?.isFinite() == true }
+    return valid.firstOrNull { it.name.lowercase() in setOf("edge", "gpu", "core") }
+        ?: valid.maxByOrNull { it.celsius!! } ?: card.sensors.firstOrNull()
 }

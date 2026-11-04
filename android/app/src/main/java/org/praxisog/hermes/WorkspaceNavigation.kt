@@ -52,14 +52,14 @@ internal fun WorkspaceModes(selected: WorkspaceMode, includeTasks: Boolean = fal
 }
 
 @Composable
-internal fun ToolsWorkspace(onSearch: () -> Unit, onContext: (() -> Unit)?,
-    extraTools: (@Composable () -> Unit)? = null) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Open an app or turn a search into a new chat draft.", style = MaterialTheme.typography.bodyMedium)
-        OutlinedButton(onClick = onSearch) { Text("Search apps & chats") }
-        if (onContext != null) OutlinedButton(onClick = onContext) { Text("Session info") }
-        if (extraTools != null) extraTools() else Text("Connect a server in Settings to use server tools.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+internal fun ToolsWorkspace(extraTools: (@Composable (androidx.compose.ui.unit.Dp) -> Unit)? = null) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val galleryHeight = (maxHeight * .5f).coerceIn(220.dp, 480.dp)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (extraTools != null) extraTools(galleryHeight) else Text("Connect a server in Settings to use server tools.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

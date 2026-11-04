@@ -37,8 +37,8 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
     }
     @Volatile private var closed = false
     @Volatile private var transfer: HermesClient.Streaming? = null
-    suspend fun load(item: Artifact): Bitmap? = withContext(Dispatchers.IO) {
-        if (!eligible(item) || closed) return@withContext null
+    suspend fun load(item: Artifact, allowPdf: Boolean = false): Bitmap? = withContext(Dispatchers.IO) {
+        if (!eligible(item, allowPdf) || closed) return@withContext null
         val key = "${item.id}-${item.sha256}"
         cache.get(key)?.let { return@withContext it }
         lock.withLock {
@@ -55,7 +55,11 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
                 } finally { transfer = null; temporary.delete() }
             }
             target.setLastModified(System.currentTimeMillis())
-            val bitmap = if (item.mime == "image/svg+xml") SvgPreview.render(target, 768) else decode(target)
+            val bitmap = when (item.mime) {
+                "image/svg+xml" -> SvgPreview.render(target, 768)
+                "application/pdf" -> pdfThumbnail(target)
+                else -> decode(target)
+            }
             if (bitmap == null) return@withLock null
             if (closed) return@withLock null
             cache.put(key, bitmap)
@@ -68,8 +72,8 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
     }
     fun close() { closed = true; transfer?.cancel(); cache.evictAll() }
     companion object {
-        fun eligible(item: Artifact) = item.available && !item.deleted && item.size in 1..8L * 1024 * 1024 &&
-            item.mime in setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml") &&
+        fun eligible(item: Artifact, allowPdf: Boolean = false) = item.available && !item.deleted && item.size in 1..8L * 1024 * 1024 &&
+            (item.mime in setOf("image/png", "image/jpeg", "image/webp", "image/svg+xml") || (allowPdf && item.mime == "application/pdf")) &&
             (item.mime != "image/svg+xml" || item.size <= SvgPreview.MAX_BYTES) &&
             item.id.matches(Regex("[a-f0-9]{32}")) && item.sha256.matches(Regex("[a-f0-9]{64}"))
         internal fun decode(file: File): Bitmap? {
@@ -80,23 +84,35 @@ internal class ArtifactThumbnails(private val root: File, private val client: He
             while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 768) sample *= 2
             return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
         }
+        private fun pdfThumbnail(file: File): Bitmap? = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+            android.graphics.pdf.PdfRenderer(descriptor).use { document ->
+                if (document.pageCount == 0) return null
+                document.openPage(0).use { page ->
+                    val scale = 768f / maxOf(page.width, page.height, 1)
+                    Bitmap.createBitmap((page.width * scale).toInt().coerceAtLeast(1), (page.height * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888).also {
+                        it.eraseColor(android.graphics.Color.WHITE)
+                        page.render(it, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-internal fun ArtifactThumbnail(item: Artifact, onView: (Artifact) -> Unit) {
+internal fun ArtifactThumbnail(item: Artifact, onView: (Artifact) -> Unit, height: androidx.compose.ui.unit.Dp? = null, allowPdf: Boolean = false) {
     val source = LocalArtifactThumbnails.current ?: return
     val size = LocalImagePreviewSize.current
-    if (size == ImagePreviewSize.OFF || !ArtifactThumbnails.eligible(item)) return
+    if (size == ImagePreviewSize.OFF || !ArtifactThumbnails.eligible(item, allowPdf)) return
     var retry by remember(source, item.id, item.sha256) { mutableIntStateOf(0) }
     var bitmap by remember(source, item) { mutableStateOf<Bitmap?>(null) }
     var loading by remember(source, item) { mutableStateOf(true) }
-    LaunchedEffect(source, item, retry) {
+    LaunchedEffect(source, item, retry, allowPdf) {
         loading = true
-        bitmap = try { source.load(item) } catch (error: CancellationException) { throw error } catch (_: Exception) { null }
+        bitmap = try { source.load(item, allowPdf) } catch (error: CancellationException) { throw error } catch (_: Exception) { null }
         loading = false
     }
-    Box(Modifier.fillMaxWidth().height(size.height.dp).testTag("thumbnail-${item.id}").padding(8.dp)
+    Box(Modifier.fillMaxWidth().height(height ?: size.height.dp).testTag("thumbnail-${item.id}").padding(8.dp)
         .clickable(onClickLabel = "Open ${item.name}") { onView(item) }, contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), contentDescription = item.name,
             contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }

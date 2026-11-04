@@ -94,7 +94,7 @@ class RepairUiScreenshotTest {
     private fun lifecycle() {
         var deleted by mutableStateOf(false)
         compose.setContent { HermesTheme { Surface {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+            Column(Modifier.fillMaxSize().padding(12.dp)) {
                 AttachmentBrowser(listOf(Artifact("a".repeat(32), "chat", "report.pdf", "application/pdf", 4096,
                     "digest", 1000.0, "agent", available = !deleted, deleted = deleted)), emptyList(), null,
                     {}, {}, {}, ArtifactStorage(25L * 1024 * 1024, 512L * 1024 * 1024),
@@ -116,10 +116,11 @@ class RepairUiScreenshotTest {
 
     private fun unavailableFiles(sharing: Boolean) {
         compose.setContent { HermesTheme { Surface { Column(Modifier.padding(16.dp)) {
-            FileSharingStatus(sharing, false, {})
+            FileSharingStatus(sharing, {})
             UnavailableAttachmentsButton(sharing)
         } } } }
-        compose.onNodeWithText(if (sharing) "File sharing available" else "Server cannot share files").assertExists()
+        if (sharing) compose.onNodeWithText("File sharing available").assertDoesNotExist()
+        else compose.onNodeWithText("Server file sharing is unavailable.").assertExists()
         compose.onNodeWithContentDescription("Chat attachments unavailable").performClick()
         compose.onNodeWithText("Chat attachments unavailable").assertExists()
         compose.onRoot().captureRoboImage()

@@ -87,7 +87,7 @@ internal fun HermesApp(
     disconnected: Boolean = false,
     serverProfiles: (@Composable () -> Unit)? = null,
     settingsRevision: Int = 0,
-    extraTools: (@Composable () -> Unit)? = null,
+    extraTools: (@Composable (androidx.compose.ui.unit.Dp) -> Unit)? = null,
     planningView: (@Composable () -> Unit)? = null,
     modelControl: (@Composable () -> Unit)? = null,
     thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
@@ -294,8 +294,7 @@ internal fun HermesApp(
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
                                     notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings,
                                     notificationProblem, notificationsUseRelay, onNotificationSettings)
-                                WorkspaceMode.TOOLS -> ToolsWorkspace({ expandedSearch = true },
-                                    if (openSessionId == null) null else ({ infoSheet = true }), extraTools)
+                                WorkspaceMode.TOOLS -> ToolsWorkspace(extraTools)
                                 WorkspaceMode.TASKS -> KanbanScreen(kanban, foreground, open)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
                                     selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,

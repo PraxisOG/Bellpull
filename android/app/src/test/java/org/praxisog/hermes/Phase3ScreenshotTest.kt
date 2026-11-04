@@ -46,7 +46,7 @@ class Phase3ScreenshotTest {
             Artifact("b".repeat(32), UiFixtures.sessions[0].id, "reference-photo.png", "image/png", 40000,
                 "0".repeat(64), UiFixtures.NOW - 100, "upload", available = false))
         compose.setContent { HermesTheme(palette = Palette.MAROON) { Surface {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AttachmentBrowser(items, UiFixtures.sessions, null, {}, {}, {})
             }
         } } }
