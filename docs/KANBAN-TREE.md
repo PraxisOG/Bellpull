@@ -37,6 +37,9 @@ Tree when a task has a nonblank native `session_id`. The action uses the existin
 conversation navigation callback independently of the task-details click. No
 conversation is fabricated for tasks without a link.
 
+The later [board chat shortcut](KANBAN-BOARD-CHATS.md) adds a toolbar button for
+the distinct chats linked to all loaded tasks on the selected board.
+
 Operational limits:
 
 - Containment requires this updated plugin. Older plugins still support the

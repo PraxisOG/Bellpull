@@ -17,6 +17,14 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-03, board chat shortcut):** build on `b837387`
+using `feature/kanban-board-chats-20261103`. Add a visible board-level chat control
+using explicit task-origin chat links: open one directly or choose among distinct
+linked chats, including nested/older tasks from the complete-board cache. Preserve
+card shortcuts, compact layout, incomplete/offline notices and existing navigation.
+Use the isolated phone fixture for touch checks; no release, regular-app install
+or Moe deployment is requested.
+
 **Current task authority (2026-11-03, Tools cleanup):** use
 `feature/tools-cleanup-20261103` from `9a918df`. Replace the inline attachment list
 with eight recent previews and a right-aligned Search library, condense GPUs into
