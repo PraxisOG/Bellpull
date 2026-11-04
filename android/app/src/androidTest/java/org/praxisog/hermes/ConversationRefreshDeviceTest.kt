@@ -65,7 +65,8 @@ class ConversationRefreshDeviceTest {
         } finally { release.countDown(); ui.main { store.close(); scope.cancel() }; client.close() }
     }
     private fun pull() {
-        val node = checkNotNull(ui.find { it.isScrollable })
+        // Short lists have no accessibility scroll action, but still accept pull gestures.
+        val node = checkNotNull(ui.find { it.actionList.any { action -> action.label?.toString() == "Refresh conversations" } })
         val bounds = Rect().also(node::getBoundsInScreen)
         val start = SystemClock.uptimeMillis()
         for (step in 0..25) {

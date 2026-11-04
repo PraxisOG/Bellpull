@@ -30,23 +30,28 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
         finally:
             adapter._run_idempotency_store.close()
 
-    async def test_unreviewed_host_source_keeps_portable_files_and_disables_private_run_features(self):
+    async def test_unreviewed_host_source_gates_private_features_and_checks_native_contracts(self):
         from plugins.bellpull.http import wire
-        with patch("plugins.bellpull.http.source_mode", return_value=None):
-            adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "unsupported-fixture-key"}))
-            app = web.Application()
-            wire(app, adapter)
-            async with TestClient(TestServer(app)) as client:
-                response = await client.get("/api/bellpull/capabilities", headers={"Authorization": "Bearer unsupported-fixture-key"})
-                self.assertEqual(200, response.status)
-                features = (await response.json())["features"]
-                self.assertTrue(features["bellpull_persistent_artifacts"])
-                self.assertTrue(features["bellpull_artifact_lifecycle"])
-                self.assertFalse(features["bellpull_model_controls"])
-                self.assertFalse(features["bellpull_run_attachments"])
-                self.assertFalse(features["session_fork_at_message"])
-                self.assertEqual(404, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)
-            adapter._run_idempotency_store.close()
+        for native_supported in (True, False):
+            with self.subTest(native_supported=native_supported), patch("plugins.bellpull.http.source_mode", return_value=None):
+                adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "unsupported-fixture-key"}))
+                if not native_supported:
+                    # An unrecognized source may still support the native bridge, but
+                    # losing its required factory arguments must disable that bridge.
+                    adapter._create_agent = lambda: None
+                app = web.Application()
+                wire(app, adapter)
+                async with TestClient(TestServer(app)) as client:
+                    response = await client.get("/api/bellpull/capabilities", headers={"Authorization": "Bearer unsupported-fixture-key"})
+                    self.assertEqual(200, response.status)
+                    features = (await response.json())["features"]
+                    self.assertTrue(features["bellpull_persistent_artifacts"])
+                    self.assertTrue(features["bellpull_artifact_lifecycle"])
+                    self.assertFalse(features["bellpull_model_controls"])
+                    self.assertEqual(native_supported, features["bellpull_run_attachments"])
+                    self.assertFalse(features["session_fork_at_message"])
+                    self.assertEqual(404, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)
+                adapter._run_idempotency_store.close()
 
     async def test_native_adapter_startup_discovers_plugin_and_shutdown_closes_it(self):
         with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home}):

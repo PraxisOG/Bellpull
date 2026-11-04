@@ -163,6 +163,9 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([], self.created)
 
     async def test_unload_rejects_new_attachments_and_reactivation_reuses_bridge(self):
+        from plugins.bellpull.compatibility import source_mode
+        if source_mode() == "after":
+            self.skipTest("Patched hosts use the host bridge; native lifecycle is checked on stock Hermes")
         identity = await self.upload()
         bridge = self.adapter._bellpull_native_attachments
         bridge[1]()
