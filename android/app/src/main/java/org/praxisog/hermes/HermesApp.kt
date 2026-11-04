@@ -120,6 +120,7 @@ internal fun HermesApp(
     onForkSession: ((Session) -> Unit)? = null,
     localChat: (@Composable () -> Unit)? = null,
     fallbackBanner: (@Composable () -> Unit)? = null,
+    refreshingSessions: Boolean = false,
 ) {
     LaunchedEffect(canvas, openSessionId, foreground, canvas?.visible, canvas?.supported) {
         canvas?.observe(openSessionId, foreground && canvas.visible)
@@ -244,6 +245,7 @@ internal fun HermesApp(
                         Column(paneModifier) {
                             SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
+                                refreshing = refreshingSessions,
                                 creating = creatingSession, createError = createError, offline = offline.takeUnless { sideBySide && fallbackBanner != null },
                                 onNewLocal = onNewLocal, fallbackBanner = fallbackBanner.takeUnless { sideBySide },
                                 backgroundProblem = backgroundProblem.takeIf { projects?.selectedScope in setOf(NOTIFICATION_PROJECT_CHATS, ALL_WITH_NOTIFICATIONS) },

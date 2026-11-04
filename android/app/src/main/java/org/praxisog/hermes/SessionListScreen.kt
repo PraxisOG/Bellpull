@@ -27,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +59,7 @@ import org.praxisog.hermes.model.Session
  * [selectedId] is highlighted rather than navigated to, because on an unfolded Fold the list
  * and the detail pane are visible at the same time.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionListScreen(
     state: UiState<List<Session>>,
@@ -89,6 +94,7 @@ internal fun SessionListScreen(
     pinnedIds: Set<String> = emptySet(),
     recentOrder: Boolean = false,
     filterSummary: String? = null,
+    refreshing: Boolean = false,
 ) {
     val searching = query.isNotBlank()
     var filtersOpen by remember { mutableStateOf(false) }
@@ -196,99 +202,109 @@ internal fun SessionListScreen(
                         modifier = Modifier.padding(16.dp))
                 }
             }
-            if (searching) {
-                SearchResults(
-                    query = query,
-                    sessions = (state as? UiState.Ready)?.value.orEmpty(),
-                    apps = apps,
-                    now = now,
-                    selectedId = selectedId,
-                    onOpen = onOpen,
-                    onLaunchApp = onLaunchApp,
-                    onAskHermes = onAskHermes,
-                )
-                return@Column
-            }
-            when (state) {
-                is UiState.Loading -> Centered { CircularProgressIndicator() }
-
-                is UiState.Failed -> Centered {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text("Could not load sessions", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            state.error.toUserMessage(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                        )
-                        Button(onClick = onRetry) { Text("Try again") }
-                    }
+            val canRefresh = !refreshing && state !is UiState.Loading
+            val refresh = { if (canRefresh) onRetry() }
+            PullToRefreshBox(isRefreshing = refreshing && state !is UiState.Loading, onRefresh = refresh,
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversations-refresh").semantics {
+                    if (refreshing) stateDescription = "Refreshing conversations"
+                    customActions = listOf(CustomAccessibilityAction("Refresh conversations") {
+                        if (canRefresh) { onRetry(); true } else false
+                    })
+                }) {
+                if (searching) {
+                    SearchResults(
+                        query = query,
+                        sessions = (state as? UiState.Ready)?.value.orEmpty(),
+                        apps = apps,
+                        now = now,
+                        selectedId = selectedId,
+                        onOpen = onOpen,
+                        onLaunchApp = onLaunchApp,
+                        onAskHermes = onAskHermes,
+                    )
+                    return@PullToRefreshBox
                 }
+                when (state) {
+                    is UiState.Loading -> Centered { CircularProgressIndicator() }
 
-                is UiState.Ready -> if (state.value.isEmpty()) {
-                    Centered {
+                    is UiState.Failed -> Centered {
                         Column(
-                            modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            BellpullMark(size = 48.dp)
-                            Text("Room for a new idea", style = MaterialTheme.typography.titleMedium)
-                            Text(if (onSourceChange != null && source != null)
-                                "No conversations in this source. Try All conversations."
-                                else "No visible conversations on this server.", style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Could not load sessions", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                state.error.toUserMessage(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                            )
+                            Button(onClick = refresh, enabled = canRefresh) { Text("Try again") }
                         }
                     }
-                } else {
-                    val listState = rememberLazyListState()
-                    val ordered = remember(state.value, unreadIds, pinnedIds, recentOrder) {
-                        state.value.sortedWith(compareByDescending<Session> { it.id in pinnedIds }
-                            .thenByDescending { !recentOrder && it.id in unreadIds }
-                            .thenByDescending { it.lastActive ?: it.startedAt ?: 0.0 })
-                    }
-                    val serverHead = state.value.firstOrNull()?.id
-                    var previousHead by rememberSaveable { mutableStateOf<String?>(null) }
-                    var previousSelection by rememberSaveable { mutableStateOf<String?>(null) }
-                    var previousCompletion by rememberSaveable { mutableStateOf(0L) }
-                    var previousUnread by rememberSaveable { mutableStateOf(emptyList<String>()) }
-                    LaunchedEffect(selectedId, serverHead, completionRevision, unreadIds) {
-                        // Stable item keys otherwise keep the old anchor below a promoted chat.
-                        // A promotion wins over keeping the selected (possibly older) chat visible.
-                        val promoted = (previousHead != null && previousHead != serverHead) ||
-                            previousCompletion != completionRevision || (unreadIds - previousUnread.toSet()).isNotEmpty()
-                        val selectedIndex = ordered.indexOfFirst { it.id == selectedId }
-                        if (promoted) listState.scrollToItem(0)
-                        else if (previousSelection != selectedId && selectedIndex >= 0 &&
-                            listState.layoutInfo.visibleItemsInfo.none { it.key == selectedId }) {
-                            listState.scrollToItem(selectedIndex)
+
+                    is UiState.Ready -> if (state.value.isEmpty()) {
+                        Centered {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                BellpullMark(size = 48.dp)
+                                Text("Room for a new idea", style = MaterialTheme.typography.titleMedium)
+                                Text(if (onSourceChange != null && source != null)
+                                    "No conversations in this source. Try All conversations."
+                                    else "No visible conversations on this server.", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
-                        previousHead = serverHead
-                        previousSelection = selectedId
-                        previousCompletion = completionRevision
-                        previousUnread = unreadIds.toList()
-                    }
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize().testTag("conversations-list"),
-                            contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            items(ordered, key = { it.id }) { session ->
-                                SessionRow(
-                                    session = session,
-                                    now = now,
-                                    selected = session.id == selectedId,
-                                    unread = session.id in unreadIds,
-                                    runLabel = runLabels[session.id],
-                                    titleOnly = titleOnly,
-                                    pinned = session.id in pinnedIds,
-                                    onOrganize = onOrganize?.let { organize -> { organize(session) } },
-                                    onClick = { onOpen(session.id) },
-                                )
+                    } else {
+                        val listState = rememberLazyListState()
+                        val ordered = remember(state.value, unreadIds, pinnedIds, recentOrder) {
+                            state.value.sortedWith(compareByDescending<Session> { it.id in pinnedIds }
+                                .thenByDescending { !recentOrder && it.id in unreadIds }
+                                .thenByDescending { it.lastActive ?: it.startedAt ?: 0.0 })
+                        }
+                        val serverHead = state.value.firstOrNull()?.id
+                        var previousHead by rememberSaveable { mutableStateOf<String?>(null) }
+                        var previousSelection by rememberSaveable { mutableStateOf<String?>(null) }
+                        var previousCompletion by rememberSaveable { mutableStateOf(0L) }
+                        var previousUnread by rememberSaveable { mutableStateOf(emptyList<String>()) }
+                        LaunchedEffect(selectedId, serverHead, completionRevision, unreadIds) {
+                            // Stable item keys otherwise keep the old anchor below a promoted chat.
+                            // A promotion wins over keeping the selected (possibly older) chat visible.
+                            val promoted = (previousHead != null && previousHead != serverHead) ||
+                                previousCompletion != completionRevision || (unreadIds - previousUnread.toSet()).isNotEmpty()
+                            val selectedIndex = ordered.indexOfFirst { it.id == selectedId }
+                            if (promoted) listState.scrollToItem(0)
+                            else if (previousSelection != selectedId && selectedIndex >= 0 &&
+                                listState.layoutInfo.visibleItemsInfo.none { it.key == selectedId }) {
+                                listState.scrollToItem(selectedIndex)
+                            }
+                            previousHead = serverHead
+                            previousSelection = selectedId
+                            previousCompletion = completionRevision
+                            previousUnread = unreadIds.toList()
+                        }
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize().testTag("conversations-list"),
+                                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                items(ordered, key = { it.id }) { session ->
+                                    SessionRow(
+                                        session = session,
+                                        now = now,
+                                        selected = session.id == selectedId,
+                                        unread = session.id in unreadIds,
+                                        runLabel = runLabels[session.id],
+                                        titleOnly = titleOnly,
+                                        pinned = session.id in pinnedIds,
+                                        onOrganize = onOrganize?.let { organize -> { organize(session) } },
+                                        onClick = { onOpen(session.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -495,7 +511,9 @@ internal fun SearchGlyph() {
 
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+    // A scroll container dispatches the pull gesture even when there are no rows.
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally) { item { content() } }
 }
 
 @Composable

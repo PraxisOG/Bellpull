@@ -130,6 +130,8 @@ internal class HermesStore(
         private set
     var sessions by mutableStateOf<UiState<List<Session>>>(UiState.Loading)
         private set
+    var refreshingSessions by mutableStateOf(false)
+        private set
     var history by mutableStateOf<UiState<List<Message>>>(UiState.Loading)
         private set
     val messageStats: Map<Int, MessageInfo>
@@ -203,6 +205,9 @@ internal class HermesStore(
 
     // ---- sessions -------------------------------------------------------------
 
+    /** User refreshes share the existing fetch/cache path and cannot pile up requests. */
+    fun refreshSessions() { if (!refreshingSessions) loadSessions() }
+
     /**
      * Fetch the session list, falling back to the cache when the fetch fails.
      *
@@ -215,51 +220,58 @@ internal class HermesStore(
      * "you have no sessions", which is a different and wrong claim.
      */
     fun loadSessions() {
+        if (closed) return
         val request = ++sessionsRequest
+        refreshingSessions = true
         scope.launch {
-            if (sessions !is UiState.Ready) sessions = UiState.Loading
-            val source = sessionSource
-            var backgroundFailure: String? = null
-            val result = io {
-                val main = client.allSessions(source = source)
-                if (!backgroundFolders || source == null || main !is HermesResult.Ok) main
-                else {
-                    val extra = mutableListOf<Session>()
-                    var failed = false
-                    for (background in BACKGROUND_CHAT_SOURCES - setOfNotNull(source)) {
-                        when (val response = client.allSessions(source = background)) {
-                            is HermesResult.Ok -> extra += response.value.data
-                            is HermesResult.Err -> {
-                                failed = true
-                                extra += cache?.read()?.sessions.orEmpty().filter { it.source == background }
+            try {
+                if (sessions !is UiState.Ready) sessions = UiState.Loading
+                val source = sessionSource
+                var backgroundFailure: String? = null
+                val result = io {
+                    val main = client.allSessions(source = source)
+                    if (!backgroundFolders || source == null || main !is HermesResult.Ok) main
+                    else {
+                        val extra = mutableListOf<Session>()
+                        var failed = false
+                        for (background in BACKGROUND_CHAT_SOURCES - setOfNotNull(source)) {
+                            when (val response = client.allSessions(source = background)) {
+                                is HermesResult.Ok -> extra += response.value.data
+                                is HermesResult.Err -> {
+                                    failed = true
+                                    extra += cache?.read()?.sessions.orEmpty().filter { it.source == background }
+                                }
                             }
                         }
+                        backgroundFailure = if (failed) "Some notification conversations could not refresh; showing saved entries where available." else null
+                        HermesResult.Ok(main.value.copy(data = (main.value.data + extra).distinctBy { it.id }))
                     }
-                    backgroundFailure = if (failed) "Some notification conversations could not refresh; showing saved entries where available." else null
-                    HermesResult.Ok(main.value.copy(data = (main.value.data + extra).distinctBy { it.id }))
                 }
-            }
-            if (request != sessionsRequest) return@launch
-            backgroundProblem = backgroundFailure
-            when (result) {
-                is HermesResult.Ok -> {
-                    offline = null
-                    sessions = UiState.Ready(result.value.data)
-                    cache?.write(result.value.data, clock())
-                    recoverSessionTitles(result.value.data)
-                    onSessions(result.value.data)
-                }
-                is HermesResult.Err -> {
-                    val cached = io { cache?.read() }
-                    val permitted = cached?.sessions?.filter { source == null || it.source == source || backgroundFolders && backgroundConversation(it) }.orEmpty()
-                    if (cached != null && permitted.isNotEmpty()) {
-                        offline = OfflineState(cached.cachedAtEpochSeconds, result.error)
-                        sessions = UiState.Ready(permitted)
-                    } else {
+                if (request != sessionsRequest) return@launch
+                backgroundProblem = backgroundFailure
+                when (result) {
+                    is HermesResult.Ok -> {
                         offline = null
-                        sessions = UiState.Failed(result.error)
+                        sessions = UiState.Ready(result.value.data)
+                        cache?.write(result.value.data, clock())
+                        recoverSessionTitles(result.value.data)
+                        onSessions(result.value.data)
+                    }
+                    is HermesResult.Err -> {
+                        val cached = io { cache?.read() }
+                        if (request != sessionsRequest) return@launch
+                        val permitted = cached?.sessions?.filter { source == null || it.source == source || backgroundFolders && backgroundConversation(it) }.orEmpty()
+                        if (cached != null && permitted.isNotEmpty()) {
+                            offline = OfflineState(cached.cachedAtEpochSeconds, result.error)
+                            sessions = UiState.Ready(permitted)
+                        } else {
+                            offline = null
+                            sessions = UiState.Failed(result.error)
+                        }
                     }
                 }
+            } finally {
+                if (request == sessionsRequest) refreshingSessions = false
             }
         }
     }
