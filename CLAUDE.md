@@ -17,6 +17,13 @@ Play Services.
 
 ## Non-negotiables
 
+**Current task authority (2026-11-03, chat display repairs):** build on the completed
+Kanban work at `09f585f` using `fix/chat-display-20261103`. Fix Thinking interaction
+in long responses; add local display switches for terminal calls, thinking and
+thinking previews, plus received-activity counts under the live response. Preserve
+raw history, execution, approvals, speech and model settings. Validate screenshots
+and the disposable phone fixture; no release, personal-app install or Moe change.
+
 **Current task authority (2026-11-03, compact Kanban and Tree):** implement on
 `feature/kanban-tree-20261103`, based on `fix/mobile-bugs-20261102` at `7de6b73`
 (which contains `android-v0.19.0-experimental.1`). Add explicit containment without
