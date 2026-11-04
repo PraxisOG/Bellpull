@@ -265,7 +265,7 @@ internal fun HermesApp(
                     val detailPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
                             if (mode == WorkspaceMode.TASKS) KanbanToolbar(kanban, sideBySide, sideBySide && showList,
-                                { if (sideBySide) showList = !showList else drawerOnCover = true })
+                                { if (sideBySide) showList = !showList else drawerOnCover = true }, onOpenSession = open, sessions = allSessions)
                             else ConversationToolbar(
                                 title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
                                     ?: (if (disconnected) "Bellpull" else "Conversation") else mode.title,

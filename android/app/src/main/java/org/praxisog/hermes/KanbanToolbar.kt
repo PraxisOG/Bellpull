@@ -13,13 +13,15 @@ import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.util.Date
 
-@Composable internal fun KanbanToolbar(workspace: KanbanWorkspace?, sideBySide: Boolean, showList: Boolean, onNavigate: () -> Unit) {
+@Composable internal fun KanbanToolbar(workspace: KanbanWorkspace?, sideBySide: Boolean, showList: Boolean, onNavigate: () -> Unit,
+    onOpenSession: (String) -> Unit = {}, sessions: List<org.praxisog.hermes.model.Session> = emptyList()) {
     var boardsOpen by remember { mutableStateOf(false) }
     var infoOpen by remember { mutableStateOf(false) }
     ConversationToolbar(title = workspace?.board?.name ?: "Tasks", sideBySide = sideBySide, showList = showList,
         onNavigate = onNavigate, onNewSession = {}, creatingSession = false, hasSession = false, hasHistory = false,
         showContext = false, onContext = {}, onPrompts = {}, onSearch = {},
         primaryAction = {
+            KanbanBoardChatButton(workspace, sessions, onOpenSession)
             NavigationAction("New task", { workspace?.startForm() }, enabled = workspace?.canCreate == true,
                 description = "New task", modifier = Modifier.testTag("toolbar-new-task")) { Text("+", style = MaterialTheme.typography.headlineSmall) }
         }, menuContent = { dismiss ->
