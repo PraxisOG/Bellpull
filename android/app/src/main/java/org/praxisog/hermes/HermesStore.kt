@@ -74,6 +74,7 @@ internal class HermesStore(
             if (id == openSessionId) history = UiState.Ready(messages)
         }, onReply = ::discoveredReply) }
     var phoneNotificationContext: (String) -> String? = { null }
+    var onToolCompleted: (String?) -> Unit = {}
     var onReply: (String, Message) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
     var onSessions: (List<Session>) -> Unit = {}
@@ -643,9 +644,10 @@ internal class HermesStore(
                             toolName = event.toolName,
                             canStop = true, parts = live.parts,
                         )
-                        is StreamEvent.ToolCompleted -> postStreaming(
-                            accumulated.toString(), tool = null, canStop = true, parts = live.parts,
-                        )
+                        is StreamEvent.ToolCompleted -> {
+                            scope.launch { onToolCompleted(event.toolName) }
+                            postStreaming(accumulated.toString(), tool = null, canStop = true, parts = live.parts)
+                        }
                         else -> Unit
                     }
                 }

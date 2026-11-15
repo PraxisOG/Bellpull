@@ -144,7 +144,7 @@ internal class LocalVoiceOutput(
         VoiceOutputEngine.KOKORO -> "Kokoro"
         VoiceOutputEngine.QWEN -> "Qwen"
         VoiceOutputEngine.SYSTEM -> "Local TTS" // Direct runtime fixtures only.
-        VoiceOutputEngine.SERVER_MOSS -> "MOSS · server offload"
+        VoiceOutputEngine.SERVER_MOSS -> "Server speech"
     }
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) {
         stop(); failure = onError
@@ -170,9 +170,10 @@ internal class LocalVoiceOutput(
         // Kokoro returns a whole sentence at once. Hold up to its native 60-second
         // audio limit so the model can start the next sentence immediately, instead
         // of spending most of this sentence blocked behind realtime playback.
-        // Only active and one prefetched request exist: about 11.5 MB queued PCM.
+        // Server output uses the same byte bound (30 seconds at 48 kHz), allowing
+        // sentence-ahead synthesis. Active plus one prefetch use at most ~11.5 MB.
         // Token-streaming engines keep their smaller 1.6-second buffer.
-        val queue = Channel<FloatArray>(if (config.engine == VoiceOutputEngine.KOKORO) 600 else 16)
+        val queue = Channel<FloatArray>(if (config.engine in setOf(VoiceOutputEngine.KOKORO, VoiceOutputEngine.SERVER_MOSS)) 600 else 16)
         val producer = scope.async(Dispatchers.IO) {
             var problem: Throwable? = null
             try {

@@ -11,7 +11,7 @@ import java.security.MessageDigest
 
 internal enum class VoiceOutputEngine(val id: String, val label: String) {
     SYSTEM("system", "Default Android voice"), KOKORO("kokoro", "Kokoro 82M · on device"), QWEN("qwen", "Qwen3-TTS · on device"), MOSS("moss", "MOSS-TTS-Nano · on device"),
-    SERVER_MOSS("server-moss", "MOSS · server offload");
+    SERVER_MOSS("server-moss", "Server speech · Kokoro / MOSS");
     companion object {
         fun decode(id: String?): VoiceOutputEngine = when (id?.lowercase(java.util.Locale.ROOT)) {
             "kokoro" -> KOKORO

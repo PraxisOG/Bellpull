@@ -1,0 +1,48 @@
+{
+  "android": {
+    "app_passed": 816,
+    "core_hermes_passed": 48,
+    "core_hermes_skipped": 1,
+    "core_model_passed": 42,
+    "screenshot_baselines": 221,
+    "intentional_baseline_updates": 38,
+    "lint_errors": 0,
+    "lint_warnings": 96,
+    "lint_hints": 6
+  },
+  "speech_helper": {
+    "tests": 10,
+    "failures": 0
+  },
+  "plugin_targeted": {
+    "tests": 21,
+    "failures": 0
+  },
+  "phone": {
+    "package": "org.praxisog.hermes.fixture",
+    "production_package_untouched": true,
+    "speech": {
+      "first_playback_ms": 467.272006,
+      "gaps_ms": [
+        67.2743489999998,
+        46.03398399999969
+      ],
+      "first_pcm_ms": [
+        429,
+        216,
+        312
+      ],
+      "audio_seconds": 9.05,
+      "stop_ms": 14.600782
+    },
+    "files_unfolded": "passed",
+    "files_cover": "passed at 1080x2340 / 440 dpi"
+  },
+  "signed_apk": {
+    "version": "0.20.2-experimental",
+    "version_code": 52,
+    "sha256": "3ac97d96bf2bde137eda399329d4b71873eaacd9fc45943d802ba5a77d3640c1",
+    "alignment_16k": true
+  },
+  "production_deployment": false
+}

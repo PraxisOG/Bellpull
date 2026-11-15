@@ -88,6 +88,8 @@ internal fun HermesApp(
     serverProfiles: (@Composable () -> Unit)? = null,
     settingsRevision: Int = 0,
     extraTools: (@Composable (androidx.compose.ui.unit.Dp) -> Unit)? = null,
+    liveFiles: LiveFilesWorkspace? = null,
+    attachmentLibrary: (@Composable (androidx.compose.ui.unit.Dp) -> Unit)? = null,
     planningView: (@Composable () -> Unit)? = null,
     modelControl: (@Composable () -> Unit)? = null,
     thinkingMenu: (@Composable (() -> Unit) -> Unit)? = null,
@@ -128,6 +130,10 @@ internal fun HermesApp(
     }
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
+    var fileAttachments by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(liveFiles, foreground, mode) {
+        if (foreground && mode in setOf(WorkspaceMode.TOOLS, WorkspaceMode.SETTINGS)) liveFiles?.refresh()
+    }
     var drawerOnCover by rememberSaveable { mutableStateOf(openSessionId == null && !disconnected && projects?.selectedProject == null) }
     var expandedSearch by rememberSaveable { mutableStateOf(false) }
     var infoSheet by rememberSaveable { mutableStateOf(false) }
@@ -244,7 +250,10 @@ internal fun HermesApp(
                     val animate = paneMotionEnabled(preferences.reduceMotion)
                     val listPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
-                            SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
+                            if (mode == WorkspaceMode.TOOLS) LiveFilesList(liveFiles, Modifier.weight(1f),
+                                open = { liveFiles?.open(it); fileAttachments = false; drawerOnCover = false },
+                                attachments = { fileAttachments = true; drawerOnCover = false })
+                            else SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,
                                 refreshing = refreshingSessions,
                                 creating = creatingSession, createError = createError, offline = offline.takeUnless { sideBySide && fallbackBanner != null },
@@ -262,12 +271,14 @@ internal fun HermesApp(
                                 source = sessionSource, onSourceChange = onSessionSourceChange,
                                 filterSummary = listOfNotNull(projects?.scopeTitle?.takeIf { projects.selectedScope != ALL_PROJECT_CHATS }, sessionSource).takeIf { it.isNotEmpty() }?.joinToString(" · "),
                                 onExpandedSearch = { expandedSearch = true })
-                            WorkspaceModes(mode, includeTasks = kanban != null) { mode = it; drawerOnCover = false }
+                            WorkspaceModes(mode, includeTasks = kanban != null) { mode = it; drawerOnCover = it == WorkspaceMode.TOOLS && !sideBySide }
                         }
                     }
                     val detailPane: @Composable (Modifier) -> Unit = { paneModifier ->
                         Column(paneModifier) {
-                            if (mode == WorkspaceMode.TASKS) KanbanToolbar(kanban, sideBySide, sideBySide && showList,
+                            if (mode == WorkspaceMode.TOOLS) FilesToolbar(
+                                { if (sideBySide) showList = !showList else drawerOnCover = true }, openSettings)
+                            else if (mode == WorkspaceMode.TASKS) KanbanToolbar(kanban, sideBySide, sideBySide && showList,
                                 { if (sideBySide) showList = !showList else drawerOnCover = true }, onOpenSession = open, sessions = allSessions)
                             else ConversationToolbar(
                                 title = if (mode == WorkspaceMode.CHATS) openSession?.title?.takeIf { it.isNotBlank() }
@@ -296,8 +307,13 @@ internal fun HermesApp(
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
                                     notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings,
-                                    notificationProblem, notificationsUseRelay, onNotificationSettings)
-                                WorkspaceMode.TOOLS -> ToolsWorkspace(extraTools)
+                                    notificationProblem, notificationsUseRelay, onNotificationSettings, topContent = {
+                                        RecentLiveFiles(liveFiles, artifacts,
+                                            { liveFiles?.open(it); mode = WorkspaceMode.TOOLS; fileAttachments = false; drawerOnCover = false },
+                                            onViewArtifact, { mode = WorkspaceMode.TOOLS; drawerOnCover = !sideBySide; showList = true })
+                                        extraTools?.invoke(160.dp)
+                                    })
+                                WorkspaceMode.TOOLS -> if (fileAttachments) ToolsWorkspace(attachmentLibrary) else LiveFileViewer(liveFiles)
                                 WorkspaceMode.TASKS -> KanbanScreen(kanban, foreground, open)
                                 WorkspaceMode.PROJECTS -> ProjectsPanel(projects, allSessions, now, unreadIds, runLabels, runningIds,
                                     selectProjectScope, open, onNewSession, { expandedSearch = true }, { organizing = it }, onRetryProjectCreation,

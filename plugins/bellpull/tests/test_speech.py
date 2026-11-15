@@ -49,7 +49,8 @@ class SpeechTest(unittest.IsolatedAsyncioTestCase):
             if request.path == '/stt':
                 return web.json_response(dict(text='hello', language='en', seconds=1, took_ms=12))
             if self.streaming:
-                response = web.StreamResponse(headers={'Content-Type': 'application/octet-stream'})
+                response = web.StreamResponse(headers={'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '24000',
+                    'X-Audio-Channels': '1', 'X-Audio-Format': 'pcm_s16le', 'X-Speech-Engine': 'kokoro'})
                 await response.prepare(request)
                 await response.write(b'\x00\x00')
                 await self.finish.wait()
@@ -119,6 +120,10 @@ class SpeechTest(unittest.IsolatedAsyncioTestCase):
         self.streaming = True
         response = await asyncio.wait_for(self.client.post('/api/bellpull/speech/tts',
             json={'text': 'hello', 'stream': True}), 2)
+        self.assertEqual('audio/pcm', response.headers['Content-Type'])
+        self.assertEqual('24000', response.headers['X-Audio-Sample-Rate'])
+        self.assertEqual('1', response.headers['X-Audio-Channels'])
+        self.assertEqual('pcm_s16le', response.headers['X-Audio-Format'])
         self.assertEqual(b'\x00\x00', await asyncio.wait_for(response.content.readexactly(2), 2))
         self.assertFalse(self.finish.is_set())
         self.finish.set()

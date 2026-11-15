@@ -10,7 +10,8 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Session
 
 internal enum class WorkspaceMode(val title: String) {
-    CHATS("Chats"), PROJECTS("Projects"), TASKS("Tasks"), TOOLS("Tools"), SETTINGS("Settings"), TODAY("Today")
+    // Preserve TOOLS as the saved-state identity for the renamed Files tab.
+    CHATS("Chats"), PROJECTS("Projects"), TASKS("Tasks"), TOOLS("Files"), SETTINGS("Settings"), TODAY("Today")
 }
 
 // Shared with the single-line composer so both panes end on the same baseline.

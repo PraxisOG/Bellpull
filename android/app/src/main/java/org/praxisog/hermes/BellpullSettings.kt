@@ -106,9 +106,10 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     localLlmSettings: (@Composable () -> Unit)? = null,
     assistantSettings: (@Composable () -> Unit)? = null,
     notificationProblem: String? = null, notificationsUseRelay: Boolean = true,
-    onNotificationSettings: () -> Unit = {}) {
+    onNotificationSettings: () -> Unit = {}, topContent: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        topContent?.invoke()
         serverProfiles?.let { SettingsSection("Servers", "Connections and profiles") { it() } }
         if (notificationsAvailable) {
             SettingsSection("Notifications", "Reply and approval alerts") {

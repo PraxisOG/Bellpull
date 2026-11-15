@@ -1,6 +1,6 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.9.1-reliability-preview"
+VERSION = "0.9.2-voice-files-preview"
 
 
 def register(ctx):
@@ -10,6 +10,8 @@ def register(ctx):
     identity = bundle_identity()
     from .sharing import register as register_sharing
     register_sharing(ctx)
+    from .live_files import register as register_files
+    register_files(ctx)
     from .canvas import register as register_canvas
     register_canvas(ctx)
     from .planning import register as register_planning

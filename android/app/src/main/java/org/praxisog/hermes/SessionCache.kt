@@ -41,6 +41,11 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     )
 
     private val json = Json { ignoreUnknownKeys = true }
+    fun readFileEdit(): org.praxisog.hermes.model.PendingFileEdit? = runCatching {
+        json.decodeFromString<org.praxisog.hermes.model.PendingFileEdit>(preferences.getString("pending-file-edit", null)!!)
+    }.getOrNull()
+    @Synchronized fun writeFileEdit(value: org.praxisog.hermes.model.PendingFileEdit?): Boolean = !closed &&
+        preferences.edit().putString("pending-file-edit", value?.let { json.encodeToString(it) }).commit()
     fun readCanvas(id: String): org.praxisog.hermes.model.CanvasSnapshot? = runCatching {
         json.decodeFromString<org.praxisog.hermes.model.CanvasSnapshot>(preferences.getString("canvas:$id", null)!!).validated(id)
     }.getOrNull()

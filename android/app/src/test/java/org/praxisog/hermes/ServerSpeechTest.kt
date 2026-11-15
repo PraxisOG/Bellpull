@@ -22,7 +22,8 @@ class ServerSpeechTest {
         var result: () -> String = { "server result" }
         var audio = byteArrayOf(0, 0, -1, 127)
         var closed = false
-        override fun tts(text: String, cancelled: () -> Boolean): InputStream = ByteArrayInputStream(audio)
+        var sampleRate = 48000
+        override fun tts(text: String, cancelled: () -> Boolean): InputStream = ServerPcmInput(ByteArrayInputStream(audio), sampleRate)
         override fun stt(wav: ByteArray) = result()
         override fun cancel() { closed = true }
     }
@@ -79,6 +80,20 @@ class ServerSpeechTest {
         val sink = Sink().also { it.cancelled = true }
         assertThrows(CancellationException::class.java) { decodeServerPcm(ByteArrayInputStream(byteArrayOf(0, 0)), sink) }
         assertTrue(sink.chunks.isEmpty())
+    }
+
+    @Test fun kokoro24KhzKeepsDurationAndInterpolationAcrossTransportChunks() {
+        val input = object : ByteArrayInputStream(byteArrayOf(0, 0, -1, 127)) {
+            override fun read(b: ByteArray, off: Int, len: Int) = super.read(b, off, minOf(1, len))
+        }
+        val sink = Sink()
+        assertEquals(4L, decodeServerPcm(input, sink, 24000))
+        val high = 32767f / 32768
+        assertArrayEquals(floatArrayOf(0f, high / 2, high, high), sink.chunks.toFloatArray(), 0f)
+        val transport = Transport().also { it.sampleRate = 24000; it.audio = ByteArray(48000) }
+        var timing: ServerSpeechTiming? = null
+        ServerMossEngine(transport) { timing = it }.synthesize("One second", VoiceOutputConfiguration(), Sink())
+        assertEquals(1.0, timing!!.audioSeconds, .0001)
     }
 
     @Test fun successfulPhraseReportsFirstPcmTotalAnd48KhzDuration() {

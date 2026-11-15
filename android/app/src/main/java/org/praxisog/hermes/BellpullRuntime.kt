@@ -27,6 +27,8 @@ internal class BellpullRuntime private constructor(context: Context) {
     var voiceRequestedMode = VoiceMode.CALL
     var voiceButtonHeld = false
     var voiceDictationToDraft = false
+    var liveFiles by mutableStateOf<LiveFilesWorkspace?>(null)
+        private set
     var cache: SessionCache? = null
         private set
     var drafts = ChatDrafts()
@@ -227,6 +229,9 @@ internal class BellpullRuntime private constructor(context: Context) {
             capabilities.features["bellpull_model_controls"] == true || capabilities.features["bellpull_native_model_controls"] == true,
             capabilities.features["bellpull_artifact_lifecycle"] == true,
             capabilities.features["bellpull_run_attachments"] ?: (capabilities.features["bellpull_persistent_artifacts"] == true && capabilities.features["bellpull_model_controls"] == true)) }
+        liveFiles = cache?.let { saved -> LiveFilesWorkspace(scope, client, capabilities.features["bellpull_live_files"] == true, saved::readFileEdit, saved::writeFileEdit) }
+        next.onToolCompleted = { name -> if (name == "bellpull_file") liveFiles?.refresh() }
+        next.runs?.onToolCompleted = next.onToolCompleted
         next.defaultModel = { phase3?.defaultSelection }
         next.runs?.onAccepted = { phase3?.accepted(it) }
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
@@ -236,7 +241,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             syncOfflineMemory()
             delivery?.receive(org.praxisog.hermes.model.InboxEntry("reply:$id:${message.id}", "reply",
                 "Reply", message.content.orEmpty(), System.currentTimeMillis(), id))
-            notifications?.reply(id, message.id); phase3?.refreshArtifacts()
+            notifications?.reply(id, message.id); phase3?.refreshArtifacts(); liveFiles?.refresh()
         }
         next.onAttention = { id, identity ->
             delivery?.receive(org.praxisog.hermes.model.InboxEntry(identity, "attention", "Needs attention",
@@ -279,6 +284,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             delivery?.supported = result.value.features["bellpull_planning"]==true
             projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true, result.value.features["bellpull_background_folder"] == true)
             store?.backgroundFolders = result.value.features["bellpull_background_folder"] == true
+            liveFiles?.let { it.supported = result.value.features["bellpull_live_files"] == true; it.refresh() }
             val fileSupport = result.value.features["bellpull_persistent_artifacts"] == true
             val modelSupport = result.value.features["bellpull_model_controls"] == true || result.value.features["bellpull_native_model_controls"] == true
             val lifecycleSupport = result.value.features["bellpull_artifact_lifecycle"] == true
@@ -347,6 +353,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         capabilities = null
         phase3?.close()
         phase3 = null
+        liveFiles?.close(); liveFiles = null
         store?.close()
         client?.close()
         cache?.close()

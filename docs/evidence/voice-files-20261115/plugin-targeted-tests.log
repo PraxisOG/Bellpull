@@ -1,0 +1,69 @@
+test_native_auth_guards_all_file_routes_before_storage (plugins.bellpull.tests.test_live_files.FileHttpTest.test_native_auth_guards_all_file_routes_before_storage) ... Executing <Task pending name='Task-2' coro=<FileHttpTest.test_native_auth_guards_all_file_routes_before_storage() running at /opt/hermes/plugins/bellpull/tests/test_live_files.py:92> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 2.105 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/files' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/files' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pin' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pin' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/edit' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/edit' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_snapshot_etag_pin_edit_and_bounded_request (plugins.bellpull.tests.test_live_files.FileHttpTest.test_snapshot_etag_pin_edit_and_bounded_request) ... Executing <Task pending name='Task-23' coro=<FileHttpTest.test_snapshot_etag_pin_edit_and_bounded_request() running at /opt/hermes/plugins/bellpull/tests/test_live_files.py:115> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.111 seconds
+ok
+test_add_escapes_markdown_and_retry_cannot_duplicate (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_add_escapes_markdown_and_retry_cannot_duplicate) ... ok
+test_check_preserves_crlf_mode_and_other_content (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_check_preserves_crlf_mode_and_other_content) ... ok
+test_code_examples_are_not_editable_tasks (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_code_examples_are_not_editable_tasks) ... ok
+test_explicit_reference_is_live_readonly_scoped_and_repeatable (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_explicit_reference_is_live_readonly_scoped_and_repeatable) ... ok
+test_external_change_conflicts_without_touching_file (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_external_change_conflicts_without_touching_file) ... ok
+test_grant_pin_refresh_and_revoke (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_grant_pin_refresh_and_revoke) ... ok
+test_recovery_after_replace_before_receipt_commit (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_recovery_after_replace_before_receipt_commit) ... ok
+test_rejects_symlink_hardlink_binary_and_oversize (plugins.bellpull.tests.test_live_files.LiveFilesTest.test_rejects_symlink_hardlink_binary_and_oversize) ... ok
+test_limits_and_validation (plugins.bellpull.tests.test_speech.SpeechTest.test_limits_and_validation) ... /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/payload.py:362: ResourceWarning: Sending a large body directly with raw bytes might lock the event loop. You should probably pass an io.BytesIO object instead
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_passthrough_timeout_and_refused (plugins.bellpull.tests.test_speech.SpeechTest.test_passthrough_timeout_and_refused) ... ok
+test_stream_cancel_closes_helper_and_old_helper_preserves_404 (plugins.bellpull.tests.test_speech.SpeechTest.test_stream_cancel_closes_helper_and_old_helper_preserves_404) ... /usr/lib/python3.13/asyncio/tasks.py:507: DeprecationWarning: float parameter 'receive_timeout' is deprecated, please use parameter 'timeout=ClientWSTimeout(ws_receive=...)'
+  return await fut
+ok
+test_streamed_input_returns_partial_before_finish_and_uses_helper_key (plugins.bellpull.tests.test_speech.SpeechTest.test_streamed_input_returns_partial_before_finish_and_uses_helper_key) ... ok
+test_success_and_helper_auth (plugins.bellpull.tests.test_speech.SpeechTest.test_success_and_helper_auth) ... ok
+test_tts_stream_delivers_pcm_before_helper_finishes (plugins.bellpull.tests.test_speech.SpeechTest.test_tts_stream_delivers_pcm_before_helper_finishes) ... ok
+test_websocket_redirect_never_reaches_redirect_target (plugins.bellpull.tests.test_speech.SpeechTest.test_websocket_redirect_never_reaches_redirect_target) ... ok
+test_wire_auth_and_capability (plugins.bellpull.tests.test_speech.SpeechTest.test_wire_auth_and_capability) ... API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/health' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/tts' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/p/fixture/api/bellpull/speech/stt' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/p/fixture/api/bellpull/speech/stt/stream' user_agent='Python/3.13 aiohttp/3.14.3'
+ok
+test_reasoning_arrives_before_completion_through_stock_native_stream (plugins.bellpull.tests.test_portable.PortableTest.test_reasoning_arrives_before_completion_through_stock_native_stream) ... /opt/hermes/gateway/platforms/api_server.py:4258: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  self._app["api_server_adapter"] = self
+Executing <Task pending name='Task-208' coro=<PortableTest.test_reasoning_arrives_before_completion_through_stock_native_stream() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:67> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.304 seconds
+Executing <Task pending name='Task-213' coro=<RequestHandler.start() running at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:630> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> created at /opt/hermes/.venv/lib/python3.13/site-packages/aiohttp/web_protocol.py:371> took 0.330 seconds
+ok
+test_stock_outputs_auth_restart_and_unchanged_core (plugins.bellpull.tests.test_portable.PortableTest.test_stock_outputs_auth_restart_and_unchanged_core) ... Executing <Task pending name='Task-231' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:122> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.213 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='POST' path='/api/bellpull/sessions/api_1794779626_1cf1735b/voice-title' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-231' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:159> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.420 seconds
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/2a75d7f4491249e5231d85c118d8e6a2/content' user_agent='Python/3.13 aiohttp/3.14.3'
+API server rejected invalid API key: remote='127.0.0.1' peer_ip='127.0.0.1' method='GET' path='/api/bellpull/artifacts/2a75d7f4491249e5231d85c118d8e6a2/content' user_agent='Python/3.13 aiohttp/3.14.3'
+Executing <Task pending name='Task-231' coro=<PortableTest.test_stock_outputs_auth_restart_and_unchanged_core() running at /opt/hermes/plugins/bellpull/tests/test_portable.py:184> wait_for=<_GatheringFuture pending cb=[Task.task_wakeup()] created at /usr/lib/python3.13/asyncio/tasks.py:765> cb=[_run_until_complete_cb() at /usr/lib/python3.13/asyncio/base_events.py:181] created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.141 seconds
+ok
+test_tool_rejects_model_supplied_session_and_unsafe_outputs (plugins.bellpull.tests.test_portable.PortableTest.test_tool_rejects_model_supplied_session_and_unsafe_outputs) ... Executing <Task finished name='Task-272' coro=<PortableTest.test_tool_rejects_model_supplied_session_and_unsafe_outputs() done, defined at /opt/hermes/plugins/bellpull/tests/test_portable.py:195> result=None created at /usr/lib/python3.13/asyncio/runners.py:100> took 0.916 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 7.810s
+
+OK

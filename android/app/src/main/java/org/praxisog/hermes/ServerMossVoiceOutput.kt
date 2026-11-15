@@ -20,6 +20,11 @@ internal interface ServerSpeechTransport : AutoCloseable {
     override fun close() = cancel()
 }
 
+/** Older MOSS helpers use implicit 48 kHz; current helpers declare their PCM contract. */
+internal class ServerPcmInput(input: InputStream, val sampleRate: Int, private val finished: () -> Unit = {}) : FilterInputStream(input) {
+    override fun close() { try { super.close() } finally { finished() } }
+}
+
 internal class ProfileSpeechTransport(private val connection: ServerConnection) : ServerSpeechTransport {
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(125, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
@@ -54,9 +59,14 @@ internal class ProfileSpeechTransport(private val connection: ServerConnection) 
                 response.close()
                 error("Server speech did not return streaming PCM. Check the Bellpull speech helper. The written answer is available.")
             }
-            return object : FilterInputStream(response.body.byteStream()) {
-                override fun close() { try { response.close() } finally { forget(call) } }
+            val declared = response.header("X-Audio-Sample-Rate") ?: response.body.contentType()?.parameter("rate")
+            val sampleRate = declared?.toIntOrNull() ?: if (declared == null && type == "application/octet-stream") 48000 else 0
+            if (sampleRate !in setOf(24000, 48000) || response.header("X-Audio-Channels")?.let { it != "1" } == true ||
+                response.header("X-Audio-Format")?.let { it != "pcm_s16le" } == true) {
+                response.close()
+                error("Server speech returned an unsupported PCM format. Update the Bellpull speech helper.")
             }
+            return ServerPcmInput(response.body.byteStream(), sampleRate) { try { response.close() } finally { forget(call) } }
         } catch (error: Exception) { forget(call); throw error }
     }
     override fun stt(wav: ByteArray): String {
@@ -97,14 +107,24 @@ private fun speechHttpError(operation: String, status: Int): String {
 internal data class ServerSpeechTiming(val firstPcmMs: Long?, val totalMs: Long, val audioSeconds: Double)
 
 /** Preserve half-samples across arbitrary HTTP chunk boundaries; never buffer a phrase. */
-internal fun decodeServerPcm(input: InputStream, sink: LocalTtsSink, firstPcm: () -> Unit = {}): Long {
+internal fun decodeServerPcm(input: InputStream, sink: LocalTtsSink, sampleRate: Int = 48000, firstPcm: () -> Unit = {}): Long {
+    require(sampleRate == 24000 || sampleRate == 48000)
     val bytes = ByteArray(4800)
     var low = -1
     var frames = 0L
+    var previous: Float? = null
+    fun emit(samples: FloatArray) {
+        if (samples.isEmpty()) return
+        if (sink.isCancelled()) throw CancellationException("Server speech cancelled.")
+        if (frames == 0L) firstPcm()
+        if (!sink.onChunk(samples)) throw CancellationException("Server speech cancelled.")
+        frames += samples.size
+    }
     while (!sink.isCancelled()) {
         val count = input.read(bytes)
         if (count < 0) {
             check(low == -1) { "Server speech ended with a partial PCM sample." }
+            if (sampleRate == 24000) previous?.let { emit(floatArrayOf(it, it)) }
             check(frames > 0) { "Server speech returned no audio." }
             return frames
         }
@@ -118,10 +138,17 @@ internal fun decodeServerPcm(input: InputStream, sink: LocalTtsSink, firstPcm: (
                 low = -1
             }
         }
-        if (samples.isNotEmpty()) {
-            if (frames == 0L) firstPcm()
-            if (!sink.onChunk(samples)) throw CancellationException("Server speech cancelled.")
-            frames += samples.size
+        if (sampleRate == 48000) emit(samples)
+        else {
+            // Keep the existing 48 kHz player/queue contract, explicitly upsampling
+            // Kokoro's 24 kHz across chunk boundaries instead of doubling its pitch.
+            val expanded = FloatArray(samples.size * 2)
+            var size = 0
+            for (sample in samples) {
+                previous?.let { expanded[size++] = it; expanded[size++] = (it + sample) * .5f }
+                previous = sample
+            }
+            emit(expanded.copyOf(size))
         }
     }
     throw CancellationException("Server speech cancelled.")
@@ -129,7 +156,7 @@ internal fun decodeServerPcm(input: InputStream, sink: LocalTtsSink, firstPcm: (
 
 internal class ServerMossEngine(private val transport: ServerSpeechTransport,
     private val telemetry: (ServerSpeechTiming) -> Unit = {
-        android.util.Log.i("BellpullVoiceSpeech", "engine=server-moss first_pcm_ms=${it.firstPcmMs} total_ms=${it.totalMs} audio_seconds=${it.audioSeconds}")
+        android.util.Log.i("BellpullVoiceSpeech", "engine=server first_pcm_ms=${it.firstPcmMs} total_ms=${it.totalMs} audio_seconds=${it.audioSeconds}")
     }) : LocalTtsEngine {
     override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
         val start = System.nanoTime()
@@ -143,7 +170,7 @@ internal class ServerMossEngine(private val transport: ServerSpeechTransport,
                         return sink.onChunk(samples)
                     }
                 }
-                decodeServerPcm(input, measuredSink) { first = (System.nanoTime() - start) / 1_000_000 }
+                decodeServerPcm(input, measuredSink, (input as? ServerPcmInput)?.sampleRate ?: 48000) { first = (System.nanoTime() - start) / 1_000_000 }
             }
             return 0
         } finally { telemetry(ServerSpeechTiming(first, (System.nanoTime() - start) / 1_000_000, frames / 48000.0)) }
@@ -160,6 +187,8 @@ internal class ServerMossVoiceOutput(connection: ServerConnection, config: Voice
         cue = ::readyChime, cancelSynthesis = transport::cancel)
     override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) = voice.prepare(onReady, onError)
     override fun speak(text: String, started: () -> Unit, complete: () -> Unit) = voice.speak(text, started, complete)
+    override fun prefetch(text: String) = voice.prefetch(text)
+    override fun retryPreparation() = voice.retryPreparation()
     override fun chime() = voice.chime()
     override fun stop() = voice.stop()
     override fun close() { voice.close(); transport.close() }

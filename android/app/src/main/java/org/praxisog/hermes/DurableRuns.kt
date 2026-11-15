@@ -63,6 +63,7 @@ internal class DurableRuns(
     var onHistory: (String, List<Message>) -> Unit = { _, _ -> }
     var onCompleted: (String, Message?) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
+    var onToolCompleted: (String?) -> Unit = {}
     var onChanged: (String) -> Unit = {}
     var onAccepted: (RunSubmission) -> Unit = {}
     var onPromptDelivered: (String, String) -> Unit = { _, _ -> }
@@ -241,6 +242,7 @@ internal class DurableRuns(
                             if (seq == null) consumedUnsequenced = true
                             reconnectAttempt = 0
                             live.accept(event)
+                            if (event is StreamEvent.ToolCompleted) onToolCompleted(event.toolName)
                             if (event is StreamEvent.RunCompleted) {
                                 val usage = event.raw["usage"] as? kotlinx.serialization.json.JsonObject
                                 if (usage != null) update(sessionId) { it.copy(

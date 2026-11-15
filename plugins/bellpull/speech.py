@@ -141,7 +141,8 @@ class SpeechProxy:
             async with self.session.request(request.method, self.url + "/" + endpoint,
                     timeout=aiohttp.ClientTimeout(total=timeout), allow_redirects=False, **kwargs) as upstream:
                 headers = {key: upstream.headers[key] for key in
-                    ("Content-Type", "Content-Encoding", "X-Audio-Seconds", "X-Took-Ms") if key in upstream.headers}
+                    ("Content-Type", "Content-Encoding", "X-Audio-Seconds", "X-Took-Ms", "X-Audio-Sample-Rate",
+                     "X-Audio-Channels", "X-Audio-Format", "X-Speech-Engine", "Retry-After") if key in upstream.headers}
                 if endpoint == "health" and 200 <= upstream.status < 300:
                     payload = await upstream.json()
                     payload["proxy"] = True

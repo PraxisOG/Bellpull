@@ -132,7 +132,7 @@ route forms are registered. No speech-service URL or second key is needed on the
 | Method | Route | Request | Successful response |
 |---|---|---|---|
 | GET | `/api/bellpull/speech/health` | None | JSON `{ok, tts, stt, tts_loaded, stt_loaded, proxy:true}`; helper latency probe fields may also be present |
-| POST | `/api/bellpull/speech/tts` | JSON `{text, voice?, stream?}`; text 1..4000 characters; JSON envelope at most 8 KiB | `audio/wav`, 48 kHz stereo; `stream:true` instead returns chunked signed 16-bit little-endian **mono** PCM at 48 kHz |
+| POST | `/api/bellpull/speech/tts` | JSON `{text, voice?, stream?}`; text 1..4000 characters; JSON envelope at most 8 KiB | `audio/wav`; `stream:true` returns chunked signed 16-bit little-endian **mono** PCM, with its sample rate declared in headers |
 | POST | `/api/bellpull/speech/stt` | Multipart field `audio` (captured WAV); entire multipart envelope at most 32 MiB | JSON `{text, language, seconds, took_ms}` |
 
 `?stream=true` on TTS is also accepted and sets the helper JSON `stream:true`.
@@ -143,6 +143,21 @@ responses retain status and body. An unreachable helper returns JSON
 been sent, a stream failure aborts the connection: HTTP cannot replace its status
 with 504 mid-stream. Oversized requests return 413; invalid TTS JSON/text/options
 or non-multipart STT return 400. The helper validates the multipart audio field.
+
+Kokoro declares `Content-Type: audio/pcm`, `X-Audio-Sample-Rate: 24000`,
+`X-Audio-Channels: 1`, `X-Audio-Format: pcm_s16le`, and `X-Speech-Engine: kokoro`.
+The proxy forwards these headers and `Retry-After`. Android accepts declared
+24/48 kHz mono PCM16; implicit 48 kHz is retained only for legacy MOSS
+`application/octet-stream`. It explicitly upsamples 24 kHz for the existing
+48 kHz player. Kokoro health includes `tts_streaming`, `tts_sample_rate` and
+`tts_format`; WAV output also remains 24 kHz. Streaming uses bounded sentence
+batches and stops subsequent work when the client disconnects.
+
+Plugin 0.9.2 also adds `bellpull_live_files`, the `bellpull_file` agent tool and
+authenticated `/api/bellpull/files` routes. These reference explicit original
+paths, independently of the immutable artifact API. Reads support ETags;
+per-file checklist grants enable version-checked, idempotent toggles and adds.
+See the [complete live-file contract](LIVE-SERVER-FILES.md).
 
 | Discovery feature | Meaning |
 |---|---|

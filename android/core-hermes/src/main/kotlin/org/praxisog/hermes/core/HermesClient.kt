@@ -104,6 +104,36 @@ class HermesClient(
 
     // ---- endpoints ------------------------------------------------------------
 
+    private fun liveFilePath(id: String): String {
+        require(id.matches(Regex("[a-f0-9]{32}")))
+        return "/api/bellpull/files/$id"
+    }
+    fun liveFiles(): HermesResult<LiveFileList> = get("/api/bellpull/files") {
+        json.decodeFromString<LiveFileList>(it).also { list ->
+            require(list.version == 1 && list.files.size <= 2000)
+            require(list.files.all { row -> row.id.matches(Regex("[a-f0-9]{32}")) && row.access in setOf("read", "checklist") })
+        }
+    }
+    fun liveFile(id: String, etag: String? = null): HermesResult<LiveFileSnapshot?> {
+        val request = authed(liveFilePath(id)).apply { etag?.let { header("If-None-Match", it) } }.get().build()
+        val call = trackedCall(httpClient, request)
+        return try {
+            call.execute().use { response ->
+                when {
+                    response.code == 304 && etag != null -> HermesResult.Ok(null)
+                    !response.isSuccessful -> HermesResult.Err(mapHttpError(response, null))
+                    else -> HermesResult.Ok(json.decodeFromString<LiveFileSnapshot>(response.body!!.string()).validated(id))
+                }
+            }
+        } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
+        catch (_: IllegalArgumentException) { HermesResult.Err(HermesError.MalformedResponse("Invalid file response.")) }
+        finally { finished(call) }
+    }
+    fun pinLiveFile(id: String, pinned: Boolean): HermesResult<LiveFile> =
+        post(liveFilePath(id) + "/pin", buildJsonObject { put("pinned", pinned) }.toString()) { json.decodeFromString(it) }
+    fun editLiveFile(id: String, body: JsonObject): HermesResult<LiveFileSnapshot> =
+        post(liveFilePath(id) + "/edit", body.toString()) { json.decodeFromString<LiveFileSnapshot>(it).validated(id) }
+
     private fun canvasPath(session: String): String {
         require(session.matches(Regex("[a-zA-Z0-9_-]{1,200}")))
         return "/api/bellpull/sessions/$session/canvas"
@@ -328,7 +358,7 @@ class HermesClient(
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
         val pluginFeatures = setOf("session_fork_at_message", "session_fork_before_message", "bellpull_model_controls", "bellpull_native_model_controls",
-            "bellpull_persistent_artifacts", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_delegation_delivery", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles", "bellpull_phone_context", "bellpull_background_folder", "bellpull_kanban", "bellpull_kanban_editing", "bellpull_canvas")
+            "bellpull_persistent_artifacts", "bellpull_live_files", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_delegation_delivery", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles", "bellpull_phone_context", "bellpull_background_folder", "bellpull_kanban", "bellpull_kanban_editing", "bellpull_canvas")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
         val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)

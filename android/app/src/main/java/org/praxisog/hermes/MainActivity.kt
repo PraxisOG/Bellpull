@@ -336,7 +336,8 @@ class MainActivity : ComponentActivity() {
                         disconnected = current == null, settingsRevision = profiles.settingsRevision,
                         coding = runtime.coding,
                         canvas = runtime.canvas,
-                        extraTools = runtime.client?.let { client -> { galleryHeight ->
+                        liveFiles = runtime.liveFiles,
+                        attachmentLibrary = { galleryHeight ->
                             FileSharingStatus(files?.filesSupported == true, runtime::refreshCapabilities)
                             if (files?.filesSupported == true) AttachmentLibrary(files.artifacts,
                                 (current?.sessions as? UiState.Ready)?.value.orEmpty(), galleryHeight, files.errors["artifacts"],
@@ -344,8 +345,8 @@ class MainActivity : ComponentActivity() {
                                 files.storage, files.warnings, if (files.lifecycleSupported) files::deleteArtifact else null,
                                 loading = files.artifactsLoading, upload = { ServerUploadButton(files,
                                     (current?.sessions as? UiState.Ready)?.value.orEmpty(), current?.openSessionId) })
-                            LiveGpuPanel(client, foreground)
-                        } },
+                        },
+                        extraTools = runtime.client?.let { client -> { _ -> LiveGpuPanel(client, foreground) } },
                         modelControl = files?.takeIf { it.modelsSupported }?.let { workspace -> current?.openSessionId?.let { id ->
                             { ModelControl(workspace, id) }
                         } },

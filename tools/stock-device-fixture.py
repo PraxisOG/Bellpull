@@ -153,7 +153,7 @@ class StreamSteps:
         adapter._create_agent = create_agent
 
 
-async def serve(source, port, home, streaming=False, audit_repair=False, projects=False):
+async def serve(source, port, home, streaming=False, audit_repair=False, projects=False, live_files=False):
     sys.path.insert(0, str(source))
     os.environ["HERMES_HOME"] = str(home)
     os.environ["BELLPULL_NTFY_URL"] = ""
@@ -203,6 +203,16 @@ async def serve(source, port, home, streaming=False, audit_repair=False, project
         database = await adapter._ensure_session_db_async()
         database.create_session(session_id="phone_fixture", source="api_server", model="fixture")
         database.set_session_title("phone_fixture", "Stock file sharing fixture")
+        if live_files:
+            for name, text, access in [("Groceries.md", "# Groceries\n\n- [ ] Milk\n- [x] Bread\n", "checklist"),
+                                       ("Read only.md", "# Read only\n\n- [ ] This cannot be changed\n", "read")]:
+                path = home / name
+                path.write_text(text)
+                row = json.loads(registry.dispatch("bellpull_file", {"path": str(path), "access": access},
+                    scope=manager.scope_key, session_id="phone_fixture"))
+                if row.get("status") != "referenced": raise RuntimeError(row)
+            if manager.find_plugin_skill("bellpull:live-files") is None:
+                raise RuntimeError("Agent file skill was not registered")
         if streaming or projects:
             for source, title in (("cli", "CLI conversation"), ("tui", "TUI conversation"),
                                   ("telegram", "Telegram conversation"), ("api_server", "Live streaming check")):
@@ -244,6 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("--audit-repair", action="store_true",
                         help="Fail first SSE request, compact the prompt, and delay saved completion until step five")
     parser.add_argument("--projects", action="store_true", help="Seed conversation sources and add authenticated disposable project compaction/fork controls")
+    parser.add_argument("--live-files", action="store_true", help="Register disposable Markdown files through the real agent tool")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="bellpull-stock-device-") as directory:
-        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming or args.audit_repair, args.audit_repair, args.projects))
+        asyncio.run(serve(args.hermes_source.resolve(), args.port, Path(directory), args.streaming or args.audit_repair, args.audit_repair, args.projects, args.live_files))

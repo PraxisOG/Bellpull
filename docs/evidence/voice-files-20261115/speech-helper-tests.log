@@ -1,0 +1,15 @@
+test_cancel_during_creation_closes_native_result (test_server.NativeOwnershipTest.test_cancel_during_creation_closes_native_result) ... ok
+test_audio_before_start_and_invalid_format_fail (test_server.ServerTest.test_audio_before_start_and_invalid_format_fail) ... ok
+test_authentication_before_upgrade (test_server.ServerTest.test_authentication_before_upgrade) ... ok
+test_cleanup_failure_still_releases_capacity (test_server.ServerTest.test_cleanup_failure_still_releases_capacity) ... ok
+test_invalid_audio_fails_and_releases_slot (test_server.ServerTest.test_invalid_audio_fails_and_releases_slot) ... ok
+test_two_streams_keep_separate_state_and_overload_is_bounded (test_server.ServerTest.test_two_streams_keep_separate_state_and_overload_is_bounded) ... ok
+test_auth_format_and_empty_input_are_rejected (test_tts_stream.StreamingTtsTest.test_auth_format_and_empty_input_are_rejected) ... ok
+test_batches_are_bounded_and_preserve_words (test_tts_stream.StreamingTtsTest.test_batches_are_bounded_and_preserve_words) ... ok
+test_cancellation_retains_native_ownership_and_discards_future_batches (test_tts_stream.StreamingTtsTest.test_cancellation_retains_native_ownership_and_discards_future_batches) ... ok
+test_first_sentence_arrives_before_second_finishes_and_wav_still_works (test_tts_stream.StreamingTtsTest.test_first_sentence_arrives_before_second_finishes_and_wav_still_works) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.092s
+
+OK

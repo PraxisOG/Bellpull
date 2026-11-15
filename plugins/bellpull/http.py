@@ -16,7 +16,7 @@ from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
 from .speech import SpeechProxy
-from . import canvas, native_attachments
+from . import canvas, native_attachments, live_files
 
 
 def wire(app, adapter):
@@ -201,6 +201,7 @@ def wire(app, adapter):
             "host_api_version": host.API_VERSION if host_ready else None,
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
+                "bellpull_live_files": files_ready,
                 "bellpull_native_model_controls": stock_models_ready,
                 "bellpull_run_attachments": host_ready or attachments_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,
@@ -299,6 +300,7 @@ def wire(app, adapter):
     if context_ready:
         routes.extend(phone_context.routes(adapter))
     if files_ready:
+        routes.extend(live_files.routes(adapter))
         routes.extend([
             ("GET", "/api/bellpull/plugins/gpu", gpu),
             ("GET", "/api/bellpull/artifacts/storage", storage),

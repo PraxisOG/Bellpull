@@ -25,7 +25,7 @@ import org.praxisog.hermes.model.*
 import java.text.DateFormat
 import java.util.Date
 
-/** Only composed in Tools. Hiding Tools or pausing the Activity cancels the polling loop. */
+/** Composed in Settings. Leaving Settings or pausing the Activity cancels polling. */
 @Composable
 internal fun LiveGpuPanel(client: HermesClient, foreground: Boolean) {
     var readings by remember(client) { mutableStateOf<GpuTelemetry?>(null) }

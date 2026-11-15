@@ -1,0 +1,117 @@
+Calculating task graph as no cached configuration is available for tasks: :app:testDebugUnitTest --tests *LiveFilesWorkspaceTest --tests *ServerSpeechTest --tests *LocalVoiceOutputTest :app:lintDebug
+> Task :local-llm:preBuild UP-TO-DATE
+> Task :core-model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-hermes:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :local-llm:preDebugBuild UP-TO-DATE
+> Task :local-llm:preDebugAndroidTestBuild UP-TO-DATE
+> Task :local-llm:preDebugUnitTestBuild UP-TO-DATE
+> Task :core-model:processResources NO-SOURCE
+> Task :local-llm:prepareLintJarForPublish UP-TO-DATE
+> Task :app:prepareSearchModel UP-TO-DATE
+> Task :local-llm:extractProguardFiles UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :local-llm:javaPreCompileDebug UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :core-hermes:processResources NO-SOURCE
+> Task :local-llm:generateDebugResources UP-TO-DATE
+> Task :local-llm:processDebugNavigationResources UP-TO-DATE
+> Task :local-llm:extractDeepLinksDebug UP-TO-DATE
+> Task :local-llm:writeDebugAarMetadata UP-TO-DATE
+> Task :local-llm:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :local-llm:generateDebugAssets UP-TO-DATE
+> Task :local-llm:writeDebugLintModelMetadata UP-TO-DATE
+> Task :app:extractProguardFiles UP-TO-DATE
+> Task :local-llm:checkDebugAarMetadata UP-TO-DATE
+> Task :local-llm:mergeDebugAssets UP-TO-DATE
+> Task :local-llm:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :local-llm:prepareDebugArtProfile UP-TO-DATE
+> Task :local-llm:processDebugManifest UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :core-model:compileKotlin UP-TO-DATE
+> Task :local-llm:packageDebugResources UP-TO-DATE
+> Task :core-model:compileJava NO-SOURCE
+> Task :local-llm:parseDebugLocalResources UP-TO-DATE
+> Task :local-llm:compileDebugLibraryResources UP-TO-DATE
+> Task :core-model:classes UP-TO-DATE
+> Task :local-llm:generateDebugRFile UP-TO-DATE
+> Task :core-model:jar UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :core-hermes:compileKotlin UP-TO-DATE
+> Task :app:processDebugNavigationResources
+> Task :local-llm:extractDebugAnnotations UP-TO-DATE
+> Task :core-hermes:compileJava NO-SOURCE
+> Task :core-hermes:classes UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :local-llm:compileDebugKotlin UP-TO-DATE
+> Task :core-hermes:jar UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :local-llm:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :local-llm:processDebugJavaRes UP-TO-DATE
+> Task :local-llm:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :local-llm:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :local-llm:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :local-llm:mergeDebugJavaResource UP-TO-DATE
+> Task :local-llm:createFullJarDebug UP-TO-DATE
+> Task :local-llm:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :local-llm:syncDebugLibJars UP-TO-DATE
+> Task :local-llm:generateDebugLintModel UP-TO-DATE
+> Task :local-llm:bundleDebugLocalLintAar UP-TO-DATE
+> Task :local-llm:lintAnalyzeDebug UP-TO-DATE
+> Task :local-llm:generateDebugUnitTestLintModel UP-TO-DATE
+> Task :local-llm:generateDebugAndroidTestLintModel UP-TO-DATE
+> Task :local-llm:lintAnalyzeDebugUnitTest UP-TO-DATE
+> Task :local-llm:lintAnalyzeDebugAndroidTest UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:mergeDebugUnitTestManifest UP-TO-DATE
+> Task :app:processDebugUnitTestManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage
+> Task :app:generateDebugLintReportModel
+> Task :app:processDebugResources
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :app:generateDebugUnitTestConfig UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :app:testDebugUnitTest
+> Task :app:finalizeTestRoborazziDebug SKIPPED
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :app:lintAnalyzeDebug
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///home/praxisog/Bellpull-kanban-tree/android/app/build/reports/lint-results-debug.html
+Wrote SARIF report to file:///home/praxisog/Bellpull-kanban-tree/android/app/build/reports/lint-results-debug.sarif
+
+> Task :app:lintDebug
+
+[Incubating] Problems report is available at: file:///home/praxisog/Bellpull-kanban-tree/android/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 36s
+78 actionable tasks: 18 executed, 60 up-to-date
+Configuration cache entry stored.

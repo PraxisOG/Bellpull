@@ -1,0 +1,5 @@
+health {'ok': True, 'stt': 'moonshine-medium-fp32-rocm', 'stt_loaded': True, 'stt_streaming': False, 'tts': 'kokoro-82m-v1.0-fp32-rocm', 'tts_loaded': True, 'tts_streaming': True, 'tts_sample_rate': 24000, 'tts_format': 'pcm_s16le', 'backend': 'rocm'}
+{"first_pcm_ms": 342, "total_ms": 342, "audio_seconds": 3.25, "rtf": 0.105, "chunks": [[342, 125945], [342, 30055]]}
+simultaneous_stt 200 {"text": "Please add milk and apples to the shopping list.", "language": "en", "seconds": 3.25, "took_ms": 641} wall_ms 642
+{"first_pcm_ms": 438, "total_ms": 1267, "audio_seconds": 12.4, "rtf": 0.102, "chunks": [[438, 46585], [438, 60215], [726, 114000], [936, 144000], [1267, 230400]]}
+cancel_recovery_ms 508
