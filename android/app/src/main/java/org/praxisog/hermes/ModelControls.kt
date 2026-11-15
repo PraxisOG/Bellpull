@@ -11,8 +11,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.*
 
 @Composable
@@ -95,7 +93,7 @@ internal fun ModelPicker(catalog: ModelCatalog?, selected: ModelSelection?, erro
     var choice by remember(selected, catalog?.default) { mutableStateOf(selected ?: catalog?.default) }
     var saving by remember { mutableStateOf(false) }
     val selectedRoute = catalog?.models?.find { it.model == choice?.model && it.provider == choice?.provider }
-    Dialog(onDismissRequest = { if (!saving) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = { if (!saving) onDismiss() }) {
         Surface(Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(.88f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (defaults) "Default model" else "Conversation model", style = MaterialTheme.typography.titleLarge)

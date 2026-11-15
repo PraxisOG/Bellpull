@@ -70,7 +70,8 @@ internal fun wav(pcm: ByteArray): ByteArray = ByteBuffer.allocate(44 + pcm.size)
 internal class VoiceSentences {
     private var consumed = 0
     private var previous = ""
-    fun take(text: String, final: Boolean = false): List<String> = takeVisible(org.praxisog.hermes.model.canvasVisibleText(text), final)
+    fun take(text: String, final: Boolean = false): List<String> =
+        takeVisible(org.praxisog.hermes.model.canvasVisibleText(text, trim = false), final)
     private fun takeVisible(text: String, final: Boolean): List<String> {
         if (!text.startsWith(previous)) {
             if (previous.startsWith(text)) return emptyList() // a shorter replay cannot restart speech

@@ -23,8 +23,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -82,7 +80,7 @@ internal fun ArtifactPreview(workspace: Phase3Workspace, item: Artifact, modifie
 /** Same rounded, generously sized bubble as tool details; wide screens still default here. */
 @Composable
 internal fun ArtifactPreviewDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = onClose) {
         CompositionLocalProvider(LocalImmersiveHeaders provides false) {
             Surface(Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(0.82f)
                 .testTag("artifact-preview-dialog"), shape = MaterialTheme.shapes.large) { content() }

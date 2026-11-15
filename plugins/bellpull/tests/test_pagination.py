@@ -102,6 +102,24 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Authoritative final output", after["data"][-1]["content"])
         self.assertIn(prompt, [row["id"] for row in self.db.get_messages("chat", include_compacted=True)])
 
+    async def test_background_delivery_preserves_identity_and_host_deduplication(self):
+        if not hasattr(self.db, "append_delegation_delivery"):
+            self.skipTest("Host predates durable delegation delivery")
+        self.db.create_session("chat", "api_server")
+        metadata = {"delegation_id": "deleg_fixture", "private_unused": "must not leave host"}
+        first = self.db.append_delegation_delivery("chat", "Synthetic completed result", metadata)
+        again = self.db.append_delegation_delivery("chat", "Duplicate arrival", metadata)
+        self.assertEqual(first, again)
+        response = await self.client.get("/api/bellpull/sessions/chat/messages", headers=self.headers)
+        self.assertEqual(200, response.status)
+        rows = (await response.json())["data"]
+        self.assertEqual(1, len(rows))
+        self.assertEqual("deleg_fixture", rows[0]["delegation_id"])
+        self.assertEqual("async_delegation_complete", rows[0]["display_kind"])
+        self.assertEqual("user", rows[0]["role"])  # no new assistant/model turn
+        self.assertNotIn("private_unused", str(rows))
+        self.assertEqual(401, (await self.client.get("/api/bellpull/sessions/chat/messages")).status)
+
     async def test_unconfigured_auth_is_closed(self):
         self.adapter._api_key = ""
         self.assertEqual(401, (await self.client.get("/api/bellpull/capabilities")).status)

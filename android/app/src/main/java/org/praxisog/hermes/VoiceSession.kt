@@ -425,7 +425,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun pump() {
         if (speaking || tentative || audioSuspended || state == VoiceState.PAUSED ||
             (speech.isEmpty() && activitySpeech.isEmpty()) || closed) return
-        activeActivity = activitySpeech.isNotEmpty()
+        activeActivity = speech.isEmpty() && activitySpeech.isNotEmpty()
         val (text, done) = if (activeActivity) activitySpeech.removeFirst() to null else speech.removeFirst()
         activeSpeech = text to done
         val token = generation
@@ -473,15 +473,19 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun collectPlayback(run: VoiceRun) {
         if (suppressed) return
         val activities = run.activities.filter { announced.add(it.id) }
-        activities.filter { config.announcements.enabled(it.kind) }.forEach { activitySpeech.addLast(it.text) }
+        // A tool boundary is not a sentence boundary. Queue all ready prose before
+        // pumping, so a cue cannot jump in front of text in this same snapshot.
+        sentences.take(run.text, run.final).forEach { speech.addLast(it to null) }
+        // One waiting cue is enough to signal activity, even during a large batch.
+        // The four flags still independently decide which kinds are eligible.
+        if (activitySpeech.isEmpty()) activities.firstOrNull { config.announcements.enabled(it.kind) }
+            ?.let { activitySpeech.addLast(it.text) }
         pump()
-        // Flush genuine prose at a tool boundary, through its single answer lane.
-        sentences.take(run.text, run.final || activities.any { it.kind != VoiceActivityKind.THINKING }).forEach { enqueue(it) }
         prefetchNext()
     }
     private fun prefetchNext() {
         if (speaking && !tentative && !audioSuspended && !closed && state != VoiceState.PAUSED)
-            (activitySpeech.firstOrNull() ?: speech.firstOrNull()?.first)?.let(output::prefetch)
+            (speech.firstOrNull()?.first ?: activitySpeech.firstOrNull())?.let(output::prefetch)
     }
     /** A partial phrase restarts; fully completed phrases never enter the queue again. */
     private fun suspendPlayback() {

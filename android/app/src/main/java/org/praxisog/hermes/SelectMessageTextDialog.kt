@@ -10,8 +10,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.Message
 
 /** Read-only native selection, separate from the bubble's long-press action menu. */
@@ -21,7 +19,7 @@ internal fun SelectMessageTextDialog(message: Message, onDismiss: () -> Unit) {
     var value by remember(message) { mutableStateOf(TextFieldValue(text, TextRange(0, text.length))) }
     val focus = remember { FocusRequester() }
     val copy = rememberMessageCopy()
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = onDismiss) {
         Surface(Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(.82f),
             shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

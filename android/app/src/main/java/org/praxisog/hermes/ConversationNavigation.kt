@@ -9,8 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.Message
 
 internal enum class ChatNavigation { PROMPTS, SEARCH }
@@ -30,7 +28,7 @@ internal fun ConversationNavigator(
         else if (query.isBlank()) emptyList()
         else messages.filter { it.content?.contains(query.trim(), ignoreCase = true) == true }
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = onDismiss) {
         Surface(modifier = Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(.82f),
             shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -50,7 +50,10 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
                     self.assertFalse(features["bellpull_model_controls"])
                     self.assertEqual(native_supported, features["bellpull_run_attachments"])
                     self.assertFalse(features["session_fork_at_message"])
-                    self.assertEqual(404, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)
+                    self.assertTrue(features["bellpull_snapshot_paging"])
+                    self.assertTrue(features["bellpull_delegation_delivery"])
+                    self.assertEqual(200, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)
+                    self.assertEqual(401, (await client.get("/api/bellpull/sessions")).status)
                 adapter._run_idempotency_store.close()
 
     async def test_native_adapter_startup_discovers_plugin_and_shutdown_closes_it(self):

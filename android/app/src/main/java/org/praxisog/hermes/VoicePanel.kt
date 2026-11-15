@@ -21,8 +21,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 
 @Composable
 internal fun VoiceGlyph(active: Boolean = false) {
@@ -39,8 +37,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
     onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null) {
     var editing by remember { mutableStateOf(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
     var mode by remember { mutableStateOf(VoiceMode.CALL) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.imePadding().padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(.92f), shape = MaterialTheme.shapes.large) {
+    BellpullDialog(onDismissRequest = onDismiss) {
+        Surface(Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(.92f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Voice conversation", style = MaterialTheme.typography.titleLarge)
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {

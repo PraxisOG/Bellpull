@@ -84,4 +84,6 @@ fun canvasMessageParts(text: String): List<CanvasMessagePart> {
     if (cursor < text.length) parts += CanvasMessagePart(false, text.substring(cursor))
     return parts
 }
-fun canvasVisibleText(text: String): String = canvasMessageParts(splitCanvasContext(text).first).filterNot { it.drawing }.joinToString("") { it.text }.trim()
+fun canvasVisibleText(text: String, trim: Boolean = true): String =
+    canvasMessageParts(splitCanvasContext(text).first).filterNot { it.drawing }.joinToString("") { it.text }
+        .let { if (trim) it.trim() else it }

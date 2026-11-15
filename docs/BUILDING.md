@@ -1,3 +1,6 @@
+> Local repair candidate: app **0.20.1 / build 51**, plugin **0.9.1-reliability-preview**.
+> [Changes and validation](PRIORITY-BUG-REPAIRS-2026-11-15.md). The published 0.20.0 instructions below remain reproducible.
+
 > Current experimental: app 0.20.0 / build 50, plugin 0.9.0-kanban-tree-preview.
 > See [release validation and known limits](RELEASE-0.20.0-EXPERIMENTAL.md).
 

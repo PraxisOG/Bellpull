@@ -79,7 +79,7 @@ internal fun ServerProfilesPanel(
         }) { Text("Remove") } },
         dismissButton = { TextButton(onClick = { removing = null; removeAll = false }) { Text("Cancel") } },
     )
-    renaming?.let { profile -> AlertDialog(onDismissRequest = { renaming = null },
+    renaming?.let { profile -> BellpullTextDialog(onDismissRequest = { renaming = null },
         title = { Text("Rename profile") },
         text = { OutlinedTextField(renamed, { renamed = it }, label = { Text("Profile name") }, singleLine = true) },
         confirmButton = { TextButton(onClick = { onRename(profile.id, renamed); renaming = null },

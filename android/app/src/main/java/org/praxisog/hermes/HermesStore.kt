@@ -41,6 +41,7 @@ internal class HermesStore(
     journal: RunJournal? = null,
     supportsVoiceTitles: Boolean = false,
     var backgroundFolders: Boolean = false,
+    delegationJournal: DelegationJournal? = cache as? DelegationJournal,
 ) {
     var backgroundProblem by mutableStateOf<String?>(null)
         private set
@@ -65,6 +66,13 @@ internal class HermesStore(
     }
     val runs = if (durableRetention != null && journal != null)
         DurableRuns(scope, client, journal, drafts, durableRetention, clock) else null
+    val delegations = delegationJournal?.let { saved -> BackgroundDelegations(scope, client, saved,
+        blocked = { id -> runs?.states?.get(id)?.let { !it.submission.terminal || it.approval != null } == true ||
+            runs == null && id == openSessionId && turn is TurnState.Streaming },
+        onHistory = { id, messages ->
+            cache?.writeHistory(id, messages)
+            if (id == openSessionId) history = UiState.Ready(messages)
+        }, onReply = ::discoveredReply) }
     var phoneNotificationContext: (String) -> String? = { null }
     var onReply: (String, Message) -> Unit = { _, _ -> }
     var onAttention: (String, String) -> Unit = { _, _ -> }
@@ -73,12 +81,15 @@ internal class HermesStore(
     var newSessionRequest: (String?, org.praxisog.hermes.model.ModelSelection?) -> (suspend () -> HermesResult<Session>) =
         { title, selection -> { io { client.createSession(title, selection) } } }
     val runPresentation: RunPresentation? get() = openSessionId?.let { runs?.states?.get(it) }
-    val runLabels: Map<String, String> get() = runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
+    val runLabels: Map<String, String> get() = delegations?.states.orEmpty()
+        .filterValues { it.pending.isNotEmpty() }.mapValues { "Background work" } +
+        runs?.states.orEmpty().mapNotNull { (id, value) -> value.label?.let { id to it } }.toMap()
 
     init {
         runs?.onPromptDelivered = ::titleFirstDeliveredPrompt
         runs?.onChanged = { id -> if (id == openSessionId) showDurableRun(id) }
         runs?.onHistory = { id, messages ->
+            delegations?.accept(id, messages)
             if (id == openSessionId) {
                 Snapshot.withMutableSnapshot {
                     history = UiState.Ready(messages)
@@ -95,7 +106,7 @@ internal class HermesStore(
         runs?.onAttention = { id, identity -> onAttention(id, identity) }
     }
 
-    fun startRecovery() { runs?.restore() }
+    fun startRecovery() { runs?.restore(); delegations?.restore() }
     fun discoveredReply(id: String, reply: Message) {
         val old = readState.snapshot()[id]?.unreadReply ?: 0
         readState.completed(id, reply.id)
@@ -108,7 +119,7 @@ internal class HermesStore(
     private var closed = false
     private data class InitialPrompt(val sessionId: String, val text: String, val draftRevision: Long)
     private var initialPrompt: InitialPrompt? = null
-    fun close() { closed = true; initialPrompt = null; runs?.close(); legacyRecoveryJobs.values.forEach { it.cancel() }; legacyRecoveryJobs.clear() }
+    fun close() { closed = true; initialPrompt = null; runs?.close(); delegations?.close(); legacyRecoveryJobs.values.forEach { it.cancel() }; legacyRecoveryJobs.clear() }
     fun retryRun() { openSessionId?.let { runs?.retry(it) } }
     fun abandonRunAfterReview() { openSessionId?.let { runs?.abandonAfterReview(it) } }
     fun respondToApproval(requestId: String, choice: String) { openSessionId?.let { runs?.respond(it, requestId, choice) } }
@@ -445,6 +456,7 @@ internal class HermesStore(
             }
             val result = io { client.completeHistory(sessionId) }
             if (revision != sessionRevision || request != historyRequest) return@launch
+            if (result is HermesResult.Ok) delegations?.accept(sessionId, result.value.data)
             if (result is HermesResult.Ok) io { runCatching { cache?.writeHistory(sessionId, result.value.data) } }
             else if (history !is UiState.Ready) {
                 val saved = io { runCatching { cache?.readHistory(sessionId) }.getOrNull() }

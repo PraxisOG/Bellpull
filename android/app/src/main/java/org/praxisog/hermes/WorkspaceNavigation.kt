@@ -7,8 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.Session
 
 internal enum class WorkspaceMode(val title: String) {
@@ -72,7 +70,7 @@ internal fun WorkspaceSearch(
     scopeTitle: String? = null, allConversations: List<Session> = sessions,
 ) {
     var global by remember(scopeTitle) { mutableStateOf(scopeTitle == null) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = onDismiss) {
         Surface(Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(.82f),
             shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

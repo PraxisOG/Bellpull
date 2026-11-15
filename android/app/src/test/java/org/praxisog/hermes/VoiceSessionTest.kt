@@ -191,7 +191,7 @@ class VoiceSessionTest {
         assertEquals(VoiceState.STOPPED, dictation.state); assertFalse(capture.active)
         assertTrue(target.sent.isEmpty())
     }
-    @Test fun liveActivitiesAreAnnouncedOnceAndAheadOfQueuedAnswerSentences() {
+    @Test fun liveActivitiesAreAnnouncedOnceAfterQueuedAnswerSentences() {
         voice.start(); utterance(); output.complete()
         target.value = VoiceRun("run-1", true, "First sentence. Second sentence. More")
         await { output.said.size == 2 }
@@ -199,10 +199,10 @@ class VoiceSessionTest {
         target.value = target.value.copy(activities = listOf(activity))
         tick(); output.complete()
         await { output.said.size == 3 }
-        assertEquals(activity.text, output.said.last())
+        assertEquals("Second sentence.", output.said.last())
         target.value = target.value.copy(text = "First sentence. Second sentence. More words")
         tick(); output.complete()
-        assertEquals("Second sentence.", output.said.last())
+        assertEquals(activity.text, output.said.last())
         assertEquals(1, output.said.count { it == activity.text })
     }
     @Test fun actualPreamblePlaybackPrecedesOneAdmissionAndAnswerStreamsBeforeCompletion() {
@@ -375,12 +375,12 @@ class VoiceSessionTest {
             VoiceActivity("tool:one", "Web search.", VoiceActivityKind.WEB_SEARCH),
             VoiceActivity("tool:two", "Tool call. Read file.")))
         await { output.said.size == 2 }
-        repeat(3) { output.complete() }
+        repeat(2) { output.complete() }
         assertEquals(1, output.said.count { it == preamble })
         target.value = target.value.copy(activities = target.value.activities + VoiceActivity("tool:three", "Tool call. Terminal."))
-        await { output.said.size == 5 }; output.complete()
+        await { output.said.size == 4 }; output.complete()
         target.value = target.value.copy(busy = false, final = true, text = "$preamble $preamble")
-        await { output.said.size == 6 }; output.complete()
+        await { output.said.size == 5 }; output.complete()
         assertEquals(2, output.said.count { it == preamble }) // A later genuine repetition stays eligible.
         assertEquals(1, target.sent.size)
     }
@@ -398,12 +398,52 @@ class VoiceSessionTest {
                     VoiceActivity("file", "Tool call. Read file.", VoiceActivityKind.TOOL)))
                 await { output.said.isNotEmpty() }
                 while (output.completion != null) output.complete()
-                assertEquals(if (tools) 1 else 0, output.said.count { it == "Tool call. Read file." })
+                assertEquals(if (tools && !search) 1 else 0, output.said.count { it == "Tool call. Read file." })
                 assertEquals(if (search) 1 else 0, output.said.count { it == "Web search." })
                 assertEquals(1, output.said.count { it == "Answer." })
             } finally { session.close() }
         }
     }
+    @Test fun toolBoundaryNeverFlushesAnIncompleteSentenceWithAllCuesOff() {
+        val session = VoiceSession("chat", "profile", scope, target,
+            VoiceConfiguration(announcements = VoiceAnnouncements(false, false, false, false)),
+            output, capture, initialTranscript = "Question")
+        try {
+            session.start(); session.sendTranscript()
+            target.value = target.value.copy(text = "The answer continues", activities = listOf(VoiceActivity("tool", "Tool call.")))
+            tick(); tick()
+            assertTrue(output.said.isEmpty())
+            target.value = target.value.copy(text = "The answer continues across the tool boundary. Trailing words", busy = false, final = true)
+            await { output.said.isNotEmpty() }
+            output.complete(); output.complete()
+            assertEquals(listOf("The answer continues across the tool boundary.", "Trailing words"), output.said)
+            target.value = target.value.copy(activities = target.value.activities + VoiceActivity("later", "Tool call."))
+            tick(); assertEquals(2, output.said.size)
+        } finally { session.close() }
+    }
+
+    @Test fun queuedProsePrecedesOneCoalescedCueAndSurvivesFocusInterruption() {
+        voice.start(); utterance(); output.complete()
+        target.value = target.value.copy(text = "First sentence. Second sentence. A partial")
+        await { output.said.size == 2 }
+        target.value = target.value.copy(activities = (1..20).map { VoiceActivity("tool:$it", "Tool call $it.") })
+        tick(); tick()
+        voice.suspendForAudio()
+        voice.recoverAudio() // restart only the interrupted first sentence
+        output.complete()
+        assertEquals("Second sentence.", output.said.last())
+        output.complete()
+        assertEquals("Tool call 1.", output.said.last())
+        output.complete()
+        assertFalse(output.said.contains("A partial"))
+        target.value = target.value.copy(text = "First sentence. Second sentence. A partial sentence ends.", busy = false, final = true)
+        await { output.said.last() == "A partial sentence ends." }
+        output.complete()
+        assertEquals(1, output.said.count { it.startsWith("Tool call") })
+        assertEquals(1, output.said.count { it == "Second sentence." })
+        assertEquals(1, target.sent.size)
+    }
+
     @Test fun backendCompletionDuringPendingEchoRecognitionRemainsRecoverable() {
         voice.start(); utterance(); output.complete()
         target.value = VoiceRun("run-1", true, "First sentence. More")

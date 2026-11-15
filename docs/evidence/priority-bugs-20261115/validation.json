@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-15",
+  "branch": "fix/experimental-priority-bugs-20261115",
+  "base": "9c8f3a293c4af82a33627f3632f3dcabef68c948",
+  "app": {
+    "version": "0.20.1-experimental",
+    "build": 51,
+    "apk_sha256": "745e5e57f309256dcd802170eb0d9d239459f2fae012d44fae5bbbc841edfcb5",
+    "signed": true,
+    "alignment_16k": "passed",
+    "installed_on_personal_app": false
+  },
+  "plugin": {
+    "version": "0.9.1-reliability-preview",
+    "deployed": false
+  },
+  "android": {
+    "passed": 895,
+    "skipped": 1,
+    "failed": 0,
+    "screenshots_verified": 221,
+    "lint_errors": 0,
+    "lint_warnings": 95,
+    "lint_hints": 6
+  },
+  "plugin_legacy": {
+    "run": 230,
+    "passed": 226,
+    "skipped": 4,
+    "failed": 0
+  },
+  "plugin_stock_paging": {
+    "run": 7,
+    "passed": 7,
+    "skipped": 0,
+    "failed": 0,
+    "image": "2fd023efbb8d"
+  },
+  "device": {
+    "model": "Pixel 10 Pro Fold",
+    "package": "org.praxisog.hermes.fixture",
+    "passed": 8,
+    "widths": [
+      "2076x2152",
+      "1080x2152 (simulated)"
+    ],
+    "density": 440,
+    "size_override_restored": true,
+    "parent_runs_admitted": 1,
+    "completion_written_twice_same_row": true,
+    "recovered_results": 1,
+    "force_stop_between_dispatch_and_recovery": true
+  },
+  "limits": [
+    "Requires matching plugin for stable delegation identities.",
+    "Force-stopped apps catch up on launch.",
+    "Synthetic worker with real host HTTP and SQLite; no live model inference.",
+    "Original stranded-dialog motion not reproduced; exact reported dialog unspecified.",
+    "No new car-route or voice-engine device acceptance."
+  ],
+  "secret_scan": "Textual staged diff passed; public-key fingerprints omitted from build log. Binary patches excluded from text scanning."
+}

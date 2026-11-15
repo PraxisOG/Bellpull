@@ -19,8 +19,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.serialization.json.*
 import org.praxisog.hermes.model.*
 import java.time.*
@@ -348,8 +346,8 @@ import kotlinx.coroutines.delay
 /** Reuse the project editor's bounded, keyboard-aware dialog layout on cover screens. */
 @Composable private fun PlanningFormDialog(title: String, dismiss: () -> Unit,
     form: @Composable ColumnScope.() -> Unit, actions: @Composable RowScope.() -> Unit) {
-    Dialog(onDismissRequest=dismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Surface(Modifier.imePadding().padding(20.dp).widthIn(max=560.dp).fillMaxWidth().fillMaxHeight(.9f),shape=MaterialTheme.shapes.large) {
+    BellpullDialog(onDismissRequest = dismiss) {
+        Surface(Modifier.padding(20.dp).widthIn(max=560.dp).fillMaxWidth().fillMaxHeight(.9f),shape=MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Text(title,style=MaterialTheme.typography.titleLarge)
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp),content=form)

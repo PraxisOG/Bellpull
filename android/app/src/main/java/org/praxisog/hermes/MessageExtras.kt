@@ -138,7 +138,7 @@ internal fun CanvasMessageText(text: String, modifier: Modifier = Modifier) {
 internal fun QuoteDialog(message: Message, onDismiss: () -> Unit, onQuote: (String) -> Unit) {
     val text = message.content.orEmpty()
     var value by remember(message.id) { mutableStateOf(TextFieldValue(text, TextRange(0, text.length))) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Follow up") }, text = {
+    BellpullTextDialog(onDismissRequest = onDismiss, title = { Text("Follow up") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Select the part you want to quote, then add your question in the chat.")
             OutlinedTextField(value = value, onValueChange = { value = it }, readOnly = true,

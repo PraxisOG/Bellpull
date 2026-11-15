@@ -1254,3 +1254,39 @@ container_id atomically with fields. Field edits leave containment unchanged.
 Missing parents, self-parenting, cycles, active work, archived boards and stale
 child revisions produce durable conflict receipts. Old clients and old queued
 payloads remain valid. A new client uses hierarchy only on advertised boards.
+
+## Background delegation delivery — November 15, 2026
+
+Plugin `0.9.1-reliability-preview` advertises `bellpull_delegation_delivery`
+alongside `bellpull_snapshot_paging`. Authenticated snapshot reads are supported
+on stock hosts with the native session/authentication contract; legacy fork and
+run-patch capabilities retain their separate compatibility gate.
+
+The existing `/api/bellpull/sessions/{session_id}/messages` snapshot keeps the
+host's message projection and, only for `display_kind=async_delegation_complete`,
+adds `delegation_id` and optional `delegation_notice` from the corresponding
+persisted display metadata. These are bounded strings; unrelated display
+metadata is not exposed. A diagnostic notice does not complete the delegation.
+The underlying row remains a `user` bookkeeping row. The client presents it as a
+separate **Background result**, without writing another transcript or sending a
+prompt. Hidden rows remain hidden.
+
+A tool receipt with `status=dispatched`, `mode=background` and a stable
+`delegation_id` starts a profile-scoped durable watch. Parent `run.completed`
+settles the parent run only. Bellpull continues reading saved history every two
+seconds while background units remain outstanding, including after Activity
+closure and after runtime restoration. Completion identity, rather than result
+text or parent run status, resolves the watch. Delivery receipts, message read
+receipts and inbox identity prevent replayed rows from notifying twice. Failed
+reads or durable writes retain the watch. While a tracked parent/new turn or its
+approval gate remains active, delivery waits; the consumer never submits,
+re-dispatches, cancels or approves work.
+
+Existing session catch-up also discovers results from other clients. The reply
+notification preference and Android notification permission still apply. With
+the notification service running, the runtime can receive background results;
+a force-stopped process cannot execute and catches up on the next launch. Other
+server profiles are checked when selected, using their own encrypted receipts.
+The updated plugin is required to match completion identities reliably; a native
+endpoint or older plugin that omits the identity cannot prove which outstanding
+unit finished. Phone rendering can still display its completion row.

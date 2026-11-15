@@ -22,6 +22,7 @@ internal class ReplyCatchUp(
 ) {
     private val lock = Mutex()
     var archive: suspend (String, Message) -> Boolean = { _, _ -> true }
+    var onHistory: (String, List<Message>) -> Unit = { _, _ -> }
     private var job: Job? = null
     fun sync(sessions: List<Session>): Job {
         job?.takeIf { it.isActive }?.let { return it }
@@ -32,8 +33,9 @@ internal class ReplyCatchUp(
                 val old = withContext(Dispatchers.IO) { cursors.readCursor(session.id) }
                 val activity = session.lastActive ?: session.startedAt ?: 0.0
                 if (old?.activity == activity && old.count == session.messageCount) continue
-                val result = withContext(Dispatchers.IO) { client.messages(session.id) }
+                val result = withContext(Dispatchers.IO) { client.completeHistory(session.id) }
                 if (result !is HermesResult.Ok) continue // keep old cursor so reconnect retries
+                onHistory(session.id, result.value.data)
                 val latest = result.value.data.lastOrNull { it.role == "assistant" && !it.content.isNullOrBlank() }
                 // First sight is a baseline, not a pile of unread imported chats. Existing
                 // receipt positions can establish that baseline after the feature upgrade.

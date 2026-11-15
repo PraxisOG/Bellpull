@@ -1,4 +1,10 @@
-> Current experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
+> Local reliability candidate: **Android 0.20.1 / build 51**, plugin **0.9.1-reliability-preview**.
+> Adds durable background-result delivery, coherent voice playback, tappable reply URLs
+> and shared dialog keyboard handling. [Repair details and validation](../../docs/PRIORITY-BUG-REPAIRS-2026-11-15.md).
+> Background dispatch identities require this matching plugin; install the complete bundle
+> and restart the gateway when idle. This candidate has not been published or deployed.
+
+> Latest published experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
 > Adds explicit task/subtask containment and complete hierarchy pagination while
 > preserving dependency and scheduling semantics. Includes chat attachment handoff,
 > SVG MIME support, Canvas, reasoning and plugin reload recovery.

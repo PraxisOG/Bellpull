@@ -20,7 +20,7 @@ import org.praxisog.hermes.model.Session
  * local data to win.
  */
 @Suppress("DEPRECATION") // Same project security contract as SecureConnectionStore.
-internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY, testPreferences: android.content.SharedPreferences? = null) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache, KanbanCache {
+internal class SessionCache(context: Context, profileId: String = SecureConnectionStore.LEGACY, testPreferences: android.content.SharedPreferences? = null) : SessionSnapshots, RunJournal, ReplyCursorStore, ProjectCache, PlanningCache, KanbanCache, DelegationJournal {
     private val profileFiles = java.io.File(context.filesDir, "bellpull-files/$profileId")
     private val sharedFiles = java.io.File(context.cacheDir, "bellpull-shared/$profileId")
     @Volatile private var closed = false
@@ -231,6 +231,14 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
         .filterKeys { it.startsWith("run:") }.values.mapNotNull { raw ->
             runCatching { json.decodeFromString<org.praxisog.hermes.model.RunSubmission>(raw as String) }.getOrNull()
         }
+
+    override fun readDelegations(): Map<String, DelegationReceipt> = preferences.all
+        .filterKeys { it.startsWith("delegations:") }.mapNotNull { (key, raw) ->
+            runCatching { key.removePrefix("delegations:") to json.decodeFromString<DelegationReceipt>(raw as String) }.getOrNull()
+        }.toMap()
+
+    @Synchronized override fun writeDelegations(sessionId: String, value: DelegationReceipt): Boolean = !closed &&
+        preferences.edit().putString("delegations:$sessionId", json.encodeToString(value)).commit()
 
     @Synchronized override fun writeRun(value: org.praxisog.hermes.model.RunSubmission): Boolean = !closed && preferences.edit()
         .putString("run:${value.requestId}", json.encodeToString(value)).commit()

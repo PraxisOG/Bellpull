@@ -1,0 +1,31 @@
+{
+  "base": "9c8f3a2",
+  "branch": "fix/mobile-links-dialogs-20261109",
+  "jvm": {
+    "passed": 887,
+    "skipped": 1,
+    "failed": 0
+  },
+  "snapshot_baselines": 221,
+  "lint": {
+    "errors": 0,
+    "warnings": 93
+  },
+  "fixture_device": {
+    "package": "org.praxisog.hermes.fixture",
+    "passed": 6,
+    "sizes": [
+      "2076x2152",
+      "1080x2152",
+      "2152x1080"
+    ],
+    "density": 440,
+    "cleanup": "fixture packages removed; original physical size and density override retained"
+  },
+  "limits": [
+    "Original stranded-dialog report not reproduced in the release project editor",
+    "Landscape and narrow checks use size overrides, not a physical rotation or hinge transition",
+    "Delegated-result delivery issue #51 not addressed"
+  ],
+  "publication": "local source only"
+}

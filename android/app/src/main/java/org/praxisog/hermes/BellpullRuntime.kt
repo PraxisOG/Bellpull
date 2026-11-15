@@ -219,6 +219,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         }
         cache?.let {
             val catchUp = ReplyCatchUp(scope, client, it, receipts, next::discoveredReply)
+            catchUp.onHistory = { id, messages -> next.delegations?.accept(id, messages) }
             val profileDelivery = delivery
             catchUp.archive = { id, message -> profileDelivery?.archiveReply(id, message) ?: false }
             next.onSessions = { sessions ->

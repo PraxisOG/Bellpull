@@ -2,6 +2,7 @@ package org.praxisog.hermes
 
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.Artifact
+import org.praxisog.hermes.model.isDelegationDelivery
 
 internal data class TranscriptGroup(val messages: List<Message>, val tools: Boolean) {
     val key: String get() = (if (tools) "tools-" else "message-") + messages.first().id
@@ -24,7 +25,9 @@ internal fun responseBlocks(entries: List<TranscriptEntry>): List<ResponseBlock>
     entries.forEach { entry ->
         val response = entry.group?.messages?.all { it.role == "assistant" || it.role == "tool" }
             ?: (entry.artifact?.source == "agent" && blocks.lastOrNull()?.assistant == true)
-        if (response && blocks.lastOrNull()?.assistant == true) {
+        if (response && blocks.lastOrNull()?.assistant == true &&
+            entry.group?.messages?.none { it.isDelegationDelivery } != false &&
+            blocks.last().messages.none { it.isDelegationDelivery }) {
             val previous = blocks.removeAt(blocks.lastIndex)
             blocks += previous.copy(entries = previous.entries + entry)
         } else blocks += ResponseBlock(listOf(entry), response)

@@ -17,8 +17,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import org.praxisog.hermes.model.*
 
@@ -287,8 +285,8 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
     fun update(next: KanbanFormDraft) { form = next; onChange(next) }
     var chooseParent by remember { mutableStateOf(false) }
     if (chooseParent) KanbanParentPicker(parentTasks, { update(form.copy(containerId = it)); chooseParent = false }, { chooseParent = false })
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.semantics { testTagsAsResourceId = true }.imePadding().padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.9f), shape = MaterialTheme.shapes.large) {
+    BellpullDialog(onDismissRequest = onDismiss) {
+        Surface(Modifier.semantics { testTagsAsResourceId = true }.padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.9f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (creating) "New task" else "Edit task", style = MaterialTheme.typography.titleLarge)
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -335,8 +333,8 @@ internal fun kanbanAge(observed: Long?, now: Long, fresh: Boolean): String {
 
 @Composable private fun KanbanParentPicker(tasks: List<KanbanTask>, choose: (String?) -> Unit, dismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
-    Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.imePadding().padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.85f), shape = MaterialTheme.shapes.large) {
+    BellpullDialog(onDismissRequest = dismiss) {
+        Surface(Modifier.padding(20.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(.85f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Containing parent", style = MaterialTheme.typography.titleLarge)
                 OutlinedTextField(query, { query = it.take(500) }, label = { Text("Find parent") }, singleLine = true, modifier = Modifier.fillMaxWidth())

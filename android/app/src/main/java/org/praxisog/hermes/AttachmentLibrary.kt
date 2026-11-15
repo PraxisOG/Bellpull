@@ -13,8 +13,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.*
 
 internal fun recentArtifacts(items: List<Artifact>) = items.filterNot { it.deleted }
@@ -60,7 +58,7 @@ internal fun AttachmentLibrary(items: List<Artifact>, sessions: List<Session>, h
             }
         }
     }
-    if (search) Dialog(onDismissRequest = { search = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    if (search) BellpullDialog(onDismissRequest = { search = false }) {
         Surface(Modifier.padding(16.dp).widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(.88f), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(16.dp)) {
                 Box(Modifier.weight(1f)) {

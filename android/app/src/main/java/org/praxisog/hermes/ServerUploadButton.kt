@@ -11,8 +11,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.Session
 
 @Composable
@@ -39,7 +37,7 @@ internal fun ServerUploadButton(workspace: Phase3Workspace, sessions: List<Sessi
             else -> "Upload files"
         })
     }
-    if (open) Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    if (open) BellpullDialog(onDismissRequest = { open = false }) {
         Surface(Modifier.padding(16.dp).widthIn(max = 560.dp).fillMaxWidth().heightIn(max = 620.dp), shape = MaterialTheme.shapes.large) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Upload to server", style = MaterialTheme.typography.titleLarge)

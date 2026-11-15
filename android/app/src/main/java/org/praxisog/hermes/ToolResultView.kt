@@ -30,8 +30,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import org.praxisog.hermes.model.ToolResult
 import java.util.Locale
 
@@ -120,7 +118,7 @@ private fun ToolDataDialog(
 ) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BellpullDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.padding(20.dp).widthIn(max = 640.dp).fillMaxWidth().fillMaxHeight(0.82f),
             shape = MaterialTheme.shapes.large,

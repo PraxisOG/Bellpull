@@ -25,7 +25,23 @@ data class Message(
     val reasoning: String? = null,
     @SerialName("reasoning_content") val reasoningContent: String? = null,
     @SerialName("display_kind") val displayKind: String? = null,
+    /** Stable server delivery identity; supplied by the Bellpull snapshot projection. */
+    @SerialName("delegation_id") val delegationId: String? = null,
+    @SerialName("delegation_notice") val delegationNotice: String? = null,
 )
+
+val Message.isDelegationDelivery: Boolean get() = displayKind == "async_delegation_complete"
+val Message.isVisibleReply: Boolean get() = displayKind != "hidden" &&
+    (role == "assistant" || isDelegationDelivery) && !content.isNullOrBlank()
+
+/** Presentation only: never send this projection back as a new user/model turn. */
+fun displayMessages(messages: List<Message>): List<Message> {
+    val deliveries = mutableSetOf<String>()
+    return messages.filter { message ->
+        message.displayKind != "hidden" && (!message.isDelegationDelivery || deliveries.add(
+            message.delegationId?.let { "$it:${message.delegationNotice.orEmpty()}" } ?: "row:${message.id}"))
+    }.map { if (it.isDelegationDelivery) it.copy(role = "assistant") else it }
+}
 
 @Serializable
 data class ToolCall(

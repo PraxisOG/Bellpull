@@ -53,8 +53,8 @@ class ProjectsUiDeviceTest {
             .firstNotNullOfOrNull { window -> window.root?.let { visit(it) } }
     }
     private fun text(value: String) = find { it.text?.toString() == value }
-    private fun tap(node: AccessibilityNodeInfo) {
-        node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+    private fun tap(node: AccessibilityNodeInfo, reveal: Boolean = true) {
+        if (reveal) node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
         automation.waitForIdle(150, 3000)
         assertTrue("Touch target must still exist after scrolling", node.refresh())
         val bounds = Rect().also(node::getBoundsInScreen)
@@ -71,26 +71,58 @@ class ProjectsUiDeviceTest {
         try { block() } finally { automation.serviceInfo = automation.serviceInfo.apply { flags = originalFlags } }
     }
 
-    @Test fun editorSaveCanBeTouchedWhileTheKeyboardIsOpen() = withWindows {
+    @Test fun editorSaveCanBeTouchedWhileTheKeyboardIsOpen() = checkEditorKeyboard(false)
+
+    @Test fun immersiveEditorReturnsToItsOriginalBoundsAfterKeyboardBack() = checkEditorKeyboard(true)
+
+    private fun checkEditorKeyboard(immersive: Boolean) = withWindows {
         val saved = AtomicReference<ConversationProject>()
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
-            scene.onActivity { activity -> activity.setContent { HermesTheme {
-                ProjectEditor(ConversationProject("a".repeat(32), "Before"), true, true, null, saved::set, {})
-            } } }
+            scene.onActivity { activity ->
+                configureWindowChrome(activity.window, immersive)
+                activity.setContent { CompositionLocalProvider(LocalImmersiveHeaders provides immersive) { HermesTheme {
+                    ProjectEditor(ConversationProject("a".repeat(32), "Before"), true, true, null, saved::set, {})
+                } } }
+            }
             await { find { it.isEditable } != null }
+            automation.waitForIdle(300, 3000)
+            val before = Rect().also(text("Save")!!::getBoundsInScreen)
+            val headingBefore = Rect().also(text("New project")!!::getBoundsInScreen)
             val editor = find { it.isEditable }!!
             tap(editor)
             assertTrue(editor.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
                 Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Keyboard acceptance") }))
             await { automation.windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } }
-            await {
-                val keyboard = automation.windows.first { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            automation.waitForIdle(500, 3000)
+            fun saveAboveKeyboard(): Boolean {
+                val keyboard = automation.windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } ?: return false
                 val keyboardBounds = Rect().also(keyboard::getBoundsInScreen)
                 val saveBounds = Rect().also { text("Save")?.getBoundsInScreen(it) }
-                !saveBounds.isEmpty && saveBounds.bottom <= keyboardBounds.top
+                if (!saveBounds.isEmpty && saveBounds.bottom <= keyboardBounds.top) return true
+                // A landscape IME can leave less room than the title and footer.
+                // The shared dialog then scrolls as a whole; exercise that real action.
+                find { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                automation.waitForIdle(150, 3000)
+                return false
             }
+            await { saveAboveKeyboard() }
+            automation.executeShellCommand("input keyevent KEYCODE_BACK").use {
+                java.io.FileInputStream(it.fileDescriptor).readBytes()
+            }
+            await { automation.windows.none { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } }
+            val tolerance = (4 * ApplicationProvider.getApplicationContext<Context>().resources.displayMetrics.density).toInt()
+            fun restored(label: String, original: Rect): Boolean {
+                val bounds = Rect().also { text(label)?.getBoundsInScreen(it) }
+                return !bounds.isEmpty && listOf(bounds.left - original.left, bounds.top - original.top,
+                    bounds.right - original.right, bounds.bottom - original.bottom).all { kotlin.math.abs(it) <= tolerance }
+            }
+            await { restored("Save", before) && restored("New project", headingBefore) }
+            // Show it again: neither the prior dismissal nor a stale inset may strand Save.
+            tap(find { it.isEditable }!!)
+            await { automation.windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } }
+            await { saveAboveKeyboard() }
             // Real touch proves the button is reachable, unlike a semantics-only click.
-            tap(text("Save")!!)
+            tap(text("Save")!!, reveal = false)
             await { saved.get() != null }
             assertEquals("Keyboard acceptance", saved.get().name)
         }

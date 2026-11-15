@@ -1,5 +1,9 @@
 package org.praxisog.hermes
 
+import android.text.SpannableString
+import android.text.style.URLSpan
+import android.text.util.Linkify
+import androidx.core.text.util.LinkifyCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -24,6 +28,37 @@ import org.commonmark.parser.Parser
 private val answerParser = Parser.builder().extensions(listOf(TablesExtension.create())).build()
 
 internal fun parseAnswer(text: String): Node = answerParser.parse(transcriptText(text))
+
+/** Android's detector includes sentence punctuation; keep balanced URL path brackets. */
+private fun literalLinkEnd(text: String, start: Int, end: Int): Int {
+    val balance = intArrayOf(0, 0, 0)
+    for (index in start until end) when (text[index]) {
+        '(' -> balance[0]++
+        ')' -> balance[0]--
+        '[' -> balance[1]++
+        ']' -> balance[1]--
+        '{' -> balance[2]++
+        '}' -> balance[2]--
+    }
+    var stop = end
+    // Some Android releases trim every trailing closing bracket, including a
+    // legitimate balanced path suffix such as Wikipedia's "Thing_(part)".
+    while (stop < text.length) {
+        val bracket = ")]}".indexOf(text[stop])
+        if (bracket < 0 || balance[bracket] <= 0) break
+        balance[bracket]--
+        stop++
+    }
+    while (stop > start) {
+        val last = text[stop - 1]
+        val bracket = ")]}".indexOf(last)
+        if (last in ".,:;!?" || (bracket >= 0 && balance[bracket] < 0)) {
+            if (bracket >= 0) balance[bracket]++
+            stop--
+        } else break
+    }
+    return stop
+}
 
 private fun Node.children(): List<Node> = buildList {
     var child = firstChild
@@ -91,11 +126,34 @@ private fun MarkdownTextBlock(node: Node, style: TextStyle = MaterialTheme.typog
  * schemes remain readable text. Images are represented by their alt text, never fetched. */
 internal fun markdownInline(node: Node, linkColor: androidx.compose.ui.graphics.Color,
     codeColor: androidx.compose.ui.graphics.Color): AnnotatedString = buildAnnotatedString {
-    fun render(current: Node, depth: Int = 0) {
+    val linkStyle = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
+    fun appendLinkedText(text: String) {
+        val start = length
+        append(text)
+        if (!text.contains("://") && !text.contains("www.", ignoreCase = true)) return
+        // Use AndroidX's existing URL detector; code, HTML, images and explicit link
+        // labels never enter this path. Restrict literals to http(s) and www URLs.
+        val linked = SpannableString(text)
+        LinkifyCompat.addLinks(linked, Linkify.WEB_URLS)
+        linked.getSpans(0, linked.length, URLSpan::class.java).forEach { span ->
+            val from = linked.getSpanStart(span)
+            val originalEnd = linked.getSpanEnd(span)
+            val to = literalLinkEnd(text, from, originalEnd)
+            val literal = text.substring(from, to)
+            if ((literal.startsWith("https://", true) || literal.startsWith("http://", true) ||
+                    literal.startsWith("www.", true)) &&
+                (from == 0 || text[from - 1] !in ":/@")) {
+                val url = if (to > originalEnd) span.url + text.substring(originalEnd, to)
+                    else span.url.dropLast(originalEnd - to)
+                addLink(LinkAnnotation.Url(url, linkStyle), start + from, start + to)
+            }
+        }
+    }
+    fun render(current: Node, depth: Int = 0, autolink: Boolean = true) {
         if (depth > 64) return
-        fun children() { current.children().forEach { render(it, depth + 1) } }
+        fun children(linkify: Boolean = autolink) { current.children().forEach { render(it, depth + 1, linkify) } }
         when (current) {
-            is MarkdownText -> append(current.literal)
+            is MarkdownText -> if (autolink) appendLinkedText(current.literal) else append(current.literal)
             is SoftLineBreak -> append("\n")
             is HardLineBreak -> append("\n")
             is Code -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeColor)) { append(current.literal) }
@@ -103,10 +161,10 @@ internal fun markdownInline(node: Node, linkColor: androidx.compose.ui.graphics.
             is Emphasis -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { children() }
             is Link -> {
                 val scheme = runCatching { java.net.URI(current.destination).scheme?.lowercase() }.getOrNull()
-                if (scheme in setOf("https", "http", "mailto")) withLink(LinkAnnotation.Url(current.destination,
-                    TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)))) { children() }
-                else children()
+                if (scheme in setOf("https", "http", "mailto")) withLink(LinkAnnotation.Url(current.destination, linkStyle)) { children(false) }
+                else children(false)
             }
+            is Image -> children(false)
             is HtmlInline -> append(current.literal)
             else -> children()
         }

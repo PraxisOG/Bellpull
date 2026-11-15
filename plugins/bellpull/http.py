@@ -32,6 +32,10 @@ def wire(app, adapter):
         ("_expected_api_key", "_check_auth", "_get_existing_session_or_404"))
     projects_ready = files_ready and all(callable(getattr(adapter, key, None)) for key in
         ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
+    # Read-only snapshots and delegation identities do not depend on legacy
+    # fork/run patches. Stock Hermes supplies the same authenticated read contract.
+    paging_ready = projects_ready and all(callable(getattr(adapter, key, None)) for key in
+        ("_run_idempotency_scope", "_message_response"))
     offline_ready = projects_ready and offline.supported()
     titles_ready = projects_ready and titles.supported()
     try:
@@ -201,7 +205,8 @@ def wire(app, adapter):
                 "bellpull_run_attachments": host_ready or attachments_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,
                 "bellpull_notification_events": host_ready and bool(relay.url),
-                "bellpull_snapshot_paging": compatible,
+                "bellpull_snapshot_paging": paging_ready,
+                "bellpull_delegation_delivery": paging_ready,
                 "bellpull_projects": projects_ready,
                 "bellpull_canvas": projects_ready and canvas.available(),
                 "bellpull_kanban": files_ready and kanban.supported(),
@@ -308,6 +313,9 @@ def wire(app, adapter):
         routes.extend([
             ("POST", "/api/sessions/{session_id}/fork-at-message", partial(branches._handle_fork_at_message, adapter)),
             ("POST", "/api/sessions/{session_id}/fork-before-message", partial(branches._handle_fork_before_message, adapter)),
+        ])
+    if paging_ready:
+        routes.extend([
             ("GET", "/api/bellpull/sessions", partial(snapshots.page, kind="sessions")),
             ("GET", "/api/bellpull/sessions/{session_id}/messages", partial(snapshots.page, kind="messages")),
         ])

@@ -63,6 +63,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.ToolCall
+import org.praxisog.hermes.model.displayMessages
+import org.praxisog.hermes.model.isDelegationDelivery
 import kotlinx.coroutines.launch
 
 /**
@@ -177,7 +179,13 @@ internal fun SessionDetailScreen(
             }
         }
     }
-    val messages = (history as? UiState.Ready)?.value.orEmpty()
+    val rawMessages = (history as? UiState.Ready)?.value.orEmpty()
+    val messages = remember(rawMessages) { displayMessages(rawMessages) }
+    val backgroundCount = remember(rawMessages) {
+        (delegationDispatches(rawMessages) - rawMessages.filter {
+            it.isDelegationDelivery && it.delegationNotice.isNullOrBlank()
+        }.mapNotNull { it.delegationId }.toSet()).size
+    }
     val toolCalls = remember(messages) {
         buildMap {
             messages.flatMap { it.toolCalls.orEmpty() }.forEach { call ->
@@ -355,7 +363,7 @@ internal fun SessionDetailScreen(
                                             val message = if (liveText.isNotBlank()) canonical.copy(content = listOf(canonical.content.orEmpty(), liveText)
                                                 .filter { it.isNotBlank() }.joinToString("\n\n")) else canonical
                                             val canBranch = branchingEnabled && !branchingSession && turn !is TurnState.Streaming &&
-                                                sourceBlock(block).messages.any { it.role == "assistant" }
+                                                sourceBlock(block).messages.any { it.role == "assistant" && !it.isDelegationDelivery }
                                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 if (!denseChatWindow) AssistantHeading()
                                                 MessageBubble(message, denseChatWindow, { selectingMessage = it },
@@ -407,6 +415,9 @@ internal fun SessionDetailScreen(
                     Text("Creating branch…", style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
+                if (backgroundCount > 0) Text("Background work pending: $backgroundCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("background-work"))
                 attachmentStrip?.invoke()
                 Composer(turn = turn, onSend = onSend, onStop = onStop, busy = branchingSession, sendBlocked = sendBlocked,
                     draft = composerDraft, onDraftChange = changeDraft, focusRequester = composerFocus, leading = composerLeading)
@@ -438,6 +449,10 @@ private fun MessageView(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = if (LocalInResponseBubble.current) Arrangement.Top else Arrangement.spacedBy(8.dp),
             ) {
+                if (message.isDelegationDelivery) Text("Background result",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 val reasoning = message.reasoningContent?.takeIf { it.isNotBlank() }
                     ?: message.reasoning?.takeIf { it.isNotBlank() }
                 if (reasoning != null) ThinkingBlock(reasoning, collapseThinking)
