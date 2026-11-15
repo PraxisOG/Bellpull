@@ -44,42 +44,69 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     val localSettings = LocalFallbackSettings(this.context)
     val localModel by lazy { LocalLlmLab.get(this.context) }
-    var fallbackOffline by mutableStateOf(false)
+    var connectionHealth by mutableStateOf(ConnectionHealth())
         private set
-    var fallbackProblem by mutableStateOf<String?>(null)
-        private set
+    private val connectionWake = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
+    fun retryConnection() { connectionWake.trySend(Unit) }
     suspend fun monitorConnection() {
-        while (currentCoroutineContext().isActive) {
-            val api = client
-            if (api != null) {
-                val result = withContext(Dispatchers.IO) { api.checkConnection() }
-                currentCoroutineContext().ensureActive()
-                if (api === client) {
-                    val wasOffline = fallbackOffline
-                    fallbackOffline = result !is org.praxisog.hermes.model.HermesResult.Ok
-                    fallbackProblem = (result as? org.praxisog.hermes.model.HermesResult.Err)?.error?.toUserMessage()
-                    if (wasOffline && !fallbackOffline) { store?.loadSessions(); store?.refreshHistory(); syncOfflineMemory() }
-                }
+        val networks = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            private var transports: Set<Int>? = null
+            override fun onAvailable(network: android.net.Network) { retryConnection() }
+            override fun onLost(network: android.net.Network) { retryConnection() }
+            override fun onCapabilitiesChanged(network: android.net.Network, capabilities: android.net.NetworkCapabilities) {
+                // A VPN can retain its Network while the underlying radio changes.
+                // Ignore signal-strength/validation churn; only wake for a transport change.
+                val next = setOf(android.net.NetworkCapabilities.TRANSPORT_WIFI,
+                    android.net.NetworkCapabilities.TRANSPORT_CELLULAR,
+                    android.net.NetworkCapabilities.TRANSPORT_ETHERNET,
+                    android.net.NetworkCapabilities.TRANSPORT_VPN).filter(capabilities::hasTransport).toSet()
+                if (next != transports) { transports = next; retryConnection() }
             }
-            delay(12000)
         }
+        val registered = runCatching { networks.registerDefaultNetworkCallback(callback) }.isSuccess
+        try {
+            while (currentCoroutineContext().isActive) {
+                connectionWake.tryReceive()
+                val api = client
+                if (api != null) {
+                    val start = android.os.SystemClock.elapsedRealtime()
+                    val result = withContext(Dispatchers.IO) { api.checkConnection() }
+                    currentCoroutineContext().ensureActive()
+                    if (api === client) {
+                        val previous = connectionHealth
+                        val now = android.os.SystemClock.elapsedRealtime()
+                        connectionHealth = previous.record(result, now, now - start)
+                        if (result is org.praxisog.hermes.model.HermesResult.Ok) {
+                            // A failed list fetch is stale data, not a latched connection failure.
+                            // Coalesce recovery reads; never submit or replay a chat turn here.
+                            store?.recoverConnection(previous.phase != ConnectionHealth.Phase.ONLINE)
+                            if (previous.phase != ConnectionHealth.Phase.ONLINE) syncOfflineMemory()
+                        }
+                    }
+                }
+                withTimeoutOrNull(connectionHealth.nextProbeMs) { connectionWake.receive() }
+            }
+        } finally { if (registered) networks.unregisterNetworkCallback(callback) }
     }
     private val localLoadCooldown = ModelLoadCooldown()
     suspend fun warmLocal(automatic: Boolean = false) {
-        // A healthy connection returning cancels this delay before any native work.
+        if (automatic && (!localSettings.value.autoLoad || !connectionHealth.localEligible)) return
         if (automatic) {
-            delay(10_000)
-            // The periodic monitor may not have observed a quick recovery yet.
-            // Confirm the outage before spending CPU and memory on a native load.
+            // A foreground resume can initially render the last outage snapshot.
+            // Reconfirm before native loading, even when the user opted in earlier.
             val api = client ?: return
-            val connection = withContext(Dispatchers.IO) { api.checkConnection() }
+            val started = android.os.SystemClock.elapsedRealtime()
+            val result = withContext(Dispatchers.IO) { api.checkConnection() }
             currentCoroutineContext().ensureActive()
             if (api !== client) return
-            if (connection is org.praxisog.hermes.model.HermesResult.Ok) {
-                fallbackOffline = false; fallbackProblem = null
-                store?.loadSessions(); store?.refreshHistory()
+            val now = android.os.SystemClock.elapsedRealtime()
+            connectionHealth = connectionHealth.record(result, now, now - started)
+            if (result is org.praxisog.hermes.model.HermesResult.Ok) {
+                store?.recoverConnection(reconnected = true)
                 return
             }
+            if (!connectionHealth.localEligible) return
         }
         val lab = localModel
         if (!lab.state.value.scanned || lab.state.value.busy) return
@@ -301,7 +328,7 @@ internal class BellpullRuntime private constructor(context: Context) {
 
     fun disconnect() {
         offlineWorkspace?.close(); offlineWorkspace = null
-        fallbackOffline = false; fallbackProblem = null
+        connectionHealth = ConnectionHealth()
         memorySync?.cancel(); memorySync = null; memorySyncedAt = 0
         delivery?.close(); delivery = null
         coding?.close(); coding = null

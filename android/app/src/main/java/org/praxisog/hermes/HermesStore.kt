@@ -216,6 +216,13 @@ internal class HermesStore(
 
     // ---- sessions -------------------------------------------------------------
 
+    /** Called only after an authenticated probe succeeds. Cached-list failure cannot latch offline. */
+    fun recoverConnection(reconnected: Boolean) {
+        if (closed) return
+        if (reconnected || offline != null || sessions is UiState.Failed) refreshSessions()
+        if (reconnected) refreshHistory()
+    }
+
     /** User refreshes share the existing fetch/cache path and cannot pile up requests. */
     fun refreshSessions() { if (!refreshingSessions) loadSessions() }
 

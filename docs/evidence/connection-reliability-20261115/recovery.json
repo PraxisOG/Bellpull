@@ -1,0 +1,9 @@
+{
+  "outage_ms": 30000,
+  "connection_recovery_after_outage_ms": 510,
+  "executions": 1,
+  "submissions": 1,
+  "local_forks": 0,
+  "local_model_loaded": false,
+  "stale_list_recovered": true
+}

@@ -1,0 +1,128 @@
+Reusing configuration cache.
+> Task :core-model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-hermes:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-model:processResources NO-SOURCE
+> Task :core-hermes:processResources NO-SOURCE
+> Task :local-llm:preBuild UP-TO-DATE
+> Task :local-llm:preReleaseBuild UP-TO-DATE
+> Task :app:prepareSearchModel UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :core-model:compileKotlin UP-TO-DATE
+> Task :core-model:compileJava NO-SOURCE
+> Task :core-model:classes UP-TO-DATE
+> Task :core-model:jar UP-TO-DATE
+> Task :core-hermes:compileKotlin UP-TO-DATE
+> Task :core-hermes:compileJava NO-SOURCE
+> Task :core-hermes:classes UP-TO-DATE
+> Task :core-hermes:jar UP-TO-DATE
+> Task :local-llm:configureCMakeRelease[arm64-v8a]
+> Task :app:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :app:configureCMakeRelWithDebInfo[x86_64]
+> Task :app:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :local-llm:configureCMakeRelease[x86_64]
+> Task :app:buildCMakeRelWithDebInfo[x86_64][bellpull_moss,bellpull_pocket,etc]
+> Task :app:buildCMakeRelWithDebInfo[arm64-v8a][bellpull_moss,bellpull_pocket,etc]
+> Task :local-llm:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :local-llm:generateReleaseResources UP-TO-DATE
+> Task :local-llm:processReleaseNavigationResources UP-TO-DATE
+> Task :local-llm:javaPreCompileRelease UP-TO-DATE
+> Task :local-llm:buildCMakeRelease[x86_64][bellpull_llm]
+> Task :local-llm:packageReleaseResources UP-TO-DATE
+> Task :local-llm:parseReleaseLocalResources UP-TO-DATE
+> Task :local-llm:generateReleaseRFile UP-TO-DATE
+> Task :app:checkReleaseDuplicateClasses UP-TO-DATE
+> Task :app:generateReleaseResources UP-TO-DATE
+> Task :app:packageReleaseResources UP-TO-DATE
+> Task :app:javaPreCompileRelease UP-TO-DATE
+> Task :local-llm:compileReleaseKotlin UP-TO-DATE
+> Task :local-llm:writeReleaseAarMetadata UP-TO-DATE
+> Task :local-llm:compileReleaseJavaWithJavac NO-SOURCE
+> Task :local-llm:bundleLibRuntimeToDirRelease UP-TO-DATE
+> Task :app:processReleaseNavigationResources UP-TO-DATE
+> Task :local-llm:buildCMakeRelease[arm64-v8a][bellpull_llm]
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+> Task :local-llm:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :app:parseReleaseLocalResources UP-TO-DATE
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :app:generateReleaseRFile UP-TO-DATE
+> Task :local-llm:mergeReleaseNativeLibs UP-TO-DATE
+> Task :app:compileReleaseNavigationResources UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+> Task :local-llm:copyReleaseJniLibsProjectOnly UP-TO-DATE
+> Task :app:extractDeepLinksRelease UP-TO-DATE
+> Task :local-llm:extractDeepLinksRelease UP-TO-DATE
+> Task :local-llm:processReleaseManifest UP-TO-DATE
+> Task :app:mergeReleaseNativeLibs UP-TO-DATE
+> Task :app:stripReleaseDebugSymbols UP-TO-DATE
+> Task :app:mergeReleaseResources UP-TO-DATE
+> Task :app:extractReleaseNativeSymbolTables UP-TO-DATE
+> Task :local-llm:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :local-llm:compileReleaseLibraryResources UP-TO-DATE
+> Task :app:mergeReleaseNativeDebugMetadata UP-TO-DATE
+> Task :app:desugarReleaseFileDependencies UP-TO-DATE
+> Task :local-llm:prepareReleaseArtProfile UP-TO-DATE
+> Task :app:mergeReleaseStartupProfile UP-TO-DATE
+> Task :app:processReleaseMainManifest UP-TO-DATE
+> Task :app:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseManifestForPackage UP-TO-DATE
+> Task :app:processReleaseResources UP-TO-DATE
+> Task :local-llm:bundleLibRuntimeToJarRelease UP-TO-DATE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :local-llm:generateReleaseAssets UP-TO-DATE
+> Task :local-llm:mergeReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseArtProfile UP-TO-DATE
+> Task :app:extractReleaseVersionControlInfo UP-TO-DATE
+> Task :app:extractProguardFiles UP-TO-DATE
+> Task :app:mergeReleaseAssets UP-TO-DATE
+> Task :local-llm:processReleaseJavaRes UP-TO-DATE
+> Task :local-llm:createFullJarRelease UP-TO-DATE
+> Task :local-llm:extractProguardFiles UP-TO-DATE
+> Task :app:compressReleaseAssets UP-TO-DATE
+> Task :local-llm:prepareLintJarForPublish UP-TO-DATE
+> Task :local-llm:generateReleaseLintModel UP-TO-DATE
+> Task :local-llm:writeReleaseLintModelMetadata UP-TO-DATE
+> Task :local-llm:lintVitalAnalyzeRelease UP-TO-DATE
+> Task :local-llm:generateReleaseLintVitalModel UP-TO-DATE
+> Task :app:optimizeReleaseResources UP-TO-DATE
+> Task :app:writeReleaseAppMetadata UP-TO-DATE
+> Task :app:writeReleaseSigningConfigVersions UP-TO-DATE
+> Task :app:collectReleaseDependencies UP-TO-DATE
+> Task :app:sdkReleaseDependencyData UP-TO-DATE
+> Task :app:mergeExtDexRelease UP-TO-DATE
+
+> Task :app:compileReleaseKotlin
+w: file:///home/praxisog/Bellpull-kanban-tree/android/app/src/main/java/org/praxisog/hermes/HermesStore.kt:720:41 No cast needed.
+w: file:///home/praxisog/Bellpull-kanban-tree/android/app/src/main/java/org/praxisog/hermes/LocalFallbackSettings.kt:6:8 'class EncryptedSharedPreferences : Any, SharedPreferences' is deprecated. Deprecated in Java.
+w: file:///home/praxisog/Bellpull-kanban-tree/android/app/src/main/java/org/praxisog/hermes/LocalFallbackSettings.kt:7:8 'class MasterKey : Any' is deprecated. Deprecated in Java.
+
+> Task :app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :app:processReleaseJavaRes
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:mergeReleaseJavaResource
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics UP-TO-DATE
+> Task :app:mergeDexRelease
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease UP-TO-DATE
+> Task :app:lintVitalRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:packageRelease
+> Task :app:assembleRelease
+> Task :app:createReleaseApkListingFileRedirect UP-TO-DATE
+
+BUILD SUCCESSFUL in 15s
+89 actionable tasks: 18 executed, 71 up-to-date
+Configuration cache entry reused.
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signed APK: /home/praxisog/Bellpull-kanban-tree/android/app/build/outputs/apk/release/Bellpull.apk
+SHA-256: c8350e7d1c2b0b2367547149adbb41c9d3e8fa3ca905f715a9df3c428cfedf0e
+Local build only; device upgrade verification remains required.

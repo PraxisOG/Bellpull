@@ -110,14 +110,14 @@ class MainActivity : ComponentActivity() {
                     val localModel by runtime.localModel.state.collectAsState()
                     var assistantDraft by rememberSaveable { mutableStateOf("") }
                     var localSelected by rememberSaveable { mutableStateOf(false) }
-                    val isOffline = current != null && (runtime.fallbackOffline || current.offline != null || current.sessions is UiState.Failed)
-                    val offlineNotice = rememberOfflineNotice(isOffline)
+                    val connectionHealth = runtime.connectionHealth
+                    val isOffline = current != null && connectionHealth.offline
                     val configuration = runtime.localSettings.value
                     val localReady = localModel.ready && !localModel.gpu && localModel.contextTokens == configuration.contextTokens &&
                         localModel.models.any { it.id == localModel.selected && it.sha256 == LocalLlmLab.E2B_SHA }
                     LaunchedEffect(foreground, current) { if (foreground && current != null) runtime.monitorConnection() }
-                    LaunchedEffect(foreground, isOffline, configuration.autoLoad, configuration.contextTokens, localModel.scanned, localModel.models) {
-                        if (foreground && isOffline && configuration.autoLoad && !localReady) runtime.warmLocal(automatic = true)
+                    LaunchedEffect(foreground, connectionHealth.localEligible, configuration.autoLoad, configuration.contextTokens, localModel.scanned, localModel.models) {
+                        if (foreground && connectionHealth.localEligible && configuration.autoLoad && !localReady) runtime.warmLocal(automatic = true)
                     }
                     val newLocal: () -> Unit = {
                         if (offlineWorkspace != null && !offlineState.busy) {
@@ -246,12 +246,11 @@ class MainActivity : ComponentActivity() {
                             OfflineScreen(offlineState, null, "Conversation", offlineWorkspace, setupLocal, remoteFromLocal,
                                 onClose = { localSelected = false }, embedded = true)
                         }) else null,
-                        fallbackBanner = if (isOffline) ({
-                            if (offlineNotice.visible) LocalFallbackBanner(localReady, localModel.busy && !localReady,
-                                localModel.error ?: runtime.fallbackProblem,
-                                { scope.launch { runtime.warmLocal() } }, profiles::showSettings,
-                                current.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } },
-                                onDismiss = offlineNotice::dismiss)
+                        connectionUnavailable = connectionHealth.unavailable,
+                        fallbackBanner = if (current != null && connectionHealth.phase !in setOf(
+                            ConnectionHealth.Phase.CHECKING, ConnectionHealth.Phase.ONLINE)) ({
+                            ConnectionStatusBanner(connectionHealth, runtime::retryConnection, profiles::showSettings,
+                                current.openSession?.takeIf { !localSelected }?.let { session -> { forkLocal(session) } })
                         }) else null,
                         speechLab = { SpeechExperiments(runtime.speechLab) { runtime.voice?.close(); reader.stop() } },
                         voiceSettings = {
@@ -299,8 +298,8 @@ class MainActivity : ComponentActivity() {
                         onSend = { text -> current?.let { val prompt = runtime.canvas?.prepare(text) ?: text; if (files != null) files.send(it, prompt) else it.send(prompt) } ?: false }, onStop = { current?.stop() },
                         onRetrySessions = { current?.refreshSessions() }, onRetryHistory = { current?.refreshHistory() },
                         refreshingSessions = current?.refreshingSessions == true,
-                        onNewSession = { preview = null; if (isOffline) newLocal() else { localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() } },
-                        creatingSession = if (isOffline) offlineState.busy else current?.creatingSession ?: false,
+                        onNewSession = { preview = null; localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },
+                        creatingSession = current?.creatingSession ?: false,
                         createError = current?.createError, offline = current?.offline, backgroundProblem = current?.backgroundProblem,
                         onDisconnect = profiles::showSettings,
                         query = current?.searchQuery ?: exampleQuery,

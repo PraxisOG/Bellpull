@@ -121,6 +121,7 @@ internal fun HermesApp(
     localChat: (@Composable () -> Unit)? = null,
     fallbackBanner: (@Composable () -> Unit)? = null,
     refreshingSessions: Boolean = false,
+    connectionUnavailable: Boolean = fallbackBanner != null,
 ) {
     LaunchedEffect(canvas, openSessionId, foreground, canvas?.visible, canvas?.supported) {
         canvas?.observe(openSessionId, foreground && canvas.visible)
@@ -326,7 +327,7 @@ internal fun HermesApp(
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion, display = preferences.chatDisplay,
                                             denseChatWindow = preferences.denseChatWindow,
                                             pendingUserText = pendingUserText,
-                                            sendBlocked = disconnected || fallbackBanner != null || runPresentation?.busy == true || uploading,
+                                            sendBlocked = disconnected || connectionUnavailable || runPresentation?.busy == true || uploading,
                                             composerLeading = composerLeading, attachmentStrip = attachmentStrip,
                                             artifacts = artifacts, onViewArtifact = onViewArtifact, onDownloadArtifact = onDownloadArtifact,
                                             readEnabled = foreground && !expandedSearch && !infoSheet && !artifactsOpen && organizing == null && branchError == null && previewDialog == null && previewPane == null,

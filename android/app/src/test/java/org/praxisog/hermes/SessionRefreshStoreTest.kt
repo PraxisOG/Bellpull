@@ -54,7 +54,9 @@ class SessionRefreshStoreTest {
             await("failed refresh ends") { !store.refreshingSessions }
             assertNotNull(store.offline)
             assertEquals("chat-1", (store.sessions as UiState.Ready).value.single().id)
-            store.refreshSessions()
+            // A healthy foreground probe must recover a failed list even when the
+            // connection monitor never observed an outage. It must not submit a turn.
+            store.recoverConnection(reconnected = false)
             await("recovery ends") { !store.refreshingSessions }
             assertEquals("chat-3", (store.sessions as UiState.Ready).value.single().id)
             assertNull(store.offline)

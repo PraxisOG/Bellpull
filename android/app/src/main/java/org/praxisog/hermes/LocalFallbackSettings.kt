@@ -6,7 +6,7 @@ import androidx.compose.runtime.*
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-internal data class LocalFallbackConfiguration(val autoLoad: Boolean = true, val thinking: Boolean = false,
+internal data class LocalFallbackConfiguration(val autoLoad: Boolean = false, val thinking: Boolean = false,
     val contextTokens: Int = 2048, val systemPrompt: String = OfflinePrompt.DEFAULT_SYSTEM_PROMPT)
 
 /** Device settings, independent of server credentials and the experimental GPU lab. */
@@ -19,7 +19,7 @@ internal class LocalFallbackSettings(context: Context, testPromptPreferences: Sh
         context, "local-fallback-prompt", MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
-    var value by mutableStateOf(LocalFallbackConfiguration(prefs.getBoolean("auto_load", true),
+    var value by mutableStateOf(LocalFallbackConfiguration(prefs.getBoolean("auto_load", false),
         prefs.getBoolean("thinking", false), prefs.getInt("context", 2048).takeIf { it in contexts } ?: 2048,
         prompts.getString("system_prompt", null) ?: OfflinePrompt.DEFAULT_SYSTEM_PROMPT))
         private set

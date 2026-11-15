@@ -40,7 +40,7 @@ internal fun LocalFallbackSettingsEditor(settings: LocalFallbackSettings, model:
     Text("Gemma 4 E2B · CPU", style = MaterialTheme.typography.titleMedium)
     Text(if (model.models.any { it.sha256 == LocalLlmLab.E2B_SHA }) "Model installed on this phone" else "Import Gemma 4 E2B Q4_0 to enable local fallback.")
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Load automatically when disconnected", Modifier.weight(1f))
+        Text("Load automatically after 1 minute offline", Modifier.weight(1f))
         Switch(configuration.autoLoad, { settings.update(configuration.copy(autoLoad = it)) })
     }
     Row(verticalAlignment = Alignment.CenterVertically) {

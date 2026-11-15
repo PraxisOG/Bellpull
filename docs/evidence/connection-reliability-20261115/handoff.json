@@ -1,0 +1,1002 @@
+[
+  {
+    "sample": 0,
+    "elapsed_ms": 928264676,
+    "duration_ms": 384,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 1,
+    "elapsed_ms": 928266068,
+    "duration_ms": 104,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 2,
+    "elapsed_ms": 928267187,
+    "duration_ms": 56,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 3,
+    "elapsed_ms": 928268250,
+    "duration_ms": 58,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 4,
+    "elapsed_ms": 928269330,
+    "duration_ms": 57,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 5,
+    "elapsed_ms": 928270412,
+    "duration_ms": 88,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 6,
+    "elapsed_ms": 928271530,
+    "duration_ms": 54,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 7,
+    "elapsed_ms": 928272595,
+    "duration_ms": 45,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 8,
+    "elapsed_ms": 928273653,
+    "duration_ms": 95,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 9,
+    "elapsed_ms": 928274790,
+    "duration_ms": 158,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 10,
+    "elapsed_ms": 928275994,
+    "duration_ms": 50,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 11,
+    "elapsed_ms": 928277090,
+    "duration_ms": 49,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 12,
+    "elapsed_ms": 928278156,
+    "duration_ms": 99,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 13,
+    "elapsed_ms": 928279306,
+    "duration_ms": 124,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 14,
+    "elapsed_ms": 928280485,
+    "duration_ms": 94,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 15,
+    "elapsed_ms": 928281599,
+    "duration_ms": 85,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 16,
+    "elapsed_ms": 928282704,
+    "duration_ms": 5044,
+    "ok": false,
+    "error_type": "Unreachable",
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 17,
+    "elapsed_ms": 928288769,
+    "duration_ms": 1543,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 18,
+    "elapsed_ms": 928291332,
+    "duration_ms": 181,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 19,
+    "elapsed_ms": 928292537,
+    "duration_ms": 199,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 20,
+    "elapsed_ms": 928293761,
+    "duration_ms": 206,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 21,
+    "elapsed_ms": 928295040,
+    "duration_ms": 240,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 22,
+    "elapsed_ms": 928296354,
+    "duration_ms": 246,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 23,
+    "elapsed_ms": 928297626,
+    "duration_ms": 112,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 24,
+    "elapsed_ms": 928298767,
+    "duration_ms": 197,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 25,
+    "elapsed_ms": 928299993,
+    "duration_ms": 204,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 26,
+    "elapsed_ms": 928301281,
+    "duration_ms": 155,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 27,
+    "elapsed_ms": 928302467,
+    "duration_ms": 134,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 28,
+    "elapsed_ms": 928303632,
+    "duration_ms": 250,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 29,
+    "elapsed_ms": 928304916,
+    "duration_ms": 196,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 30,
+    "elapsed_ms": 928306146,
+    "duration_ms": 228,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 31,
+    "elapsed_ms": 928307409,
+    "duration_ms": 264,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 32,
+    "elapsed_ms": 928308713,
+    "duration_ms": 58,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 33,
+    "elapsed_ms": 928309838,
+    "duration_ms": 106,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 34,
+    "elapsed_ms": 928311036,
+    "duration_ms": 87,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 35,
+    "elapsed_ms": 928312161,
+    "duration_ms": 95,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 36,
+    "elapsed_ms": 928313352,
+    "duration_ms": 142,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 37,
+    "elapsed_ms": 928314535,
+    "duration_ms": 45,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 38,
+    "elapsed_ms": 928315621,
+    "duration_ms": 112,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 39,
+    "elapsed_ms": 928316826,
+    "duration_ms": 181,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 40,
+    "elapsed_ms": 928318048,
+    "duration_ms": 49,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 41,
+    "elapsed_ms": 928319140,
+    "duration_ms": 142,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 42,
+    "elapsed_ms": 928320327,
+    "duration_ms": 51,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 43,
+    "elapsed_ms": 928321421,
+    "duration_ms": 53,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 44,
+    "elapsed_ms": 928322562,
+    "duration_ms": 138,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 45,
+    "elapsed_ms": 928323746,
+    "duration_ms": 531,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 46,
+    "elapsed_ms": 928325326,
+    "duration_ms": 209,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 47,
+    "elapsed_ms": 928326584,
+    "duration_ms": 182,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 48,
+    "elapsed_ms": 928327817,
+    "duration_ms": 211,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 49,
+    "elapsed_ms": 928329147,
+    "duration_ms": 270,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 50,
+    "elapsed_ms": 928330526,
+    "duration_ms": 114,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 51,
+    "elapsed_ms": 928331694,
+    "duration_ms": 231,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 52,
+    "elapsed_ms": 928332984,
+    "duration_ms": 213,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 53,
+    "elapsed_ms": 928334315,
+    "duration_ms": 202,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 54,
+    "elapsed_ms": 928335574,
+    "duration_ms": 196,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 55,
+    "elapsed_ms": 928336822,
+    "duration_ms": 221,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 56,
+    "elapsed_ms": 928338149,
+    "duration_ms": 208,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 57,
+    "elapsed_ms": 928339486,
+    "duration_ms": 136,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 58,
+    "elapsed_ms": 928340678,
+    "duration_ms": 263,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 59,
+    "elapsed_ms": 928341996,
+    "duration_ms": 99,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 60,
+    "elapsed_ms": 928343219,
+    "duration_ms": 485,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 61,
+    "elapsed_ms": 928344767,
+    "duration_ms": 225,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 62,
+    "elapsed_ms": 928346125,
+    "duration_ms": 529,
+    "ok": true,
+    "error_type": null,
+    "wifi": false,
+    "cellular": true,
+    "vpn": true
+  },
+  {
+    "sample": 63,
+    "elapsed_ms": 928347713,
+    "duration_ms": 164,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 64,
+    "elapsed_ms": 928348920,
+    "duration_ms": 102,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 65,
+    "elapsed_ms": 928350085,
+    "duration_ms": 51,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 66,
+    "elapsed_ms": 928351198,
+    "duration_ms": 51,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 67,
+    "elapsed_ms": 928352311,
+    "duration_ms": 56,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 68,
+    "elapsed_ms": 928353487,
+    "duration_ms": 51,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 69,
+    "elapsed_ms": 928354604,
+    "duration_ms": 55,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 70,
+    "elapsed_ms": 928355728,
+    "duration_ms": 123,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 71,
+    "elapsed_ms": 928356977,
+    "duration_ms": 151,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 72,
+    "elapsed_ms": 928358252,
+    "duration_ms": 67,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 73,
+    "elapsed_ms": 928359380,
+    "duration_ms": 80,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 74,
+    "elapsed_ms": 928360525,
+    "duration_ms": 88,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 75,
+    "elapsed_ms": 928361741,
+    "duration_ms": 113,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 76,
+    "elapsed_ms": 928362918,
+    "duration_ms": 98,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 77,
+    "elapsed_ms": 928364085,
+    "duration_ms": 130,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 78,
+    "elapsed_ms": 928365286,
+    "duration_ms": 110,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 79,
+    "elapsed_ms": 928366527,
+    "duration_ms": 58,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 80,
+    "elapsed_ms": 928367706,
+    "duration_ms": 50,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 81,
+    "elapsed_ms": 928368824,
+    "duration_ms": 141,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 82,
+    "elapsed_ms": 928370096,
+    "duration_ms": 59,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 83,
+    "elapsed_ms": 928371274,
+    "duration_ms": 101,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 84,
+    "elapsed_ms": 928372448,
+    "duration_ms": 56,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 85,
+    "elapsed_ms": 928373576,
+    "duration_ms": 119,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 86,
+    "elapsed_ms": 928374768,
+    "duration_ms": 98,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 87,
+    "elapsed_ms": 928375939,
+    "duration_ms": 78,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 88,
+    "elapsed_ms": 928377087,
+    "duration_ms": 92,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 89,
+    "elapsed_ms": 928378252,
+    "duration_ms": 50,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 90,
+    "elapsed_ms": 928379376,
+    "duration_ms": 99,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 91,
+    "elapsed_ms": 928380612,
+    "duration_ms": 111,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 92,
+    "elapsed_ms": 928381801,
+    "duration_ms": 87,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 93,
+    "elapsed_ms": 928382962,
+    "duration_ms": 142,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 94,
+    "elapsed_ms": 928384180,
+    "duration_ms": 59,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 95,
+    "elapsed_ms": 928385311,
+    "duration_ms": 81,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 96,
+    "elapsed_ms": 928386470,
+    "duration_ms": 54,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 97,
+    "elapsed_ms": 928387600,
+    "duration_ms": 49,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 98,
+    "elapsed_ms": 928388724,
+    "duration_ms": 112,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  },
+  {
+    "sample": 99,
+    "elapsed_ms": 928389978,
+    "duration_ms": 46,
+    "ok": true,
+    "error_type": null,
+    "wifi": true,
+    "cellular": false,
+    "vpn": true
+  }
+]

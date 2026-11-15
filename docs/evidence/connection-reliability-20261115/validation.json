@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-15",
+  "tested_phone": "Pixel 10 Pro Fold",
+  "app_under_test": "org.praxisog.hermes.fixture",
+  "production_app_changed": false,
+  "server_configuration_changed": false,
+  "wifi_restored": true,
+  "probes": {
+    "wifi": {
+      "samples": 30,
+      "successful": 30,
+      "median_ms": 95.5,
+      "p95_ms": 151,
+      "max_ms": 527
+    },
+    "cellular": {
+      "samples": 120,
+      "successful": 120,
+      "median_ms": 209.0,
+      "p95_ms": 300,
+      "max_ms": 791
+    },
+    "handoff": {
+      "samples": 100,
+      "successful": 99,
+      "median_ms": 111.5,
+      "p95_ms": 485,
+      "max_ms": 5044
+    }
+  },
+  "recovery": {
+    "outage_ms": 30000,
+    "connection_recovery_after_outage_ms": 510,
+    "executions": 1,
+    "submissions": 1,
+    "local_forks": 0,
+    "local_model_loaded": false,
+    "stale_list_recovered": true
+  },
+  "android": {
+    "app": {
+      "tests": 813,
+      "failed": 0,
+      "skipped": 0
+    },
+    "core-hermes": {
+      "tests": 49,
+      "failed": 0,
+      "skipped": 1
+    },
+    "core-model": {
+      "tests": 42,
+      "failed": 0,
+      "skipped": 0
+    },
+    "screenshot_verification": "passed",
+    "lint_errors": 0
+  },
+  "limits": [
+    "Stationary cellular and Wi-Fi handoffs; no carrier tower handoff, tunnel/dead-zone, prolonged background/Doze or field driving coverage.",
+    "Native run recovery used a synthetic worker and real stock Hermes HTTP/SQLite behind a controlled proxy over ADB reverse.",
+    "No live-model inference benchmark. Direct versus DERP routing of the phone-to-host connection was not established.",
+    "The exact reported 30-second cellular outage was not reproduced; one five-second handoff timeout was reproduced."
+  ],
+  "candidate": {
+    "version": "0.20.1-experimental",
+    "build": 51,
+    "signed": true,
+    "apk_sha256": "c8350e7d1c2b0b2367547149adbb41c9d3e8fa3ca905f715a9df3c428cfedf0e",
+    "installed": false
+  }
+}

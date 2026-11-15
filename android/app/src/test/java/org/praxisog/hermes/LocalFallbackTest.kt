@@ -21,6 +21,15 @@ import org.praxisog.hermes.model.OfflineHandoffMessage
 @RunWith(RobolectricTestRunner::class) @Config(sdk = [35])
 class LocalFallbackTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun automaticLoadingDefaultsOffAndPreservesAnExplicitOptIn() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("local-fallback", 0).edit().clear().commit()
+        val promptPrefs = context.getSharedPreferences("test-local-default", 0)
+        val settings = LocalFallbackSettings(context, promptPrefs)
+        assertFalse(settings.value.autoLoad)
+        settings.update(settings.value.copy(autoLoad = true))
+        assertTrue(LocalFallbackSettings(context, promptPrefs).value.autoLoad)
+    }
     @Test fun localPromptAndContextCanBeEditedSavedAndRestoredWithoutApplyingHermesReply() {
         val context = RuntimeEnvironment.getApplication()
         val promptPrefs = context.getSharedPreferences("test-local-prompt", 0).apply { edit().clear().commit() }
