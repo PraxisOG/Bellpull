@@ -1,3 +1,16 @@
+## Experimental server voice and live files — 0.20.2 / build 52
+
+[Download Android 0.20.2 and plugin 0.9.2-voice-files-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
+Streaming Kokoro with explicit sample rates and sentence prefetch; agent-selected
+live files with pinning, native Markdown/plain text and permitted checklist edits.
+Recent files and expandable GPU readings lead Settings. Includes cellular recovery
+and background-delivery/mobile repairs. The phone update preserves existing app
+data; deploy the matching plugin and speech-helper update separately on the server.
+
+906 Android/JVM checks passed, one skip; all 221 screenshot baselines verified.
+Phone file checks passed unfolded and narrow. Full source includes pinned recursive
+submodules. [Detailed validation and remaining limits](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.2-experimental.1/docs/SERVER-VOICE-FILES-2026-11-15.md).
+
 ## Experimental workspace release — 0.20.0 / build 50
 
 [Download Android 0.20.0 and plugin 0.9.0-kanban-tree-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).

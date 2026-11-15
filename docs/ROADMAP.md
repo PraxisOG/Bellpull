@@ -1,5 +1,8 @@
-> Latest experimental: [Android 0.20.0 / build 50 and plugin 0.9.0](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).
-> The [current roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.0-experimental.1/docs/ROADMAP.md) and source are pinned to that release. The older baseline plan below is retained for history.
+> Latest experimental release: [Android 0.20.2 / plugin 0.9.2 — server voice and live files](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
+> Notifications, memory and Canvas follow-ups remain on hold after this pair.
+
+> Previous experimental: [Android 0.20.0 / build 50 and plugin 0.9.0](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).
+> Its [roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.0-experimental.1/docs/ROADMAP.md) and source are pinned to that release. The older baseline plan below is retained for history.
 
 # Bellpull phase roadmap
 
