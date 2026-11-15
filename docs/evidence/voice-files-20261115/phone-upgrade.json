@@ -1,0 +1,14 @@
+{
+  "versionCode": "52",
+  "versionName": "0.20.2-experimental",
+  "appId": "10308",
+  "dataDir": "/data/user/0/org.praxisog.hermes",
+  "firstInstallTime": "2026-10-17 21:11:01",
+  "app_identity_preserved": true,
+  "apk_sha256": "3ac97d96bf2bde137eda399329d4b71873eaacd9fc45943d802ba5a77d3640c1",
+  "saved_profiles_visible": true,
+  "verified_profile_count": 2,
+  "settings_recent_files_visible": true,
+  "relaunch_verified": true,
+  "runtime_source": "91322694801dea0e951f800a181cc0673f15baf8"
+}

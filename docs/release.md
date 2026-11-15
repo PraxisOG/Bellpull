@@ -1,3 +1,29 @@
+## Experimental server voice and live files — 0.20.2 / build 52
+
+[Download Android 0.20.2 and plugin 0.9.2-voice-files-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
+
+Kokoro now streams bounded sentence batches with declared sample rates and
+sentence-ahead playback. Files replaces Tools, with pinned/recent agent-selected
+server documents, native Markdown/plain text, read-only defaults and explicitly
+granted checklist edits. Settings begins with recent files and expandable GPU
+readings. Includes the preceding cellular-recovery and mobile/background repairs.
+
+906 Android/JVM tests passed, one existing skip; 221 screenshot baselines, lint,
+signed APK and 16 KiB alignment checks passed. Live-file phone acceptance passed
+unfolded and at cover dimensions. Local server-voice phone playback began in
+467 ms, with 46–67 ms sentence gaps. These are local test measurements, not
+cellular latency guarantees. Full plugin results and compatibility limits are
+recorded in the [validation report](SERVER-VOICE-FILES-2026-11-15.md). The compatible
+release-server suite passed 236 tests with four host-specific skips.
+
+The signed phone update was installed and verified in place, preserving its app
+identity, data directory, saved profiles and original installation time.
+
+Install the complete matching plugin and restart the gateway when idle. The bundle
+contains the separate speech-helper update instructions and sources. Existing
+server runtimes, including Moe, remain manual deployments. Notifications, memory
+and Canvas follow-up work remains on hold.
+
 ## Experimental workspace release — 0.20.0 / build 50
 
 [Download Android 0.20.0 and plugin 0.9.0-kanban-tree-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).

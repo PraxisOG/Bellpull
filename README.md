@@ -1,8 +1,9 @@
-> **Latest experimental: Android 0.20.0 / build 50, plugin 0.9.0-kanban-tree-preview.**
-> Adds nested Kanban Tree views and board chat shortcuts, conversation pull-to-refresh,
-> chat activity display controls, compact Tools and direct server uploads.
-> Includes the mobile attachment, voice/noise and SVG repairs. Install the matching
-> plugin for complete task hierarchies. [Validation and remaining limits](docs/RELEASE-0.20.0-EXPERIMENTAL.md).
+> **Latest experimental: Android 0.20.2 / build 52, plugin 0.9.2-voice-files-preview.**
+> Adds streaming server voice, agent-selected live files with pinning and permitted
+> Markdown checklist edits, and recent files plus GPU readings at the top of Settings.
+> Includes cellular connection recovery and the background-delivery/mobile repairs.
+> Install the matching plugin and speech-helper update for server-side features.
+> [Validation and limits](docs/SERVER-VOICE-FILES-2026-11-15.md).
 
 <div align="center">
 
@@ -15,10 +16,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.20.0-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.20.2-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.0-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1)
+[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.2-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1)
 
 </div>
 
@@ -59,15 +60,15 @@ the project, coding and calendar panels show the development preview.*
 | **Calendar** | Opt into selected phone calendars, view day/week blocks, and separately enable writes. Hermes proposals require a phone Apply action. |
 | **Offline conversations** | Automatic foreground model loading, encrypted local chats/forks, chunk compaction, source search, Gemma E2B CPU with optional thinking, and reviewed Hermes handoff. |
 | **Local chat lab** | Import a GGUF, run CPU text chat, measure performance and validate Vulkan against CPU. |
-| **Files and profiles** | Preview/share persistent files and keep credentials, caches, drafts and organization scoped to each Hermes connection. |
+| **Files and profiles** | Pin and view agent-selected server files in place; check off and add Markdown list items when editing is granted. Preview/share attachments and keep data scoped to each connection. |
 
 No Firebase or Google Play Services. A Hermes server and its model provider remain
 yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.20.0-experimental / build 50**
-> pairs with Bellpull plugin **0.9.0-kanban-tree-preview**. Server features need
+> **This is an experimental prerelease:** Android **0.20.2-experimental / build 52**
+> pairs with Bellpull plugin **0.9.2-voice-files-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework
@@ -92,7 +93,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1), or [build from the release source](docs/BUILDING.md).
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1), or [build from the release source](docs/BUILDING.md).
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -101,15 +102,16 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.0-experimental.1/Bellpull-source-0.20.0.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.2-experimental.1/Bellpull-source-0.20.2.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.0-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.2-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-The release includes the [**matching plugin 0.9.0 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.0-experimental.1/bellpull-plugin-0.9.0-kanban-tree-preview.tar.gz).
-Update the plugin to enable shared Canvas and recover handlers after rediscovery.
+The release includes the [**matching plugin 0.9.2 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.2-experimental.1/bellpull-plugin-0.9.2-voice-files-preview.tar.gz).
+Update the plugin to enable live files and the agent file skill. The bundle also
+includes [speech-helper update instructions](server-speech/README.md) for streaming Kokoro.
 Restart the gateway after replacing the plugin code. Unpack the archive, enter its directory and back up the data home, then
 preview the installer:
 
@@ -158,13 +160,13 @@ isolation, malformed audio, overload, authentication and cleanup. See the
 
 ## For contributors and agents
 
-The published experimental app and plugin source is tagged **`android-v0.20.0-experimental.1`**.
+The published experimental app and plugin source is tagged **`android-v0.20.2-experimental.1`**.
 Use that release tag to reproduce its APK and matching plugin. The release source
-is on `fix/plugin-rediscovery-39`; see [Canvas scope and validation](docs/SHARED-CANVAS.md).
+is on `release/0.20.2-experimental`; see [validation and limits](docs/SERVER-VOICE-FILES-2026-11-15.md).
 Earlier versions remain in Git history and release tags.
 
 ```bash
-git clone --recurse-submodules --branch android-v0.20.0-experimental.1 https://github.com/PraxisOG/Bellpull.git
+git clone --recurse-submodules --branch android-v0.20.2-experimental.1 https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
 ```

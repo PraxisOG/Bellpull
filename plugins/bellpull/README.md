@@ -1,10 +1,10 @@
-> Local voice/files candidate: **Android 0.20.2 / build 52**, plugin **0.9.2-voice-files-preview**.
-> Adds streaming Kokoro and agent-selected live Markdown files. See [live files](../../docs/LIVE-SERVER-FILES.md) and [speech helper](../../server-speech/README.md).
+> Latest experimental pair: **Android 0.20.2 / build 52**, plugin **0.9.2-voice-files-preview**.
+> Adds streaming Kokoro and agent-selected live Markdown files. See [live files](../../docs/LIVE-SERVER-FILES.md), [speech-helper update instructions](../../server-speech/README.md) and [validation](../../docs/SERVER-VOICE-FILES-2026-11-15.md).
+> Includes the previous cellular recovery, background-delivery and mobile repairs.
+> Deploy the complete matching plugin and restart the gateway when idle. Updating the speech helper is a separate step described in the bundle.
+> [Download the matching experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
 
-> Includes the previous reliability repairs: durable background-result delivery, coherent voice playback, tappable reply URLs and dialog keyboard handling. [Repair details](../../docs/PRIORITY-BUG-REPAIRS-2026-11-15.md).
-> Deploy the complete matching plugin and speech-helper sources for these new features. This candidate has not been published or deployed.
-
-> Latest published experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
+> Previous published experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
 > Adds explicit task/subtask containment and complete hierarchy pagination while
 > preserving dependency and scheduling semantics. Includes chat attachment handoff,
 > SVG MIME support, Canvas, reasoning and plugin reload recovery.
@@ -41,11 +41,11 @@
 > [Download and install](../../docs/RELEASE-PLUGIN-0.6.2-EXPERIMENTAL.md) ·
 > [Evidence](../../docs/evidence/moe-reasoning-20261022/README.md).
 
-# Bellpull integration plugin 0.9.0-kanban-tree-preview
+# Bellpull integration plugin 0.9.2-voice-files-preview
 
 This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
-Pair this source with Android **0.19.1-experimental** (build 49).
+Pair this source with Android **0.20.2-experimental** (build 52).
 The published 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1,
 but shared Canvas requires the separately advertised `bellpull_canvas` capability.
 The separate Phase 6/8/9 preview plugin directories are
@@ -158,7 +158,7 @@ results and manual acceptance checklist.
 
 Acceptance after restarting: plugin capabilities report
 `bellpull_persistent_artifacts: true` and `bellpull_artifact_lifecycle: true`;
-publish four PNGs with the tool; open Tools in Bellpull, refresh, and preview or
+publish four PNGs with the tool; open Files → Attachments & uploads in Bellpull, refresh, and preview or
 download them. Downloads must match the original byte count and SHA-256. Reconnect
 the app to refresh feature discovery. Missing sharing support is now visible.
 

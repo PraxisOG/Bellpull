@@ -1,0 +1,13 @@
+{
+  "android_runtime_source": "91322694801dea0e951f800a181cc0673f15baf8",
+  "plugin_release_host": {
+    "image": "bellpull-release-tests:0.20.0",
+    "tests": 240,
+    "passed": 236,
+    "skipped": 4,
+    "failures": 0,
+    "errors": 0
+  },
+  "phone_upgrade": "phone-upgrade.json",
+  "server_runtime_deployed": false
+}

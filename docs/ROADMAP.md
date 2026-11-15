@@ -1,19 +1,21 @@
 # Bellpull phase roadmap
 
-Updated **November 3, 2026**. Scope follows the user's October 11 roadmap and
+Updated **November 15, 2026**. Scope follows the user's October 11 roadmap and
 later decisions. This is a plan with implementation status, not a completion claim.
 The original [October 11 text](../Bellpull-Updated-Phase-Roadmap-2026-10-11.txt)
 is retained unchanged. **Phase 7's later scope supersedes its original Quick Chat plan.**
 
-Current experimental release: app **0.20.0-experimental / build 50**, plugin
-**0.9.0-kanban-tree-preview**, on `release/0.20.0-experimental`.
-This adds nested Kanban tasks, board chat shortcuts, conversation pull-to-refresh,
-chat display options and compact Tools with direct uploads. The older Canvas
-phone-opening check remains unresolved. [Release validation and limits](release.md).
+Current experimental release: app **0.20.2-experimental / build 52**, plugin
+**0.9.2-voice-files-preview**, on `release/0.20.2-experimental`.
+This adds streaming server voice and agent-selected live Markdown files with
+pinning and permitted checklist edits; recent files and GPU readings lead Settings.
+It includes the preceding cellular recovery and mobile/background repairs.
+Notifications, memory and Canvas follow-ups remain on hold after this pair.
+[Release validation and limits](SERVER-VOICE-FILES-2026-11-15.md).
 The October 31 implementation includes native Kanban reading, creation and field editing.
 Phase 18 is a new identifier; existing phase numbers and release references are
 retained. Delivery order is **18A → 18B → 18C → 18D**, ahead of deferred Phase 16
-and final-polish Phase 17. Current package: [android-v0.20.0-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.0-experimental.1).
+and final-polish Phase 17. Current package: [android-v0.20.2-experimental.1](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
 [Kanban implementation, validation and remaining work](PHASE-18-KANBAN.md).
 [Phone assistant, phone context and offline banner repair](PHASE-15-ASSISTANT.md).
 [Reply-notification and assistant-settings repair](RELEASE-0.15.1-EXPERIMENTAL.md).

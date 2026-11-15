@@ -1,10 +1,11 @@
-# Server voice and live files candidate
+# Server voice and live files release
 
 Android **0.20.2-experimental / build 52**, Bellpull plugin
-**0.9.2-voice-files-preview**. This local candidate includes the previous
+**0.9.2-voice-files-preview**. This experimental release includes the previous
 reliability fixes and completes the first two requested work items. Notifications,
-memory and Canvas follow-ups remain on hold. No production APK, gateway plugin,
-speech service or personal source document was changed during this work.
+memory and Canvas follow-ups remain on hold. Development used disposable fixtures.
+The signed phone update was subsequently installed in place at the user's request.
+Gateway plugins, speech services and personal source documents remain unchanged.
 
 ## Result
 
@@ -62,13 +63,19 @@ sentence batches, not tokens. ROCm STT remains batch recognition.
   the full MainActivity: file navigation, row checkbox
   taps, adding an item, source-file readback, pinning, Settings recent files,
   See all files, read-only interaction and reopening/refresh.
+- Publication checks on the compatible release server image passed: **236 tests,
+  four host-specific skips**, zero failures/errors. [Full release-host log](evidence/voice-files-20261115/plugin-release-host.log).
 - A broad stock-Hermes plugin run had 29 failures/errors, identical by test name
   to the untouched starting commit. These are existing legacy-host compatibility
   checks plus the existing native callback-restoration check. The candidate added
   no failures to that comparison; this is not a claim that the entire plugin suite
   is green. See the [baseline comparison](evidence/voice-files-20261115/plugin-baseline-comparison.json).
-- The signed APK passed 16 KiB alignment verification. Production upgrade and
-  deployment have not been performed.
+- The signed APK passed 16 KiB alignment verification and was installed over
+  production 0.20.0 without uninstalling or clearing data. The app ID, data-directory
+  path and original installation time are unchanged; the installed APK hash matches
+  the release asset. Both saved profiles and the new Settings layout were visible,
+  and the app reopened successfully. Server runtime deployment remains separate.
+  [Phone upgrade verification](evidence/voice-files-20261115/phone-upgrade.json).
 
 [Validation data](evidence/voice-files-20261115/validation.json) ·
 [Phone speech timing](evidence/voice-files-20261115/phone-voice.json) ·
