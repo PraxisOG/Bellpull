@@ -1141,6 +1141,15 @@ interruption paths — only that an API stop does not set it.)
 > `HermesError.StreamTruncated`, and a stop the client itself issued — and **not** from server
 > flags.
 
+For durable runs, a locally confirmed stop plus terminal server status releases the
+conversation's send gate immediately. History refresh remains best effort: a stopped
+run can have partial output or no saved assistant row, so it must not require a final
+reply match. Ordinary completed runs still wait for a matching saved reply, with a
+bounded retry period that ends in visible review and releases the send gate. Unknown
+delivery or nonterminal runs remain blocked. A replacement gets its own tracking job;
+the previous run's history fetch cannot own or overwrite it. Voice interruptions that
+remain blocked for five seconds return the saved words to review without a delayed send.
+
 **Decision: ship the stop button anyway.** The instruction was to ship without it if it did
 not behave as documented. It does stop the turn, reliably and fast, which is the part that
 matters; only the labelling is wrong, and the client can label it correctly from what it

@@ -31,7 +31,8 @@ internal data class RunPresentation(
     val stopError: String? = null,
 ) {
     val busy: Boolean get() = !submission.terminal ||
-        (submission.runId != null && !submission.historySynced && !submission.trackingDismissed)
+        (submission.runId != null && !submission.stopRequested && !submission.historySynced &&
+            !submission.historyNeedsReview && !submission.trackingDismissed)
     val label: String? get() = when {
         approval != null -> "Needs approval"
         submission.status == "review" || submission.historyNeedsReview -> "Needs review"
@@ -87,6 +88,10 @@ internal class DurableRuns(
 
     fun send(sessionId: String, text: String, previousIds: Set<Int>, bellpull: BellpullRunOptions? = null): Boolean {
         if (text.isBlank() || states[sessionId]?.busy == true || closed) return false
+        // A terminal run may still be loading history (or finishing its last callback).
+        // Give the replacement its own tracker before exposing it as Sending.
+        jobs.remove(sessionId)?.cancel()
+        states[sessionId]?.submission?.runId?.let { streams.remove(it)?.cancel() }
         val record = RunSubmission("bellpull-${UUID.randomUUID()}", sessionId, text, clock(), drafts.revision(sessionId), previousIds,
             interactiveApprovals = interactiveApprovals, bellpull = bellpull)
         states[sessionId] = RunPresentation(record, TurnState.Streaming("", statusLabel = "Sending…"))
@@ -289,7 +294,6 @@ internal class DurableRuns(
                             serverCreatedAt = status.createdAt ?: current.serverCreatedAt,
                             completionUsage = if (status.isTerminal) status.usage ?: current.completionUsage else current.completionUsage,
                             serverCompletedAt = if (status.isTerminal) status.updatedAt ?: current.serverCompletedAt else current.serverCompletedAt)
-                        if (current != record) save(record)
                         val oldApproval = states[sessionId]?.approval?.requestId
                         update(sessionId) { it.copy(submission = record,
                             approval = status.approval?.takeIf { approval -> approval.requestId.isNotBlank() },
@@ -301,6 +305,7 @@ internal class DurableRuns(
                                 else (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
                                     canStop = true, stopRequested = record.stopRequested,
                                     statusLabel = if (status.approval != null) "Waiting for approval…" else "Working…")) }
+                        if (current != record) save(record)
                         status.approval?.let { approval ->
                             if (approval.requestId.isNotBlank() && oldApproval != approval.requestId)
                                 onAttention(sessionId, "approval:${approval.requestId}")
@@ -349,7 +354,7 @@ internal class DurableRuns(
         var record = states[sessionId]?.submission ?: return
         // Older journals may contain only terminal status. Recover the server's output,
         // never POST the admitted request again, even if that status has since expired.
-        if (record.status == "completed" && record.completionOutput == null && record.runId != null) {
+        if (record.status == "completed" && !record.stopRequested && record.completionOutput == null && record.runId != null) {
             val status = io { client.runStatus(record.runId!!) }
             if (status is HermesResult.Ok && status.value.isTerminal) {
                 record = record.copy(completionOutput = status.value.output,
@@ -371,9 +376,10 @@ internal class DurableRuns(
     }
 
     private suspend fun syncHistory(sessionId: String, settle: Boolean = true): Boolean {
-        val state = states[sessionId] ?: return true
-        val record = state.submission
+        val requestId = states[sessionId]?.submission?.requestId ?: return true
         val result = io { client.completeHistory(sessionId) }
+        // Stop can be acknowledged while history is in flight. Use its latest evidence.
+        val record = states[sessionId]?.submission?.takeIf { it.requestId == requestId } ?: return true
         if (result !is HermesResult.Ok) {
             update(sessionId) { it.copy(notice = "Work has settled; reconnecting to load the saved reply.") }
             return false
@@ -385,7 +391,8 @@ internal class DurableRuns(
         onHistory(sessionId, messages)
         // Completion status can become visible before the transcript transaction.
         // A successful GET with old rows is not proof the new reply was saved.
-        if (settle && record.status == "completed" && reply == null) {
+        // API stops settle as completed, often with only partial prose or no reply at all.
+        if (settle && record.status == "completed" && !record.stopRequested && reply == null) {
             update(sessionId) { it.copy(notice = "Hermes finished. Waiting for its saved reply…") }
             return false
         }
@@ -406,20 +413,25 @@ internal class DurableRuns(
     fun stop(sessionId: String) {
         val state = states[sessionId] ?: return
         val runId = state.submission.runId ?: return
-        if (!state.busy || state.checking) return
+        if (state.submission.terminal || !state.busy || state.checking) return
         update(sessionId) { it.copy(checking = true, stopError = null) }
         scope.launch {
             when (val result = io { client.stopRun(runId) }) {
                 is HermesResult.Ok -> {
                     val current = states[sessionId] ?: return@launch
+                    if (current.submission.requestId != state.submission.requestId) return@launch
                     val next = current.submission.copy(stopRequested = true)
-                    save(next)
+                    // Publish before saving so a status poll cannot lose the stop flag.
                     update(sessionId) { it.copy(submission = next, checking = false,
-                        turn = (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(stopRequested = true), notice = null) }
+                        turn = if (next.terminal) terminalTurn(next) else
+                            (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
+                                stopRequested = true, statusLabel = "Stopping…"), notice = null) }
+                    save(next)
                 }
                 is HermesResult.Err -> update(sessionId) {
                     val problem = "Stop was not confirmed. ${result.error.toUserMessage()}"
-                    it.copy(checking = false, stopError = problem, notice = problem)
+                    if (it.submission.requestId != state.submission.requestId) it
+                    else it.copy(checking = false, stopError = problem, notice = problem)
                 }
             }
         }

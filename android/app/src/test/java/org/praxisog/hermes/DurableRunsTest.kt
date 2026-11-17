@@ -35,6 +35,9 @@ class DurableRunsTest {
     @Volatile private var runStatus = "running"
     @Volatile private var approval = ""
     @Volatile private var rejectStop = false
+    @Volatile private var stoppedStatus = "cancelled"
+    @Volatile private var stopResponseGate: java.util.concurrent.CountDownLatch? = null
+    @Volatile private var historyResponseGate: java.util.concurrent.CountDownLatch? = null
     @Volatile private var historyOffline = false
     @Volatile private var historyLag = false
     @Volatile private var historyBody: String? = null
@@ -55,6 +58,7 @@ class DurableRunsTest {
         calls += request
         val path = request.url.encodedPath
         if (path.endsWith("/messages") && historyOffline) throw IOException("History temporarily offline")
+        if (path.endsWith("/messages")) historyResponseGate?.await(3, java.util.concurrent.TimeUnit.SECONDS)
         if (path.endsWith("/events") && streamFailures > 0) {
             streamFailures--
             throw IOException("SSE connection failed before headers")
@@ -71,7 +75,11 @@ class DurableRunsTest {
             path.endsWith("/stop") -> if (rejectStop) {
                 code = 409
                 """{"error":{"code":"run_not_active","message":"Not ready"}}"""
-            } else { runStatus = "cancelled"; """{"run_id":"run_same","status":"stopping"}""" }
+            } else {
+                runStatus = stoppedStatus
+                stopResponseGate?.await(3, java.util.concurrent.TimeUnit.SECONDS)
+                """{"run_id":"run_same","status":"stopping"}"""
+            }
             path.endsWith("/approval") -> { approval = ""; """{"resolved":1}""" }
             path.endsWith("/messages") && historyLag -> """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"Working","tool_calls":[{"id":"tool","function":{"name":"terminal"}}]}]}"""
             path.endsWith("/messages") -> if (runStatus == "completed")
@@ -148,6 +156,7 @@ class DurableRunsTest {
         first.send("one", "hello", emptySet())
         await { first.states["one"]?.submission?.historyNeedsReview == true }
         assertFalse(first.states["one"]!!.submission.historySynced)
+        assertFalse("a terminal review must not block new sends", first.states["one"]!!.busy)
         first.close()
         val restored = manager(maxHistoryChecks = 2)
         restored.restore()
@@ -167,6 +176,73 @@ class DurableRunsTest {
         again.restore()
         assertFalse(again.states["one"]!!.busy)
         assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun stoppedCompletedRunSettlesWithoutMatchingPartialOutput() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "completed",
+            stopRequested = true, completionOutput = "Partial reply")
+        historyBody = """{"data":[{"id":10,"role":"user","content":"hello"}]}"""
+        val manager = manager()
+        manager.restore()
+        await { manager.states["one"]?.submission?.historySynced == true }
+        assertFalse(manager.states["one"]!!.busy)
+        assertEquals(TurnState.StoppedByUser("Partial reply"), manager.states["one"]!!.turn)
+        assertEquals(0, manager.states["one"]!!.submission.historyChecks)
+        assertTrue(calls.all { it.url.encodedPath.endsWith("/messages") })
+    }
+
+    @Test fun stoppedRunDoesNotHoldReplacementBehindAnInFlightHistoryFetch() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "completed",
+            stopRequested = true)
+        val gate = java.util.concurrent.CountDownLatch(1)
+        historyResponseGate = gate
+        val manager = manager()
+        try {
+            manager.restore()
+            await { calls.any { it.url.encodedPath.endsWith("/messages") } }
+            assertTrue(manager.send("one", "Replacement", emptySet()))
+            await { calls.any { it.url.encodedPath == "/v1/runs" } }
+            gate.countDown()
+            await { manager.states["one"]?.submission?.runId != null }
+            assertEquals("Replacement", manager.states["one"]!!.submission.text)
+            assertFalse(manager.states["one"]!!.submission.stopRequested)
+            assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+        } finally { gate.countDown() }
+    }
+
+    @Test fun replacementStartsEvenFromThePreviousTrackersFinalCallback() {
+        runStatus = "completed"
+        historyBody = """{"data":[]}"""
+        val manager = manager(maxHistoryChecks = 1)
+        var replacementAccepted = false
+        manager.onChanged = { id ->
+            if (manager.states[id]?.submission?.text == "hello" && manager.states[id]?.submission?.historyNeedsReview == true) {
+                replacementAccepted = manager.send(id, "Replacement", emptySet())
+            }
+        }
+        manager.send("one", "hello", emptySet())
+        await { calls.count { it.url.encodedPath == "/v1/runs" } == 2 }
+        assertTrue(replacementAccepted)
+        assertEquals("Replacement", manager.states["one"]!!.submission.text)
+    }
+
+    @Test fun stopAcknowledgedAfterTerminalStatusKeepsATerminalPresentation() {
+        stoppedStatus = "completed"
+        historyBody = """{"data":[]}"""
+        val gate = java.util.concurrent.CountDownLatch(1)
+        stopResponseGate = gate
+        val manager = manager()
+        try {
+            manager.send("one", "hello", emptySet())
+            await { manager.states["one"]?.submission?.runId != null }
+            manager.stop("one")
+            await { manager.states["one"]?.submission?.terminal == true }
+            gate.countDown()
+            await { manager.states["one"]?.submission?.stopRequested == true }
+            assertTrue(manager.states["one"]!!.turn is TurnState.StoppedByUser)
+            assertFalse(manager.states["one"]!!.busy)
+            await { manager.states["one"]?.submission?.historySynced == true }
+        } finally { gate.countDown() }
     }
 
     @Test fun reasoningAndInterimProseUpdateWhileTheRunIsStillWorking() {

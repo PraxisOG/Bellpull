@@ -46,7 +46,7 @@ class VoiceStoreTest {
         override fun writeRun(value: RunSubmission): Boolean { saved[value.requestId] = value; return true }
     }
 
-    @Test fun confirmedInterruptionCallsTheExistingStopEndpointBeforeOneReplacementAdmission() {
+    @Test fun completedStopWithoutSavedReplyAdmitsExactlyOneReplacement() {
         val main = MainSim("voice-main-interrupt")
         val admissions = AtomicInteger(); val stops = AtomicInteger()
         val saved = ConcurrentHashMap<String, RunSubmission>()
@@ -63,10 +63,10 @@ class VoiceStoreTest {
                 }
                 path == "/v1/runs/run_1/stop" -> { stops.incrementAndGet(); """{"run_id":"run_1","session_id":"one","status":"running"}""" }
                 path.endsWith("/events") -> ""
-                path.endsWith("/messages") -> if (stops.get() > 0)
-                    """{"data":[{"id":1,"role":"user","content":"First question."},{"id":2,"role":"assistant","content":"Partial old answer."}]}""" else """{"data":[]}"""
+                // Hermes can finish a stopped run without saving any assistant reply.
+                path.endsWith("/messages") -> """{"data":[{"id":1,"role":"user","content":"First question."}]}"""
                 path == "/v1/runs/run_1" && stops.get() > 0 ->
-                    """{"run_id":"run_1","session_id":"one","status":"cancelled","output":"Partial old answer."}"""
+                    """{"run_id":"run_1","session_id":"one","status":"completed"}"""
                 path.startsWith("/v1/runs/") ->
                     """{"run_id":"${path.substringAfterLast('/')}", "session_id":"one","status":"running"}"""
                 else -> """{"data":[]}"""
