@@ -127,16 +127,36 @@ class VoiceSessionTest {
         voice.resume(); assertEquals(VoiceState.REVIEW, voice.state)
         assertEquals(recognized, voice.transcript)
     }
-    @Test fun aStopThatNeverSettlesPausesInsteadOfLoopingOrAdmittingAgain() {
+    @Test fun aStopThatNeverSettlesReturnsWordsToReviewWithoutLateAdmission() {
         target.value = VoiceRun("old", busy = true)
         val waiting = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
             initialTranscript = "New words.", stopWaitMs = 250)
         try {
             waiting.start(); waiting.sendTranscript()
-            await { waiting.state == VoiceState.PAUSED }
-            assertTrue(waiting.notice!!.startsWith("Stop has not settled"))
+            await { waiting.state == VoiceState.REVIEW }
+            assertTrue(waiting.notice!!.contains("has not settled"))
             assertEquals("New words.", waiting.transcript)
             assertEquals(1, target.canceled); assertTrue(target.sent.isEmpty()); assertFalse(capture.active)
+            target.value = target.value.copy(busy = false, final = true)
+            tick()
+            assertEquals(VoiceState.REVIEW, waiting.state)
+            assertTrue(target.sent.isEmpty()); assertTrue(waiting.queuedText.isBlank())
+        } finally { waiting.close() }
+    }
+    @Test fun terminalHistoryWaitAlsoReturnsWordsToReviewWithoutStoppingAgain() {
+        target.value = VoiceRun("old", busy = true, final = true, executing = false)
+        val persisted = CopyOnWriteArrayList<String>()
+        val waiting = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            initialTranscript = "Keep this follow-up.", onTranscript = persisted::add, stopWaitMs = 250)
+        try {
+            waiting.start(); waiting.sendTranscript()
+            await { waiting.state == VoiceState.REVIEW }
+            assertEquals("Keep this follow-up.", waiting.transcript)
+            assertEquals("Keep this follow-up.", persisted.last())
+            assertEquals(0, target.canceled); assertTrue(target.sent.isEmpty()); assertFalse(capture.active)
+            target.value = target.value.copy(busy = false)
+            tick()
+            assertEquals(VoiceState.REVIEW, waiting.state); assertTrue(target.sent.isEmpty())
         } finally { waiting.close() }
     }
     @Test fun quickHeldDictationReturnsWordsToDraftWithoutSubmittingAnything() {
