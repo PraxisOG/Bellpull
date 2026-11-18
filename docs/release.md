@@ -1,3 +1,18 @@
+## Experimental voice interruption repair — 0.20.3 / build 53
+
+[Download Android 0.20.3](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.3-experimental.1).
+
+Fixes [#57](https://github.com/PraxisOG/Bellpull/issues/57): a stopped voice run
+reported as completed no longer blocks its replacement waiting for a saved final
+reply. Tracker ownership transfers to the new turn, and a five-second wait returns
+unsent words to review. Terminal history-review states keep their recovery controls
+while allowing new messages.
+
+Built on published 0.20.2, preserving its voice, live-file and workspace features.
+Plugin **0.9.2-voice-files-preview** is unchanged and included for convenience;
+upgrading from 0.20.2 requires no server update for this fix. Install the signed APK
+in place to preserve app data. [Validation and limits](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.3-experimental.1/docs/RELEASE-0.20.3-EXPERIMENTAL.md).
+
 ## Experimental server voice and live files — 0.20.2 / build 52
 
 [Download Android 0.20.2 and plugin 0.9.2-voice-files-preview](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
