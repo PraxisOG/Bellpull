@@ -1,0 +1,32 @@
+{
+  "device": "Pixel 10 Pro Fold",
+  "package": "org.praxisog.hermes",
+  "before": {
+    "appId": "10308",
+    "versionCode": "52",
+    "versionName": "0.20.2-experimental",
+    "ceDataInode": "148398",
+    "deDataInode": "157469",
+    "dataDir": "/data/user/0/org.praxisog.hermes",
+    "firstInstallTime": "2026-10-17 21:11:01"
+  },
+  "after": {
+    "appId": "10308",
+    "versionCode": "53",
+    "versionName": "0.20.3-experimental",
+    "ceDataInode": "148398",
+    "deDataInode": "157469",
+    "dataDir": "/data/user/0/org.praxisog.hermes",
+    "firstInstallTime": "2026-10-17 21:11:01"
+  },
+  "uid_preserved": true,
+  "data_directory_identities_preserved": true,
+  "signer_sha256": "c1211fd4dbb2b4c0710fe35858bbc4d19eb2d2d27abb18eb5ad51e8192db55bf",
+  "apk_sha256": "bf86e48a05ccfeaccf6b3cbce1a6e1b48782ad927471c7047a00dd3390d40800",
+  "installed_apk_matches": true,
+  "alignment_16k_verified": true,
+  "method": "pm install -r",
+  "app_left_stopped": true,
+  "personal_server_accessed": false,
+  "real_voice_barge_in_acceptance": "not performed"
+}

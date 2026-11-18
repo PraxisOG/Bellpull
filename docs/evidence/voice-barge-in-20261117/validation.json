@@ -1,0 +1,28 @@
+{
+  "command": "bash tools/build-local-lab.sh test verifyRoborazziDebug lintDebug --max-workers=4",
+  "result": "passed",
+  "tests": [
+    {
+      "module": "android/app/build/test-results/testDebugUnitTest",
+      "tests": 821,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "android/core-hermes/build/test-results/test",
+      "tests": 49,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    {
+      "module": "android/core-model/build/test-results/test",
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "screenshot_baselines": 221
+}
