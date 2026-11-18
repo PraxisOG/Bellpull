@@ -50,7 +50,8 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
         Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text(notice, style = MaterialTheme.typography.bodySmall)
-                if (state.busy) TextButton(onClick = onRetry, enabled = !state.checking) { Text("Check status") }
+                if (state.busy || state.submission.historyNeedsReview)
+                    TextButton(onClick = onRetry, enabled = !state.checking) { Text("Check status") }
                 if (state.submission.status == "review" || state.submission.historyNeedsReview)
                     TextButton(onClick = { review = true }) { Text("Review saved request") }
             }
