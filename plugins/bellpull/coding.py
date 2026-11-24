@@ -21,6 +21,7 @@ import weakref
 from aiohttp import web
 from .artifacts import ArtifactError, checked_session
 from .coding_executors import consume_frames
+from .coding_workspace import capture_workspace_base
 from .lineage import compression_ids
 from .principal import artifact_scope
 
@@ -228,7 +229,7 @@ class CodingStore:
             rows=[dict(json.loads(data),sequence=seq) for seq,data,work in reversed(values) if work in ids][-MAX_ROWS:]
         public=[]
         for work in works:
-            public.append({k:v for k,v in work.items() if k not in ("owner_task_id","incarnation","observed_total","workspace","home","awaiting_thread","discard_frame")})
+            public.append({k:v for k,v in work.items() if k not in ("owner_task_id","incarnation","observed_total","workspace","home","awaiting_thread","discard_frame","workspace_baseline","claude_commands")})
         executors = ["opencode", "codex", "claude"] if all_executors else ["opencode"]
         return dict(version=1,session_id=session,session_ids=aliases,cursor=high,reset=reset,executors=executors,
                     gap=expired or any(w.get("gap") for w in works) or after is not None and reset,
@@ -312,9 +313,10 @@ class Observer:
         home=Path(get_hermes_home()).resolve()
         store=self.store(home)
         wid=hashlib.sha256(f"{candidates[0]}\0{tool_call_id}\0{pid}\0{process.started_at}".encode()).hexdigest()[:32]
+        workspace = str(Path(process.cwd).resolve()) if process.pid_scope == "host" and process.cwd else None
+        baseline = capture_workspace_base(workspace) if workspace else None
         with self.lock:
             if any(w["id"]==wid for w in store.works()): return
-            workspace=str(Path(process.cwd).resolve()) if process.pid_scope=="host" and process.cwd else None
             work=dict(id=wid,session_id=session_id,run_id=candidates[0],process_id=pid,open_code_session_id=None,
                       transport=transport,state="running",workspace_id=wid if workspace else None,workspace_label=workspace,
                       workspace=workspace,owner_task_id=task_id,incarnation=str(process.started_at),observed_total=0,
@@ -322,6 +324,8 @@ class Observer:
             if transport in ("codex_json", "claude_stream_json"):
                 work.update(executor="codex" if transport == "codex_json" else "claude",
                             executor_session_id=None, note="Structured output from the Hermes-owned coding process.")
+            if baseline:
+                work["workspace_baseline"] = baseline
             if not store.save(work): return
             self.sample(store,work,process)
 
@@ -420,7 +424,7 @@ class Observer:
         _,error=await self.adapter._get_existing_session_or_404(work["session_id"])
         if error is not None: return error
         if not work.get("workspace"): raise ArtifactError("This backend has no verified local workspace.",409)
-        value=await asyncio.to_thread(inspect_workspace,work["workspace"],request.query.get("file"))
+        value=await asyncio.to_thread(inspect_workspace,work["workspace"],request.query.get("file"),work.get("workspace_baseline"))
         return web.json_response(value,headers={"Cache-Control":"no-store"})
 
     def routes(self):

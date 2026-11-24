@@ -8,6 +8,8 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -50,25 +52,34 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ,{"HERMES_HOME":temporary,"BELLPULL_NTFY_URL":""}):
             home=Path(temporary)
             (home/"config.yaml").write_text("plugins:\n  enabled:\n    - bellpull\n")
-            workspace=home/"workspace"; workspace.mkdir()
-            executable=workspace/executor
+            workspace=home/"workspace"
+            executable=home/executor
             sid = "6181c478-e0f6-4b19-acaa-986b2b6e06ce"
             if executor == "opencode":
+                workspace.mkdir()
                 sid = "ses_fixture"
                 flags = " run --format json fixture"
-                events = [dict(type="text", timestamp=123, sessionID=sid,
-                               part=dict(id="part_fixture", messageID="msg_fixture", sessionID=sid,
-                                         type="text", text="Observed fixture output"))]
-            elif executor == "codex":
-                flags = " exec --json fixture"
-                events = [{"type":"thread.started", "thread_id":sid}, {"type":"item.completed",
-                           "item":{"id":"item_0", "type":"agent_message", "text":"Observed fixture output"}}]
+                event = dict(type="text", timestamp=123, sessionID=sid, part=dict(id="part_fixture",
+                             messageID="msg_fixture", sessionID=sid, type="text", text="Observed fixture output"))
+                executable.write_text("#!/usr/bin/env python3\nimport time\nprint("+repr(json.dumps(event))+",flush=True)\ntime.sleep(1)\n")
             else:
-                flags = " -p --verbose --output-format stream-json fixture"
-                events = [dict(type="system", subtype="init", session_id=sid), dict(type="assistant", session_id=sid,
-                          message=dict(id="msg_fixture", content=[dict(type="text", text="Observed fixture output")]))]
-            output = "\n".join(json.dumps(event) for event in events)
-            executable.write_text("#!/usr/bin/env python3\nimport time\nprint("+repr(output)+",flush=True)\ntime.sleep(1)\n")
+                flags = " exec --json fixture" if executor == "codex" else " -p --verbose --output-format stream-json fixture"
+                shutil.copyfile(Path(__file__).parent / "fixtures/coding_child.py", executable)
+                source = home / "source"
+                source.mkdir()
+                def git(*args):
+                    return subprocess.check_output(["git","-C",str(source),*args], text=True).strip()
+                git("init","-q")
+                git("config","user.name","Fixture")
+                git("config","user.email","fixture@invalid")
+                (source/"answer.py").write_text("value = 1\n")
+                (source/"test_answer.py").write_text("import unittest\nfrom answer import value\nclass TestAnswer(unittest.TestCase):\n    def test_value(self): self.assertEqual(2,value)\n")
+                (source/".gitignore").write_text("__pycache__/\n")
+                git("add",".")
+                git("commit","-qm","Fixture baseline")
+                base = git("rev-parse","HEAD")
+                git("worktree","add","--detach","-q",str(workspace),"HEAD")
+                (source/"answer.py").write_text("owner edit\n")
             executable.chmod(0o700)
             manager=get_plugin_manager(); manager.discover_and_load()
             key="coding-disposable-key"
@@ -87,7 +98,7 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                         invoke_hook("post_tool_call",tool_name="terminal",args={"command":command,"background":True},
                                     result=json.dumps({"session_id":proc.id,"output":"","exit_code":None}),task_id=values["task_id"],
                                     session_id=self.session_id,turn_id=self._current_turn_id,tool_call_id="call_fixture")
-                        if not release.wait(15): raise RuntimeError("Fixture was not released")
+                        if not release.wait(30): raise RuntimeError("Fixture was not released")
                         return {"final_response":"Fixture finished","completed":True}
                 return Agent()
             adapter._create_agent=create_agent
@@ -111,6 +122,21 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(run,(await response.json())["run_id"])
                     coding=origin+f"/api/bellpull/sessions/{session}/coding"
                     params = {} if executor == "opencode" else {"executors":"all"}
+                    if executor != "opencode":
+                        for _ in range(100):
+                            opening=await (await client.get(coding,params=params)).json()
+                            if opening["works"] and opening["works"][0].get("executor_session_id"): break
+                            await asyncio.sleep(.05)
+                        running, = opening["works"]
+                        self.assertEqual("running", running["state"])
+                        async with ClientSession(headers={"Authorization":"Bearer "+key}) as reopened:
+                            resumed=await (await reopened.get(coding,params={**params,"after":str(opening["cursor"])})).json()
+                            self.assertEqual(running["id"],resumed["works"][0]["id"])
+                            inspection=origin+f"/api/bellpull/coding/{running['id']}/workspace"
+                            clean=await (await reopened.get(inspection)).json()
+                            self.assertEqual(base,clean["base_commit"])
+                            self.assertEqual([],clean["files"])
+                        (home/"release-edit").touch()
                     async def observed():
                         for _ in range(60):
                             response=await client.get(coding, params=params)
@@ -140,7 +166,21 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     delta=await response.json(); self.assertFalse(delta["reset"]); self.assertEqual([],delta["rows"])
                     wid=snapshot["works"][0]["id"]
                     response=await client.get(origin+f"/api/bellpull/coding/{wid}/workspace")
-                    self.assertEqual(200,response.status); self.assertIn("Git repository root",(await response.json())["note"])
+                    self.assertEqual(200,response.status)
+                    listing=await response.json()
+                    if executor == "opencode":
+                        self.assertIn("Git repository root", listing["note"])
+                    else:
+                        self.assertEqual(base, listing["base_commit"])
+                        entry, = listing["files"]
+                        self.assertEqual("answer.py", entry["path"])
+                        preview=await (await client.get(inspection,params={"file":entry["id"]})).json()
+                        self.assertIn("-value = 1", preview["diff"])
+                        self.assertIn("+value = 2", preview["diff"])
+                        self.assertEqual("owner edit\n",(source/"answer.py").read_text())
+                        self.assertEqual(base,git("rev-parse","HEAD"))
+                        outcomes=[r["outcome"] for r in snapshot["rows"] if r["label"] in ("Command execution","Bash")]
+                        self.assertEqual(["exit 1","exit 0"] if executor == "codex" else ["failed","returned"], outcomes)
                     response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding",headers={"Authorization":"Bearer wrong"})
                     self.assertEqual(401,response.status)
                     self.assertEqual(1,len(admissions)); self.assertIs(original_sink,process_registry.on_output)

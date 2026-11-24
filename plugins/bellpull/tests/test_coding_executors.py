@@ -56,6 +56,30 @@ class ExecutorEventsTest(unittest.TestCase):
         failed, = emit(dict(type="result",subtype="error_during_execution",session_id=self.session,is_error=True))
         self.assertEqual("error",failed["kind"])
 
+    def test_claude_matches_bash_results_and_omits_unrelated_payloads(self):
+        work = dict(transport="claude_stream_json", executor_session_id=self.session)
+        def emit(kind, block, **extra):
+            event = dict(type=kind, session_id=self.session, message={"content":[block]}, **extra)
+            return observed_rows(work, json.dumps(event), 0)[0]
+        started = emit("assistant", dict(type="tool_use", id="t1", name="Bash",
+                       input={"command":"git status --short","description":"unrelated metadata"}))
+        native = {"stdout":"?? fixture.txt", "stderr":"", "other":"private metadata"}
+        result = emit("user", dict(type="tool_result", tool_use_id="t1", is_error=False),
+                      tool_use_result=native)
+        self.assertEqual(started["key"], result["key"])
+        self.assertEqual("returned", result["outcome"])
+        self.assertNotIn("private metadata",json.dumps(result))
+        self.assertNotIn("unrelated metadata",json.dumps(started))
+        from agent import redact
+        if hasattr(redact, "redact_for_egress"):
+            self.assertEqual("git status --short", result["command"])
+            self.assertEqual("?? fixture.txt", result["detail"])
+        else:
+            self.assertEqual("", result["detail"])
+        unrelated = emit("user", dict(type="tool_result", tool_use_id="other", content="private output"),
+                         tool_use_result=native)
+        self.assertEqual("", unrelated["detail"])
+
     def test_restart_replays_partial_frame_and_accepts_unterminated_final_frame(self):
         work = dict(transport="codex_json", observed_total=0)
         started = json.dumps(dict(type="thread.started", thread_id=self.session)) + "\n"

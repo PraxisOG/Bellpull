@@ -5,6 +5,8 @@ import re
 UUID = re.compile(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 EXTERNAL_ID = re.compile(r"[A-Za-z0-9._:-]{1,240}")
 MAX_DETAIL = 16384
+MAX_CLAUDE_COMMANDS = 32
+MAX_COMMAND_PREVIEW = 2048
 
 
 def identifier(value):
@@ -61,6 +63,8 @@ def codex_rows(work, event, position):
         return []
     key = "item:" + item["id"]
     category = item.get("type")
+    if category == "error":
+        return [row(key, "error", "Codex diagnostic", item.get("message"))]
     if category == "agent_message":
         return [row(key, "text", "Codex response", item.get("text"))]
     if category == "command_execution":
@@ -106,12 +110,40 @@ def claude_rows(work, event, position):
         if kind == "assistant" and block_type == "text" and identifier(message.get("id")):
             rows.append(row(f"message:{message['id']}:{i}", "text", "Claude Code response", block.get("text")))
         elif kind == "assistant" and block_type == "tool_use" and identifier(block.get("id")) and identifier(block.get("name")):
-            rows.append(row("tool:" + block["id"], "tool", block["name"], outcome="requested"))
+            tool_id, name = block["id"], block["name"]
+            request = row("tool:" + tool_id, "tool", name, outcome="requested")
+            commands = work.setdefault("claude_commands", {})
+            commands.pop(tool_id, None)
+            if name == "Bash":
+                arguments = block.get("input")
+                command = public_text(arguments.get("command")) if isinstance(arguments, dict) else ""
+                if len(commands) >= MAX_CLAUDE_COMMANDS:
+                    del commands[next(iter(commands))]
+                commands[tool_id] = [command[:MAX_COMMAND_PREVIEW], len(command) > MAX_COMMAND_PREVIEW]
+                if command:
+                    request["command"], request["truncated"] = commands[tool_id]
+            rows.append(request)
         elif kind == "user" and block_type == "tool_result" and identifier(block.get("tool_use_id")):
             error = block.get("is_error", False)
-            if isinstance(error, bool):
-                rows.append(row("result:" + block["tool_use_id"], "tool", "Tool result",
-                                outcome="failed" if error else "returned"))
+            if not isinstance(error, bool):
+                continue
+            tool_id = block["tool_use_id"]
+            outcome = "failed" if error else "returned"
+            previous = work.get("claude_commands", {}).get(tool_id)
+            if previous is None:
+                rows.append(row("result:" + tool_id, "tool", "Tool result", outcome=outcome))
+                continue
+            # Only the result of a previously observed Bash call can supply shell output.
+            native = event.get("tool_use_result")
+            detail = block.get("content")
+            if len(blocks) == 1 and isinstance(native, dict) and all(isinstance(native.get(k), str) for k in ("stdout", "stderr")):
+                detail = "\n".join(part for part in (native["stdout"], native["stderr"]) if part)
+            result = row("tool:" + tool_id, "tool", "Bash", detail, outcome)
+            command, truncated = previous
+            if command:
+                result["command"] = command
+                result["truncated"] |= truncated
+            rows.append(result)
     return rows
 
 
