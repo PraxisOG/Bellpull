@@ -90,6 +90,93 @@ class VoiceDeviceTest {
         try { assertEquals("Check the fixture.", client.transcribe(wav(ByteArray(3200))).getOrThrow()) }
         finally { client.close() }
     }
+    /** Feed the two named utterances through the disposable emulator's virtual microphone. */
+    @Test fun localSpeechInterruptsASilentRunAndDeliversTheSecondUtterance() {
+        guard()
+        val args = InstrumentationRegistry.getArguments()
+        org.junit.Assume.assumeTrue(args.containsKey("bargeSession"))
+        val chat = requireNotNull(args.getString("bargeSession"))
+        val firstWord = requireNotNull(args.getString("firstWord"))
+        val nextWord = requireNotNull(args.getString("nextWord"))
+        val runtime = BellpullRuntime.get(context)
+        val client = HermesClient("http://127.0.0.1:18657", { "native-attachment-fixture-key" })
+        val caps = (client.capabilities() as HermesResult.Ok).value
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val profile = "barge-in-" + java.util.UUID.randomUUID()
+        val saved = VoiceSettings(context, profile)
+        var voice: VoiceSession? = null
+        val ui = DeviceFixtureUi
+        val noPlayback = object : VoiceOutput {
+            override fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit) = onReady("silent fixture")
+            override fun speak(text: String, started: () -> Unit, complete: () -> Unit) { started(); complete() }
+            override fun stop() {}
+            override fun close() {}
+        }
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            try {
+                lateinit var store: HermesStore
+                scene.onActivity { activity ->
+                    runtime.prepare(profile)
+                    store = runtime.connect(client, caps)
+                    store.openSession(chat)
+                    activity.setContent { HermesTheme { Text(store.runPresentation?.label ?: "Voice fixture ready") } }
+                }
+                ui.awaitMain("Fixture chat did not load") { store.history is UiState.Ready }
+                main {
+                    assertNull(runtime.speechLab.voiceStartProblem())
+                    voice = VoiceSession(chat, profile, scope, StoreVoiceConversation(store, chat),
+                        VoiceConfiguration(concise = false, announcements = VoiceAnnouncements(working = false)),
+                        noPlayback, AndroidVoiceCapture(scope), transcriber = runtime.speechLab::voiceTranscriber,
+                        onTranscript = { saved.saveTranscript(chat, it) }, onSubmission = { saved.saveRequest(chat, it) })
+                    voice!!.start(VoiceMode.CONVERSATION)
+                }
+                ui.awaitMain("First microphone capture did not start") { voice?.state == VoiceState.LISTENING }
+                instrumentation.sendStatus(0, Bundle().apply { putString("microphone", "first") })
+                var original = ""
+                ui.awaitMain("First recognized turn was not admitted") {
+                    val record = store.runs?.states?.get(chat)?.submission
+                    original = record?.runId.orEmpty()
+                    original.isNotEmpty() && record!!.text.contains(firstWord, ignoreCase = true)
+                }
+                instrumentation.sendStatus(0, Bundle().apply { putString("microphone", "replacement") })
+                ui.awaitMain("Replacement was not acknowledged in the original chat") {
+                    val record = store.runs?.states?.get(chat)?.submission
+                    record?.runId != null && record.runId != original && record.historySynced &&
+                        record.text.contains(nextWord, ignoreCase = true) &&
+                        record.completionOutput == "Replacement received on Hermes."
+                }
+                val history = (client.completeHistory(chat) as HermesResult.Ok).value.data
+                val requests = history.filter { it.role == "user" }
+                assertEquals(2, requests.size)
+                assertTrue(requests.first().content.orEmpty().contains(firstWord, ignoreCase = true))
+                assertTrue(requests.last().content.orEmpty().contains(nextWord, ignoreCase = true))
+                assertEquals(1, history.count { it.role == "assistant" && it.content == "Replacement received on Hermes." })
+                assertEquals("completed", (client.runStatus(original) as HermesResult.Ok).value.status)
+                val journal = SessionCache(context, profile).readRuns().filter { it.sessionId == chat }
+                assertEquals(2, journal.size)
+                assertTrue(journal.single { it.runId == original }.let { it.terminal && it.stopRequested })
+                main {
+                    assertEquals("", saved.pending(chat))
+                    assertNull(saved.pendingRequest(chat))
+                }
+            } catch (failure: AssertionError) {
+                main {
+                    val record = runtime.store?.runs?.states?.get(chat)
+                    instrumentation.sendStatus(0, Bundle().apply {
+                        putString("voice", voice?.state?.name)
+                        putString("notice", voice?.notice)
+                        putString("run", record?.submission?.status)
+                        putBoolean("busy", record?.busy == true)
+                        putBoolean("replacement_saved", saved.pending(chat).contains(nextWord, ignoreCase = true))
+                    })
+                }
+                throw failure
+            } finally {
+                main { voice?.close(); runtime.disconnect() }
+                scope.cancel(); saved.clear(); client.close()
+            }
+        }
+    }
     @Test fun foregroundVoiceSurvivesAppBackgroundAndEndsWithoutRestartingMic() {
         guard()
         val runtime = BellpullRuntime.get(context)

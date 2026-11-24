@@ -99,14 +99,27 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putBoolean("announce_tools", value.announcements.tools).putBoolean("announce_web_search", value.announcements.webSearch)
             .putBoolean("announce_thinking", value.announcements.thinking).putBoolean("announce_working", value.announcements.working).commit())
     }
-    fun pending(sessionId: String): String = prefs.getString("pending_session", null)?.takeIf { it == sessionId }
-        ?.let { prefs.getString("pending_text", "") }.orEmpty()
-    fun pendingRequest(sessionId: String): String? = prefs.getString("pending_session", null)?.takeIf { it == sessionId }
-        ?.let { prefs.getString("pending_request", null) }
-    fun saveRequest(requestId: String?) { check(prefs.edit().putString("pending_request", requestId).commit()) }
+    // Older builds stored a single recovery slot for the entire profile.
+    private fun pendingValue(sessionId: String, key: String): String? =
+        prefs.getString("$key:$sessionId", null) ?: if (prefs.getString("pending_session", null) == sessionId)
+            prefs.getString(key, null) else null
+
+    fun pending(sessionId: String): String = pendingValue(sessionId, "pending_text").orEmpty()
+    fun pendingRequest(sessionId: String): String? = pendingValue(sessionId, "pending_request")
+
+    fun saveRequest(sessionId: String, requestId: String?) {
+        val edit = prefs.edit().putString("pending_request:$sessionId", requestId)
+        if (prefs.getString("pending_session", null) == sessionId) edit.remove("pending_request")
+        check(edit.commit())
+    }
+
     fun saveTranscript(sessionId: String, text: String) {
-        val edit = prefs.edit().putString("pending_session", sessionId).putString("pending_text", text.take(12000))
-        edit.remove("pending_request")
+        val edit = prefs.edit().remove("pending_request:$sessionId")
+        if (text.isEmpty()) edit.remove("pending_text:$sessionId")
+        else edit.putString("pending_text:$sessionId", text.take(12000))
+        if (prefs.getString("pending_session", null) == sessionId) {
+            edit.remove("pending_session").remove("pending_text").remove("pending_request")
+        }
         check(edit.commit())
     }
     fun playback(sessionId: String): String? = prefs.getString("playback_session", null)?.takeIf { it == sessionId }

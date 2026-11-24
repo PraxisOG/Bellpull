@@ -94,6 +94,7 @@ class VoiceSessionTest {
         target.value = VoiceRun("run-1", false, final = true, stopRequested = true)
         await { output.said.last() == "Working." }
         output.complete(); assertEquals(2, target.sent.size)
+        assertNull(voice.notice)
         assertTrue(target.sent.last().endsWith(recognized))
     }
     @Test fun interruptionBeforeAdmissionWaitsForTheSameRunToBecomeStoppable() {
@@ -175,7 +176,8 @@ class VoiceSessionTest {
             assertEquals(VoiceState.REVIEW, waiting.state); assertTrue(target.sent.isEmpty())
         } finally { waiting.close() }
     }
-    @Test fun quickHeldDictationReturnsWordsToDraftWithoutSubmittingAnything() {
+    @Test fun quickHeldDictationReturnsWordsToDraftWithoutStoppingTheRunningTurn() {
+        target.value = VoiceRun("typed-run", busy = true)
         val drafts = CopyOnWriteArrayList<String>()
         val persisted = CopyOnWriteArrayList<String>()
         val dictation = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
@@ -191,6 +193,7 @@ class VoiceSessionTest {
             assertTrue(drafts.isEmpty())
             dictation.endPushToTalk()
             await { dictation.state == VoiceState.STOPPED }
+            assertEquals(0, target.canceled)
             assertEquals(listOf("Dictated words."), drafts)
             assertEquals("", persisted.last()); assertTrue(target.sent.isEmpty()); assertTrue(output.said.isEmpty())
             assertFalse(capture.active)
@@ -353,6 +356,27 @@ class VoiceSessionTest {
         await { output.said.size == 2 }
         output.complete()
         assertEquals(2, target.sent.size); assertEquals(0, target.canceled)
+    }
+    @Test fun anApprovalArrivingDuringAdmissionKeepsTheQueuedWordsUntilTheRunFinishes() {
+        target.acknowledge = false
+        voice.start(); utterance(); output.complete()
+        recognized = "Wait for the approval before sending this."
+        utterance()
+        assertEquals(recognized, voice.queuedText)
+        target.value = target.value.copy(admitted = true, approvalPending = true)
+        await { voice.notice == APPROVAL_WAITING }
+        Thread.sleep(400) // Pass the stop worker's next admission poll.
+        assertEquals(0, target.canceled)
+        assertEquals(1, target.sent.size)
+        target.value = target.value.copy(approvalPending = false)
+        tick()
+        assertEquals(0, target.canceled)
+        assertEquals(1, target.sent.size)
+        target.value = target.value.copy(busy = false, final = true)
+        await { output.said.size == 2 }
+        output.complete()
+        assertEquals(2, target.sent.size)
+        assertTrue(target.sent.last().endsWith(recognized))
     }
     @Test fun transcriptionFailureStopsMicAndKeepsHermesUntouched() {
         failure = true; voice.start(); utterance()
@@ -627,6 +651,22 @@ class VoiceSessionTest {
             target.value = target.value.copy(admitted = true)
             await { persisted.lastOrNull() == "" }; assertEquals(1, target.sent.size)
         } finally { restored.close() }
+    }
+    @Test fun anotherRunsAdmissionCannotClearUnconfirmedWords() {
+        target.value = VoiceRun("original", busy = true, admitted = false)
+        val persisted = CopyOnWriteArrayList<String>()
+        val recovered = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            onTranscript = persisted::add, initialTranscript = "Unconfirmed words.", priorRequestId = "original")
+        try {
+            recovered.start()
+            target.value = VoiceRun("different", busy = true, admitted = true)
+            await { recovered.state == VoiceState.PAUSED }
+            assertTrue(persisted.isEmpty())
+            recovered.resume()
+            assertEquals(VoiceState.REVIEW, recovered.state)
+            assertEquals("Unconfirmed words.", recovered.transcript)
+            assertTrue(target.sent.isEmpty())
+        } finally { recovered.close() }
     }
     @Test fun restartWithKnownPendingRunRecoversWithoutReplayingSpeechOrSubmittingAgain() {
         target.value = VoiceRun("run-old", busy = true, admitted = false)

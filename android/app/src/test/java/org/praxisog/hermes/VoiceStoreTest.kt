@@ -3,7 +3,10 @@ package org.praxisog.hermes
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
 import okhttp3.*
+import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Pipe
+import okio.buffer
 import org.junit.Test
 import org.junit.Assert.*
 import org.praxisog.hermes.core.HermesClient
@@ -127,6 +130,42 @@ class VoiceStoreTest {
         } finally { main.onMain { voice.close(); store.close() }; main.close(); client.close() }
     }
 
+    @Test fun queuedWordsUseTheDurableStopEvenWhileChatStillDisplaysStreaming() = runBlocking {
+        val main = MainSim("voice-stop-display")
+        val saved = ConcurrentHashMap<String, RunSubmission>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val body = if (request.url.encodedPath == "/v1/runs") """{"run_id":"run_new","status":"running"}"""
+                else """{"data":[]}"""
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody()).build()
+        }.build()
+        val client = HermesClient("https://fixture.invalid", { "fixture" }, httpClient = http)
+        val store = main.onMain { HermesStore(main.scope, client, durableRetention = 86400, journal = fixtureJournal(saved)) }
+        try {
+            main.onMain { store.openSession("one") }
+            withTimeout(5000) { while (!main.onMain { store.history is UiState.Ready }) delay(10) }
+            main.onMain {
+                val runs = requireNotNull(store.runs)
+                val record = RunSubmission("original", "one", "First question.", 1.0, 0, emptySet(),
+                    runId = "run_old", status = "running")
+                runs.states["one"] = RunPresentation(record, TurnState.Streaming(""))
+                runs.onChanged("one")
+                val target = StoreVoiceConversation(store, "one")
+                assertFalse(target.send("Too early."))
+                // The voice observer can run before onChanged projects the terminal state to the chat.
+                runs.states["one"] = RunPresentation(record.copy(status = "completed", stopRequested = true),
+                    TurnState.StoppedByUser(""))
+                assertTrue(store.turn is TurnState.Streaming)
+                assertTrue(target.send("Replace that question."))
+                assertEquals("Replace that question.", runs.states["one"]?.submission?.text)
+                assertFalse(target.send("Do not duplicate."))
+            }
+            withTimeout(5000) { while (saved.values.none { it.runId == "run_new" }) delay(10) }
+            assertEquals(1, saved.size)
+        } finally { main.onMain { store.close() }; main.close(); client.close() }
+    }
+
     @Test fun failedStopKeepsTheReplacementWordsForReviewWithoutASecondAdmission() {
         val main = MainSim("voice-main-failed-stop")
         val admissions = AtomicInteger()
@@ -218,12 +257,16 @@ class VoiceStoreTest {
         val saved = ConcurrentHashMap<String, RunSubmission>()
         val spoken = CopyOnWriteArrayList<String>()
         val playbackGate = java.util.concurrent.atomic.AtomicReference<(() -> Unit)?>(null)
+        val events = Pipe(4096)
+        val frames = events.sink.buffer()
         val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
             val request = chain.request()
+            if (request.url.encodedPath.endsWith("/events")) {
+                return@addInterceptor Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+                    .code(200).message("fixture").body(events.source.buffer().asResponseBody()).build()
+            }
             val body = when {
                 request.url.encodedPath == "/v1/runs" -> { calls.incrementAndGet(); assertEquals(1, saved.size); """{"run_id":"run_voice","status":"running"}""" }
-                request.url.encodedPath.endsWith("/events") ->
-                    "event: tool.progress\ndata: {\"seq\":0,\"tool_name\":\"_thinking\",\"delta\":\"Private reasoning must never be spoken\"}\n\nevent: message.delta\ndata: {\"seq\":1,\"delta\":\"The answer starts here. More\"}\n\n"
                 request.url.encodedPath.endsWith("/messages") -> if (finished.get())
                     """{"data":[{"id":1,"role":"user","content":"Voice question"},{"id":2,"role":"assistant","content":"The answer starts here. More detail."}]}""" else """{"data":[]}"""
                 request.url.encodedPath.startsWith("/v1/runs/") -> if (finished.get())
@@ -258,7 +301,9 @@ class VoiceStoreTest {
             }
             await { voice.state == VoiceState.REVIEW }; main.onMain { voice.sendTranscript() }
             assertEquals(0, calls.get()); val preamble = playbackGate.getAndSet(null); assertNotNull(preamble); main.onMain { preamble!!() }
+            frames.writeUtf8("event: tool.progress\ndata: {\"seq\":0,\"tool_name\":\"_thinking\",\"delta\":\"Private reasoning must never be spoken\"}\n\n").flush()
             await { spoken.size == 2 }; assertEquals("Thinking.", spoken[1])
+            frames.writeUtf8("event: message.delta\ndata: {\"seq\":1,\"delta\":\"The answer starts here. More\"}\n\n").flush()
             main.onMain { playbackGate.getAndSet(null)!!() }; await { spoken.size == 3 }; assertEquals("The answer starts here.", spoken[2])
             assertTrue(store.runPresentation!!.busy); assertEquals(1, calls.get())
             val first = playbackGate.getAndSet(null); assertNotNull(first); main.onMain { first!!() }; finished.set(true)
@@ -267,6 +312,6 @@ class VoiceStoreTest {
             assertEquals(listOf("Working.", "Thinking.", "The answer starts here.", "More detail."), spoken)
             assertEquals(1, calls.get()); assertEquals(1, saved.size)
             assertEquals(1, recognitions.get())
-        } finally { main.onMain { voice.close(); store.close() }; main.close(); client.close(); local.close() }
+        } finally { frames.close(); main.onMain { voice.close(); store.close() }; main.close(); client.close(); local.close() }
     }
 }

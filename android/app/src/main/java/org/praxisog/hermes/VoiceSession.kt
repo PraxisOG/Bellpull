@@ -62,7 +62,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             durable?.submission?.runId != null || (turn is TurnState.Streaming && turn.canStop) || turn is TurnState.Finished || savedLegacyReply != null,
             voiceActivities((turn as? TurnState.Streaming)?.parts.orEmpty()),
             durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
-            durable?.notice?.takeIf { it.startsWith("Stop was not confirmed.") },
+            durable?.stopError,
             durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming,
             approvalPending = durable?.approval != null)
     }
@@ -71,8 +71,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
         previousIds = (store.history as? UiState.Ready)?.value.orEmpty().map { it.id }.toSet()
         if (store.runs == null) legacyIdentity = "voice-legacy-${java.util.UUID.randomUUID()}"
         val prompt = if (canvas == null) text else canvas.prepare(id, text) ?: return false
-        store.send(prompt)
-        return store.turn is TurnState.Streaming || store.runPresentation?.busy == true
+        return store.send(prompt)
     }
     override fun cancel() { if (selected) store.stop() }
 }
@@ -156,13 +155,23 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         mode = initialMode
         prepareOutput(::readyToListen)
         observe = scope.launch {
-            snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (selected, run) ->
+            snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (_, observed) ->
+                // Main.immediate can wake us inside the store's snapshot publication. A queued
+                // send must wait for that update to finish and recheck the current run.
+                val run = if (!observed.busy && queuedText.isNotBlank()) {
+                    yield()
+                    conversation.run()
+                } else observed
                 if (closed) return@collectLatest
-                if (!selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
+                if (!conversation.selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
                 if (state == VoiceState.PAUSED) return@collectLatest
                 listeningBlock(run)?.let { pause(it); return@collectLatest }
-                if (run.approvalPending) notice = APPROVAL_WAITING
-                else if (notice == APPROVAL_WAITING) notice = null
+                if (run.approvalPending) {
+                    notice = APPROVAL_WAITING
+                    interrupting = false
+                    interruption?.cancel()
+                    interruption = null
+                } else if (notice == APPROVAL_WAITING) notice = null
                 if (interrupting) {
                     if (run.stopError != null) { pause(run.stopError); return@collectLatest }
                     if (!run.busy) {
@@ -178,12 +187,16 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                     return@collectLatest
                 }
                 if (run.error != null) { pause(run.error); return@collectLatest }
+                if (ownedRun == null) ownedRun = run.identity
+                if (ownedRun != null && run.identity != ownedRun) {
+                    awaitingAdmission = false; pendingForAdmission = false
+                    pause("Another turn started in this chat. Review the chat before resuming.")
+                    return@collectLatest
+                }
                 if (awaitingAdmission && run.admitted) {
                     awaitingAdmission = false
                     if (pendingForAdmission) { saveTranscript(""); pendingForAdmission = false }
                 }
-                if (ownedRun == null) ownedRun = run.identity
-                if (ownedRun != null && run.identity != ownedRun) { pause("Another turn started in this chat. Resume when it finishes."); return@collectLatest }
                 if (run.text.isNotBlank() && firstTextMs == null) firstTextMs = (System.nanoTime() - endedAt) / 1_000_000
                 collectPlayback(run)
                 if (!run.busy && run.final) {
@@ -353,11 +366,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 }
                 discardPlayback()
                 pendingForAdmission = false; transcript = text; saveTranscript(text); notice = null
-                interruptCurrentRun()
                 if (dictationToDraft) {
                     putWordsInDraft()
                     return@fold
                 }
+                interruptCurrentRun()
                 if (mode == VoiceMode.DICTATION || holdTurn || forceReview) state = VoiceState.REVIEW else sendTranscript()
             }, { canRetryTranscription = true; pause(it.message ?: "Transcription failed. Try again when the service is available.") })
         }
@@ -390,7 +403,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             openMic(); return
         }
         val text = transcript
-        queuedText = ""; completingTurn = true
+        queuedText = ""; notice = null; completingTurn = true
         // This actual playback barrier precedes admission, not just a model instruction.
         val admit: () -> Unit = admit@{
             completingTurn = false
@@ -424,7 +437,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (identity != null && run.identity != identity) {
                     pause("The chat changed while stopping. Your new words are saved for review."); return@launch
                 }
-                if (!requested && run.executing && run.admitted) { conversation.cancel(); requested = true }
+                if (!requested && run.executing && run.admitted && !run.approvalPending) { conversation.cancel(); requested = true }
                 delay(250)
             }
             pause("The previous turn has not settled. Your new words are saved for review; check the chat before sending.")
