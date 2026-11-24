@@ -140,6 +140,7 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     var error by remember { mutableStateOf<String?>(null) }
     var transcribeViaServer by remember { mutableStateOf(initial.transcribeViaServer) }
     var allowLocalFallback by remember { mutableStateOf(initial.allowLocalTranscriptionFallback) }
+    var instruction by remember(initial.voiceInstruction) { mutableStateOf(initial.voiceInstruction) }
     var recognition by remember { mutableStateOf(initial.recognition) }
     Text("Speech recognition", style = MaterialTheme.typography.titleMedium)
     PreferenceSwitch("Transcribe on server", "Send captured audio over the existing Bellpull profile connection. Server failures are reported without starting local recognition by default.",
@@ -172,13 +173,36 @@ internal fun VoiceSettingsEditor(initial: VoiceConfiguration, enabled: Boolean, 
     Text("End-of-turn pause: ${"%.1f".format(pause / 1000f)} seconds"); Slider(pause.toFloat(), { pause = it.toInt() }, valueRange = 1000f..3500f)
     Row { Checkbox(concise, { concise = it }); Text("Brief voice responses") }
     Text("Prefers brief spoken answers unless you ask for detail or a long narration. The complete generated answer is always played.", style = MaterialTheme.typography.bodySmall)
-    Text("The preset is included visibly in voice messages. Typed messages and their model settings keep their existing behavior.", style = MaterialTheme.typography.bodySmall)
+    InstructionField("Voice turn instruction", instruction, editable, { instruction = it })
+    TextButton(enabled = editable, onClick = { instruction = VOICE_PRESET }) { Text("Reset to default") }
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = editable, onClick = { runCatching {
-        onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, recognition = recognition,
+        onSave(initial.copy(endpoint = endpoint, key = key, model = model, pauseMs = pause, concise = concise, voiceInstruction = instruction, recognition = recognition,
             transcribeViaServer = transcribeViaServer, allowLocalTranscriptionFallback = allowLocalFallback))
         if (!transcribeViaServer && recognition == VoiceRecognition.PRIVATE_SERVER) speechLab?.unload()
     }.onFailure { error = it.message ?: "Could not save voice settings." } }) { Text("Save voice settings") }
+}
+
+@Composable
+private fun InstructionField(label: String, value: String, enabled: Boolean, onEdit: (String) -> Unit) {
+    OutlinedTextField(value, { if (it.length <= MAX_INSTRUCTION_LENGTH) onEdit(it) },
+        label = { Text(label) }, enabled = enabled, minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth(),
+        supportingText = { Text("${value.length} / $MAX_INSTRUCTION_LENGTH") })
+}
+
+@Composable
+internal fun TypedInstructionSettings(config: VoiceConfiguration, onSave: (VoiceConfiguration) -> Unit) {
+    var enabled by remember(config.typedInstructionEnabled) { mutableStateOf(config.typedInstructionEnabled) }
+    var instruction by remember(config.typedInstruction) { mutableStateOf(config.typedInstruction) }
+    var error by remember { mutableStateOf<String?>(null) }
+    PreferenceSwitch("Add instruction to typed messages", "Applies to messages sent from this profile’s chat composer.", enabled) { enabled = it }
+    InstructionField("Typed turn instruction", instruction, true) { instruction = it }
+    TextButton(onClick = { instruction = MOBILE_PRESET }) { Text("Use mobile preset") }
+    Button(onClick = {
+        error = runCatching { onSave(config.copy(typedInstructionEnabled = enabled, typedInstruction = instruction)) }
+            .exceptionOrNull()?.let { "Could not save the typed instruction." }
+    }, enabled = enabled != config.typedInstructionEnabled || instruction != config.typedInstruction) { Text("Save instruction") }
+    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
 @Composable

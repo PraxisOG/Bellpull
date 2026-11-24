@@ -32,6 +32,39 @@ def wire(adapter):
         if not supported:
             return False, lambda: None
     active = True
+    compacting = set()
+
+    def phase_sink(run_id, loop, session_queue=None):
+        def publish(start):
+            statuses = getattr(adapter, "_run_statuses", {})
+            status = statuses.get(run_id)
+            if not active:
+                return
+            if not status or status.get("status") not in {"running", "waiting_for_approval"}:
+                compacting.discard(run_id)
+                if status is not None:
+                    status.pop("bellpull_phase", None)
+                return
+            if (run_id in compacting) == start:
+                return
+            if start:
+                compacting.add(run_id)
+                status["bellpull_phase"] = "compacting"
+            else:
+                compacting.discard(run_id)
+                status.pop("bellpull_phase", None)
+            name = "run.compacting" if start else "run.compacted"
+            if session_queue is not None:
+                session_queue.enqueue(name, {})
+            else:
+                stream = adapter._run_streams.get(run_id)
+                if stream is not None:
+                    stream.put_nowait({"event": name, "run_id": run_id, "timestamp": time.time()})
+
+        def emit(start):
+            if active and not loop.is_closed():
+                loop.call_soon_threadsafe(publish, start)
+        return emit
 
     @wraps(make_progress)
     def progress_factory(run_id, loop, *args, **kwargs):
@@ -62,6 +95,7 @@ def wire(adapter):
                 return
             return native(event_type, *args, **kwargs)
 
+        progress._bellpull_phase = phase_sink(run_id, loop)
         progress._bellpull_reasoning_callback = reasoning
         return progress
 
@@ -76,6 +110,17 @@ def wire(adapter):
         agent = create(*bound.args, **bound.kwargs)
         if inject and not accepts_reasoning and hasattr(agent, "reasoning_callback") and agent.reasoning_callback is None:
             agent.reasoning_callback = reasoning
+        phase = getattr(progress, "_bellpull_phase", None)
+        # Stock session SSE owns a separate sequenced queue. Use its native enqueue
+        # only on the known session handler, never a global session-id lookup.
+        if phase is None and inspect.isfunction(progress) and progress.__qualname__.endswith(
+                "._handle_session_chat_stream.<locals>._tool_progress"):
+            queue = inspect.getclosurevars(progress).nonlocals.get("events")
+            if (queue is not None and getattr(queue, "session_id", None) == bound.arguments.get("session_id")
+                    and callable(getattr(queue, "enqueue", None)) and getattr(queue, "run_id", None)):
+                phase = phase_sink(queue.run_id, queue.loop, queue)
+        if phase is not None and hasattr(agent, "status_callback"):
+            _observe_compression(agent, phase)
         return agent
 
     adapter._create_agent = create_agent
@@ -84,9 +129,45 @@ def wire(adapter):
     def stop():
         nonlocal active
         active = False
+        for run_id in compacting:
+            getattr(adapter, "_run_statuses", {}).get(run_id, {}).pop("bellpull_phase", None)
+        compacting.clear()
         if adapter._create_agent is create_agent:
             adapter._create_agent = create
         if adapter._make_run_event_callback is progress_factory:
             adapter._make_run_event_callback = make_progress
 
     return True, stop
+
+
+def _observe_compression(agent, emit):
+    """Keep host status notifications intact and expose only compression edges."""
+    original_status = agent.status_callback
+    announced = False
+
+    def status(kind, message, *args, **kwargs):
+        nonlocal announced
+        if kind == "compacting" or (kind == "lifecycle" and "Compacting context" in str(message)):
+            if not announced:
+                announced = True
+                emit(True)
+        elif kind == "compacted" and announced:
+            announced = False
+            emit(False)
+        if original_status is not None:
+            return original_status(kind, message, *args, **kwargs)
+
+    agent.status_callback = status
+    compress = getattr(agent, "_compress_context", None)
+    if callable(compress):
+        @wraps(compress)
+        def observed(*args, **kwargs):
+            nonlocal announced
+            try:
+                return compress(*args, **kwargs)
+            finally:
+                # Some host abort/exception paths omit their completion callback.
+                if announced:
+                    announced = False
+                    emit(False)
+        agent._compress_context = observed

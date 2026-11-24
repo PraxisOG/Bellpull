@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
             }
             insets
         }
+        refreshImeInsetsOnEnd(window)
         androidx.core.view.ViewCompat.requestApplyInsets(window.decorView)
         val reader = MessageReader(this) { usage ->
             check(runtime.voice == null) { "End voice conversation before using Read aloud." }
@@ -265,6 +266,9 @@ class MainActivity : ComponentActivity() {
                                 runtime.voiceStartError?.let { androidx.compose.material3.Text(it) }
                             }
                         },
+                        typedSettings = savedVoiceSettings?.let { settings -> {
+                            TypedInstructionSettings(voiceConfig) { settings.save(it); voiceConfig = settings.read() }
+                        } },
                         voiceAnnouncementSettings = {
                             VoiceAnnouncementSettings(voiceConfig, savedVoiceSettings != null) {
                                 savedVoiceSettings?.save(it); voiceConfig = savedVoiceSettings?.read() ?: it
@@ -295,7 +299,7 @@ class MainActivity : ComponentActivity() {
                             else { localSelected = false; if (current == null) exampleId = BellpullExample.ID else current.openSession(id) }
                         },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
-                        onSend = { text -> current?.let { val prompt = runtime.canvas?.prepare(text) ?: text; if (files != null) files.send(it, prompt) else it.send(prompt) } ?: false }, onStop = { current?.stop() },
+                        onSend = { text -> current?.let { val typed = voiceConfig.typedPrompt(text); val prompt = runtime.canvas?.prepare(typed) ?: typed; if (files != null) files.send(it, prompt) else it.send(prompt) } ?: false }, onStop = { current?.stop() },
                         onRetrySessions = { current?.refreshSessions() }, onRetryHistory = { current?.refreshHistory() },
                         refreshingSessions = current?.refreshingSessions == true,
                         onNewSession = { preview = null; localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },

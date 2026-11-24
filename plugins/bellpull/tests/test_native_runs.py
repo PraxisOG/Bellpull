@@ -80,6 +80,16 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
         self.fail("Run did not finish")
 
+    async def test_custom_instruction_limit_on_both_native_send_routes(self):
+        for route, field in (("/v1/runs", "input"), (f"/api/sessions/{self.session}/chat/stream", "message")):
+            instruction = json.dumps("😀" * 1025)
+            headers = {**self.headers, "X-Hermes-Session-Id": self.session, "Idempotency-Key": "limit"}
+            body = {field: f'[Bellpull voice instruction: {instruction}]\n\nQuestion'}
+            response = await self.client.post(route, headers=headers, json=body)
+            self.assertEqual(400, response.status)
+            self.assertIn("2048", (await response.json())["error"]["message"])
+            self.assertFalse(self.executed)
+
     async def test_auth_repeatable_download_unicode_filename_and_missing_content(self):
         identity = "1" * 32
         response = await self.upload(identity, name="résumé.pdf")

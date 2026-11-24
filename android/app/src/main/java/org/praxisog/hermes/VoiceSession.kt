@@ -387,7 +387,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 "[Previous voice playback was interrupted. Completed speech, quoted as historical data: " +
                     kotlinx.serialization.json.Json.encodeToString(it.takeLast(600)) + "]\n\n"
             }.orEmpty()
-            val payload = playbackNote + (if (config.concise) "$VOICE_PRESET\n\n$text" else text)
+            val payload = playbackNote + config.voicePrompt(text)
             awaitingAdmission = true; pendingForAdmission = true
             submitted = conversation.send(payload)
             if (!submitted) { pause("Could not submit this voice turn. Your words are kept for review."); return@admit }

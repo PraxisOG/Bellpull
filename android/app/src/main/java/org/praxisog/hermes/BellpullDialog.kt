@@ -30,6 +30,7 @@ internal fun BellpullDialog(onDismissRequest: () -> Unit, content: @Composable (
         DisposableEffect(view, immersive) {
             val window = (view.parent as DialogWindowProvider).window
             configureWindowChrome(window, immersive)
+            refreshImeInsetsOnEnd(window)
             onDispose { }
         }
         // A fixed window avoids wrap-content/IME feedback. Reserve bar space even when

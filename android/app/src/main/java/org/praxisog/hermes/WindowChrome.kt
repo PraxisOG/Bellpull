@@ -5,6 +5,8 @@ import android.view.Window
 import android.view.WindowManager
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Rect
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -25,4 +27,15 @@ internal fun configureWindowChrome(window: Window, immersive: Boolean) {
         if (immersive) hide(WindowInsetsCompat.Type.systemBars())
         else show(WindowInsetsCompat.Type.systemBars())
     }
+}
+
+/** Reconcile Compose descendants with the final IME geometry once the animation has settled. */
+internal fun refreshImeInsetsOnEnd(window: Window) {
+    val decor = window.decorView
+    ViewCompat.setWindowInsetsAnimationCallback(decor, object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+        override fun onProgress(insets: WindowInsetsCompat, runningAnimations: MutableList<WindowInsetsAnimationCompat>) = insets
+        override fun onEnd(animation: WindowInsetsAnimationCompat) {
+            if (animation.typeMask and WindowInsetsCompat.Type.ime() != 0) decor.post { ViewCompat.requestApplyInsets(decor) }
+        }
+    })
 }

@@ -30,6 +30,7 @@ data class RunStatus(
     val output: String? = null,
     val error: String? = null,
     val approval: RunApproval? = null,
+    @SerialName("bellpull_phase") val bellpullPhase: String? = null,
 ) {
     /** Statuses observed live. A stop moves a run here before it settles. */
     val isStopping: Boolean get() = status == "stopping"

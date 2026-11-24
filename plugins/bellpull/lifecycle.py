@@ -6,18 +6,12 @@ only weak references on that manager; never share bindings across profiles.
 """
 import hashlib
 import os
-from pathlib import Path
 import weakref
 
 
 def bundle_identity():
-    root = Path(__file__).parent
-    digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root)
-        if path.is_file() and path.suffix in {".py", ".yaml", ".json"} and "tests" not in relative.parts:
-            digest.update(str(relative).encode())
-            digest.update(b"\0" + path.read_bytes() + b"\0")
+    from .version import ROOT, source_digest
+    digest = hashlib.sha256(source_digest(ROOT).encode())
     # Changed service configuration also requires a fresh gateway. Never expose
     # these values (which may contain credentials) in the readiness response.
     for key, value in sorted(os.environ.items()):

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -42,15 +43,22 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
             arguments = signature.bind_partial(*args, **kwargs).arguments
             owner.created.append(arguments)
             class Agent:
+                status_callback = None
                 session_id = arguments.get("session_id")
                 model = arguments.get("requested_model")
                 provider = arguments.get("requested_provider")
                 def run_conversation(self, **values):
+                    if values["user_message"] == "exercise compression":
+                        self.status_callback("lifecycle", "🗜️ Compacting context — summarizing earlier conversation")
+                        owner.compression_started.set()
+                        if not owner.resume_agent.wait(5):
+                            raise RuntimeError("fixture timed out")
+                        self.status_callback("compacted", "Context compaction complete")
                     owner.executed.append(values)
                     database = owner.adapter._ensure_session_db()
                     database.append_message(self.session_id, "user", values.get("persist_user_message", values["user_message"]))
                     database.append_message(self.session_id, "assistant", "Attachment received")
-                    prompt = arguments.get("ephemeral_system_prompt", "")
+                    prompt = arguments.get("ephemeral_system_prompt") or ""
                     if "output_directory" in prompt:
                         metadata = json.loads(prompt.split("\n")[-1])
                         Path(metadata["output_directory"], "result.txt").write_text("Synthetic output")
@@ -120,6 +128,29 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
         records = await (await self.client.get("/api/bellpull/artifacts", headers=self.headers)).json()
         self.assertEqual({"upload", "agent"}, {r["source"] for r in records["data"]})
         self.assertTrue(all(r["message_id"] is not None for r in records["data"]))
+
+    async def test_real_session_and_durable_transports_surface_only_the_active_run_phase(self):
+        self.compression_started, self.resume_agent = threading.Event(), threading.Event()
+        body = {"session_id": self.session, "input": "exercise compression"}
+        response = await self.client.post("/v1/runs", headers={**self.headers, "Idempotency-Key": "compaction"}, json=body)
+        self.assertLess(response.status, 300, await response.text())
+        run_id = (await response.json())["run_id"]
+        try:
+            self.assertTrue(await asyncio.to_thread(self.compression_started.wait, 4))
+            poll = await self.client.get("/v1/runs/" + run_id, headers=self.headers)
+            self.assertEqual("compacting", (await poll.json()).get("bellpull_phase"))
+        finally:
+            self.resume_agent.set()
+        await self.settle(run_id)
+        poll = await self.client.get("/v1/runs/" + run_id, headers=self.headers)
+        self.assertNotIn("bellpull_phase", await poll.json())
+        self.compression_started.clear()
+        response = await self.client.post(f"/api/sessions/{self.session}/chat/stream", headers=self.headers,
+            json={"message": "exercise compression"})
+        frames = await response.text()
+        self.assertIn("event: run.compacting", frames)
+        self.assertIn("event: run.compacted", frames)
+        self.assertIn("event: run.completed", frames)
 
     async def test_replay_after_deleted_file_and_catalog_failure_has_one_execution(self):
         identity = await self.upload()

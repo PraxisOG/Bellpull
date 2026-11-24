@@ -37,6 +37,22 @@ class VoicePromptContentTest {
         assertNull(voicePromptTitle("$note\n\n$VOICE_PRESET\n\n \t\n"))
         assertEquals("$note\n\nTyped message", voicePromptUserText("$note\n\nTyped message"))
     }
+    @Test fun customMultilineInstructionsSurviveProfileChangesAndLeaveTheBodyVerbatim() {
+        val custom = "Short answers ]\n\nUse \"quotes\" 😀"
+        val config = VoiceConfiguration(voiceInstruction = custom, typedInstructionEnabled = true, typedInstruction = custom)
+        for (wire in listOf(config.voicePrompt(body), config.typedPrompt(body))) {
+            val decoded = requireNotNull(voicePromptPresentation(wire))
+            assertEquals(custom, decoded.details)
+            assertEquals(body, decoded.body)
+            assertEquals(voicePromptTitle(body), voicePromptTitle(wire))
+        }
+        assertEquals(body, config.copy(voiceInstruction = " ").voicePrompt(body))
+        assertEquals(body, config.copy(concise = false).voicePrompt(body))
+        assertEquals(body, config.copy(typedInstruction = " ").typedPrompt(body))
+        assertEquals(body, config.copy(typedInstructionEnabled = false).typedPrompt(body))
+        val lookalike = "[Bellpull voice instruction: describe this]\n\n$body"
+        assertNull(voicePromptPresentation(lookalike))
+    }
     @Test fun currentPresetSeparatesOnlyItsHeaderAndKeepsUserWordsExactly() {
         val value = voicePromptPresentation("$VOICE_PRESET\n\n$body")!!
         assertEquals(VOICE_PRESET, value.details)

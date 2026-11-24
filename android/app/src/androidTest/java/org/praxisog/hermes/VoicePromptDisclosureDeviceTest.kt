@@ -57,6 +57,23 @@ class VoicePromptDisclosureDeviceTest {
             assertNotNull(visibleText(words))
         }
     }
+    @Test fun editedInstructionOpensAndOrdinaryPrefixRemainsVisible() = ui.withWindows {
+        val custom = "Answer briefly.\n\nQuote a [source]."
+        val ordinary = "[Bellpull voice turn: my own note]"
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            scene.onActivity { activity -> activity.setContent { HermesTheme {
+                SessionDetailScreen(UiState.Ready(listOf(
+                    message.copy(content = VoiceConfiguration(voiceInstruction = custom).voicePrompt(words)),
+                    message.copy(id = 902, content = ordinary))), TurnState.Idle, { false }, {}, {})
+            } } }
+            ui.await("Custom prompt body missing") { visibleText(words) != null }
+            assertNull(visibleText(custom))
+            assertNotNull(visibleText(ordinary))
+            ui.tapText("Bellpull voice enabled ▾")
+            ui.await("Custom multiline instruction missing") { visibleText(custom) != null }
+        }
+    }
+
     @Test fun editingReceivesOriginalPresetAndWordsAfterDisplayCollapse() = ui.withWindows {
         ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
             scene.onActivity { activity -> activity.setContent { HermesTheme {

@@ -90,7 +90,12 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
             async with TestClient(TestServer(app)) as client:
                 response = await client.get("/api/bellpull/capabilities", headers={"Authorization": "Bearer clean-install-fixture"})
                 self.assertEqual(200, response.status, await response.text())
-                features = (await response.json())["features"]
+                public = await response.json()
+                self.assertEqual(info["version"], public["plugin_version"])
+                self.assertEqual(public["version"], public["protocol_version"])
+                self.assertRegex(public["source_sha256"], r"^[a-f0-9]{64}$")
+                self.assertIn("0.21.1", public["tested_hermes_versions"])
+                features = public["features"]
                 self.assertTrue(features["bellpull_persistent_artifacts"])
                 self.assertEqual(404, (await client.get("/p/unserved/api/bellpull/capabilities",
                     headers={"Authorization": "Bearer clean-install-fixture"})).status)

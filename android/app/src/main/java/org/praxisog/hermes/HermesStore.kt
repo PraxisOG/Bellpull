@@ -619,6 +619,10 @@ internal class HermesStore(
                     if (revision != sessionRevision) return@streamTurn
                     live.accept(event)
                     when (event) {
+                        is StreamEvent.Compaction -> {
+                            val streaming = turn as? TurnState.Streaming
+                            if (streaming != null) turn = streaming.copy(statusLabel = if (event.active) "Compacting…" else "Writing…")
+                        }
                         is StreamEvent.RunStarted -> activeRunId = event.runId
                         is StreamEvent.AssistantDelta -> {
                             if (commentaryBoundary && event.delta.isNotEmpty() && accumulated.isNotEmpty()) accumulated.append("\n\n")
@@ -766,6 +770,7 @@ internal class HermesStore(
             parts = parts,
             canStop = canStop,
             stopRequested = alreadyStopping,
+            statusLabel = (current as? TurnState.Streaming)?.statusLabel ?: "Writing…",
         )
     }
 

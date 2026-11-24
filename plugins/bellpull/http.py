@@ -5,11 +5,13 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import time
 
 from aiohttp import web
 
-from . import VERSION, branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context, kanban
+from .version import compatibility
+from . import branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context, kanban
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
 from .pagination import Snapshots
@@ -19,11 +21,34 @@ from .speech import SpeechProxy
 from . import canvas, native_attachments, live_files
 
 
+# Text sent by Android is JSON-quoted inside the header so multiline instructions,
+# brackets and blank lines cannot consume any of the user's own message.
+_INSTRUCTION = re.compile(r'\A(?:\[Previous voice playback was interrupted\. Completed speech, quoted as historical data: "(?:[^"\\]|\\.)*"\]\r?\n\r?\n)?\[Bellpull (?:voice|typed) instruction: ')
+
+
+def oversized_instruction(text):
+    if not isinstance(text, str):
+        return False
+    start = _INSTRUCTION.match(text)
+    if not start:
+        return False
+    line, _, _ = text[start.end():].partition("\n")
+    line = line.removesuffix("\r")
+    if not line.endswith("]"):
+        return False
+    try:
+        instruction = json.loads(line[:-1])
+    except (ValueError, RecursionError):
+        return False
+    return isinstance(instruction, str) and len(instruction.encode("utf-16-le", errors="surrogatepass")) > 4096
+
+
 def wire(app, adapter):
     from .coding import Observer
     from hermes_cli import __version__
     required = ("_expected_api_key", "_check_auth", "_run_idempotency_scope", "_ensure_session_db_async",
                 "_get_existing_session_or_404", "_session_response", "_read_json_body")
+    public_build = compatibility()
     mode = source_mode()
     compatible = mode is not None and __version__ == "0.21.1" and all(callable(getattr(adapter, key, None)) for key in required)
     # File storage has no dependency on private run admission or a particular
@@ -63,6 +88,21 @@ def wire(app, adapter):
     loop = asyncio.get_running_loop()
     lifecycle_lock = asyncio.Lock()
     pending = set()
+
+    @web.middleware
+    async def prompt_limit(request, handler):
+        if (active and request.method == "POST"
+                and re.fullmatch(r"(?:/p/[^/]+)?/(?:v1/runs|api/sessions/[^/]+/chat/stream)", request.path)
+                and callable(getattr(adapter, "_check_auth", None)) and adapter._check_auth(request) is None):
+            try:
+                body = await request.json()
+            except (ValueError, UnicodeError):
+                return await handler(request)
+            if isinstance(body, dict) and oversized_instruction(body.get("input", body.get("message"))):
+                return web.json_response({"error": {"message": "Bellpull instructions are limited to 2048 characters."}}, status=400)
+        return await handler(request)
+
+    app.middlewares.append(prompt_limit)
 
     def deactivate():
         stop_attachments()
@@ -197,7 +237,7 @@ def wire(app, adapter):
         return guarded
 
     async def capabilities(request):
-        return web.json_response({"version": 1, "plugin_version": VERSION, "hermes_version": __version__,
+        return web.json_response({"version": public_build["protocol_version"], **public_build, "hermes_version": __version__,
             "host_api_version": host.API_VERSION if host_ready else None,
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,

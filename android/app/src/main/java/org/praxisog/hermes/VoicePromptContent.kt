@@ -3,7 +3,28 @@ package org.praxisog.hermes
 import java.security.MessageDigest
 import kotlinx.serialization.json.Json
 
-internal data class VoicePromptPresentation(val details: String, val body: String)
+internal data class VoicePromptPresentation(val details: String, val body: String, val label: String = "Bellpull voice enabled")
+
+internal const val MAX_INSTRUCTION_LENGTH = 2048
+internal const val MOBILE_PRESET = "Keep replies dense and scannable on a narrow screen. Prefer short sentences and flat lists. When a chart or diagram would be clearer, publish it as an image."
+
+private const val VOICE_HEADER = "[Bellpull voice instruction: "
+private const val TYPED_HEADER = "[Bellpull typed instruction: "
+
+private fun withInstruction(prefix: String, instruction: String, words: String): String {
+    if (words.isBlank() || instruction.isBlank()) return words
+    require(instruction.length <= MAX_INSTRUCTION_LENGTH)
+    return "$prefix${Json.encodeToString(instruction)}]\n\n$words"
+}
+
+internal fun VoiceConfiguration.voicePrompt(words: String): String = when {
+    !concise || voiceInstruction.isBlank() || words.isBlank() -> words
+    voiceInstruction == VOICE_PRESET -> "$VOICE_PRESET\n\n$words"
+    else -> withInstruction(VOICE_HEADER, voiceInstruction, words)
+}
+
+internal fun VoiceConfiguration.typedPrompt(words: String): String =
+    if (typedInstructionEnabled) withInstruction(TYPED_HEADER, typedInstruction, words) else words
 
 /** Strip only a recognized Bellpull voice wrapper; ordinary messages pass through verbatim. */
 internal fun voicePromptUserText(text: String): String {
@@ -32,6 +53,23 @@ internal fun voicePromptPresentation(text: String): VoicePromptPresentation? {
         if (runCatching { Json.decodeFromString<String>(recovery.groupValues[1]) }.isFailure) return null
         recovery.range.last + 1
     } else 0
+    val prefix = when {
+        text.startsWith(VOICE_HEADER, offset) -> VOICE_HEADER
+        text.startsWith(TYPED_HEADER, offset) -> TYPED_HEADER
+        else -> null
+    }
+    if (prefix != null) {
+        val end = text.indexOf('\n', offset)
+        if (end < 0 || end - offset > 6 * MAX_INSTRUCTION_LENGTH + prefix.length + 4) return null
+        val line = text.substring(offset, end).removeSuffix("\r")
+        if (!line.endsWith(']')) return null
+        val encoded = line.substring(prefix.length, line.length - 1)
+        val instruction = runCatching { Json.decodeFromString<String>(encoded) }.getOrNull() ?: return null
+        if (instruction.isBlank() || instruction.length > MAX_INSTRUCTION_LENGTH) return null
+        val separator = if (text.startsWith("\n\r\n", end)) 3 else if (text.startsWith("\n\n", end)) 2 else return null
+        return VoicePromptPresentation(text.substring(0, offset) + instruction, text.substring(end + separator),
+            if (prefix == TYPED_HEADER) "Typed message instruction" else "Bellpull voice enabled")
+    }
     if (!text.startsWith(VOICE_PROMPT_PREFIX, offset)) return null
     val closing = text.indexOf(']', offset)
     if (closing < 0) return null

@@ -21,6 +21,7 @@ sealed interface StreamEvent {
     /** Monotonic per-run sequence number, present on every observed event. */
     val seq: Int? get() = raw["seq"]?.jsonPrimitive?.intOrNull
 
+    data class Compaction(override val raw: JsonObject, val active: Boolean) : StreamEvent
     data class RunStarted(override val raw: JsonObject, val runId: String?) : StreamEvent
     data class MessageStarted(override val raw: JsonObject, val messageId: String?) : StreamEvent
 
@@ -91,6 +92,7 @@ sealed interface StreamEvent {
             val obj = runCatching { json.parseToJsonElement(data).jsonObject }.getOrNull() ?: return null
             val name = event?.takeIf { it.isNotEmpty() } ?: obj.str("event") ?: "message"
             return when (name) {
+                "run.compacting", "run.compacted" -> Compaction(obj, name == "run.compacting")
                 "run.started" -> RunStarted(obj, obj.str("run_id"))
                 "message.started" -> MessageStarted(
                     obj,

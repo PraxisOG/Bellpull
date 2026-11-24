@@ -102,9 +102,9 @@ internal fun UserMessageText(text: String) {
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLow,
             contentColor = MaterialTheme.colorScheme.onSurface, shape = MaterialTheme.shapes.small) {
             Column(Modifier.fillMaxWidth()) {
-                CompactDisclosure(if (expanded) "Bellpull voice enabled ▴" else "Bellpull voice enabled ▾",
+                CompactDisclosure(voice.label + if (expanded) " ▴" else " ▾",
                     Modifier.testTag("voice-preset-toggle").semantics {
-                        contentDescription = "Bellpull voice enabled"
+                        contentDescription = voice.label
                         stateDescription = if (expanded) "Expanded" else "Collapsed"
                     }) { expanded = !expanded }
                 if (expanded) SelectionContainer {

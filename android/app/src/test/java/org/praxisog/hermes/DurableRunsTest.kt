@@ -10,6 +10,8 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -27,6 +29,41 @@ class DurableRunsTest {
         val bodies = submissions.map { request -> okio.Buffer().also { request.body!!.writeTo(it) }.readUtf8() }
         assertEquals(bodies.first(), bodies.last())
     }
+    @Test fun typedInstructionIsAppliedOnceAcrossLostAcknowledgement() {
+        val config = VoiceConfiguration(typedInstructionEnabled = true, typedInstruction = "Keep it short")
+        loseAck = true
+        val manager = manager()
+        manager.send("one", config.typedPrompt("hello"), emptySet())
+        await { manager.states["one"]?.submission?.runId != null }
+        val requests = calls.filter { it.url.encodedPath == "/v1/runs" }
+        assertEquals(2, requests.size)
+        for (request in requests) {
+            val json = okio.Buffer().also { request.body!!.writeTo(it) }.readUtf8()
+            val input = kotlinx.serialization.json.Json.parseToJsonElement(json).jsonObject.getValue("input").jsonPrimitive.content
+            assertEquals("hello", voicePromptPresentation(input)?.body)
+        }
+    }
+    @Test fun defaultTypedRequestContainsOnlyTheUsersWords() {
+        val manager = manager()
+        manager.send("one", VoiceConfiguration().typedPrompt("hello"), emptySet())
+        await { manager.states["one"]?.submission?.runId != null }
+        val request = calls.single { it.url.encodedPath == "/v1/runs" }
+        val json = okio.Buffer().also { request.body!!.writeTo(it) }.readUtf8()
+        assertEquals("hello", kotlinx.serialization.json.Json.parseToJsonElement(json).jsonObject.getValue("input").jsonPrimitive.content)
+    }
+
+    @Test fun pollRestoresAndClearsCompactionWhileApprovalTakesPrecedence() {
+        approval = """, "bellpull_phase":"compacting" """
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        fun label() = (manager.states["one"]?.turn as? TurnState.Streaming)?.statusLabel
+        await { label() == "Compacting…" }
+        approval += """, "approval":{"request_id":"gate"}"""
+        await { label() == "Waiting for approval…" }
+        approval = ""
+        await { label() == "Working…" }
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
     private val calls = CopyOnWriteArrayList<Request>()
     private val saved = java.util.concurrent.ConcurrentHashMap<String, RunSubmission>()

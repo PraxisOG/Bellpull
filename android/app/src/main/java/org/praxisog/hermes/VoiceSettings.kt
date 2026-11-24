@@ -12,7 +12,10 @@ internal data class VoiceConfiguration(val endpoint: String = "", val key: Strin
     val output: VoiceOutputConfiguration = VoiceOutputConfiguration(),
     val announcements: VoiceAnnouncements = VoiceAnnouncements(),
     val transcribeViaServer: Boolean = false,
-    val allowLocalTranscriptionFallback: Boolean = false) {
+    val allowLocalTranscriptionFallback: Boolean = false,
+    val voiceInstruction: String = VOICE_PRESET,
+    val typedInstructionEnabled: Boolean = false,
+    val typedInstruction: String = "") {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
 }
 
@@ -44,8 +47,12 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             pocketChunkFrames = prefs.getInt("pocket_chunk_frames", 15)),
         VoiceAnnouncements(prefs.getBoolean("announce_tools", true), prefs.getBoolean("announce_web_search", true),
             prefs.getBoolean("announce_thinking", true), prefs.getBoolean("announce_working", true)),
-        prefs.getBoolean("stt_server", false), prefs.getBoolean("stt_local_fallback", false))
+        prefs.getBoolean("stt_server", false), prefs.getBoolean("stt_local_fallback", false),
+        voiceInstruction = prefs.getString("voice_instruction", VOICE_PRESET) ?: VOICE_PRESET,
+        typedInstructionEnabled = prefs.getBoolean("typed_instruction_enabled", false),
+        typedInstruction = prefs.getString("typed_instruction", "").orEmpty())
     fun save(value: VoiceConfiguration) {
+        require(value.voiceInstruction.length <= MAX_INSTRUCTION_LENGTH && value.typedInstruction.length <= MAX_INSTRUCTION_LENGTH)
         value.output.validated()
         if (!value.transcribeViaServer && value.recognition == VoiceRecognition.PRIVATE_SERVER) {
             org.praxisog.hermes.core.PrivateTranscription.validateEndpoint(value.endpoint)
@@ -58,6 +65,9 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
             .putFloat("repetition", value.output.repetition).putLong("seed", value.output.seed).putFloat("volume", value.output.volume)
             .putInt("pocket_steps", value.output.pocketSteps).putFloat("pocket_temperature", value.output.pocketTemperature)
             .putInt("pocket_chunk_frames", value.output.pocketChunkFrames)
+            .putString("voice_instruction", value.voiceInstruction)
+            .putBoolean("typed_instruction_enabled", value.typedInstructionEnabled)
+            .putString("typed_instruction", value.typedInstruction)
             .putBoolean("stt_server", value.transcribeViaServer)
             .putBoolean("stt_local_fallback", value.allowLocalTranscriptionFallback)
             .putString("recognition", value.recognition.name).putFloat("rate", value.rate.coerceIn(.7f, 1.5f))

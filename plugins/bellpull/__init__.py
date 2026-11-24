@@ -1,6 +1,6 @@
 """One Bellpull package, registered through Hermes' supported API handler factory."""
 
-VERSION = "0.9.2-voice-files-preview"
+from .version import VERSION
 
 
 def register(ctx):

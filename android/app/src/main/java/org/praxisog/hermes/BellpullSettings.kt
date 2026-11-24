@@ -106,7 +106,8 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
     localLlmSettings: (@Composable () -> Unit)? = null,
     assistantSettings: (@Composable () -> Unit)? = null,
     notificationProblem: String? = null, notificationsUseRelay: Boolean = true,
-    onNotificationSettings: () -> Unit = {}, topContent: (@Composable () -> Unit)? = null) {
+    onNotificationSettings: () -> Unit = {}, topContent: (@Composable () -> Unit)? = null,
+    typedSettings: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         topContent?.invoke()
@@ -214,6 +215,7 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
         }
         voiceOutputSettings?.let { SettingsSection("Voice output", "Models, server offload and playback") { it() } }
+        typedSettings?.let { SettingsSection("Typed messages", "Reply instructions for this profile") { it() } }
         voiceAnnouncementSettings?.let { SettingsSection("Voice announcements", "Tool, search, thinking and working speech") { it() } }
         AboutSettings(pluginVersions)
     }

@@ -25,7 +25,7 @@ import org.praxisog.hermes.model.Session
  * side by side; folded shows one at a time with a back affordance. There is no navigation
  * library: three destinations driven by whether a session is open do not need a backstack.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun HermesApp(
     sessions: UiState<List<Session>>,
@@ -124,6 +124,7 @@ internal fun HermesApp(
     fallbackBanner: (@Composable () -> Unit)? = null,
     refreshingSessions: Boolean = false,
     connectionUnavailable: Boolean = fallbackBanner != null,
+    typedSettings: (@Composable () -> Unit)? = null,
 ) {
     LaunchedEffect(canvas, openSessionId, foreground, canvas?.visible, canvas?.supported) {
         canvas?.observe(openSessionId, foreground && canvas.visible)
@@ -220,7 +221,10 @@ internal fun HermesApp(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                         .union(WindowInsets.captionBar.only(WindowInsetsSides.Top))
                 else WindowInsets.safeDrawing
-                BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(insets)) {
+                val restingInsets = if (preferences.immersiveMode && mode == WorkspaceMode.CHATS)
+                    insets.union(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom))
+                else insets
+                BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(restingInsets)) {
                     val sideBySide = maxWidth >= 720.dp
                     var showList by rememberSaveable { mutableStateOf(true) }
                     var showContext by rememberSaveable { mutableStateOf(maxWidth >= 820.dp) }
@@ -307,7 +311,7 @@ internal fun HermesApp(
                             when (mode) {
                                 WorkspaceMode.SETTINGS -> SettingsWorkspace(preferences, onPreferencesChange,
                                     notificationsAvailable, onNotificationsChange, serverProfiles, pluginVersions, speechLab, voiceSettings, voiceOutputSettings, voiceAnnouncementSettings, phoneNotificationSettings, localLlmSettings, assistantSettings,
-                                    notificationProblem, notificationsUseRelay, onNotificationSettings, topContent = {
+                                    notificationProblem, notificationsUseRelay, onNotificationSettings, typedSettings = typedSettings, topContent = {
                                         RecentLiveFiles(liveFiles, artifacts,
                                             { liveFiles?.open(it); mode = WorkspaceMode.TOOLS; fileAttachments = false; drawerOnCover = false },
                                             onViewArtifact, { mode = WorkspaceMode.TOOLS; drawerOnCover = !sideBySide; showList = true })

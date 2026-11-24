@@ -33,6 +33,42 @@ class StreamingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(original_create, adapter._create_agent)
         self.assertEqual(original_progress, adapter._make_run_event_callback)
 
+    async def test_compaction_edges_scope_poll_and_stream_and_clear_on_exception(self):
+        adapter = self.adapter()
+        adapter._run_statuses = {key: {"status": "running"} for key in ("one", "two")}
+        native_status = []
+        class Agent:
+            def status_callback(self, kind, message):
+                native_status.append(kind)
+            def _compress_context(self):
+                self.status_callback("lifecycle", "Compacting context")
+                raise RuntimeError("fixture abort")
+        adapter._create_agent = lambda tool_progress_callback=None, reasoning_callback=None: Agent()
+        _, stop = wire(adapter)
+        try:
+            progress = adapter._make_run_event_callback("one", asyncio.get_running_loop())
+            agent = adapter._create_agent(progress)
+            agent.status_callback("lifecycle", "Starting")
+            agent.status_callback("lifecycle", "Compacting context")
+            agent.status_callback("lifecycle", "Compacting context — heartbeat")
+            await asyncio.sleep(0)
+            self.assertEqual("compacting", adapter._run_statuses["one"]["bellpull_phase"])
+            self.assertNotIn("bellpull_phase", adapter._run_statuses["two"])
+            self.assertTrue(adapter._run_streams["two"].empty())
+            self.assertEqual(1, adapter._run_streams["one"].qsize())
+            self.assertEqual("run.compacting", adapter._run_streams["one"].get_nowait()["event"])
+            agent.status_callback("compacted", "Finished")
+            await asyncio.sleep(0)
+            self.assertNotIn("bellpull_phase", adapter._run_statuses["one"])
+            self.assertEqual("run.compacted", adapter._run_streams["one"].get_nowait()["event"])
+            self.assertEqual(["lifecycle"] * 3 + ["compacted"], native_status)
+            with self.assertRaises(RuntimeError):
+                agent._compress_context()
+            await asyncio.sleep(0)
+            self.assertNotIn("bellpull_phase", adapter._run_statuses["one"])
+        finally:
+            stop()
+
     async def test_existing_reasoning_callback_and_other_surfaces_are_preserved(self):
         adapter = self.adapter()
         _, stop = wire(adapter)

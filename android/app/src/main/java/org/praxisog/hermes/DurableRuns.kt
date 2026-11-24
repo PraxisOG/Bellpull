@@ -143,8 +143,10 @@ internal class DurableRuns(
             }
             val record = state.submission.copy(status = "abandoned", historySynced = true)
             if (!save(record)) return@launch
-            if (drafts[sessionId].text.isBlank()) drafts.set(sessionId,
-                androidx.compose.ui.text.input.TextFieldValue(record.text, androidx.compose.ui.text.TextRange(record.text.length)))
+            if (drafts[sessionId].text.isBlank()) {
+                val text = voicePromptUserText(record.text)
+                drafts.set(sessionId, androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length)))
+            }
             update(sessionId) { it.copy(submission = record, turn = TurnState.Idle, notice = null, approval = null) }
         }
     }
@@ -215,6 +217,13 @@ internal class DurableRuns(
                 }
             }
             val runId = record.runId ?: return@launch
+            var compacting = false
+            var phaseRevision = 0
+            fun statusLabel(approval: RunApproval?) = when {
+                approval != null -> "Waiting for approval…"
+                compacting -> "Compacting…"
+                else -> "Working…"
+            }
             var streamGap = false
             val liveJob = launch {
                 val live = LiveTranscript()
@@ -246,6 +255,10 @@ internal class DurableRuns(
                             if (unsafeReplay) { streamGap = true; return@withContext }
                             if (seq == null) consumedUnsequenced = true
                             reconnectAttempt = 0
+                            if (event is StreamEvent.Compaction) {
+                                phaseRevision++
+                                compacting = event.active
+                            }
                             live.accept(event)
                             if (event is StreamEvent.ToolCompleted) onToolCompleted(event.toolName)
                             if (event is StreamEvent.RunCompleted) {
@@ -269,7 +282,7 @@ internal class DurableRuns(
                             update(sessionId) { it.copy(turn = TurnState.Streaming(prose.toString(),
                                 canStop = true, stopRequested = it.submission.stopRequested,
                                 reasoning = reasoning.toString(), parts = live.parts,
-                                statusLabel = if (it.approval != null) "Waiting for approval…" else "Working…")) }
+                                statusLabel = statusLabel(it.approval))) }
                         } }
                     } }
                     streams.remove(runId)
@@ -285,9 +298,11 @@ internal class DurableRuns(
                 } } finally { streams.remove(runId); streamGap = true }
             }
             while (isActive) {
+                val phaseAtRequest = phaseRevision
                 when (val result = io { client.runStatus(runId) }) {
                     is HermesResult.Ok -> {
                         val status = result.value
+                        if (phaseAtRequest == phaseRevision) compacting = status.bellpullPhase == "compacting"
                         val current = states[sessionId]?.submission ?: return@launch
                         record = current.copy(status = status.status, error = status.error,
                             completionOutput = status.output ?: current.completionOutput,
@@ -304,7 +319,7 @@ internal class DurableRuns(
                             turn = if (status.isTerminal) terminalTurn(record, status.output.orEmpty())
                                 else (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
                                     canStop = true, stopRequested = record.stopRequested,
-                                    statusLabel = if (status.approval != null) "Waiting for approval…" else "Working…")) }
+                                    statusLabel = statusLabel(status.approval))) }
                         if (current != record) save(record)
                         status.approval?.let { approval ->
                             if (approval.requestId.isNotBlank() && oldApproval != approval.requestId)
