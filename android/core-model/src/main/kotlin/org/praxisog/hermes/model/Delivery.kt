@@ -2,12 +2,15 @@ package org.praxisog.hermes.model
 
 import kotlinx.serialization.Serializable
 
+private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
+
 /** Phone-owned delivery receipts. Nothing here grants approval or completes a run. */
 @Serializable data class InboxEntry(
     val id: String, val kind: String, val title: String, val body: String,
     val receivedAt: Long, val sessionId: String? = null, val openedAt: Long? = null,
     val dismissedAt: Long? = null, val truncated: Boolean = false,
-    val routineId: String? = null,
+    val routineId: String? = null, val botChatReceipt: BotChatReceipt? = null,
+    val receiptChangedAt: Long? = null,
 )
 @Serializable data class ReminderOperation(
     val operationId: String, val reminderId: String, val revision: Long,
@@ -19,7 +22,7 @@ import kotlinx.serialization.Serializable
     val entries: List<InboxEntry> = emptyList(),
     val operations: List<ReminderOperation> = emptyList(),
     val displayed: Set<String> = emptySet(),
-    val lastSync: Long = 0,
+    val lastSync: Long = 0, val receiptHistoryInitialized: Boolean = false,
 ) {
     fun reminders(): List<Reminder> = planning?.reminders.orEmpty().map { reminder ->
         val operation = operations.firstOrNull { it.reminderId == reminder.id && it.status != "blocked" }
@@ -49,12 +52,37 @@ import kotlinx.serialization.Serializable
     fun reconcile(snapshot: PlanningSnapshot, now: Long): DeliveryState {
         snapshot.validated()
         // Acknowledged operations stay optimistic until a canonical snapshot arrives.
-        val next = copy(planning = snapshot, lastSync = now, operations = operations.filter { it.status != "acknowledged" })
+        val next = withCachedReceipts().copy(planning = snapshot, lastSync = now, operations = operations.filter { it.status != "acknowledged" })
         val valid = next.reminders().map { occurrence(it) }.toSet()
         return snapshot.routines.fold(next.copy(displayed = displayed.intersect(valid))) { state, routine ->
-            state.reconcileRoutine(routine, planning?.routines?.find { it.id == routine.id }, now)
+            val previous = planning?.routines?.find { it.id == routine.id }
+            state.reconcileRoutine(routine, previous, now).rememberReceipts(routine, previous, now)
         }
     }
+    /** Import the last planning snapshot saved before the inbox started retaining native receipts. */
+    fun withCachedReceipts(): DeliveryState {
+        if (receiptHistoryInitialized) return this
+        val cachedAt = lastSync.takeIf { it > 0 } ?: ((planning?.observedAt ?: 0.0) * 1000).toLong()
+        return planning?.routines.orEmpty().fold(copy(receiptHistoryInitialized = true)) { state, routine ->
+            state.rememberReceipts(routine, null, cachedAt)
+        }
+    }
+
+    private fun rememberReceipts(routine: Routine, previous: Routine?, now: Long): DeliveryState =
+        routine.botChatReceipts.fold(this) { state, incoming ->
+            if (!RECEIPT_ID.matches(incoming.id) || !incoming.target.startsWith("bot-chat:")) return@fold state
+            val id = "bot-chat:${incoming.id}"
+            val old = state.entries.find { it.id == id }
+            if (old == null && incoming in previous?.botChatReceipts.orEmpty()) return@fold state // Already evicted.
+            val receipt = incoming.copy(target = incoming.target.take(400))
+            if (old?.botChatReceipt != null && !receipt.supersedes(old.botChatReceipt)) return@fold state
+            if (old == null) state.receive(InboxEntry(id, "delivery", routine.name ?: "Routine delivery",
+                receipt.label(), now, routineId = routine.id, botChatReceipt = receipt, receiptChangedAt = now))
+            else state.copy(entries = state.entries.map {
+                if (it.id == id) it.copy(body = receipt.label(), botChatReceipt = receipt, receiptChangedAt = now) else it
+            })
+        }
+
     private fun reconcileRoutine(routine: Routine, previous: Routine?, now: Long): DeliveryState {
         val run = routine.latestExecution
         if (run == null) {

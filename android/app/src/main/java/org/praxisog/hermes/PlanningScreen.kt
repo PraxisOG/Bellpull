@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -410,11 +411,24 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
         AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
         text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
             Text(entry.body)
+            entry.botChatReceipt?.let { receipt ->
+                val source = when (receipt.source) {
+                    "owner" -> "Bot Chat owner"
+                    "deferred" -> "Deferred delivery queue"
+                    "scheduler" -> "Scheduler"
+                    else -> "Unknown source"
+                }
+                Text("Recorded by $source", style = MaterialTheme.typography.bodySmall)
+                entry.receiptChangedAt?.takeIf { it > 0 }?.let { at ->
+                    Text("Status saved ${displayInstant(at)}", style = MaterialTheme.typography.bodySmall)
+                }
+                SelectionContainer { Text("Receipt ${receipt.id}", style = MaterialTheme.typography.bodySmall) }
+            }
             if (entry.truncated) Text("Saved preview truncated. Open the conversation online for the complete response.")
         } }, confirmButton={ TextButton(onClick={ selected=null }) { Text("Close") } },
         dismissButton={
             if (entry.sessionId != null) TextButton(onClick={ openChat(entry); selected=null }) { Text("Open conversation") }
-            else if (entry.kind == "routine" && openResults != null) TextButton(onClick={
+            else if ((entry.kind == "routine" || entry.botChatReceipt != null) && openResults != null) TextButton(onClick={
                 selected=null; openResults(entry.routineId)
             }) { Text("View saved results") }
         }) }

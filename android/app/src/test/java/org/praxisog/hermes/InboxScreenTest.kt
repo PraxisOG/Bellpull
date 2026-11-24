@@ -37,6 +37,22 @@ class InboxScreenTest {
         compose.onNodeWithText("Dismiss inbox item").performClick()
         assertEquals(listOf("reply:chat:2" to false, "reply:chat:2" to true), marks)
     }
+    @Test fun readSavedBotChatReceiptAndOpenItsRoutineResults() {
+        val receipt = org.praxisog.hermes.model.BotChatReceipt("bot-chat:(own)", "a".repeat(64), "ambiguous", "owner")
+        val entry = InboxEntry("bot-chat:${receipt.id}", "delivery", "Morning report", receipt.label(), 1000,
+            routineId = "job", botChatReceipt = receipt, receiptChangedAt = 2000)
+        var resultsJob: String? = null
+        compose.setContent { HermesTheme { Surface {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                InboxContent(listOf(entry), { _, _ -> }, { error("Unexpected chat open") }, { resultsJob = it })
+            }
+        } } }
+        compose.onNodeWithText("Read saved item").performClick()
+        compose.onNodeWithText("Receipt ${receipt.id}").assertIsDisplayed()
+        compose.onNodeWithText("Recorded by Bot Chat owner").assertIsDisplayed()
+        compose.onNodeWithText("View saved results").performClick()
+        assertEquals("job", resultsJob)
+    }
     @Test fun coverActionsAreDistinct() = checkInbox()
     @Test @Config(qualifiers="w840dp-h900dp-night") fun unfoldedActionsAreDistinct() = checkInbox()
 }

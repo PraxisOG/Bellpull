@@ -37,6 +37,11 @@ and on routine items in the inbox.
   durable status. For a deferred delivery, it can read the producer's receipt.
   The source field distinguishes these from the scheduler's last observed
   state. Result pages and snapshots never claim or replay a Bot Chat receipt.
+  Android keeps observed receipts by native delivery ID in the profile's
+  bounded Inbox. A later routine run can replace the scheduler reference while
+  the earlier receipt remains readable offline. The receipt detail shows its
+  source and when the phone saved that status. The execution summary keeps
+  the scheduler's separate delivery outcome.
 
 Opening or paging a saved result only reads the profile's existing cron output.
 The scheduler remains responsible for its retention, including removal on

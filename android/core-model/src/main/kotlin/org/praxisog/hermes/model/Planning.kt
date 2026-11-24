@@ -27,6 +27,21 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
 }
 
 @Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String) {
+    private val evidenceRank get() = when (source) {
+        "owner" -> 3
+        "deferred" -> 2
+        "scheduler" -> 1
+        else -> 0
+    }
+
+    internal fun supersedes(old: BotChatReceipt): Boolean = when {
+        this == old || (status == "unknown" && old.status != "unknown") -> false
+        evidenceRank != old.evidenceRank -> evidenceRank > old.evidenceRank
+        old.status == "claimed" -> status != "queued"
+        old.status in setOf("settled", "failed", "ambiguous", "cancelled", "suppressed", "transferred") -> false
+        else -> true
+    }
+
     fun label(): String {
         val state = when (status) {
             "queued" -> "queued"

@@ -104,9 +104,10 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     }
 
     fun readDelivery(): org.praxisog.hermes.model.DeliveryState = synchronized(deliveryLock) {
-        preferences.getString("delivery-v1", null)?.let {
+        val saved = preferences.getString("delivery-v1", null)?.let {
             json.decodeFromString<org.praxisog.hermes.model.DeliveryState>(it)
         } ?: org.praxisog.hermes.model.DeliveryState(planning = readPlanning())
+        saved.withCachedReceipts()
     }
     /** One transaction boundary shared by UI, sync and alarm receiver instances. Call on IO. */
     fun updateDelivery(change: (org.praxisog.hermes.model.DeliveryState) -> org.praxisog.hermes.model.DeliveryState): org.praxisog.hermes.model.DeliveryState = synchronized(deliveryLock) {

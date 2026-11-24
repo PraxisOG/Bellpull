@@ -65,6 +65,64 @@ class DeliveryTest {
         assertEquals("Execution unknown\nDelivery unconfirmed", another.entries.last().body)
         assertEquals(another.entries, another.reconcile(checkNotNull(another.planning), 130).entries)
     }
+    @Test fun observedBotChatReceiptSurvivesLaterJobsAndOfflineRestore() {
+        val receiptId = "a".repeat(64)
+        val otherId = "b".repeat(64)
+        val run = RoutineExecution("first", "completed", "queued")
+        fun snapshot(execution: RoutineExecution, vararg receipts: BotChatReceipt) =
+            PlanningSnapshot(1, emptyList(), routines = listOf(Routine("job", name = "Morning report",
+                fingerprint = "f", latestExecution = execution, botChatReceipts = receipts.toList())), observedAt = 1.0)
+        val pending = BotChatReceipt("bot-chat:(own)", receiptId, "queued", "scheduler")
+        val initial = DeliveryState().reconcile(snapshot(run, pending), 1000)
+        val receipt = initial.entries.single { it.kind == "delivery" }
+        val read = initial.copy(entries = initial.entries.map { if (it == receipt) it.copy(openedAt = 1100) else it })
+        val ambiguous = pending.copy(status = "ambiguous", source = "owner")
+        val updated = read.reconcile(snapshot(run, ambiguous), 1200)
+        val stale = updated.reconcile(snapshot(run, pending), 1300)
+        val rotated = stale.reconcile(snapshot(run.copy(id = "second"), pending.copy(id = otherId)), 1400)
+        val offline = Json.decodeFromString<DeliveryState>(Json.encodeToString(rotated))
+        val history = offline.entries.single { it.id == receipt.id }
+        assertEquals("Bot Chat · ambiguous", history.body)
+        assertEquals(1100L, history.openedAt)
+        assertEquals(1000L, history.receivedAt)
+        assertEquals("job", history.routineId)
+        assertEquals(1200L, history.receiptChangedAt)
+        assertEquals(ambiguous, history.botChatReceipt)
+        assertEquals(2, offline.entries.count { it.kind == "delivery" })
+        assertEquals(2, offline.entries.count { it.kind == "routine" })
+    }
+    @Test fun oldCacheImportsReceiptsOnceEvenWhenNextSnapshotOmitsTheEntireJob() {
+        val id = "a".repeat(32)
+        val receipt = BotChatReceipt("bot-chat:work", id, "failed", "deferred")
+        val snap = PlanningSnapshot(1, emptyList(), routines = listOf(Routine("job", fingerprint = "f",
+            botChatReceipts = listOf(receipt))), observedAt = 10.0)
+        val legacy = Json.decodeFromString<DeliveryState>("""{"planning":${Json.encodeToString(snap)},"lastSync":12000}""")
+        val restored = legacy.withCachedReceipts()
+        assertEquals(restored, restored.withCachedReceipts())
+        val original = restored.entries.single()
+        assertEquals(receipt, original.botChatReceipt)
+        assertEquals(12000L, original.receiptChangedAt)
+        val updated = legacy.reconcile(snap.copy(routines = emptyList()), 14000)
+        assertEquals(original, updated.entries.single())
+        var crowded = restored
+        repeat(200) { crowded = crowded.receive(InboxEntry("r$it", "reply", "Reply", "body", 15000)) }
+        assertTrue(crowded.reconcile(snap, 16000).entries.none { it.id == original.id })
+    }
+
+    @Test fun transferredDeferredReceiptCanAdvanceThroughNativeOwnerProcessingAndSettlement() {
+        val receipt = BotChatReceipt("bot-chat:(own)", "b".repeat(64), "transferred", "deferred")
+        val owned = receipt.copy(status = "queued", source = "owner")
+        assertTrue(owned.supersedes(receipt))
+        assertFalse(receipt.supersedes(owned))
+        val claimed = owned.copy(status = "claimed")
+        assertTrue(claimed.supersedes(owned))
+        assertFalse(owned.supersedes(claimed))
+        val settled = claimed.copy(status = "settled")
+        assertTrue(settled.supersedes(claimed))
+        assertFalse(claimed.supersedes(settled))
+        assertFalse(settled.copy(status = "unknown").supersedes(settled))
+    }
+
     @Test fun previousPluginsSupportBothSingleAndMultipleDeliveryDestinations() {
         fun read(field: String) = Json.decodeFromString<Routine>("""{"id":"job","fingerprint":"v","deliver":$field}""").deliver
         assertNull(read("null"))
