@@ -199,6 +199,32 @@ class VoiceSessionTest {
             assertFalse(capture.active)
         } finally { dictation.close() }
     }
+    @Test fun composerDictationCanRecordAndRecoverItsDraftWithoutAnySpeechOutput() {
+        val drafts = CopyOnWriteArrayList<String>()
+        var fieldAvailable = false
+        val dictation = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), null, capture,
+            transcriber = { object : VoiceTranscriber {
+                override fun transcribe(wav: ByteArray) = Result.success("Recorded locally.")
+                override fun close() = Unit
+            } }, onDictation = { check(fieldAvailable); drafts += it })
+        try {
+            dictation.start(VoiceMode.PUSH_TO_TALK)
+            dictation.beginPushToTalk(toDraft = true)
+            assertTrue(capture.active)
+            repeat(25) { dictation.frame(ShortArray(320) { 2500 }, 320) }
+            dictation.endPushToTalk()
+            await { dictation.state == VoiceState.REVIEW }
+            assertFalse(capture.active)
+            dictation.chooseMode(VoiceMode.CALL)
+            assertEquals(VoiceMode.PUSH_TO_TALK, dictation.mode)
+            dictation.sendTranscript()
+            assertTrue(target.sent.isEmpty())
+            fieldAvailable = true
+            dictation.putWordsInDraft()
+            assertEquals(listOf("Recorded locally."), drafts)
+            assertEquals(VoiceState.STOPPED, dictation.state)
+        } finally { dictation.close() }
+    }
     @Test fun releaseBeforeOutputReadinessCannotOpenTheMicrophoneLater() {
         var prepared: (() -> Unit)? = null
         val delayed = object : VoiceOutput {

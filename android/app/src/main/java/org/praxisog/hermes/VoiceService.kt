@@ -91,8 +91,9 @@ class VoiceService : Service() {
         val config = VoiceSettings(this, profile).forConversation(id)
         usingTelecom = runtime.voiceRequestedMode == VoiceMode.CALL &&
             packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TELECOM)
-        if (runtime.voiceDictationToDraft && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }
-        runtime.voiceProblem(config)?.let { problem ->
+        val draftOnly = runtime.voiceRequestedMode == VoiceMode.PUSH_TO_TALK && runtime.voiceDictationToDraft
+        if (draftOnly && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }
+        runtime.voiceProblem(config, needsOutput = !draftOnly)?.let { problem ->
             runtime.voiceStartError = problem
             stopSelf(); return START_NOT_STICKY
         }
@@ -124,7 +125,7 @@ class VoiceService : Service() {
             }
             val savedVoice = VoiceSettings(this, profile)
             val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id, runtime.canvas), config,
-                runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
+                if (draftOnly) null else runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
                     if (config.transcribeViaServer) {
                         val connection = runtime.speechConnection()
                         StreamingServerTranscriber(connection,
@@ -174,7 +175,7 @@ class VoiceService : Service() {
                     }).also { it.start() }
             } else {
                 voice.start(runtime.voiceRequestedMode)
-                if (runtime.voiceDictationToDraft && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
+                if (draftOnly && runtime.voiceButtonHeld) voice.beginPushToTalk(toDraft = true)
             }
             notificationJob = scope.launch {
                 androidx.compose.runtime.snapshotFlow { voice.state to voice.mode }.collect { (state, _) ->

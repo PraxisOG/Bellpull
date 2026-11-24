@@ -79,7 +79,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
 /** One user-started session; lifecycle is service-owned, never Activity-owned. */
 internal class VoiceSession(val sessionId: String, val profileId: String, private val scope: CoroutineScope,
     private val conversation: VoiceConversation, private val config: VoiceConfiguration,
-    private val output: VoiceOutput, private val capture: VoiceCapture,
+    private val output: VoiceOutput?, private val capture: VoiceCapture,
     private val transcriber: () -> VoiceTranscriber = {
         check(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER) { "The local speech runtime is not connected." }
         HttpVoiceTranscriber(config)
@@ -101,7 +101,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     var partialTranscript by mutableStateOf(""); private set
     var notice by mutableStateOf<String?>(null); private set
     var inputRouteNotice by mutableStateOf<String?>(null); private set
-    val outputRouteNotice get() = output.routeNotice
+    val outputRouteNotice get() = output?.routeNotice
     var voiceName by mutableStateOf(""); private set
     var microphoneMuted by mutableStateOf(false); private set
     var playedText by mutableStateOf(""); private set
@@ -153,6 +153,10 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun showNotice(message: String) { notice = message }
     fun start(initialMode: VoiceMode = VoiceMode.CONVERSATION) {
         mode = initialMode
+        if (output == null) {
+            require(initialMode == VoiceMode.PUSH_TO_TALK && onDictation != null)
+            dictationToDraft = true
+        }
         prepareOutput(::readyToListen)
         observe = scope.launch {
             snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (_, observed) ->
@@ -223,13 +227,18 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun prepareOutput(whenReady: () -> Unit) {
         val preparation = ++outputPreparation
         val token = generation
-        output.prepare({ name ->
+        fun ready(name: String) {
             if (!closed && token == generation) {
                 voiceName = name; readyOutput = true
                 if (!beforeResume()) { pause("Audio is unavailable. Resume after the call or audio interruption finishes.") }
                 else whenReady()
             }
-        }, { problem ->
+        }
+        if (output == null) {
+            ready("Dictation")
+            return
+        }
+        output.prepare(::ready, { problem ->
             if (!closed && preparation == outputPreparation && (readyOutput || token == generation)) {
                 readyOutput = false
                 pause(problem)
@@ -245,7 +254,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (micOpen || closed || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
         listeningBlock(conversation.run())?.let { pause(it); return }
         micOpen = capture.start(::frame, ::pause)
-        if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output.chime()
+        if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output?.chime()
     }
     private fun closeMic(keepTranscriber: Boolean = false) {
         micOpen = false; capture.close(); gate.reset()
@@ -276,7 +285,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         state = VoiceState.LISTENING
         val wasOpen = micOpen
         openMic()
-        if (mode != VoiceMode.CALL && wasOpen && micOpen && !gate.active) output.chime()
+        if (mode != VoiceMode.CALL && wasOpen && micOpen && !gate.active) output?.chime()
     }
     /** Public to the capture port; deterministic PCM tests exercise the same path as AudioRecord. */
     fun frame(pcm: ShortArray, count: Int) {
@@ -325,7 +334,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun hold(value: Boolean) { holdTurn = value }
     fun finishRecording() { gate.finish()?.let(::transcribe) ?: recoverTentative() }
     fun chooseMode(value: VoiceMode) {
-        if (mode == value) return
+        if (output == null || mode == value) return
         if (pushHeld) { pushHeld = false; holdTurn = false; closeMic() }
         mode = value
         if (mode == VoiceMode.PUSH_TO_TALK && !pushHeld) closeMic()
@@ -390,7 +399,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             .onFailure { state = VoiceState.REVIEW; notice = "Could not insert dictation. Your words are saved for review." }
     }
     fun sendTranscript() {
-        if (closed || completingTurn || transcript.isBlank() || state == VoiceState.PAUSED ||
+        if (output == null || closed || completingTurn || transcript.isBlank() || state == VoiceState.PAUSED ||
             (submitted && state !in setOf(VoiceState.REVIEW, VoiceState.TRANSCRIBING, VoiceState.WAITING))) return
         if (!conversation.ready) { pause("Load this conversation's saved history before sending voice."); return }
         listeningBlock(conversation.run())?.let { pause(it); return }
@@ -451,7 +460,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         pump(); prefetchNext()
     }
     private fun pump() {
-        if (speaking || tentative || audioSuspended || state == VoiceState.PAUSED ||
+        if (output == null || speaking || tentative || audioSuspended || state == VoiceState.PAUSED ||
             (speech.isEmpty() && activitySpeech.isEmpty()) || closed) return
         activeActivity = speech.isEmpty() && activitySpeech.isNotEmpty()
         val (text, done) = if (activeActivity) activitySpeech.removeFirst() to null else speech.removeFirst()
@@ -512,14 +521,14 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         prefetchNext()
     }
     private fun prefetchNext() {
-        if (speaking && !tentative && !audioSuspended && !closed && state != VoiceState.PAUSED)
+        if (output != null && speaking && !tentative && !audioSuspended && !closed && state != VoiceState.PAUSED)
             (speech.firstOrNull()?.first ?: activitySpeech.firstOrNull())?.let(output::prefetch)
     }
     /** A partial phrase restarts; fully completed phrases never enter the queue again. */
     private fun suspendPlayback() {
         activeSpeech?.let { if (activeActivity) activitySpeech.addFirst(it.first) else speech.addFirst(it) }
         activeSpeech = null
-        generation++; output.stop(); speaking = false; audible = false
+        generation++; output?.stop(); speaking = false; audible = false
     }
     private fun recoverTentative() {
         cancelLiveTranscription()
@@ -550,7 +559,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun playbackDiagnostics() = "state=${state.name} answer_queue=${speech.size} activity_queue=${activitySpeech.size} speaking=$speaking tentative=$tentative audio_suspended=$audioSuspended"
     private fun discardPlayback() {
         if (submitted) { interruptedPlayback = playedText; rememberPlayback(true) }
-        generation++; output.stop(); activeSpeech = null; audible = false; speech.clear(); activitySpeech.clear()
+        generation++; output?.stop(); activeSpeech = null; audible = false; speech.clear(); activitySpeech.clear()
         speaking = false; suppressed = true; tentative = false; audioSuspended = false; completingTurn = false
     }
     fun stopSpeaking() {
@@ -584,7 +593,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         notice = null; queuedText = ""
         if (!readyOutput) {
             state = VoiceState.STARTING
-            output.retryPreparation()
+            output?.retryPreparation()
             prepareOutput(::readyToListen)
         } else readyToListen()
     }
@@ -609,6 +618,6 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (closed) return
         pause(); closed = true; state = VoiceState.STOPPED
         pendingAudio = null; canRetryTranscription = false
-        observe?.cancel(); output.close(); onClosed()
+        observe?.cancel(); output?.close(); onClosed()
     }
 }

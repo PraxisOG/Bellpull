@@ -21,7 +21,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         "Select a server profile before using server speech."
     }
     val voiceOutputs by lazy { VoiceOutputLab(this.context, serverConnection = { speechConnection() }) }
-    fun voiceProblem(config: VoiceConfiguration) = config.startProblem { speechLab.voiceStartProblem() } ?: voiceOutputs.startProblem(config)
+    fun voiceProblem(config: VoiceConfiguration, needsOutput: Boolean = true) =
+        config.startProblem { speechLab.voiceStartProblem() } ?: if (needsOutput) voiceOutputs.startProblem(config) else null
     val speechLab by lazy { SpeechLab(this.context) }
     var voice by mutableStateOf<VoiceSession?>(null)
     var voiceStartError by mutableStateOf<String?>(null)

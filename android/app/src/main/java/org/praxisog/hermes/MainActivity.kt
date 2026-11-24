@@ -378,7 +378,7 @@ class MainActivity : ComponentActivity() {
                         composerLeading = current?.openSessionId?.let { id -> {
                             androidx.compose.foundation.layout.Row {
                                 val active = runtime.voice != null || runtime.voiceRequestedSession != null
-                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || runtime.voiceProblem(chatVoice) == null,
+                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || runtime.voiceProblem(chatVoice, needsOutput = false) == null,
                                     preferences.value.reduceMotion, ::toggleVoice, ::holdVoice, ::releaseVoice)
                                 if (files != null) {
                                     if (!files.runAttachmentsSupported) UnavailableAttachmentsButton(files.filesSupported)
@@ -554,7 +554,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
     private fun requestVoice(mode: VoiceMode) {
-        if (!voiceReady()) return
+        if (!voiceReady(mode)) return
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             val profile = runtime.profileId; val session = store?.openSessionId
             if (profile == null || session == null) { runtime.voiceStartError = "Open a conversation before starting voice."; return }
@@ -587,7 +587,7 @@ class MainActivity : ComponentActivity() {
         if (runtime.voice == null && runtime.voiceDictationToDraft) runtime.voiceRequestedSession = null
     }
     private fun continueVoice(mode: VoiceMode) {
-        if (!voiceReady()) return
+        if (!voiceReady(mode)) return
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             val profile = runtime.profileId; val session = store?.openSessionId
             if (profile != null && session != null) {
@@ -597,7 +597,7 @@ class MainActivity : ComponentActivity() {
         } else startVoice(mode)
     }
     private fun startVoice(mode: VoiceMode) {
-        if (!voiceReady()) return
+        if (!voiceReady(mode)) return
         val id = store?.openSessionId
         if (id == null) { runtime.voiceStartError = "Open or create a conversation before starting voice."; return }
         messageReader?.stop()
@@ -607,10 +607,11 @@ class MainActivity : ComponentActivity() {
             runtime.voiceStartError = "Could not start voice. Try again with Bellpull open."
         }
     }
-    private fun voiceReady(): Boolean {
+    private fun voiceReady(mode: VoiceMode): Boolean {
         val profile = runtime.profileId
         if (profile == null) { runtime.voiceStartError = "Open a conversation before starting voice."; return false }
-        runtime.voiceStartError = runtime.voiceProblem(VoiceSettings(this, profile).forConversation(store?.openSessionId))
+        val needsOutput = mode != VoiceMode.PUSH_TO_TALK || !runtime.voiceDictationToDraft
+        runtime.voiceStartError = runtime.voiceProblem(VoiceSettings(this, profile).forConversation(store?.openSessionId), needsOutput)
         return runtime.voiceStartError == null
     }
     private fun requestNotifications(enabled: Boolean) {

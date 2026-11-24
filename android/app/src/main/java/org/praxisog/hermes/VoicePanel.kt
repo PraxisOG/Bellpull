@@ -80,7 +80,7 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                         voice.inputRouteNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         voice.outputRouteNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         voice.notice?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!voice.dictationToDraft) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(voice.mode == VoiceMode.CALL, { voice.chooseMode(VoiceMode.CALL) }, label = { Text("Call mode") })
                             FilterChip(voice.mode == VoiceMode.CONVERSATION, { voice.chooseMode(VoiceMode.CONVERSATION) }, label = { Text("Hands-free") })
                             FilterChip(voice.mode == VoiceMode.DICTATION, { voice.chooseMode(VoiceMode.DICTATION) }, label = { Text("Review first") })
@@ -88,7 +88,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                         }
                         if (voice.state == VoiceState.REVIEW) {
                             OutlinedTextField(voice.transcript, voice::correct, label = { Text("Your words") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6)
-                            Button(onClick = voice::sendTranscript, enabled = voice.transcript.isNotBlank()) { Text("Send to Hermes") }
+                            if (voice.dictationToDraft) Button(onClick = voice::putWordsInDraft, enabled = voice.transcript.isNotBlank()) { Text("Put words in draft") }
+                            else Button(onClick = voice::sendTranscript, enabled = voice.transcript.isNotBlank()) { Text("Send to Hermes") }
                         } else if (voice.transcript.isNotBlank()) { Text("You said", style = MaterialTheme.typography.labelLarge); Text(voice.transcript) }
                         if (voice.mode == VoiceMode.PUSH_TO_TALK && voice.state !in setOf(VoiceState.PAUSED, VoiceState.TRANSCRIBING, VoiceState.REVIEW)) {
                             val held = voice.holdTurn
