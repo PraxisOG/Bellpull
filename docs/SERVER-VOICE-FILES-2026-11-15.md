@@ -130,3 +130,14 @@ Run `tools/benchmark-server-voice.py sample.wav --port 8645` in the helper’s
 Python environment with its configured `BELLPULL_SPEECH_KEY`. Supply a synthetic
 or public 16 kHz mono PCM16 clip. The harness records timing and transcript
 agreement. [Raw results](evidence/server-voice-20261124/results.json).
+
+A subsequent Android recognition test uncovered a negotiation defect that direct
+`/stt` probes miss. The phone attempts WebSocket recognition first. With a loaded
+batch-only ROCm recognizer the helper returned HTTP 503, and the phone correctly
+refused to replay to a server reporting a temporary failure. The helper now
+returns HTTP 501 when a loaded recognizer lacks streaming support. A missing
+model or a transient failure retains its original error behavior. Against the
+live PowerMac gateway, the same Android test failed before the change and passed
+afterward, observing one 501 handshake followed by exactly one successful batch
+request. Moonshine recognized “green apple” and “kitchen table” with local
+fallback disabled. The Android client code used for both runs was identical.
