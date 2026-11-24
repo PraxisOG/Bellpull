@@ -86,6 +86,15 @@ jobs:
           --entrypoint python
           nousresearch/hermes-agent:v2026.9.24@sha256:2fd023efbb8d3d2b0ce1a73d028b07370cff34f567cfe0e999553e8c327ea283
           -m unittest discover -s /opt/hermes/plugins/bellpull/tests -p 'test_coding*.py' -v
+      - name: Bot Chat delivery history on stock Hermes with native receipts
+        run: >-
+          docker run --rm --network none
+          -e HERMES_HOME=/tmp/bellpull-history-tests -e BELLPULL_NTFY_URL=
+          -v "$PWD/plugins/bellpull:/opt/hermes/plugins/bellpull:ro"
+          --entrypoint python
+          nousresearch/hermes-agent:v2026.9.24@sha256:2fd023efbb8d3d2b0ce1a73d028b07370cff34f567cfe0e999553e8c327ea283
+          -m unittest -v plugins.bellpull.tests.test_routine_history
+          plugins.bellpull.tests.test_planning.PlanningHttpTest.test_bot_chat_history_read_uses_gateway_auth_and_keeps_planning_available
       - name: Planning on unmodified stock Hermes
         run: >-
           docker run --rm --network none
