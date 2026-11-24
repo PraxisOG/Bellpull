@@ -1,3 +1,7 @@
+## Coding activity and workspace review · 0.20.12 / build 62
+
+Open a chat’s **Coding activity** menu to inspect Hermes-owned processes, command results and worktree changes since the first observed commit. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.12-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.12-experimental.1/docs/RELEASE-0.20.12-EXPERIMENTAL.md)
+
 ## Missed Bot Chat receipts · 0.20.11 / build 61
 
 Open **Today → Inbox → Bot Chat delivery history** to read retained receipt and execution IDs, including earlier delivery timeout notices. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.11-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.11-experimental.1/docs/RELEASE-0.20.11-EXPERIMENTAL.md)
