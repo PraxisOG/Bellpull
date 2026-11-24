@@ -1,3 +1,7 @@
+## Batch approval review · 0.20.8 / build 58
+
+Open **Today → Review approvals** to answer requests from several chats together. The signed APK restored three pending requests after a force-stop and sent a mixed batch to stock Hermes. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.8-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.8-experimental.1/docs/RELEASE-0.20.8-EXPERIMENTAL.md)
+
 ## Spoken approvals · 0.20.7 / build 57
 
 Say “read the approval request” during a call or voice conversation, then allow it once or deny it by voice. Tested with on-device Moonshine Tiny, Android eSpeak playback and a stock Hermes 0.21.5 gateway. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.7-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.7-experimental.1/docs/RELEASE-0.20.7-EXPERIMENTAL.md)
