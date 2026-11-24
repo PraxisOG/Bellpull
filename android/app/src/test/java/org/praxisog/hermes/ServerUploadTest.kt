@@ -16,6 +16,7 @@ import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.*
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -148,10 +149,23 @@ class ServerUploadTest {
     }
     @Test fun cancellingWhileAnotherBatchImportsDoesNotRestartTransfers() {
         setup()
-        val source = File(workspace.root, "picked.txt").apply { writeText("hello") }
-        compose.runOnIdle {
-            workspace.addUris("destination", listOf(android.net.Uri.fromFile(source)), uploadOnly = true)
-            workspace.cancelServerUploads()
+        val uri = android.net.Uri.parse("content://fixture/picked.txt")
+        val opened = CountDownLatch(1)
+        val resumeImport = CountDownLatch(1)
+        shadowOf(RuntimeEnvironment.getApplication().contentResolver).registerInputStreamSupplier(uri) {
+            opened.countDown()
+            check(resumeImport.await(10, TimeUnit.SECONDS))
+            "hello".byteInputStream()
+        }
+        try {
+            compose.runOnIdle { workspace.addUris("destination", listOf(uri), uploadOnly = true) }
+            assertTrue("The picked file never opened", opened.await(5, TimeUnit.SECONDS))
+            compose.runOnIdle {
+                assertEquals(1, workspace.importing["uploads"])
+                workspace.cancelServerUploads()
+            }
+        } finally {
+            resumeImport.countDown()
         }
         await { (workspace.importing["uploads"] ?: 0) == 0 }
         assertFalse(workspace.serverUploading)
