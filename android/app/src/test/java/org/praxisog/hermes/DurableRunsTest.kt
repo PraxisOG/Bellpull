@@ -34,6 +34,7 @@ class DurableRunsTest {
     @Volatile private var loseAck = false
     @Volatile private var runStatus = "running"
     @Volatile private var approval = ""
+    @Volatile private var statusOffline = false
     @Volatile private var rejectStop = false
     @Volatile private var stoppedStatus = "cancelled"
     @Volatile private var stopResponseGate: java.util.concurrent.CountDownLatch? = null
@@ -57,6 +58,7 @@ class DurableRunsTest {
         val request = chain.request()
         calls += request
         val path = request.url.encodedPath
+        if (path == "/v1/runs/run_same" && statusOffline) throw IOException("Status temporarily offline")
         if (path.endsWith("/messages") && historyOffline) throw IOException("History temporarily offline")
         if (path.endsWith("/messages")) historyResponseGate?.await(3, java.util.concurrent.TimeUnit.SECONDS)
         if (path.endsWith("/events") && streamFailures > 0) {
@@ -467,6 +469,25 @@ class DurableRunsTest {
         manager.send("one", "again", emptySet())
         await { manager.states["one"]?.submission?.runId != null }
         assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+    @Test fun approvalStaysPendingWhenStatusCannotBeCheckedAndOnlyExplicitRetryPostsTheDecision() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
+        runStatus = "waiting_for_approval"
+        approval = """, "approval":{"request_id":"gate","command":"fixture operation","choices":["once","deny"]}"""
+        val manager = manager(); manager.restore()
+        await { manager.states["one"]?.approval?.requestId == "gate" }
+        manager.respond("one", "gate", "once", expectedRunId = "earlier-run")
+        statusOffline = true
+        manager.respond("one", "gate", "once", expectedRunId = "run_same")
+        await { manager.states["one"]?.checking == false }
+        assertEquals("gate", manager.states["one"]?.approval?.requestId)
+        assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
+        statusOffline = false
+        manager.respond("one", "gate", "deny", expectedRunId = "run_same")
+        await { calls.any { it.url.encodedPath.endsWith("/approval") } }
+        val decision = calls.single { it.url.encodedPath.endsWith("/approval") }
+        val body = okio.Buffer().also { decision.body!!.writeTo(it) }.readUtf8()
+        assertTrue(body.contains("\"choice\":\"deny\"")); assertTrue(body.contains("\"resolve_all\":false"))
     }
     @Test fun staleApprovalCannotApproveItsReplacement() {
         saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")

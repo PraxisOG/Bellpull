@@ -84,6 +84,7 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
     onProposal: (CalendarProposal) -> Unit, onOpenSession: (String) -> Unit,
     onCalendar: () -> Unit, onReminders: () -> Unit, onInbox: () -> Unit,
     modifier: Modifier = Modifier, busy: Boolean = false, tasks: (@Composable () -> Unit)? = null,
+    decisionControls: (@Composable (String) -> Unit)? = null,
 ) {
     var allEvents by rememberSaveable { mutableStateOf(false) }
     var allReminders by rememberSaveable { mutableStateOf(false) }
@@ -141,7 +142,9 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
             Text("Calendar proposal · ${proposal.action.replace('_', ' ')}", style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { onProposal(proposal) }, modifier = Modifier.testTag("today-proposal-${proposal.id}")) { Text("Review proposal") }
         } }
-        items(data.decisions, key = { "decision:${it.sessionId}" }) { TodayWorkCard(it, onOpenSession, "Review in chat") }
+        items(data.decisions, key = { "decision:${it.sessionId}" }) { work ->
+            TodayWorkCard(work, onOpenSession, "Review in chat") { decisionControls?.invoke(work.sessionId) }
+        }
         item("running-heading") { Text("Running work", style = MaterialTheme.typography.titleSmall) }
         if (data.running.isEmpty()) item("running-empty") {
             if (workSource.available) Text("No active work in this phone’s records.", style = MaterialTheme.typography.bodySmall)
@@ -170,11 +173,13 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
     }
 }
-@Composable private fun TodayWorkCard(work: TodayWork, onOpen: (String) -> Unit, action: String = "Open chat") {
+@Composable private fun TodayWorkCard(work: TodayWork, onOpen: (String) -> Unit, action: String = "Open chat",
+    controls: (@Composable () -> Unit)? = null) {
     TodayCard {
         Text(work.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(work.status, style = MaterialTheme.typography.labelMedium)
         if (work.preview.isNotBlank()) Text(work.preview, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+        controls?.invoke()
         TextButton(onClick = { onOpen(work.sessionId) }, modifier = Modifier.testTag("today-open-${work.sessionId}-${work.status}")
             .semantics { contentDescription = "$action: ${work.title}" }) { Text(action) }
     }
