@@ -142,7 +142,7 @@ class VoiceService : Service() {
                 priorInterruptedPlayback = savedVoice.playback(id)?.takeIf { savedVoice.interrupted(id) },
                 onTranscript = { savedVoice.saveTranscript(id, it); if (config.transcribeViaServer || config.recognition == VoiceRecognition.LOCAL) runtime.speechLab.recognitionFinished() },
                 initialTranscript = savedVoice.pending(id),
-                onSubmission = savedVoice::saveRequest, priorRequestId = savedVoice.pendingRequest(id),
+                onSubmission = { savedVoice.saveRequest(id, it) }, priorRequestId = savedVoice.pendingRequest(id),
                 onDictation = { text ->
                     check(runtime.profileId == profile && store.openSessionId == id)
                     store.updateDraft(insertVoiceDictation(store.draft, text))

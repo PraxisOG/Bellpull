@@ -127,6 +127,42 @@ class VoiceStoreTest {
         } finally { main.onMain { voice.close(); store.close() }; main.close(); client.close() }
     }
 
+    @Test fun queuedWordsUseTheDurableStopEvenWhileChatStillDisplaysStreaming() = runBlocking {
+        val main = MainSim("voice-stop-display")
+        val saved = ConcurrentHashMap<String, RunSubmission>()
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            val body = if (request.url.encodedPath == "/v1/runs") """{"run_id":"run_new","status":"running"}"""
+                else """{"data":[]}"""
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody()).build()
+        }.build()
+        val client = HermesClient("https://fixture.invalid", { "fixture" }, httpClient = http)
+        val store = main.onMain { HermesStore(main.scope, client, durableRetention = 86400, journal = fixtureJournal(saved)) }
+        try {
+            main.onMain { store.openSession("one") }
+            withTimeout(5000) { while (!main.onMain { store.history is UiState.Ready }) delay(10) }
+            main.onMain {
+                val runs = requireNotNull(store.runs)
+                val record = RunSubmission("original", "one", "First question.", 1.0, 0, emptySet(),
+                    runId = "run_old", status = "running")
+                runs.states["one"] = RunPresentation(record, TurnState.Streaming(""))
+                runs.onChanged("one")
+                val target = StoreVoiceConversation(store, "one")
+                assertFalse(target.send("Too early."))
+                // The voice observer can run before onChanged projects the terminal state to the chat.
+                runs.states["one"] = RunPresentation(record.copy(status = "completed", stopRequested = true),
+                    TurnState.StoppedByUser(""))
+                assertTrue(store.turn is TurnState.Streaming)
+                assertTrue(target.send("Replace that question."))
+                assertEquals("Replace that question.", runs.states["one"]?.submission?.text)
+                assertFalse(target.send("Do not duplicate."))
+            }
+            withTimeout(5000) { while (saved.values.none { it.runId == "run_new" }) delay(10) }
+            assertEquals(1, saved.size)
+        } finally { main.onMain { store.close() }; main.close(); client.close() }
+    }
+
     @Test fun failedStopKeepsTheReplacementWordsForReviewWithoutASecondAdmission() {
         val main = MainSim("voice-main-failed-stop")
         val admissions = AtomicInteger()

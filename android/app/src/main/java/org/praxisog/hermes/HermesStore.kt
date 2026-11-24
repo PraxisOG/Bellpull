@@ -557,6 +557,10 @@ internal class HermesStore(
         }
     }
 
+    // A terminal durable run may release its queue before the chat redraws the old streaming turn.
+    private val submissionBlocked: Boolean
+        get() = branchingSession || if (runs == null) turn is TurnState.Streaming else runPresentation?.busy == true
+
     /**
      * Stream one turn.
      *
@@ -566,14 +570,14 @@ internal class HermesStore(
      * output. Tool results only exist in history anyway, since `tool.completed` carries none.
      */
     fun send(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions? = null): Boolean {
-        if (text.isBlank() || openSessionId == null || turn is TurnState.Streaming || branchingSession) return false
+        if (text.isBlank() || openSessionId == null || submissionBlocked) return false
         val excerpt = phoneNotificationContext(voicePromptUserText(text))
         return sendPrepared(text + excerpt.orEmpty(), bellpull)
     }
 
     private fun sendPrepared(text: String, bellpull: org.praxisog.hermes.model.BellpullRunOptions?): Boolean {
         val sessionId = openSessionId ?: return false
-        if (text.isBlank() || turn is TurnState.Streaming || branchingSession) return false
+        if (text.isBlank() || submissionBlocked) return false
         if ((history as? UiState.Ready)?.value.orEmpty().any { it.role == "user" })
             if (untitledAppSessions.remove(sessionId)) persistUntitled()
 
