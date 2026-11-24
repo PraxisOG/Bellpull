@@ -1,6 +1,6 @@
-> **Latest experimental release: [Bellpull 0.20.3 — voice interruption repair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.3-experimental.1).**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.3-experimental.1/Bellpull.apk) · [Unchanged plugin 0.9.2 bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.3-experimental.1/bellpull-plugin-0.9.2-voice-files-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.3-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.3-experimental.1/docs/ROADMAP.md)
-> Fixes voice interruptions stuck on “Sending…” after a stop, with saved-word review after a five-second wait. Includes all 0.20.2 voice, live-file and workspace features; this fix needs only the app update. [Validation and limits](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.3-experimental.1/docs/RELEASE-0.20.3-EXPERIMENTAL.md).
+> **Latest experimental release · [Bellpull 0.20.4](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.4-experimental.1)**
+> [Download the Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.4-experimental.1/Bellpull.apk) · [Plugin 0.9.3 and speech helper](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.4-experimental.1/bellpull-plugin-0.9.3-mobile-preview.tar.gz) · [Build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.4-experimental.1/docs/BUILDING.md)
+> Adds per-chat voice routing, an Android dictation keyboard, shared file paths, Canvas selection and export, and approval review in Today. [Release notes and verification](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.4-experimental.1/docs/RELEASE-0.20.4-EXPERIMENTAL.md).
 
 <div align="center">
 
