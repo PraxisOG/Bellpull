@@ -18,14 +18,30 @@ internal interface DelegationJournal {
     fun writeDelegations(sessionId: String, value: DelegationReceipt): Boolean
 }
 
-internal fun delegationDispatches(messages: List<Message>): Set<String> = messages.mapNotNull { message ->
-    if (message.role != "tool") return@mapNotNull null
-    val result = runCatching { Json.parseToJsonElement(message.content.orEmpty()) as? JsonObject }.getOrNull()
-        ?: return@mapNotNull null
-    fun field(name: String) = (result[name] as? JsonPrimitive)?.contentOrNull
-    if (field("status") != "dispatched" || field("mode") != "background") return@mapNotNull null
-    field("delegation_id")?.takeIf { it.isNotBlank() && it.length <= 200 }
-}.toSet()
+internal data class DelegationDispatches(val groupIds: Set<String>, val unitIds: Set<String>)
+
+private fun JsonObject.deliveryId(): String? =
+    (this["delegation_id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() && it.length <= 200 }
+
+internal fun delegationDispatches(messages: List<Message>): DelegationDispatches {
+    val groups = mutableSetOf<String>()
+    val units = mutableSetOf<String>()
+    for (message in messages) {
+        if (message.role != "tool") continue
+        val result = runCatching { Json.parseToJsonElement(message.content.orEmpty()) as? JsonObject }.getOrNull()
+            ?: continue
+        if (result["status"] != JsonPrimitive("dispatched") || result["mode"] != JsonPrimitive("background")) continue
+        val parent = result.deliveryId() ?: continue
+        val children = (result["units"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonObject)?.deliveryId() }
+        if (children.isEmpty()) {
+            units.add(parent)
+        } else {
+            groups.add(parent)
+            units.addAll(children)
+        }
+    }
+    return DelegationDispatches(groups, units)
+}
 
 /** Tracks work independently of parent runs. All network requests here are reads.
  * The transcript remains authoritative; receipts only control polling and delivery.
@@ -53,7 +69,9 @@ internal class BackgroundDelegations(
         val old = states[sessionId] ?: DelegationReceipt()
         val deliveries = displayMessages(messages).filter { it.isDelegationDelivery && !it.content.isNullOrBlank() }
         val completed = deliveries.filter { it.delegationNotice.isNullOrBlank() }.mapNotNull { it.delegationId }.toSet()
-        val pending = (old.pending + delegationDispatches(messages)) - completed - old.delivered
+        val dispatches = delegationDispatches(messages)
+        // Older builds journaled the parent even when only its units had delivery receipts.
+        val pending = (old.pending - dispatches.groupIds + dispatches.unitIds) - completed - old.delivered
         val unseen = deliveries.filter { key(it) !in old.delivered }
         // Persist the watch before returning to the parent run's completion path.
         // A gate blocks delivery, not discovery or durable recovery.

@@ -90,6 +90,47 @@ class BackgroundDelegationsTest {
         assertEquals(3, replies.size)
     }
 
+    @Test fun groupedUnitsReplaceLegacyGroupWatchAndSettleIndependentlyAfterRestart() {
+        val group = dispatched("deleg_group").copy(content = """
+            {"status":"dispatched","mode":"background","count":2,"delegation_id":"deleg_group",
+             "units":[{"delegation_id":"deleg_group-1","task_indexes":[0]},
+                      {"delegation_id":"deleg_group-2","task_indexes":[1]}]}
+        """.trimIndent())
+        receipts["chat"] = DelegationReceipt(pending = setOf("deleg_group"))
+        gate = true
+        val first = watcher()
+        first.restore()
+        first.accept("chat", listOf(group))
+        assertEquals(setOf("deleg_group-1", "deleg_group-2"), receipts["chat"]!!.pending)
+        first.close()
+
+        val second = watcher()
+        second.restore()
+        val one = delivered("deleg_group-1", 2)
+        val two = delivered("deleg_group-2", 3)
+        second.accept("chat", listOf(group, two))
+        assertTrue(replies.isEmpty())
+        gate = false
+        second.accept("chat", listOf(group, two))
+        assertEquals(setOf("deleg_group-1"), receipts["chat"]!!.pending)
+        second.accept("chat", listOf(group, two, one, two.copy(id = 4)))
+        assertTrue(receipts["chat"]!!.pending.isEmpty())
+        assertEquals(listOf("deleg_group-2", "deleg_group-1"), replies.map { it.second.delegationId })
+    }
+
+    @Test fun topLevelIdCanAlsoBeTheFirstCompletingUnit() {
+        val group = dispatched("one").copy(content = """
+            {"status":"dispatched","mode":"background","delegation_id":"one",
+             "units":[{"delegation_id":"one"},{"delegation_id":"two"}]}
+        """.trimIndent())
+        val watch = watcher()
+        watch.accept("chat", listOf(group, delivered("one")))
+        assertEquals(setOf("two"), receipts["chat"]!!.pending)
+        watch.accept("chat", listOf(group, delivered("one"), delivered("two", 3)))
+        assertTrue(receipts["chat"]!!.pending.isEmpty())
+        assertEquals(listOf("one", "two"), replies.map { it.second.delegationId })
+    }
+
     @Test fun disconnectedAndFailedStorageNeverDiscardTheWatch() {
         val watch = watcher()
         watch.accept("chat", listOf(dispatched("one")))

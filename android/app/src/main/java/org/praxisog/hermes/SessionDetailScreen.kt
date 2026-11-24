@@ -182,7 +182,7 @@ internal fun SessionDetailScreen(
     val rawMessages = (history as? UiState.Ready)?.value.orEmpty()
     val messages = remember(rawMessages) { displayMessages(rawMessages) }
     val backgroundCount = remember(rawMessages) {
-        (delegationDispatches(rawMessages) - rawMessages.filter {
+        (delegationDispatches(rawMessages).unitIds - rawMessages.filter {
             it.isDelegationDelivery && it.delegationNotice.isNullOrBlank()
         }.mapNotNull { it.delegationId }.toSet()).size
     }

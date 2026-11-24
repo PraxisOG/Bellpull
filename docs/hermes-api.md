@@ -1295,6 +1295,11 @@ The underlying row remains a `user` bookkeeping row. The client presents it as a
 separate **Background result**, without writing another transcript or sending a
 prompt. Hidden rows remain hidden.
 
+For a grouped dispatch, Hermes lists the independently completing IDs in
+`units[].delegation_id`. The top-level ID can identify the group or repeat its
+first unit. Bellpull watches the listed units, counts each completion once and
+replaces a previously journaled group ID when it next reads the dispatch.
+
 A tool receipt with `status=dispatched`, `mode=background` and a stable
 `delegation_id` starts a profile-scoped durable watch. Parent `run.completed`
 settles the parent run only. Bellpull continues reading saved history every two
