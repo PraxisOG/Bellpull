@@ -3,16 +3,24 @@ package org.praxisog.hermes
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.*
+import org.praxisog.hermes.model.RunApproval
 import org.junit.*
 import org.junit.Assert.*
 import java.util.concurrent.CopyOnWriteArrayList
 
 class VoiceSessionTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    private val pendingApproval = VoiceApproval("native-run", RunApproval("request", "color_confirmation",
+        "Approve labeling this test card blue?", listOf("once", "deny")))
     private val target = object : VoiceConversation {
         var selection by mutableStateOf(true)
         var value by mutableStateOf(VoiceRun())
         val sent = CopyOnWriteArrayList<String>()
+        val decisions = CopyOnWriteArrayList<Pair<VoiceApproval, String>>()
+        override fun decideApproval(target: VoiceApproval, choice: String): Boolean {
+            decisions += target to choice
+            return true
+        }
         var canceled = 0
         var acknowledge = true
         override val selected get() = selection
@@ -354,13 +362,13 @@ class VoiceSessionTest {
         target.value = VoiceRun("run-1", busy = true, text = "First sentence. More")
         await { voice.state == VoiceState.SPEAKING }
         val playback = output.completion
-        target.value = target.value.copy(approvalPending = true)
+        target.value = target.value.copy(approval = pendingApproval)
         await { voice.notice == APPROVAL_WAITING }
         assertTrue(capture.active); assertSame(playback, output.completion)
         assertEquals(VoiceState.SPEAKING, voice.state)
         assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
         output.complete()
-        target.value = target.value.copy(approvalPending = false, busy = false, final = true, text = "First sentence. More detail.")
+        target.value = target.value.copy(approval = null, busy = false, final = true, text = "First sentence. More detail.")
         await { output.said.last() == "More detail." }
         output.complete()
         await { voice.state == VoiceState.LISTENING }
@@ -368,14 +376,14 @@ class VoiceSessionTest {
     }
     @Test fun wordsDuringApprovalWaitWithoutAnsweringOrCancelingIt() {
         voice.start(); utterance(); output.complete()
-        target.value = target.value.copy(approvalPending = true)
+        target.value = target.value.copy(approval = pendingApproval)
         await { voice.notice == APPROVAL_WAITING }
         recognized = "Save this follow-up question."
         utterance()
         assertEquals(VoiceState.WAITING, voice.state)
         assertTrue(capture.active); assertEquals(recognized, voice.queuedText)
         assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
-        target.value = target.value.copy(approvalPending = false)
+        target.value = target.value.copy(approval = null)
         tick()
         assertEquals(0, target.canceled); assertEquals(1, target.sent.size)
         target.value = target.value.copy(busy = false, final = true)
@@ -389,12 +397,12 @@ class VoiceSessionTest {
         recognized = "Wait for the approval before sending this."
         utterance()
         assertEquals(recognized, voice.queuedText)
-        target.value = target.value.copy(admitted = true, approvalPending = true)
+        target.value = target.value.copy(admitted = true, approval = pendingApproval)
         await { voice.notice == APPROVAL_WAITING }
         Thread.sleep(400) // Pass the stop worker's next admission poll.
         assertEquals(0, target.canceled)
         assertEquals(1, target.sent.size)
-        target.value = target.value.copy(approvalPending = false)
+        target.value = target.value.copy(approval = null)
         tick()
         assertEquals(0, target.canceled)
         assertEquals(1, target.sent.size)
@@ -404,6 +412,105 @@ class VoiceSessionTest {
         assertEquals(2, target.sent.size)
         assertTrue(target.sent.last().endsWith(recognized))
     }
+    private fun speak(words: String) { recognized = words; utterance() }
+
+    private fun startWithApproval() {
+        target.value = VoiceRun("typed-run", busy = true, approval = pendingApproval)
+        voice.start()
+        await { voice.notice == APPROVAL_WAITING && capture.active }
+    }
+
+    private fun hearApproval() {
+        speak("Read the approval request.")
+        assertTrue(output.said.last().contains(pendingApproval.request.description!!))
+        assertTrue(output.said.last().contains(pendingApproval.request.command!!))
+        output.complete()
+        assertFalse(voice.playedText.contains(pendingApproval.request.command!!))
+        assertTrue(capture.active)
+    }
+
+    @Test fun spokenDecisionAnswersOnlyTheReviewedApprovalAndKeepsQueuedWords() {
+        startWithApproval()
+        speak("Remind me to paint tomorrow.")
+        speak("Allow this request once.")
+        assertTrue(target.decisions.isEmpty())
+        hearApproval()
+        speak("Allow this request once!")
+        assertEquals(listOf(pendingApproval to "once"), target.decisions)
+        speak("Allow this request once.")
+        assertEquals(1, target.decisions.size)
+        assertEquals("Remind me to paint tomorrow.", voice.queuedText)
+        assertEquals(0, target.canceled)
+        assertTrue(target.sent.isEmpty())
+        assertTrue(capture.active)
+    }
+
+    @Test fun anIncompleteReadbackCannotAuthorizeADecision() {
+        startWithApproval()
+        speak("Read the approval request.")
+        speak("Deny this request.")
+        assertTrue(target.decisions.isEmpty())
+        output.complete()
+        speak("Deny this request.")
+        assertEquals(listOf(pendingApproval to "deny"), target.decisions)
+        assertEquals(0, target.canceled)
+    }
+
+    @Test fun replacementDuringRecognitionRequiresItsOwnReview() {
+        startWithApproval()
+        hearApproval()
+        recognized = "Allow this request once."
+        recognitionWait = java.util.concurrent.CountDownLatch(1)
+        repeat(25) { voice.frame(ShortArray(320) { 2600 }, 320) }
+        repeat(90) { voice.frame(ShortArray(320), 320) }
+        await { voice.state == VoiceState.TRANSCRIBING }
+        target.value = target.value.copy(approval = pendingApproval.copy(request =
+            pendingApproval.request.copy(command = "label_another_card")))
+        tick()
+        recognitionWait!!.countDown()
+        await { voice.state != VoiceState.TRANSCRIBING }
+        assertTrue(target.decisions.isEmpty())
+        assertTrue(target.sent.isEmpty())
+        assertEquals(0, target.canceled)
+    }
+
+    @Test fun spokenApprovalHonorsTheNativeChoicesAndIgnoresOrdinaryAgreement() {
+        startWithApproval()
+        target.value = target.value.copy(approval = pendingApproval.copy(request =
+            pendingApproval.request.copy(choices = listOf("deny"))))
+        tick()
+        hearApproval()
+        speak("Allow this request once.")
+        assertTrue(target.decisions.isEmpty())
+        assertTrue(voice.notice.orEmpty().contains("unavailable"))
+        speak("Yes.")
+        assertEquals("Yes.", voice.queuedText)
+        assertTrue(target.decisions.isEmpty())
+        speak("Deny this request.")
+        assertEquals(listOf(target.value.approval!! to "deny"), target.decisions)
+        assertEquals("Yes.", voice.queuedText)
+    }
+
+    @Test fun dictationOfApprovalWordsIsReviewedAsOrdinaryText() {
+        startWithApproval()
+        voice.chooseMode(VoiceMode.DICTATION)
+        speak("Allow this request once.")
+        assertEquals(VoiceState.REVIEW, voice.state)
+        assertEquals("Allow this request once.", voice.transcript)
+        assertTrue(target.decisions.isEmpty())
+    }
+
+    @Test fun expiredApprovalCommandsNeverBecomeAChatTurn() {
+        startWithApproval()
+        hearApproval()
+        target.value = VoiceRun(final = true)
+        tick()
+        speak("Deny this request.")
+        assertTrue(target.decisions.isEmpty())
+        assertTrue(target.sent.isEmpty())
+        assertEquals(0, target.canceled)
+    }
+
     @Test fun transcriptionFailureStopsMicAndKeepsHermesUntouched() {
         failure = true; voice.start(); utterance()
         await { voice.state == VoiceState.PAUSED }; assertFalse(capture.active); assertTrue(target.sent.isEmpty())

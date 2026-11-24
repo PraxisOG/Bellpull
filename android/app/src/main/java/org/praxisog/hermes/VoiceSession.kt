@@ -4,9 +4,10 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import org.praxisog.hermes.core.PrivateTranscription
+import org.praxisog.hermes.model.RunApproval
 
 internal enum class VoiceMode { CALL, CONVERSATION, DICTATION, PUSH_TO_TALK }
-internal const val APPROVAL_WAITING = "Approval waiting in chat. Voice stays on; new words will wait until this run finishes."
+internal const val APPROVAL_WAITING = "Approval waiting in chat. Say “read the approval request” to hear the request. Other words wait until this run finishes."
 internal enum class VoiceState(val label: String) {
     READY("Ready for your next turn"), STARTING("Starting voice…"), LISTENING("Listening"), RECORDING("Listening to you…"),
     TRANSCRIBING("Transcribing…"), REVIEW("Review your words"), WORKING("Hermes is working…"),
@@ -15,12 +16,16 @@ internal enum class VoiceState(val label: String) {
 internal data class VoiceRun(val identity: String? = null, val busy: Boolean = false, val text: String = "",
     val final: Boolean = false, val attention: Boolean = false, val error: String? = null, val connectionLost: Boolean = false, val admitted: Boolean = true,
     val activities: List<VoiceActivity> = emptyList(), val stopRequested: Boolean = false, val stopError: String? = null,
-    val executing: Boolean = busy, val approvalPending: Boolean = false)
+    val executing: Boolean = busy, val approval: VoiceApproval? = null, val approvalNotice: String? = null) {
+    val approvalPending get() = approval != null
+}
+internal data class VoiceApproval(val runId: String, val request: RunApproval)
 internal interface VoiceConversation {
     val selected: Boolean
     val ready: Boolean
     fun run(): VoiceRun
     fun send(text: String): Boolean
+    fun decideApproval(target: VoiceApproval, choice: String): Boolean = false
     fun cancel()
 }
 internal interface VoiceTranscriber {
@@ -64,7 +69,8 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
             durable?.stopError,
             durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming,
-            approvalPending = durable?.approval != null)
+            approval = durable?.submission?.runId?.let { runId -> durable.approval?.let { VoiceApproval(runId, it) } },
+            approvalNotice = durable?.notice?.takeIf { durable.approval != null })
     }
     override fun send(text: String): Boolean {
         if (!ready || run().busy) return false
@@ -73,6 +79,8 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
         val prompt = if (canvas == null) text else canvas.prepare(id, text) ?: return false
         return store.send(prompt)
     }
+    override fun decideApproval(target: VoiceApproval, choice: String) = ready &&
+        store.runs?.respond(id, target.request.requestId, choice, target.runId, target.request) == true
     override fun cancel() { if (selected) store.stop() }
 }
 
@@ -115,10 +123,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val gate = VoiceGate(config.pauseMs)
     private val sentences = VoiceSentences()
     private val announced = mutableSetOf<String>()
-    private val speech = ArrayDeque<Pair<String, (() -> Unit)?>>()
+    private data class Utterance(val text: String, val done: (() -> Unit)? = null, val approval: VoiceApproval? = null)
+    private val speech = ArrayDeque<Utterance>()
     private val activitySpeech = ArrayDeque<String>()
     private var speaking = false
-    private var activeSpeech: Pair<String, (() -> Unit)?>? = null
+    private var activeSpeech: Utterance? = null
     private var activeActivity = false
     private var audible = false
     private var tentative = false
@@ -143,6 +152,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var readyOutput = false
     private var outputPreparation = 0L
     private var startupReconciled = false
+    private var approvalAtSpeechStart: VoiceApproval? = null
+    private var reviewedApproval: VoiceApproval? = null
+    private var heardBeforeSpeech = false
     private var ownAudioAtSpeechStart = ""
     private var completingTurn = false
     private var closed = false
@@ -159,6 +171,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         }
         prepareOutput(::readyToListen)
         observe = scope.launch {
+            var previousApproval: VoiceApproval? = null
             snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (_, observed) ->
                 // Main.immediate can wake us inside the store's snapshot publication. A queued
                 // send must wait for that update to finish and recheck the current run.
@@ -170,12 +183,18 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (!conversation.selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
                 if (state == VoiceState.PAUSED) return@collectLatest
                 listeningBlock(run)?.let { pause(it); return@collectLatest }
+                if (run.approval != previousApproval) {
+                    reviewedApproval = null
+                    notice = if (run.approvalPending) APPROVAL_WAITING else null
+                    speech.removeAll { it.approval != null && it.approval != run.approval }
+                    previousApproval = run.approval
+                }
                 if (run.approvalPending) {
-                    notice = APPROVAL_WAITING
+                    if (run.approvalNotice != null) notice = run.approvalNotice
                     interrupting = false
                     interruption?.cancel()
                     interruption = null
-                } else if (notice == APPROVAL_WAITING) notice = null
+                }
                 if (interrupting) {
                     if (run.stopError != null) { pause(run.stopError); return@collectLatest }
                     if (!run.busy) {
@@ -292,9 +311,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (closed || microphoneMuted || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
         val result = gate.accept(pcm, count, holdTurn, manual = mode == VoiceMode.PUSH_TO_TALK && pushHeld)
         if (result.began) {
+            approvalAtSpeechStart = conversation.run().approval
+            heardBeforeSpeech = reviewedApproval != null && reviewedApproval == approvalAtSpeechStart && !speaking
             val now = System.nanoTime()
             val recent = recentPlayback.filter { now - it.first <= 1_500_000_000L }.map { it.second } +
-                listOfNotNull(activeSpeech?.first?.takeIf { audible })
+                listOfNotNull(activeSpeech?.text?.takeIf { audible })
             ownAudioAtSpeechStart = recent.joinToString(" ")
             ownShortPhrases = recent.filter { it.trim().split(Regex("\\s+")).size <= 2 }
             if (speaking || submitted) { tentative = true; suspendPlayback() }
@@ -336,6 +357,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun chooseMode(value: VoiceMode) {
         if (output == null || mode == value) return
         if (pushHeld) { pushHeld = false; holdTurn = false; closeMic() }
+        reviewedApproval = null
+        approvalAtSpeechStart = null
         mode = value
         if (mode == VoiceMode.PUSH_TO_TALK && !pushHeld) closeMic()
         if (!submitted && state !in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) listen()
@@ -373,6 +396,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                     if (dictationToDraft) close() else recoverTentative()
                     return@fold
                 }
+                if ((mode == VoiceMode.CONVERSATION || mode == VoiceMode.CALL) && !holdTurn &&
+                    handleSpokenApproval(text)) return@fold
                 discardPlayback()
                 pendingForAdmission = false; transcript = text; saveTranscript(text); notice = null
                 if (dictationToDraft) {
@@ -383,6 +408,56 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (mode == VoiceMode.DICTATION || holdTurn || forceReview) state = VoiceState.REVIEW else sendTranscript()
             }, { canRetryTranscription = true; pause(it.message ?: "Transcription failed. Try again when the service is available.") })
         }
+    }
+    private fun handleSpokenApproval(text: String): Boolean {
+        val command = text.trim().trimEnd('.', '?', '!').trimEnd().lowercase()
+        val choice = when (command) {
+            "read the approval request", "read approval" -> null
+            "allow this request once" -> "once"
+            "deny this request" -> "deny"
+            else -> return false
+        }
+        val target = conversation.run().approval
+        if (!conversation.ready || target == null || target != approvalAtSpeechStart) {
+            reviewedApproval = null
+            notice = if (target == null) "No approval is waiting in this chat." else APPROVAL_WAITING
+        } else if (choice == null) {
+            reviewedApproval = null
+            val details = listOfNotNull(target.request.description, target.request.command)
+                .filter { it.isNotBlank() }.distinct().joinToString(". ")
+            if (details.isBlank()) {
+                notice = "Review this operation in chat."
+            } else {
+                val choices = target.request.choices
+                val answers = listOfNotNull(
+                    "“allow this request once”".takeIf { "once" in choices },
+                    "“deny this request”".takeIf { "deny" in choices })
+                val hint = when {
+                    answers.size == 2 -> "To respond, start with allow or deny, then say this request. For allow, add once."
+                    "once" in choices -> "To allow, say the word allow followed by this request once."
+                    "deny" in choices -> "To decline, say deny followed by this request."
+                    else -> "Review the available choices in chat."
+                }
+                speech.removeAll { it.approval != null }
+                speech.addFirst(Utterance("Approval request. $details. $hint", approval = target, done = {
+                    if (conversation.selected && conversation.run().approval == target) {
+                        reviewedApproval = target
+                        notice = if (answers.isEmpty()) hint else "Say ${answers.joinToString(" or ")}."
+                    }
+                    if (!submitted) listen()
+                }))
+            }
+        } else if (!heardBeforeSpeech || reviewedApproval != target) {
+            notice = APPROVAL_WAITING
+        } else if (choice !in target.request.choices) {
+            notice = "This choice is unavailable for the pending request."
+        } else {
+            reviewedApproval = null
+            notice = if (conversation.decideApproval(target, choice)) "Checking your decision with Hermes."
+                else "The approval changed. Review the request again."
+        }
+        recoverTentative()
+        return true
     }
     fun retryTranscription() {
         onExplicitRetry()
@@ -456,15 +531,16 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     private fun enqueue(text: String, done: (() -> Unit)? = null) {
         if (closed || state == VoiceState.PAUSED) return
-        speech.addLast(text to done)
+        speech.addLast(Utterance(text, done))
         pump(); prefetchNext()
     }
     private fun pump() {
         if (output == null || speaking || tentative || audioSuspended || state == VoiceState.PAUSED ||
             (speech.isEmpty() && activitySpeech.isEmpty()) || closed) return
         activeActivity = speech.isEmpty() && activitySpeech.isNotEmpty()
-        val (text, done) = if (activeActivity) activitySpeech.removeFirst() to null else speech.removeFirst()
-        activeSpeech = text to done
+        val utterance = if (activeActivity) Utterance(activitySpeech.removeFirst()) else speech.removeFirst()
+        val text = utterance.text
+        activeSpeech = utterance
         val token = generation
         speaking = true; audible = false; state = VoiceState.SPEAKING
         output.speak(text, started = {
@@ -479,10 +555,13 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             if (closed || token != generation) return@speak
             recentPlayback.addLast(System.nanoTime() to text.takeLast(600))
             while (recentPlayback.size > 6) recentPlayback.removeFirst()
-            activeSpeech = null; audible = false
-            speaking = false; playedText = listOf(playedText, text).filter { it.isNotBlank() }.joinToString(" ").takeLast(1200)
-            if (submitted) rememberPlayback(false)
-            done?.invoke()
+            val heard = audible
+            activeSpeech = null; audible = false; speaking = false
+            if (utterance.approval == null) {
+                playedText = listOf(playedText, text).filter { it.isNotBlank() }.joinToString(" ").takeLast(1200)
+                if (submitted) rememberPlayback(false)
+            }
+            if (utterance.approval == null || heard) utterance.done?.invoke()
             pump()
             if (!speaking && speech.isEmpty() && activitySpeech.isEmpty()) {
                 if (finished) turnDone()
@@ -512,7 +591,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         val activities = run.activities.filter { announced.add(it.id) }
         // A tool boundary is not a sentence boundary. Queue all ready prose before
         // pumping, so a cue cannot jump in front of text in this same snapshot.
-        sentences.take(run.text, run.final).forEach { speech.addLast(it to null) }
+        sentences.take(run.text, run.final).forEach { speech.addLast(Utterance(it)) }
         // One waiting cue is enough to signal activity, even during a large batch.
         // The four flags still independently decide which kinds are eligible.
         if (activitySpeech.isEmpty()) activities.firstOrNull { config.announcements.enabled(it.kind) }
@@ -522,11 +601,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     private fun prefetchNext() {
         if (output != null && speaking && !tentative && !audioSuspended && !closed && state != VoiceState.PAUSED)
-            (speech.firstOrNull()?.first ?: activitySpeech.firstOrNull())?.let(output::prefetch)
+            (speech.firstOrNull()?.text ?: activitySpeech.firstOrNull())?.let(output::prefetch)
     }
     /** A partial phrase restarts; fully completed phrases never enter the queue again. */
     private fun suspendPlayback() {
-        activeSpeech?.let { if (activeActivity) activitySpeech.addFirst(it.first) else speech.addFirst(it) }
+        activeSpeech?.let { if (activeActivity) activitySpeech.addFirst(it.text) else speech.addFirst(it) }
         activeSpeech = null
         generation++; output?.stop(); speaking = false; audible = false
     }
@@ -574,6 +653,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     fun pause(message: String = "Microphone and playback are paused. Resume when ready.") {
         if (closed) return
         if (submitted) { interruptedPlayback = playedText; rememberPlayback(true) }
+        reviewedApproval = null; approvalAtSpeechStart = null; heardBeforeSpeech = false
         suspendPlayback(); tentative = false; audioSuspended = false
         // Unsent words always require review after an explicit pause, never a delayed cue callback.
         if (completingTurn) { speech.clear(); activitySpeech.clear(); completingTurn = false }

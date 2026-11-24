@@ -452,12 +452,14 @@ internal class DurableRuns(
         }
     }
 
-    fun respond(sessionId: String, requestId: String, choice: String, expectedRunId: String? = null) {
-        val state = states[sessionId] ?: return
-        val runId = state.submission.runId ?: return
-        val gate = state.approval ?: return
+    fun respond(sessionId: String, requestId: String, choice: String, expectedRunId: String? = null,
+        expectedApproval: RunApproval? = null): Boolean {
+        val state = states[sessionId] ?: return false
+        val runId = state.submission.runId ?: return false
+        val gate = state.approval ?: return false
         if (closed || state.submission.terminal || state.checking || expectedRunId != null && runId != expectedRunId ||
-            gate.requestId != requestId || choice !in gate.choices || choice !in setOf("once", "deny")) return
+            expectedApproval != null && gate != expectedApproval || gate.requestId != requestId ||
+            choice !in gate.choices || choice !in setOf("once", "deny")) return false
         fun stillCurrent(): Boolean {
             val current = states[sessionId] ?: return false
             return !closed && !current.submission.terminal && current.submission.runId == runId && current.approval == gate
@@ -486,6 +488,7 @@ internal class DurableRuns(
                 if (states[sessionId]?.submission?.runId == runId) update(sessionId) { it.copy(checking = false) }
             }
         }
+        return true
     }
 
     fun close() {

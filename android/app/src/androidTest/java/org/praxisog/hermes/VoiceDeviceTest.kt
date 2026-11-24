@@ -177,6 +177,76 @@ class VoiceDeviceTest {
             }
         }
     }
+    /** Exercise the actual approval transport with audio supplied through the emulator microphone. */
+    @Test fun hearsAndAnswersTheSameNativeApproval() {
+        guard()
+        val args = InstrumentationRegistry.getArguments()
+        org.junit.Assume.assumeTrue(args.containsKey("approvalSession"))
+        val chat = requireNotNull(args.getString("approvalSession"))
+        val choice = requireNotNull(args.getString("approvalChoice"))
+        require(choice in setOf("once", "deny"))
+        val runtime = BellpullRuntime.get(context)
+        val client = HermesClient("http://127.0.0.1:18667", { "local-voice-approval-fixture" })
+        val caps = (client.capabilities() as HermesResult.Ok).value
+        assertTrue(caps.interactiveApprovals || caps.features["run_approval_response"] == true)
+        val profile = "voice-approval-" + java.util.UUID.randomUUID()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        var voice: VoiceSession? = null
+        fun feed(utterance: String) = instrumentation.sendStatus(0, Bundle().apply { putString("microphone", utterance) })
+        ActivityScenario.launch(ComponentActivity::class.java).use { scene ->
+            try {
+                lateinit var store: HermesStore
+                scene.onActivity { activity ->
+                    runtime.prepare(profile)
+                    store = runtime.connect(client, caps)
+                    store.openSession(chat)
+                    activity.setContent { HermesTheme { Text(store.runPresentation?.label ?: "Ready") } }
+                }
+                DeviceFixtureUi.awaitMain("Chat did not open") { store.history is UiState.Ready }
+                main {
+                    voice = VoiceSession(chat, profile, scope, StoreVoiceConversation(store, chat),
+                        VoiceConfiguration(concise = false, announcements = VoiceAnnouncements(working = false)),
+                        AndroidVoiceOutput(context, 1.2f), AndroidVoiceCapture(scope), runtime.speechLab::voiceTranscriber)
+                    voice!!.start()
+                }
+                DeviceFixtureUi.awaitMain("Voice did not start") { voice?.state == VoiceState.LISTENING }
+                feed("start")
+                DeviceFixtureUi.awaitMain("Native approval did not arrive") { store.runPresentation?.approval != null }
+                val run = checkNotNull(store.runPresentation?.submission?.runId)
+                val approval = checkNotNull(store.runPresentation?.approval)
+                assertTrue(approval.description.orEmpty().contains("blue") || approval.command.orEmpty().contains("blue"))
+                feed("read")
+                DeviceFixtureUi.awaitMain("Approval readback did not finish") {
+                    voice?.notice?.contains("deny this request") == true
+                }
+                assertEquals(approval, (client.runStatus(run) as HermesResult.Ok).value.approval)
+                feed(choice)
+                val expected = if (choice == "once") "Blue label accepted." else "Blue label declined."
+                DeviceFixtureUi.awaitMain("Native run did not finish with the spoken decision") {
+                    val record = store.runPresentation?.submission
+                    record?.runId == run && record.historySynced && record.completionOutput == expected
+                }
+                val rows = (client.completeHistory(chat) as HermesResult.Ok).value.data
+                assertEquals(1, rows.count { it.role == "user" })
+                assertEquals(1, rows.count { it.role == "assistant" && it.content == expected })
+                assertEquals(false, store.runPresentation?.submission?.stopRequested)
+            } catch (failure: AssertionError) {
+                main { instrumentation.sendStatus(0, Bundle().apply {
+                    putString("voice_state", voice?.state?.name)
+                    putString("voice_notice", voice?.notice)
+                    putString("transcript", voice?.transcript)
+                    putString("queued", voice?.queuedText)
+                    putString("playback", voice?.playedText)
+                    putString("run", runtime.store?.runPresentation?.submission?.status)
+                }) }
+                throw failure
+            } finally {
+                main { voice?.close(); runtime.disconnect() }
+                scope.cancel(); client.close()
+            }
+        }
+    }
+
     @Test fun foregroundVoiceSurvivesAppBackgroundAndEndsWithoutRestartingMic() {
         guard()
         val runtime = BellpullRuntime.get(context)
