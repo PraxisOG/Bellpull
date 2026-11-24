@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.8](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.8-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.8-experimental.1/Bellpull.apk) · [Matching plugin 0.9.4](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.8-experimental.1/bellpull-plugin-0.9.4-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.8-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.8-experimental.1/docs/ROADMAP.md)
-> Android build 58 adds batch approval review to Today. Choose which operations to allow once, deny, or leave pending. The matching plugin is 0.9.4-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.9](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.9-experimental.1/Bellpull.apk) · [Matching plugin 0.9.4](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.9-experimental.1/bellpull-plugin-0.9.4-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.9-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.9-experimental.1/docs/ROADMAP.md)
+> Android build 59 saves observed Bot Chat delivery receipts in the Inbox so they stay readable across routine runs. The matching plugin is 0.9.4-mobile-preview.
 
 <div align="center">
 
