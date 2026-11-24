@@ -1,3 +1,7 @@
+## Spoken approvals · 0.20.7 / build 57
+
+Say “read the approval request” during a call or voice conversation, then allow it once or deny it by voice. Tested with on-device Moonshine Tiny, Android eSpeak playback and a stock Hermes 0.21.5 gateway. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.7-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.7-experimental.1/docs/RELEASE-0.20.7-EXPERIMENTAL.md)
+
 ## Experimental Android dictation update · 0.20.6 / build 56
 
 Hold the chat microphone to dictate when speech playback is unavailable. This Android build pairs with plugin 0.9.4-mobile-preview. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.6-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.6-experimental.1/docs/RELEASE-0.20.6-EXPERIMENTAL.md)
