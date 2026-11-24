@@ -30,14 +30,15 @@ internal object DeviceFixtureUi {
         main { result = check() }
         result
     }
-    fun find(check: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+    fun find(check: (AccessibilityNodeInfo) -> Boolean) = find(AccessibilityWindowInfo.TYPE_APPLICATION, check)
+    fun find(windowType: Int, check: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
         if (android.os.Build.VERSION.SDK_INT >= 34) automation.clearCache()
         fun visit(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
             if (check(node)) return node
             for (i in 0 until node.childCount) node.getChild(i)?.let { visit(it)?.let { found -> return found } }
             return null
         }
-        return automation.windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        return automation.windows.filter { it.type == windowType }
             .firstNotNullOfOrNull { it.root?.let(::visit) }
     }
     fun text(value: String) = find { it.text?.toString() == value }

@@ -258,3 +258,24 @@ admission; later tool events can arrive after execution starts. Prompt instructi
 and observed tool status cannot establish a before-execution guarantee. No
 fabricated approval or undocumented endpoint was introduced to pretend otherwise.
 A future verified host pause/ack mechanism would be needed for that guarantee.
+
+## Dictation in other Android apps
+
+Install a Moonshine model under **Settings → Voice input → Experimental**. Open
+**Manage dictation keyboards**, enable **Bellpull Dictation**, then select it in
+Android’s keyboard picker. In a text field, tap **Dictate**, speak, and tap
+**Insert dictation**. Recognition uses the selected on-device model and inserts
+the result at the cursor. **Switch keyboard** opens the system picker.
+
+The keyboard asks for microphone permission on first use. Changing fields or
+hiding the keyboard cancels an unfinished dictation. Password fields disable
+recording. When a model is missing or recognition fails, the keyboard shows
+the problem and keeps the editor available.
+
+On an API 36 foldable emulator, two instrumentation checks used synthetic speech
+through the emulator microphone and the installed Moonshine Tiny model. One
+verified cancellation when switching to a password and insertion between existing
+words on returning to a text field. The other dictated into the separate Android
+Settings search app. Both recognized the fixture word “apple”. Cursor insertion
+took 0.73–1.19 seconds after the insert-button tap across these fixture runs.
+Physical keyboard layouts, human voices and other model sizes need separate timing.
