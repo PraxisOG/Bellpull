@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.9 / build 59 and plugin 0.9.4-mobile-preview**
-> Open **Today → Inbox** to inspect previously observed Bot Chat delivery receipts.
-> [Release notes and verification](docs/RELEASE-0.20.9-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.10 / build 60 and plugin 0.9.5-mobile-preview**
+> Message info shows which model answered. Confirmed provider switches include the fallback model’s advertised image support.
+> [Release notes and verification](docs/RELEASE-0.20.10-EXPERIMENTAL.md).
 
 <div align="center">
 
@@ -65,7 +65,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 > [!IMPORTANT]
 > **This is an experimental prerelease:** Android **0.20.9-experimental / build 59**
-> pairs with Bellpull plugin **0.9.4-mobile-preview**. Server features need
+> pairs with Bellpull plugin **0.9.5-mobile-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework

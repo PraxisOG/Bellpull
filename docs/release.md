@@ -1,3 +1,7 @@
+## Per-run models and fallback · 0.20.10 / build 60
+
+Open **Message info** on a reply to see the model and provider that answered. **Settings → Servers → Integration status** shows the latest observed completed run for the active profile. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1) · [Verification](RELEASE-0.20.10-EXPERIMENTAL.md)
+
 ## Saved Bot Chat receipts · 0.20.9 / build 59
 
 Today’s Inbox keeps observed Bot Chat delivery receipts across routine runs. Open a saved item to see the receipt ID, status source and time the phone saved it. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1) · [Verification](RELEASE-0.20.9-EXPERIMENTAL.md)
