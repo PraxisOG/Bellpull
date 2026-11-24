@@ -7,6 +7,9 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.HermesResult
+import org.praxisog.hermes.model.IntegrationCheck
+import org.praxisog.hermes.model.IntegrationEndpoint
+import org.praxisog.hermes.model.IntegrationHealth
 
 /** Coordinates explicit account changes; late probes cannot attach to another profile. */
 internal class ServerProfiles(
@@ -53,11 +56,27 @@ internal class ServerProfiles(
                 val raw = cached.readCapabilities()?.let { Json.parseToJsonElement(it).jsonObject }
                 val version = (raw?.get("bellpull_plugin") as? JsonObject)?.get("plugin_version")?.jsonPrimitive?.contentOrNull
                 ServerPluginVersion(profile.name, profile.url, version,
-                    cached.capabilitiesCheckedAt() ?: raw?.let { 0.0 })
+                    cached.capabilitiesCheckedAt() ?: raw?.let { 0.0 }, cached.readIntegrationHealth().checks[IntegrationEndpoint.PLUGIN])
             } finally { cached.close() }
         }.getOrDefault(ServerPluginVersion(profile.name, profile.url, null, null))
     }
     private fun reload() { profiles = secure?.profiles().orEmpty(); activeId = secure?.activeId() }
+
+    fun savedIntegrationHealth(id: String): IntegrationHealth? =
+        runtime.integrationHealth.takeIf { runtime.profileId == id }
+
+    suspend fun checkIntegrations(id: String): IntegrationHealth? = coroutineScope {
+        val cache = runtime.cache?.takeIf { runtime.profileId == id } ?: return@coroutineScope null
+        val connection = secure?.connection(id) ?: return@coroutineScope null
+        val client = HermesClient(connection.profile.url, { connection.key })
+        val worker = async(Dispatchers.IO) { client.checkIntegrations() }
+        try {
+            val checks = worker.await()
+            if (runtime.cache !== cache || runtime.profileId != id) return@coroutineScope null
+            runtime.recordIntegrationChecks(checks)
+            runtime.integrationHealth
+        } finally { client.close() }
+    }
 
     fun add(name: String, rawUrl: String, rawKey: String): Boolean {
         val url = HermesEndpoint.parse(rawUrl).getOrElse { status = it.message ?: "Enter a valid server URL."; return false }
@@ -101,8 +120,10 @@ internal class ServerProfiles(
         checking = true
         status = "Connecting to ${connection.profile.name}…"
         job = scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { client.capabilities() }.getOrNull() }
+            val checks = mutableListOf<IntegrationCheck>()
+            val result = withContext(Dispatchers.IO) { runCatching { client.capabilities(checks::add) }.getOrNull() }
             if (token != revision || activeId != id) { client.close(); return@launch }
+            runtime.recordIntegrationChecks(checks)
             checking = false
             probe = null
             if (result is HermesResult.Ok && result.value.sessionChatStreaming) {

@@ -8,6 +8,8 @@ import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import org.praxisog.hermes.core.HermesClient
+import org.praxisog.hermes.model.IntegrationHealth
+import org.praxisog.hermes.model.IntegrationCheck
 
 /** Application-owned state. Destroying an Activity only detaches its UI. */
 internal class BellpullRuntime private constructor(context: Context) {
@@ -31,6 +33,11 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var cache: SessionCache? = null
         private set
+    var integrationHealth by mutableStateOf(IntegrationHealth())
+        private set
+    fun recordIntegrationChecks(checks: List<IntegrationCheck>) {
+        cache?.let { integrationHealth = it.recordIntegrationChecks(checks) }
+    }
     var drafts = ChatDrafts()
         private set
     var profileId by mutableStateOf<String?>(null)
@@ -177,6 +184,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         if (profileId == id) return
         disconnect()
         cache = SessionCache(context, id)
+        integrationHealth = cache!!.readIntegrationHealth()
         kanban = KanbanWorkspace(scope, cache!!)
         profileId = id
         phoneContext = PhoneContextSync(context, id, cache!!)
@@ -271,8 +279,11 @@ internal class BellpullRuntime private constructor(context: Context) {
     fun refreshCapabilities() {
         val current = client ?: return
         scope.launch {
-            val result = withContext(Dispatchers.IO) { current.capabilities() }
-            if (client !== current || result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
+            val checks = mutableListOf<IntegrationCheck>()
+            val result = withContext(Dispatchers.IO) { current.capabilities(checks::add) }
+            if (client !== current) return@launch
+            recordIntegrationChecks(checks)
+            if (result !is org.praxisog.hermes.model.HermesResult.Ok) return@launch
             notificationEventsAvailable = result.value.notificationEvents
             capabilities = result.value
             kanban?.configure(current, result.value.features["bellpull_kanban"] == true)
@@ -335,6 +346,7 @@ internal class BellpullRuntime private constructor(context: Context) {
     fun disconnect() {
         offlineWorkspace?.close(); offlineWorkspace = null
         connectionHealth = ConnectionHealth()
+        integrationHealth = IntegrationHealth()
         memorySync?.cancel(); memorySync = null; memorySyncedAt = 0
         delivery?.close(); delivery = null
         coding?.close(); coding = null

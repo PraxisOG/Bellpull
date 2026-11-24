@@ -258,6 +258,17 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
 
 
 class CatalogTest(unittest.TestCase):
+    def test_unavailable_provider_has_a_sanitized_service_error(self):
+        with patch("hermes_cli.inventory.load_picker_context", return_value={}), \
+             patch("hermes_cli.inventory.build_model_options_payload", return_value={"providers":[]}), \
+             patch("gateway.run._resolve_runtime_agent_kwargs", side_effect=RuntimeError("private provider detail")):
+            with self.assertRaises(phase3.ModelProviderUnavailable) as caught:
+                phase3.catalog(None)
+        response = phase3.error(caught.exception)
+        self.assertEqual(503, response.status)
+        self.assertEqual("bellpull_model_provider_unavailable", json.loads(response.text)["error"]["code"])
+        self.assertNotIn("private provider detail",response.text)
+
     def test_named_moe_catalog_keeps_route_identity_and_limits_efforts(self):
         inventory = {"providers": [
             {"slug": "moe", "authenticated": True, "models": ["moe-local"]},

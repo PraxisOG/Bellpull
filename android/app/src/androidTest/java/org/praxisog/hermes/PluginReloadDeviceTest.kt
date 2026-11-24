@@ -40,6 +40,65 @@ class PluginReloadDeviceTest {
         is HermesResult.Err -> error(result.error.toString())
     }
 
+    @Test fun integrationStatusShowsPluginOutageAndRecoveryWhileGatewayRemainsAvailable() {
+        val ui = DeviceFixtureUi
+        ui.guard()
+        val app = ApplicationProvider.getApplicationContext<Context>()
+        val runtime = BellpullRuntime.get(app)
+        val secure = SecureConnectionStore(app)
+        ui.main { runtime.disconnect() }
+        secure.clear()
+        val profile = secure.add("Integration fixture", origin, token)
+        secure.activate(profile.id)
+        ui.withWindows {
+            try {
+                ActivityScenario.launch(MainActivity::class.java).use {
+                    ui.awaitMain("Fixture profile did not connect") { runtime.store != null }
+                    if (ui.text("Settings") == null) ui.find {
+                        it.contentDescription?.toString() in setOf("Back to sessions", "Show sessions")
+                    }?.let(ui::tap)
+                    ui.tapText("Settings")
+                    ui.tapText("Servers")
+                    ui.tapText("Integration status")
+                    ui.tapText("Check now")
+                    ui.awaitMain("Initial status did not arrive") {
+                        runtime.integrationHealth.checks[IntegrationEndpoint.READINESS] != null &&
+                            runtime.integrationHealth.checks[IntegrationEndpoint.MODEL_ROUTE]?.condition == IntegrationCondition.PROVIDER_UNAVAILABLE &&
+                            runtime.integrationHealth.checks[IntegrationEndpoint.PLUGIN]?.condition == IntegrationCondition.READY
+                    }
+                    control("disable")
+                    ui.tapText("Check now")
+                    ui.awaitMain("Plugin outage hidden behind healthy native HTTP") {
+                        val checks = runtime.integrationHealth.checks
+                        checks[IntegrationEndpoint.GATEWAY]?.condition == IntegrationCondition.READY &&
+                            checks[IntegrationEndpoint.PLUGIN]?.httpStatus == 503
+                    }
+                    ui.await("503 missing on screen") { ui.find { it.text?.toString()?.contains("HTTP 503") == true } != null }
+                    val outage = runtime.integrationHealth.checks.getValue(IntegrationEndpoint.PLUGIN)
+                    assertNotNull(outage.lastReadyAt)
+                    val reopened = SessionCache(app, profile.id)
+                    try {
+                        assertEquals(outage, reopened.readIntegrationHealth().checks[IntegrationEndpoint.PLUGIN])
+                    } finally { reopened.close() }
+                    control("enable")
+                    ui.tapText("Check now")
+                    ui.awaitMain("Plugin did not recover") {
+                        runtime.integrationHealth.checks[IntegrationEndpoint.PLUGIN]?.condition == IntegrationCondition.READY
+                    }
+                    assertEquals(0, control("inspect")["runs"]!!.jsonPrimitive.int)
+                }
+                val rejected = HermesClient(origin, { "expired-fixture-key" })
+                try {
+                    assertTrue(rejected.checkIntegrations().all {
+                        it.condition == IntegrationCondition.DENIED && it.httpStatus == 401
+                    })
+                } finally { rejected.close() }
+            } finally {
+                try { control("enable") } finally { ui.main { runtime.disconnect() } }
+            }
+        }
+    }
+
     @Test fun wirelessReloadRetainsBoardAndRunAndHonorsDisable() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         check(context.packageName in setOf("org.praxisog.hermes.fixture", "org.praxisog.hermes.canvasfixture"))

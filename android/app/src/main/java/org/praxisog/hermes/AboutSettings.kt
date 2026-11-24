@@ -13,7 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal const val MINIMUM_BELLPULL_PLUGIN = "0.3.0"
-internal data class ServerPluginVersion(val name: String, val url: String, val version: String?, val checkedAt: Double?)
+internal data class ServerPluginVersion(val name: String, val url: String, val version: String?, val checkedAt: Double?,
+    val pluginCheck: org.praxisog.hermes.model.IntegrationCheck? = null)
 internal data class InstalledAppVersion(val name: String, val code: Long)
 
 @Suppress("DEPRECATION")
@@ -63,8 +64,11 @@ internal fun AboutDialog(app: InstalledAppVersion, servers: List<ServerPluginVer
                 Text(server.name, style = MaterialTheme.typography.titleSmall)
                 Text(server.url, style = MaterialTheme.typography.bodySmall)
                 Text("Bellpull plugin: ${server.version ?: "Unknown"}")
-                Text(pluginVersionStatus(server.version, server.checkedAt != null), style = MaterialTheme.typography.bodySmall)
-                server.checkedAt?.takeIf { it > 0 }?.let {
+                val check = server.pluginCheck
+                if (check != null && check.condition != org.praxisog.hermes.model.IntegrationCondition.READY) {
+                    Text(integrationDescription(check), style = MaterialTheme.typography.bodySmall)
+                } else Text(pluginVersionStatus(server.version, server.checkedAt != null), style = MaterialTheme.typography.bodySmall)
+                (check?.checkedAt?.div(1000.0) ?: server.checkedAt)?.takeIf { it > 0 }?.let {
                     val date = java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm 'UTC'", java.util.Locale.US)
                         .withZone(java.time.ZoneOffset.UTC).format(java.time.Instant.ofEpochMilli((it * 1000).toLong()))
                     Text("Last checked: $date", style = MaterialTheme.typography.labelSmall)

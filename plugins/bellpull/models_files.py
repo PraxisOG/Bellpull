@@ -20,8 +20,14 @@ QWEN_THINKING_ERROR = (
     "Default, Off, On, Low, Medium or XHigh.")
 
 
+class ModelProviderUnavailable(ArtifactError):
+    def __init__(self):
+        super().__init__("Hermes could not resolve the configured model provider. Check the provider configuration and credentials.", 503)
+
+
 def error(exc):
-    return web.json_response({"error": {"message": str(exc), "code": "bellpull_rejected"}}, status=exc.status)
+    code = "bellpull_model_provider_unavailable" if isinstance(exc, ModelProviderUnavailable) else "bellpull_rejected"
+    return web.json_response({"error": {"message": str(exc), "code": code}}, status=exc.status)
 
 
 def store_for(adapter, request):
@@ -111,7 +117,10 @@ def catalog(adapter):
     from agent.models_dev import get_model_capabilities
     from gateway.run import _resolve_runtime_agent_kwargs, _resolve_gateway_model
     inventory = build_model_options_payload(load_picker_context(), include_unconfigured=True, refresh=False)
-    runtime = _resolve_runtime_agent_kwargs()
+    try:
+        runtime = _resolve_runtime_agent_kwargs()
+    except RuntimeError as exc:
+        raise ModelProviderUnavailable() from exc
     default_provider, default_model = runtime.get("provider"), _resolve_gateway_model()
     models = []
     for provider in inventory.get("providers", []):

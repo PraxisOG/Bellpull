@@ -5,6 +5,8 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import kotlinx.serialization.json.Json
 import org.praxisog.hermes.model.Session
+import org.praxisog.hermes.model.IntegrationCheck
+import org.praxisog.hermes.model.IntegrationHealth
 
 /**
  * Read-only cache of the last synced session list, so the app opens to something on a dead
@@ -194,6 +196,16 @@ internal class SessionCache(context: Context, profileId: String = SecureConnecti
     fun readDraftRevisions(): Map<String, Long> = preferences.all.filterKeys { it.startsWith("draft_revision:") }
         .mapNotNull { (key, value) -> (value as? Long)?.let { key.removePrefix("draft_revision:") to it } }.toMap()
     fun readCapabilities(): String? = preferences.getString("capabilities", null)
+    fun readIntegrationHealth(): IntegrationHealth = runCatching {
+        preferences.getString("integration-checks-v1", null)?.let { json.decodeFromString<IntegrationHealth>(it) }
+    }.getOrNull() ?: IntegrationHealth()
+    @Synchronized fun recordIntegrationChecks(checks: List<IntegrationCheck>): IntegrationHealth {
+        val current = readIntegrationHealth()
+        if (closed || checks.isEmpty()) return current
+        val updated = checks.fold(current) { value, check -> value.record(check) }
+        preferences.edit().putString("integration-checks-v1", json.encodeToString(updated)).apply()
+        return updated
+    }
     fun readCoding(id: String): org.praxisog.hermes.model.CodingSnapshot? = runCatching {
         preferences.getString("coding:$id", null)?.let { json.decodeFromString<org.praxisog.hermes.model.CodingSnapshot>(it).validated(id) }
     }.getOrNull()

@@ -12,7 +12,7 @@ internal fun ServerProfilesPanel(
     profiles: List<ServerProfile>, activeId: String?, status: String, checking: Boolean,
     onAdd: (String, String, String) -> Boolean, onSelect: (String) -> Unit,
     onSignOut: () -> Unit, onRemove: (String) -> Unit, onRemoveAll: () -> Unit,
-    onRename: (String, String) -> Unit,
+    onRename: (String, String) -> Unit, integrationStatus: (@Composable (ServerProfile) -> Unit)? = null,
 ) {
     var adding by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
@@ -38,6 +38,7 @@ internal fun ServerProfilesPanel(
                     TextButton(onClick = { renaming = profile; renamed = profile.name }) { Text("Rename") }
                     TextButton(onClick = { removing = profile }) { Text("Remove") }
                 }
+                if (activeId == profile.id) key(profile.id) { integrationStatus?.invoke(profile) }
             }
         }
     }

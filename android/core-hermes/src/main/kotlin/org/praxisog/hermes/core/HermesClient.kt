@@ -373,22 +373,21 @@ class HermesClient(
      * `GET /v1/capabilities`. Returns the feature flags. This is the cheapest authenticated
      * call, so it doubles as the connection check.
      */
-    fun capabilities(): HermesResult<Capabilities> {
-        val native = get("/v1/capabilities") { body ->
-        val obj = json.parseToJsonElement(body).jsonObject
+    fun capabilities(onCheck: ((IntegrationCheck) -> Unit)? = null): HermesResult<Capabilities> {
+        val document = integrationDocument(IntegrationEndpoint.GATEWAY, onCheck)
+        if (document is HermesResult.Err) return document
+        val obj = (document as HermesResult.Ok).value
         val features = obj["features"]?.jsonObject ?: JsonObject(emptyMap())
-        Capabilities(
+        val native = Capabilities(
             raw = obj,
             features = features.mapValues { (_, v) ->
                 runCatching { v.jsonPrimitive.booleanOrNull ?: false }.getOrDefault(false)
             },
         )
-        }
-        if (native !is HermesResult.Ok) return native
-        val plugin = get("/api/bellpull/capabilities") { json.parseToJsonElement(it).jsonObject }
+        val plugin = integrationDocument(IntegrationEndpoint.PLUGIN, onCheck)
         if (plugin !is HermesResult.Ok) {
-            configureCapabilities(native.value)
-            return native
+            configureCapabilities(native)
+            return HermesResult.Ok(native)
         }
         val flags = (plugin.value["features"] as? JsonObject).orEmpty()
         val supported = (plugin.value["version"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull == 1
@@ -396,11 +395,34 @@ class HermesClient(
             "bellpull_persistent_artifacts", "bellpull_live_files", "bellpull_notification_events", "bellpull_snapshot_paging", "bellpull_delegation_delivery", "bellpull_artifact_lifecycle", "bellpull_run_attachments", "bellpull_reasoning_streaming", "bellpull_projects", "bellpull_conversation_pins", "bellpull_coding_activity", "bellpull_planning", "bellpull_routines", "bellpull_offline", "bellpull_voice_titles", "bellpull_phone_context", "bellpull_background_folder", "bellpull_kanban", "bellpull_kanban_editing", "bellpull_canvas")
         val pluginFlags = pluginFeatures.associateWith { name -> kotlinx.serialization.json.JsonPrimitive(
             supported && (flags[name] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull == true) }
-        val merged = JsonObject((native.value.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
-        val result = Capabilities(JsonObject(native.value.raw + ("features" to merged) + ("bellpull_plugin" to plugin.value)),
-            native.value.features + pluginFlags.mapValues { it.value.jsonPrimitive.booleanOrNull == true })
+        val merged = JsonObject((native.raw["features"] as? JsonObject).orEmpty() + pluginFlags)
+        val result = Capabilities(JsonObject(native.raw + ("features" to merged) + ("bellpull_plugin" to plugin.value)),
+            native.features + pluginFlags.mapValues { it.value.jsonPrimitive.booleanOrNull == true })
         configureCapabilities(result)
         return HermesResult.Ok(result)
+    }
+
+    /** A manual status check reads each authenticated endpoint even if another failed. */
+    fun checkIntegrations(): List<IntegrationCheck> = buildList {
+        for (endpoint in IntegrationEndpoint.entries) integrationDocument(endpoint, ::add, probe = true)
+    }
+
+    private fun integrationDocument(endpoint: IntegrationEndpoint, onCheck: ((IntegrationCheck) -> Unit)?,
+        probe: Boolean = false): HermesResult<JsonObject> {
+        val path = when (endpoint) {
+            IntegrationEndpoint.GATEWAY -> "/v1/capabilities"
+            IntegrationEndpoint.PLUGIN -> "/api/bellpull/capabilities"
+            IntegrationEndpoint.READINESS -> "/health/detailed"
+            IntegrationEndpoint.MODEL_ROUTE -> "/api/bellpull/models"
+        }
+        val started = System.currentTimeMillis()
+        val result = execute(authed(path).get().build(), null, probe = probe) { body ->
+            json.parseToJsonElement(body).jsonObject.also { doc ->
+                if (endpoint == IntegrationEndpoint.GATEWAY && doc["features"] != null) require(doc["features"] is JsonObject)
+            }
+        }
+        onCheck?.invoke(integrationCheck(endpoint, started, result))
+        return result
     }
 
     /**
@@ -763,10 +785,12 @@ class HermesClient(
      * the server's `Retry-After` header when present — no invented backoff curve — and the
      * final 429 is returned as a typed error rather than retried forever.
      */
-    private fun <T> execute(request: Request, sessionId: String?, transport: CalendarTransport? = null, decode: (String) -> T): HermesResult<T> {
+    private fun <T> execute(request: Request, sessionId: String?, transport: CalendarTransport? = null,
+        probe: Boolean = false, decode: (String) -> T): HermesResult<T> {
         var attempt = 0
         while (true) {
             val call = trackedCall(httpClient, request)
+            if (probe) call.timeout().timeout(5, TimeUnit.SECONDS)
             transport?.attach(call)
             val result = try {
                 call.execute().use { response ->
@@ -784,7 +808,7 @@ class HermesClient(
             } finally { finished(call) }
 
             val error = (result as? HermesResult.Err)?.error
-            if (error is HermesError.RateLimited && attempt < MAX_RATE_LIMIT_RETRIES) {
+            if (!probe && error is HermesError.RateLimited && attempt < MAX_RATE_LIMIT_RETRIES) {
                 attempt++
                 sleeper((error.retryAfterSeconds ?: 1L).coerceIn(1, 30) * 1000L)
                 continue

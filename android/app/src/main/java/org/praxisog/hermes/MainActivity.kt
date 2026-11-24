@@ -416,7 +416,10 @@ class MainActivity : ComponentActivity() {
                         serverProfiles = {
                             ServerProfilesPanel(profiles.profiles, profiles.activeId, profiles.status, profiles.checking,
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,
-                                profiles::removeAll, profiles::rename)
+                                profiles::removeAll, profiles::rename) { profile ->
+                                IntegrationStatusButton(profile.name, { profiles.savedIntegrationHealth(profile.id) },
+                                    { profiles.checkIntegrations(profile.id) })
+                            }
                             if (files?.modelsSupported == true) ModelControl(files, null)
                         },
                     )
