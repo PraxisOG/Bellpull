@@ -452,21 +452,39 @@ internal class DurableRuns(
         }
     }
 
-    fun respond(sessionId: String, requestId: String, choice: String) {
+    fun respond(sessionId: String, requestId: String, choice: String, expectedRunId: String? = null) {
         val state = states[sessionId] ?: return
         val runId = state.submission.runId ?: return
-        if (state.checking || state.approval?.requestId != requestId || choice !in state.approval.choices || choice !in setOf("once", "deny")) return
+        val gate = state.approval ?: return
+        if (closed || state.submission.terminal || state.checking || expectedRunId != null && runId != expectedRunId ||
+            gate.requestId != requestId || choice !in gate.choices || choice !in setOf("once", "deny")) return
+        fun stillCurrent(): Boolean {
+            val current = states[sessionId] ?: return false
+            return !closed && !current.submission.terminal && current.submission.runId == runId && current.approval == gate
+        }
         update(sessionId) { it.copy(checking = true) }
         scope.launch {
-            // Revalidate after reconnect and bind to the exact request; never resolve_all.
-            val latest = io { client.runStatus(runId) }
-            if (latest !is HermesResult.Ok || latest.value.approval?.requestId != requestId) {
-                update(sessionId) { it.copy(checking = false, approval = null, notice = "This approval is no longer pending. Refreshing…") }
-                return@launch
+            // Review the exact operation again after any reconnect or queue delay.
+            try {
+                val latest = io { client.runStatus(runId) }
+                if (!stillCurrent()) return@launch
+                if (latest is HermesResult.Err) {
+                    update(sessionId) { it.copy(notice = "Could not check this approval. Review it again when connected.") }
+                    return@launch
+                }
+                val status = (latest as HermesResult.Ok).value
+                if (status.runId != runId || status.isTerminal || status.approval != gate) {
+                    update(sessionId) { it.copy(approval = null, notice = "This approval changed. Refreshing…") }
+                    return@launch
+                }
+                val result = io { client.respondToApproval(runId, requestId, choice) }
+                if (stillCurrent()) update(sessionId) {
+                    if (result is HermesResult.Ok) it.copy(approval = null, notice = null)
+                    else it.copy(notice = "Decision not confirmed. Its current status will be checked before you can answer again.")
+                }
+            } finally {
+                if (states[sessionId]?.submission?.runId == runId) update(sessionId) { it.copy(checking = false) }
             }
-            val result = io { client.respondToApproval(runId, requestId, choice) }
-            update(sessionId) { it.copy(checking = false, approval = null,
-                notice = if (result is HermesResult.Err) "Decision not confirmed. Checking the request's current state…" else null) }
         }
     }
 

@@ -28,24 +28,7 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
             }) { Text("Copy saved request") }
         } }, confirmButton = { TextButton(onClick = { onAbandon(); review = false }) { Text("Stop tracking") } },
         dismissButton = { TextButton(onClick = { review = false }) { Text("Keep tracking") } })
-    val approval = state.approval
-    if (approval != null) {
-        Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth().testTag("run-approval")) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Hermes needs your approval", style = MaterialTheme.typography.titleSmall)
-                Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
-                    Text(approval.description ?: "Review this operation before allowing it.", style = MaterialTheme.typography.bodySmall)
-                    approval.command?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if ("once" in approval.choices) Button(enabled = !state.checking,
-                        onClick = { onApproval(approval.requestId, "once") }) { Text("Allow once") }
-                    if ("deny" in approval.choices) OutlinedButton(enabled = !state.checking,
-                        onClick = { onApproval(approval.requestId, "deny") }) { Text("Deny") }
-                }
-            }
-        }
-    }
+    state.approval?.let { ApprovalDecision(it, state.checking, onApproval) }
     state.notice?.let { notice ->
         Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -54,6 +37,27 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
                     TextButton(onClick = onRetry, enabled = !state.checking) { Text("Check status") }
                 if (state.submission.status == "review" || state.submission.historyNeedsReview)
                     TextButton(onClick = { review = true }) { Text("Review saved request") }
+            }
+        }
+    }
+}
+
+
+@Composable
+internal fun ApprovalDecision(approval: org.praxisog.hermes.model.RunApproval, checking: Boolean,
+    onApproval: (String, String) -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth().testTag("run-approval")) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Hermes needs your approval", style = MaterialTheme.typography.titleSmall)
+            Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
+                Text(approval.description ?: "Review this operation before allowing it.", style = MaterialTheme.typography.bodySmall)
+                approval.command?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if ("once" in approval.choices) Button(enabled = !checking,
+                    onClick = { onApproval(approval.requestId, "once") }) { Text("Allow once") }
+                if ("deny" in approval.choices) OutlinedButton(enabled = !checking,
+                    onClick = { onApproval(approval.requestId, "deny") }) { Text("Deny") }
             }
         }
     }

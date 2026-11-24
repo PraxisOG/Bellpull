@@ -85,6 +85,20 @@ class TodayDashboardTest {
         compose.onNodeWithTag("today-snooze-${reminder.id}").performScrollTo().performClick()
         assertEquals("${reminder.id}:snooze",actions.last())
     }
+    @Test fun approvalCanBeReviewedInTodayWithoutSwitchingChats() {
+        val current = TodaySource("Connected")
+        val choices = mutableListOf<String>()
+        val gate = org.praxisog.hermes.model.RunApproval("gate", "review fixture operation", choices = listOf("once", "deny"))
+        compose.setContent { HermesTheme {
+            TodayDashboard(data(), now, current, current, current, { _, _ -> }, {}, {}, { error("Unexpected chat switch") },
+                {}, {}, {}, decisionControls = { session ->
+                    ApprovalDecision(gate, false) { request, choice -> choices += "$session/$request/$choice" }
+                })
+        } }
+        compose.onNodeWithText("review fixture operation").performScrollTo().assertExists()
+        compose.onNodeWithText("Deny").performScrollTo().performClick()
+        assertEquals(listOf("decision/gate/deny"), choices)
+    }
     @Test @Config(qualifiers="w840dp-h900dp") fun openingTheAlreadySelectedChatLeavesTodayAndPreservesDraft() {
         var focus by mutableIntStateOf(0)
         var opened: String? = null

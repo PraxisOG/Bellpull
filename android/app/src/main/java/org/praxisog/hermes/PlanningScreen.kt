@@ -100,7 +100,19 @@ import kotlinx.coroutines.delay
                 onReminder={ reminder, action -> workspace.reminder(reminder,action,if (action=="snooze") clock()+3_600_000L else null) },
                 onEvent={ selectedEvent=it },onProposal={ proposal=it },onOpenSession=onOpenSession,
                 onCalendar={ tab="Calendar" },onReminders={ tab="Reminders" },onInbox={ tab=if (delivery!=null) "Inbox" else "Reminders" },
-                modifier=Modifier.weight(1f),busy=workspace.busy,tasks=tasks)
+                modifier=Modifier.weight(1f),busy=workspace.busy,tasks=tasks,
+                decisionControls = { session ->
+                    val runs = store?.runs
+                    val state = runs?.states?.get(session)
+                    val gate = state?.approval
+                    val runId = state?.submission?.runId
+                    if (runs != null && state != null && gate != null && runId != null && !state.submission.terminal) {
+                        ApprovalDecision(gate, state.checking) { request, answer ->
+                            if (runs.states[session]?.approval == gate) runs.respond(session, request, answer, expectedRunId = runId)
+                        }
+                        state.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                })
         } else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         if (delivery == null) Text("Planning prototype · reminders need this view for now; background/offline alerts belong to Phase 10.",style=MaterialTheme.typography.bodySmall)
         else {
