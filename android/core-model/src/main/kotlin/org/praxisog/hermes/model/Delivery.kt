@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
     val id: String, val kind: String, val title: String, val body: String,
     val receivedAt: Long, val sessionId: String? = null, val openedAt: Long? = null,
     val dismissedAt: Long? = null, val truncated: Boolean = false,
+    val routineId: String? = null,
 )
 @Serializable data class ReminderOperation(
     val operationId: String, val reminderId: String, val revision: Long,
@@ -50,7 +51,28 @@ import kotlinx.serialization.Serializable
         // Acknowledged operations stay optimistic until a canonical snapshot arrives.
         val next = copy(planning = snapshot, lastSync = now, operations = operations.filter { it.status != "acknowledged" })
         val valid = next.reminders().map { occurrence(it) }.toSet()
-        return next.copy(displayed = displayed.intersect(valid))
+        return snapshot.routines.fold(next.copy(displayed = displayed.intersect(valid))) { state, routine ->
+            state.reconcileRoutine(routine, planning?.routines?.find { it.id == routine.id }, now)
+        }
+    }
+    private fun reconcileRoutine(routine: Routine, previous: Routine?, now: Long): DeliveryState {
+        val run = routine.latestExecution
+        if (run == null) {
+            // Older plugins only supply the last run time and a summary.
+            if (routine.last == null || previous == null || (previous.last == routine.last && previous.lastStatus == routine.lastStatus)) return this
+            val body = listOfNotNull(routine.lastStatus ?: "Execution status unknown", routine.lastError, routine.lastDeliveryError).joinToString("\n")
+            return receive(InboxEntry("routine:${routine.id}:${routine.last}:${routine.lastStatus}", "routine",
+                routine.name ?: "Routine result", body, now, routineId = routine.id))
+        }
+        if (run.status !in setOf("completed", "failed", "unknown")) return this
+        val id = "routine:${routine.id}:execution:${run.id}"
+        val body = "Execution ${run.status}\n${run.deliveryLabel()}"
+        val old = entries.find { it.id == id }
+        if (old != null) {
+            return if (old.body == body) this else copy(entries = entries.map { if (it.id == id) it.copy(body = body) else it })
+        }
+        if (previous?.latestExecution == run) return this
+        return receive(InboxEntry(id, "routine", routine.name ?: "Routine result", body, now, routineId = routine.id))
     }
     fun due(now: Long): List<Reminder> = reminders().filter {
         it.state == "pending" && it.dueMs <= now && occurrence(it) !in displayed

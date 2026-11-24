@@ -13,6 +13,35 @@ bearer authentication; served `/p/{profile}` routes retain that profile's home a
 never fall back to root. Discovery advertises `bellpull_planning`; native cron
 availability is separately reported as `bellpull_routines`.
 
+The planning snapshot advertises `saved_results_available` when the profile
+supports the retained-output reader. Android exposes it in **Today → Routines**
+and on routine items in the inbox.
+
+- `GET /api/bellpull/planning/results` lists up to 50 retained native cron
+  outputs in descending filename time, with the job ID breaking ties. Pass the
+  returned `next` value as `before` for older results. The optional `job`
+  query limits the list to one routine. Each entry supplies `job`, `stamp`,
+  `revision` and byte `size`.
+- `GET /api/bellpull/planning/result` takes the entry's `job`, `stamp` and
+  `revision`. Read subsequent UTF-8 pages by passing the returned byte offset
+  `next` as `offset`. Retention can remove output (404). A replacement under
+  the same native filename requires a fresh listing (409).
+- On hosts that supply `latest_execution`, the routine includes the native
+  execution ID, status, start-of-claim and finish times, and scheduler delivery
+  outcome. The inbox uses the execution ID across refreshes. Device receipt and
+  user acknowledgement require their own evidence. Older timestamp-named output
+  files have no native execution ID. The reader lists them under their job and
+  does not assign them to executions by time.
+- A job's `bot_chat_receipts` project the status and ID from its scheduler
+  references. For same-profile targets, Bellpull reads the native owner's
+  durable status. For a deferred delivery, it can read the producer's receipt.
+  The source field distinguishes these from the scheduler's last observed
+  state. Result pages and snapshots never claim or replay a Bot Chat receipt.
+
+Opening or paging a saved result only reads the profile's existing cron output.
+The scheduler remains responsible for its retention, including removal on
+explicit job deletion.
+
 - `GET /api/bellpull/planning`: v1 snapshot, `reminders`, `routines`, `proposals`,
   `routines_available`, `observed_at`. Max 1,000 reminders, 500 routines, 100 proposals.
 - `POST /api/bellpull/planning/reminders`: `operation_id` (32 lowercase hex), action

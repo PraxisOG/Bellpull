@@ -66,6 +66,39 @@ class PlanningDeviceTest {
         finally { cache.close() }
         return profile to client
     }
+    @Test fun savedRoutineResultRecoversAfterReconnectWithoutRerunningJob() = ui.withWindows {
+        val (_, client) = profile()
+        val runtime = BellpullRuntime.get(app)
+        try {
+            val saved = control("saved-result")
+            val job = saved.getValue("job").jsonPrimitive.content
+            val stamp = saved.getValue("stamp").jsonPrimitive.content
+            val time = stamp.substringBefore('_') + " " + stamp.substringAfter('_').replace('-', ':')
+            ActivityScenario.launch(MainActivity::class.java).use {
+                ui.awaitMain("Planning chat did not load") { runtime.store?.history is UiState.Ready }
+                ui.await("Workspace navigation missing") { ui.text("Today") != null || ui.find { it.contentDescription?.toString() == "Back to sessions" } != null }
+                if (ui.text("Today") == null) ui.tap(ui.find { it.contentDescription?.toString() == "Back to sessions" }!!)
+                ui.tapText("Today")
+                ui.awaitMain("Result reader was not discovered") { runtime.planning?.snapshot?.savedResultsAvailable == true }
+                ui.tapText("Routines")
+                control("offline")
+                ui.tapText("View saved results")
+                ui.await("Disconnected result reader did not offer recovery") { ui.text("Retry") != null }
+                control("online")
+                ui.tapText("Retry")
+                ui.tapText(time)
+                ui.await("Saved answer did not open") { ui.text("Saved on Hermes before delivery failed.") != null }
+                ui.tapText("Close")
+            }
+            val state = control()
+            assertEquals(0, state.getValue("admissions").jsonPrimitive.int)
+            val routine = state.getValue("routines").jsonArray.single { it.jsonObject["id"]?.jsonPrimitive?.content == job }.jsonObject
+            assertEquals("Fixture transport unavailable", routine["last_delivery_error"]?.jsonPrimitive?.content)
+        } finally {
+            try { control("online") } finally { client.close(); ui.main { runtime.disconnect() } }
+        }
+    }
+
     @Test fun remindersNativeRoutinesAndTodayNavigationPersistWithoutInference() = ui.withWindows {
         val (profile, client) = profile()
         val runtime = BellpullRuntime.get(app)
