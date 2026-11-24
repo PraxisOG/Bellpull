@@ -1393,6 +1393,33 @@ profile's encrypted cache.
 | `GET /api/bellpull/models` | The catalog's configured default provider and model, and its advertised image-input support. If Hermes cannot resolve a runtime provider, the plugin returns HTTP 503 and `bellpull_model_provider_unavailable`. |
 
 Each row has its own check time. Older hosts may omit readiness fields.
-Provider authentication, per-turn fallback, end-to-end notification delivery,
+Provider authentication checks, end-to-end notification delivery,
 executor credentials, and maintenance results need evidence from their
 respective services. The checks perform reads and do not start model runs.
+
+
+## Model evidence for a durable run
+
+A completed native `GET /v1/runs/{id}` and its `run.completed` event can include
+`runtime.provider` and `runtime.model`. These identify the route that answered.
+The top-level `model` can be a gateway alias. Android associates the native
+runtime with the uniquely matched final reply in **Message info**. Opening
+that sheet for a completed run saved by an older client can recover the fields
+with a status read. **Integration status** shows the last observed completed
+run with a reported route and completion time in the active profile.
+
+When stock Hermes switches providers during a durable run, plugin 0.9.5
+publishes a `run.model_fallback` event and stores the same data in the run
+status. The optional `bellpull_model_fallback` object has `from` and `to`
+objects with provider and model identifiers. When the host has capability
+metadata, `to.vision` reports advertised image-input support. Missing metadata
+leaves that capability unknown. This observation carries no endpoint URL,
+credentials, provider error text or inference about any submitted image.
+Android accepts the terminal runtime independently on hosts that omit the
+transition. A request alias differing from the answer is insufficient to mark
+a fallback.
+
+Stock Hermes 0.21.5 omits the confirmed-lock flag between durable run admission
+and agent construction. The plugin forwards an authenticated Bellpull request's
+explicit model lock to the native resolver. A failed selected route stays
+failed. Unpinned native runs keep their configured fallback chain.

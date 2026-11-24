@@ -16,6 +16,41 @@ class StreamingTest(unittest.IsolatedAsyncioTestCase):
                 return tool_progress_callback, reasoning_callback
         return Adapter()
 
+    async def test_only_confirmed_fallback_emits_safe_run_scoped_route(self):
+        adapter = self.adapter()
+        adapter._run_statuses = {key: {"status": "running"} for key in ("one", "two")}
+        class Agent:
+            provider = "local"
+            model = "Primary"
+            _provider_fallback_active = False
+            def _try_activate_fallback(self, confirmed):
+                self._fallback_activated = True  # The host also sets this for one-turn model selections.
+                self._provider_fallback_active = confirmed
+                if confirmed:
+                    self.provider, self.model = "cloud", "Fallback"
+                    self._provider_fallback_route = (self.model, self.provider)
+                return True
+        adapter._create_agent = lambda tool_progress_callback=None, reasoning_callback=None: Agent()
+        _, stop = wire(adapter)
+        try:
+            agent = adapter._create_agent(adapter._make_run_event_callback("one", asyncio.get_running_loop()))
+            self.assertTrue(agent._try_activate_fallback(False))
+            await asyncio.sleep(0)
+            self.assertTrue(adapter._run_streams["one"].empty())
+            self.assertTrue(agent._try_activate_fallback(True))
+            await asyncio.sleep(0)
+            record = adapter._run_statuses["one"]["bellpull_model_fallback"]
+            self.assertEqual({"provider": "local", "model": "Primary"}, record["from"])
+            self.assertEqual("Fallback", record["to"]["model"])
+            self.assertLessEqual(record["to"].keys(), {"provider", "model", "vision"})
+            event = adapter._run_streams["one"].get_nowait()
+            self.assertEqual("run.model_fallback", event["event"])
+            self.assertEqual(record, event["bellpull_model_fallback"])
+            self.assertNotIn("bellpull_model_fallback", adapter._run_statuses["two"])
+            self.assertTrue(adapter._run_streams["two"].empty())
+        finally:
+            stop()
+
     async def test_unload_restores_callbacks_and_fences_already_created_agents(self):
         adapter = self.adapter()
         original_create, original_progress = adapter._create_agent, adapter._make_run_event_callback

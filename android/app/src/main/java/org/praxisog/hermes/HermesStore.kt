@@ -15,6 +15,7 @@ import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.HermesError
 import org.praxisog.hermes.model.HermesResult
 import org.praxisog.hermes.model.Message
+import org.praxisog.hermes.model.RunSubmission
 import org.praxisog.hermes.model.Session
 import org.praxisog.hermes.model.StreamEvent
 
@@ -146,6 +147,14 @@ internal class HermesStore(
         private set
     var history by mutableStateOf<UiState<List<Message>>>(UiState.Loading)
         private set
+    fun refreshMessageRoute(message: Message) {
+        val id = openSessionId ?: return
+        runs?.refreshMessageRoute(id, message.id, (history as? UiState.Ready)?.value.orEmpty())
+    }
+
+    val lastServedRun: RunSubmission? get() = runs?.statsRecords?.values
+        ?.filter { it.status == "completed" && it.servedModel != null && it.serverCompletedAt != null }
+        ?.maxByOrNull { it.serverCompletedAt!! }
     val messageStats: Map<Int, MessageInfo>
         get() = messageRunInfo((history as? UiState.Ready)?.value.orEmpty(),
             runs?.statsRecords?.values?.filter { it.sessionId == openSessionId }.orEmpty())

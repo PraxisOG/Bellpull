@@ -108,6 +108,7 @@ internal fun SessionDetailScreen(
     onViewArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     onDownloadArtifact: (org.praxisog.hermes.model.Artifact) -> Unit = {},
     messageStats: Map<Int, MessageInfo> = emptyMap(),
+    onMessageInfo: (Message) -> Unit = {},
     display: ChatDisplayOptions = ChatDisplayOptions(),
 ) {
     var localDraft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prefill)) }
@@ -369,7 +370,7 @@ internal fun SessionDetailScreen(
                                                 MessageBubble(message, denseChatWindow, { selectingMessage = it },
                                                     reading = readingMessageId == message.id, onRead = onReadMessage,
                                                     onBranch = onBranchMessage, canBranch = canBranch,
-                                                    onInfo = { infoMessage = it },
+                                                    onInfo = { infoMessage = it; onMessageInfo(it) },
                                                     onFollowUp = { quoteMessage = it }) {
                                                     Column {
                                                         block.entries.forEach { entry ->

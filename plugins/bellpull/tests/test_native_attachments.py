@@ -110,6 +110,29 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
         self.fail("Run did not settle")
 
+    async def test_mismatched_bellpull_lock_is_rejected_before_new_run(self):
+        body = self.payload("unused")
+        body["bellpull"]["artifact_ids"] = []
+        body["model"] = "other"
+        response = await self.submit(body, "invalid-selection")
+        self.assertEqual(409, response.status)
+        self.assertFalse(self.created)
+
+    async def test_explicit_bellpull_model_lock_reaches_native_constructor_without_files(self):
+        body = self.payload("unused")
+        body["bellpull"]["artifact_ids"] = []
+        response = await self.submit(body, "text-model-lock")
+        self.assertLess(response.status, 300, await response.text())
+        rid = (await response.json())["run_id"]
+        for _ in range(200):
+            if self.created:
+                break
+            await asyncio.sleep(.01)
+        self.assertTrue(self.created[0]["confirmed_runtime_lock"])
+        replay = await self.submit(body, "text-model-lock")
+        self.assertEqual(rid, (await replay.json())["run_id"])
+        self.assertEqual(1, len(self.created))
+
     async def test_stock_capability_upload_handoff_history_and_output(self):
         capabilities = await (await self.client.get("/api/bellpull/capabilities", headers=self.headers)).json()
         self.assertTrue(capabilities["features"]["bellpull_run_attachments"])

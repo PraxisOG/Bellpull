@@ -1,10 +1,10 @@
-The current experimental bundle is **0.9.4-mobile-preview**. Its authenticated capabilities
+The current experimental bundle is **0.9.5-mobile-preview**. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,
 run `python3 tools/package-plugin.py OUTPUT_DIRECTORY` from a checkout with PyYAML.
 
-> The latest experimental pair is **Android 0.20.5 / build 55** with plugin **0.9.4-mobile-preview**.
+> An earlier experimental pair was **Android 0.20.5 / build 55** with plugin **0.9.4-mobile-preview**.
 > Android can browse saved routine output in Routines and Inbox. The model catalog reports a missing provider to the Integration status panel.
 > Deploy the matching plugin and restart the gateway when idle. [Downloads and verification](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1).
 

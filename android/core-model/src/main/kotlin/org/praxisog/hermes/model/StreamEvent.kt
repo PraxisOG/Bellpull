@@ -21,6 +21,7 @@ sealed interface StreamEvent {
     /** Monotonic per-run sequence number, present on every observed event. */
     val seq: Int? get() = raw["seq"]?.jsonPrimitive?.intOrNull
 
+    data class ModelFallback(override val raw: JsonObject, val transition: ProviderFallback?) : StreamEvent
     data class Compaction(override val raw: JsonObject, val active: Boolean) : StreamEvent
     data class RunStarted(override val raw: JsonObject, val runId: String?) : StreamEvent
     data class MessageStarted(override val raw: JsonObject, val messageId: String?) : StreamEvent
@@ -110,6 +111,7 @@ sealed interface StreamEvent {
                     partial = obj.bool("partial"),
                     interrupted = obj.bool("interrupted"),
                 )
+                "run.model_fallback" -> ModelFallback(obj, obj["bellpull_model_fallback"].providerFallback())
                 "run.completed" -> RunCompleted(obj, obj.bool("completed"))
                 "done" -> Done(obj)
                 else -> Unknown(obj, name)

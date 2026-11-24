@@ -117,6 +117,7 @@ internal fun HermesApp(
     coding: CodingActivityWorkspace? = null,
     canvas: CanvasWorkspace? = null,
     messageStats: Map<Int, MessageInfo> = emptyMap(),
+    onMessageInfo: (Message) -> Unit = {},
     onOffline: (() -> Unit)? = null,
     onNewLocal: (() -> Unit)? = null,
     onForkSession: ((Session) -> Unit)? = null,
@@ -352,7 +353,7 @@ internal fun HermesApp(
                                     else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
                                             runSubmission = runPresentation?.submission,
-                                            messageStats = messageStats,
+                                            messageStats = messageStats, onMessageInfo = onMessageInfo,
                                             onStop = onStop, onRetry = onRetryHistory, prefill = prefill,
                                             draft = draft, onDraftChange = onDraftChange,
                                             collapseThinking = preferences.collapseThinking, reduceMotion = preferences.reduceMotion, display = preferences.chatDisplay,

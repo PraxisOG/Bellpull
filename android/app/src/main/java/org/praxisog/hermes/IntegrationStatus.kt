@@ -35,7 +35,7 @@ internal fun integrationDescription(check: IntegrationCheck): String {
 }
 
 @Composable
-internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHealth?, refresh: suspend () -> IntegrationHealth?) {
+internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHealth?, refresh: suspend () -> IntegrationHealth?, lastServedRun: RunSubmission? = null) {
     var open by remember { mutableStateOf(false) }
     val health = saved() ?: IntegrationHealth()
     val plugin = health.checks[IntegrationEndpoint.PLUGIN]
@@ -74,6 +74,11 @@ internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHea
                         check.provider?.let { Text("Provider · $it") }
                         check.vision?.let { Text(if (it) "Catalog advertises image input." else "Catalog does not advertise image input.") }
                     }
+                }
+                lastServedRun?.let { run ->
+                    Text("Last observed completed run", style = MaterialTheme.typography.titleSmall)
+                    run.serverCompletedAt?.let { Text(atTime((it * 1000).toLong()), style = MaterialTheme.typography.bodySmall) }
+                    ModelRouteEvidence(run.servedModel, run.modelFallback)
                 }
                 if (checking) LinearProgressIndicator()
                 problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }

@@ -28,6 +28,11 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
             }) { Text("Copy saved request") }
         } }, confirmButton = { TextButton(onClick = { onAbandon(); review = false }) { Text("Stop tracking") } },
         dismissButton = { TextButton(onClick = { review = false }) { Text("Keep tracking") } })
+    if (!state.submission.terminal && state.submission.modelFallback != null) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+            ModelRouteEvidence(null, state.submission.modelFallback)
+        }
+    }
     state.approval?.let { ApprovalDecision(it, state.checking, onApproval) }
     state.notice?.let { notice ->
         Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {

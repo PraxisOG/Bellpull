@@ -2,7 +2,10 @@ package org.praxisog.hermes.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
 /**
  * Status of one run. Shapes verified live 2026-09-16 (Gate 0d).
@@ -31,6 +34,8 @@ data class RunStatus(
     val error: String? = null,
     val approval: RunApproval? = null,
     @SerialName("bellpull_phase") val bellpullPhase: String? = null,
+    val runtime: JsonElement? = null,
+    @SerialName("bellpull_model_fallback") val modelFallback: JsonElement? = null,
 ) {
     /** Statuses observed live. A stop moves a run here before it settles. */
     val isStopping: Boolean get() = status == "stopping"
@@ -83,6 +88,32 @@ data class RunSubmission(
     /** Optional server evidence for per-turn info; never session-total or estimated tokens. */
     val completionUsage: JsonObject? = null,
     val serverCompletedAt: Double? = null,
+    val servedModel: RunModel? = null,
+    val modelFallback: ProviderFallback? = null,
 ) {
     val terminal: Boolean get() = status in setOf("completed", "failed", "cancelled", "stopped", "interrupted", "rejected", "abandoned")
 }
+
+@Serializable data class RunModel(val provider: String, val model: String, val vision: Boolean? = null)
+@Serializable data class ProviderFallback(val from: RunModel, val to: RunModel)
+
+/** Persist only route identifiers and explicit capability evidence from the authenticated run. */
+fun JsonElement?.runModel(): RunModel? {
+    val fields = this as? JsonObject ?: return null
+    fun identifier(key: String, limit: Int): String? {
+        val text = (fields[key] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
+        return text.takeIf { it.isNotBlank() && it.length <= limit && it.none(Char::isISOControl) && "://" !in it }
+    }
+    return RunModel(identifier("provider", 80) ?: return null, identifier("model", 200) ?: return null,
+        (fields["vision"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull)
+}
+
+fun JsonElement?.providerFallback(): ProviderFallback? {
+    val fields = this as? JsonObject ?: return null
+    return ProviderFallback(fields["from"].runModel() ?: return null, fields["to"].runModel() ?: return null)
+}
+
+fun RunSubmission.withRouteEvidence(status: RunStatus, acceptFallback: Boolean = true): RunSubmission = copy(
+    servedModel = if (status.status == "completed") status.runtime.runModel() ?: servedModel else servedModel,
+    modelFallback = if (acceptFallback) status.modelFallback.providerFallback() ?: modelFallback else modelFallback,
+)

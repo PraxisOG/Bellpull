@@ -108,6 +108,24 @@ internal class DurableRuns(
         return true
     }
 
+    /** Older journals have the run ID even when their client discarded the native runtime. */
+    fun refreshMessageRoute(sessionId: String, messageId: Int, history: List<Message>) {
+        val record = statsRecords.values.singleOrNull { it.sessionId == sessionId && it.status == "completed" &&
+            it.historySynced && matchedCompletion(it, history)?.id == messageId } ?: return
+        val runId = record.runId ?: return
+        if (record.servedModel != null || closed) return
+        scope.launch {
+            val result = io { client.runStatus(runId) }
+            if (closed || result !is HermesResult.Ok || statsRecords[record.requestId] != record) return@launch
+            val status = result.value
+            if (status.runId != runId || status.sessionId != sessionId || status.status != "completed") return@launch
+            val refreshed = record.withRouteEvidence(status)
+            if (refreshed == record || !save(refreshed) || closed) return@launch
+            statsRecords[record.requestId] = refreshed
+            if (states[sessionId]?.submission == record) update(sessionId) { it.copy(submission = refreshed) }
+        }
+    }
+
     fun retry(sessionId: String) {
         if (closed || jobs[sessionId]?.isActive == true) return
         track(sessionId, fresh = false, resetHistoryChecks = true)
@@ -124,7 +142,8 @@ internal class DurableRuns(
             if (active != null && (active.busy || active.submission.createdAt >= created)) return@launch
             val record = RunSubmission("observed:$runId", sessionId, "", created, -1, setOf(readThrough),
                 runId = runId, status = status.value.status, error = status.value.error,
-                completionOutput = status.value.output, serverCreatedAt = created)
+                completionOutput = status.value.output, serverCreatedAt = created, completionUsage = status.value.usage,
+                serverCompletedAt = status.value.updatedAt.takeIf { status.value.isTerminal }).withRouteEvidence(status.value)
             save(record)
             states[sessionId] = RunPresentation(record, terminalTurn(record, status.value.output.orEmpty()))
             onChanged(sessionId)
@@ -227,6 +246,7 @@ internal class DurableRuns(
             val runId = record.runId ?: return@launch
             var compacting = false
             var phaseRevision = 0
+            var fallbackRevision = 0
             fun statusLabel(approval: RunApproval?) = when {
                 approval != null -> "Waiting for approval…"
                 compacting -> "Compacting…"
@@ -269,10 +289,16 @@ internal class DurableRuns(
                             }
                             live.accept(event)
                             if (event is StreamEvent.ToolCompleted) onToolCompleted(event.toolName)
+                            if (event is StreamEvent.ModelFallback && event.transition != null) {
+                                fallbackRevision++
+                                update(sessionId) { it.copy(submission = it.submission.copy(modelFallback = event.transition)) }
+                            }
                             if (event is StreamEvent.RunCompleted) {
                                 val usage = event.raw["usage"] as? kotlinx.serialization.json.JsonObject
-                                if (usage != null) update(sessionId) { it.copy(
-                                    submission = it.submission.copy(completionUsage = usage)) }
+                                val served = event.raw["runtime"].runModel()
+                                if (usage != null || served != null) update(sessionId) { it.copy(submission =
+                                    it.submission.copy(completionUsage = usage ?: it.submission.completionUsage,
+                                        servedModel = served ?: it.submission.servedModel)) }
                             }
                             if (event is StreamEvent.AssistantDelta && event.delta.isNotEmpty()) {
                                 if (commentaryBoundary && prose.isNotEmpty()) prose.append("\n\n")
@@ -307,12 +333,14 @@ internal class DurableRuns(
             }
             while (isActive) {
                 val phaseAtRequest = phaseRevision
+                val fallbackAtRequest = fallbackRevision
                 when (val result = io { client.runStatus(runId) }) {
                     is HermesResult.Ok -> {
                         val status = result.value
                         if (phaseAtRequest == phaseRevision) compacting = status.bellpullPhase == "compacting"
                         val current = states[sessionId]?.submission ?: return@launch
-                        record = current.copy(status = status.status, error = status.error,
+                        record = current.withRouteEvidence(status, acceptFallback = fallbackAtRequest == fallbackRevision)
+                            .copy(status = status.status, error = status.error,
                             completionOutput = status.output ?: current.completionOutput,
                             serverCreatedAt = status.createdAt ?: current.serverCreatedAt,
                             completionUsage = if (status.isTerminal) status.usage ?: current.completionUsage else current.completionUsage,
@@ -380,7 +408,7 @@ internal class DurableRuns(
         if (record.status == "completed" && !record.stopRequested && record.completionOutput == null && record.runId != null) {
             val status = io { client.runStatus(record.runId!!) }
             if (status is HermesResult.Ok && status.value.isTerminal) {
-                record = record.copy(completionOutput = status.value.output,
+                record = record.withRouteEvidence(status.value).copy(completionOutput = status.value.output,
                     serverCreatedAt = status.value.createdAt ?: record.serverCreatedAt)
                 save(record)
                 update(sessionId) { it.copy(submission = record, turn = terminalTurn(record)) }

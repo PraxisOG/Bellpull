@@ -23,11 +23,13 @@ def wire(app, adapter):
         existing[0]["active"] = True
         return True, existing[1]
     create = getattr(adapter, "_create_agent", None)
+    if not callable(getattr(adapter, "_runtime_lock_error", None)) or not callable(getattr(adapter, "_session_runtime_request_from_body", None)):
+        return False, lambda: None
     store = getattr(adapter, "_run_idempotency_store", None)
     try:
         from run_agent import AIAgent
         signature = inspect.signature(create)
-        required = {"session_id", "ephemeral_system_prompt", "requested_model", "requested_provider", "model_options"}
+        required = {"session_id", "ephemeral_system_prompt", "requested_model", "requested_provider", "model_options", "route", "confirmed_runtime_lock"}
         if not required.issubset(signature.parameters) or "persist_user_message" not in inspect.signature(AIAgent.run_conversation).parameters:
             return False, lambda: None
         lookup, reserve = store.lookup, store.reserve
@@ -54,15 +56,29 @@ def wire(app, adapter):
             raise ArtifactError("Bellpull is reloading. Retry this same message after reconnecting.", 503)
         body, request = entry["body"], entry["request"]
         session = checked_session(body.get("session_id"))
+        if entry["locked"]:
+            selected = body["bellpull"].get("selection")
+            if not isinstance(selected, dict) or any(not isinstance(selected.get(key), str)
+                    or not selected[key].strip() or selected[key] != body.get(key) for key in ("provider", "model")):
+                raise ArtifactError("The requested model lock must match the Bellpull selection.", 409)
+            runtime = adapter._session_runtime_request_from_body(body)
+            if adapter._runtime_lock_error(runtime) is not None:
+                raise ArtifactError("Hermes could not resolve the selected model lock.", 409)
+            entry["route"] = runtime["route"]
         if not isinstance(body.get("input"), str) or not body["input"].strip():
-            raise ArtifactError("Chat attachments need a text message and an existing conversation.")
+            raise ArtifactError("This Bellpull request needs a text message and an existing conversation.")
         if any(body.get(key) for key in ("hosted_room_dispatch", "_room_execution_policy", "previous_response_id", "conversation_history")):
-            raise ArtifactError("Attachments require a direct conversation request.")
+            raise ArtifactError("This Bellpull request requires a direct conversation.")
         database = adapter._ensure_session_db()
         if not database.get_session(session):
             raise ArtifactError("Conversation not found.", 404)
         if live_owner(session):
+            if not entry["files"]:
+                raise ArtifactError("The active Bot Chat owner cannot confirm the selected model for this turn.", 409)
             raise ArtifactError("This Bot Chat is open on desktop. Close it there before sending attachments, or choose another conversation.", 409)
+        entry["session"] = session
+        if not entry["files"]:
+            return
         prepared = models_files.prepare_run(adapter, request, body, session, body["input"])
         selected = prepared["selection"]
         if any(body.get(key) != selected[key] for key in ("model", "provider")) or body.get("model_options", {}) != selected["model_options"]:
@@ -73,7 +89,6 @@ def wire(app, adapter):
             if prepared["store"].path(identity, session)[1].get("request_id"):
                 raise ArtifactError("Attachment was already sent. Choose the file again for another message.", 409)
         entry["prepared"] = prepared
-        entry["session"] = session
 
     @wraps(lookup)
     def checked_lookup(*args, **kwargs):
@@ -96,12 +111,19 @@ def wire(app, adapter):
         entry = context.get()
         if entry is None:
             return create(*args, **kwargs)
-        if not state["active"] or not entry.get("prepared") or not entry.get("run_id"):
-            raise ArtifactError("Attachment handoff was interrupted. Review the failed run before retrying.", 503)
+        if not state["active"] or not entry.get("session") or not entry.get("run_id"):
+            raise ArtifactError("Bellpull run admission was interrupted. Review the failed run before retrying.", 503)
         if live_owner(entry["session"]):
-            raise ArtifactError("This Bot Chat is held by desktop; attachments were not executed.", 409)
-        prepared, run_id = entry["prepared"], entry["run_id"]
+            raise ArtifactError("The active Bot Chat owner cannot accept this model or attachment handoff.", 409)
         bound = signature.bind_partial(*args, **kwargs)
+        if entry["locked"]:
+            # Stock 0.21.5 drops this bit between durable admission and agent construction.
+            # Use the host's checked route resolver and its native no-fallback behavior.
+            bound.arguments["confirmed_runtime_lock"] = True
+            bound.arguments["route"] = entry["route"]
+        if not entry["files"]:
+            return create(*bound.args, **bound.kwargs)
+        prepared, run_id = entry["prepared"], entry["run_id"]
         actual_session = bound.arguments.get("session_id") or entry["session"]
         bound.arguments["ephemeral_system_prompt"] = (bound.arguments.get("ephemeral_system_prompt") or "") + "\n\n" + prepared["instructions"]
         agent = create(*bound.args, **bound.kwargs)
@@ -159,7 +181,11 @@ def wire(app, adapter):
         except (ValueError, UnicodeError):
             return await handler(request)
         options = body.get("bellpull") if isinstance(body, dict) else None
-        if not isinstance(options, dict) or not options.get("artifact_ids"):
+        if not isinstance(options, dict):
+            return await handler(request)
+        files = bool(options.get("artifact_ids"))
+        locked = body.get("require_model_lock") is True
+        if not files and not locked:
             return await handler(request)
         rejection = adapter._check_auth(request)
         if rejection is not None:
@@ -167,8 +193,8 @@ def wire(app, adapter):
         if not adapter._expected_api_key():
             return models_files.error(ArtifactError("API authentication required.", 401))
         if not request.headers.get("Idempotency-Key", "").strip():
-            return models_files.error(ArtifactError("Chat attachments require an Idempotency-Key."))
-        token = context.set({"request": request, "body": body})
+            return models_files.error(ArtifactError("Bellpull model locks and attachments require an Idempotency-Key."))
+        token = context.set({"request": request, "body": body, "files": files, "locked": locked})
         try:
             return await handler(request)
         except ArtifactError as exc:

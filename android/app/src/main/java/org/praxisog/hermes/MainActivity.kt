@@ -297,7 +297,7 @@ class MainActivity : ComponentActivity() {
                         sessions = shownSessions ?: UiState.Ready(listOf(BellpullExample.session)),
                         history = current?.history ?: UiState.Ready(if (exampleId == null) emptyList() else BellpullExample.messages),
                         turn = current?.turn ?: TurnState.Idle,
-                        messageStats = current?.messageStats.orEmpty(),
+                        messageStats = current?.messageStats.orEmpty(), onMessageInfo = { current?.refreshMessageRoute(it) },
                         openSessionId = if (localSelected) localSessionId(selectedLocal?.id ?: "new") else current?.openSessionId ?: exampleId.takeIf { current == null },
                         openSession = if (localSelected) org.praxisog.hermes.model.Session(localSessionId(selectedLocal?.id ?: "new"), title = selectedLocal?.title ?: "Local chat")
                             else current?.openSession ?: BellpullExample.session.takeIf { current == null && exampleId != null },
@@ -418,7 +418,8 @@ class MainActivity : ComponentActivity() {
                                 profiles::add, { profiles.connect(it) }, profiles::signOut, profiles::remove,
                                 profiles::removeAll, profiles::rename) { profile ->
                                 IntegrationStatusButton(profile.name, { profiles.savedIntegrationHealth(profile.id) },
-                                    { profiles.checkIntegrations(profile.id) })
+                                    { profiles.checkIntegrations(profile.id) },
+                                    runtime.store?.takeIf { runtime.profileId == profile.id }?.lastServedRun)
                             }
                             if (files?.modelsSupported == true) ModelControl(files, null)
                         },

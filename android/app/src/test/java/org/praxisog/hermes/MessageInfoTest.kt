@@ -3,6 +3,9 @@ package org.praxisog.hermes
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
+import org.praxisog.hermes.model.RunModel
+import org.praxisog.hermes.model.RunStatus
+import org.praxisog.hermes.model.withRouteEvidence
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.RunSubmission
 
@@ -12,6 +15,18 @@ class MessageInfoTest {
         serverCompletedAt = 172.0,
         completionUsage = Json.parseToJsonElement("""{"input_tokens":12345,"output_tokens":678,"cached":null}""")
             .let { it as kotlinx.serialization.json.JsonObject })
+
+    @Test fun uncertainRouteEvidenceCannotStandInForACompletedReplyOrImageSupport() {
+        val json = Json { ignoreUnknownKeys = true }
+        fun evidence(payload: String) = completed.withRouteEvidence(json.decodeFromString<RunStatus>(payload))
+        val aliasOnly = evidence("""{"run_id":"one","status":"completed","model":"alias","runtime":{"model":"answer"}}""")
+        assertNull(aliasOnly.servedModel)
+        assertNull(evidence("""{"run_id":"one","status":"running","runtime":{"provider":"p","model":"m"}}""").servedModel)
+        assertNull(evidence("""{"run_id":"one","status":"completed","runtime":false,"bellpull_model_fallback":[]}""").modelFallback)
+        val served = evidence("""{"run_id":"one","status":"completed","runtime":{"model":"answer","provider":"p","vision":"true"}}""")
+        assertEquals(RunModel("p", "answer"), served.servedModel)
+        assertNull(served.modelFallback)
+    }
 
     @Test fun usageCountersAcceptOnlyNonnegativeNumericValues() {
         val usage = completed.completionUsage!!

@@ -5,6 +5,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import org.praxisog.hermes.model.Message
 import org.praxisog.hermes.model.RunSubmission
+import org.praxisog.hermes.model.RunModel
+import org.praxisog.hermes.model.ProviderFallback
 import java.util.Locale
 
 internal data class MessageInfo(
@@ -12,6 +14,8 @@ internal data class MessageInfo(
     val estimatedDuration: Boolean = false,
     val inputTokens: Long? = null,
     val outputTokens: Long? = null,
+    val servedModel: RunModel? = null,
+    val modelFallback: ProviderFallback? = null,
 ) {
     val available: Boolean get() = durationSeconds != null || inputTokens != null || outputTokens != null
 }
@@ -34,6 +38,7 @@ internal fun messageRunInfo(messages: List<Message>, records: List<RunSubmission
             durationSeconds = interval(record.serverCreatedAt, record.serverCompletedAt),
             inputTokens = usageCounter(record.completionUsage, "input_tokens"),
             outputTokens = usageCounter(record.completionUsage, "output_tokens"),
+            servedModel = record.servedModel, modelFallback = record.modelFallback,
         ) }
     }.groupBy { it.first }.mapNotNull { (id, matches) ->
         matches.singleOrNull()?.let { id to it.second }

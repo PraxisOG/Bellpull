@@ -66,6 +66,23 @@ def wire(adapter):
                 loop.call_soon_threadsafe(publish, start)
         return emit
 
+    def fallback_sink(run_id, loop):
+        def publish(transition):
+            status = getattr(adapter, "_run_statuses", {}).get(run_id)
+            if not active or not status or status.get("status") not in {"running", "waiting_for_approval"}:
+                return
+            # The native terminal write retains this observation in the idempotent run record.
+            status["bellpull_model_fallback"] = transition
+            stream = adapter._run_streams.get(run_id)
+            if stream is not None:
+                stream.put_nowait({"event": "run.model_fallback", "run_id": run_id,
+                                   "timestamp": time.time(), "bellpull_model_fallback": transition})
+
+        def emit(transition):
+            if active and not loop.is_closed():
+                loop.call_soon_threadsafe(publish, transition)
+        return emit
+
     @wraps(make_progress)
     def progress_factory(run_id, loop, *args, **kwargs):
         native = make_progress(run_id, loop, *args, **kwargs)
@@ -95,6 +112,7 @@ def wire(adapter):
                 return
             return native(event_type, *args, **kwargs)
 
+        progress._bellpull_fallback = fallback_sink(run_id, loop)
         progress._bellpull_phase = phase_sink(run_id, loop)
         progress._bellpull_reasoning_callback = reasoning
         return progress
@@ -110,6 +128,9 @@ def wire(adapter):
         agent = create(*bound.args, **bound.kwargs)
         if inject and not accepts_reasoning and hasattr(agent, "reasoning_callback") and agent.reasoning_callback is None:
             agent.reasoning_callback = reasoning
+        fallback = getattr(progress, "_bellpull_fallback", None)
+        if fallback is not None:
+            _observe_provider_fallback(agent, fallback)
         phase = getattr(progress, "_bellpull_phase", None)
         # Stock session SSE owns a separate sequenced queue. Use its native enqueue
         # only on the known session handler, never a global session-id lookup.
@@ -171,3 +192,37 @@ def _observe_compression(agent, emit):
                     announced = False
                     emit(False)
         agent._compress_context = observed
+
+def _route_identity(agent):
+    provider, model = getattr(agent, "provider", None), getattr(agent, "model", None)
+    # Only publish identifiers. Provider objects, base URLs and credentials stay on the host.
+    if not all(isinstance(value, str) and value.strip() and len(value) <= limit
+               and value.isprintable() and "://" not in value for value, limit in ((provider, 80), (model, 200))):
+        return None
+    return {"provider": provider, "model": model}
+
+
+def _observe_provider_fallback(agent, emit):
+    activate = getattr(agent, "_try_activate_fallback", None)
+    if not callable(activate):
+        return
+
+    @wraps(activate)
+    def observed(*args, **kwargs):
+        before = _route_identity(agent)
+        result = activate(*args, **kwargs)
+        if result is True and before and getattr(agent, "_provider_fallback_active", None) is True:
+            after = _route_identity(agent)
+            if after and getattr(agent, "_provider_fallback_route", None) == (after["model"], after["provider"]):
+                try:
+                    from agent.models_dev import get_model_capabilities
+                    caps = get_model_capabilities(after["provider"], after["model"], allow_network=False)
+                    vision = getattr(caps, "supports_vision", None)
+                    if isinstance(vision, bool):
+                        after["vision"] = vision
+                except Exception:
+                    pass  # Capability information is optional on older hosts.
+                emit({"from": before, "to": after})
+        return result
+
+    agent._try_activate_fallback = observed

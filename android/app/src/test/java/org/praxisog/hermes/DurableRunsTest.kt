@@ -16,6 +16,41 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
 class DurableRunsTest {
+    @Test fun fallbackAndServingModelSurviveRecoveryWithoutResubmission() {
+        approval = """, "model":"request-alias", "bellpull_model_fallback":{"from":{"provider":"one","model":"primary"},"to":{"provider":"two","model":"backup","vision":false}}"""
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.submission?.modelFallback?.to == RunModel("two", "backup", false) }
+        assertNull(manager.states["one"]!!.submission.servedModel)
+        approval += """, "runtime":{"provider":"two","model":"backup","route_source":"global"},"updated_at":113"""
+        runStatus = "completed"
+        await { saved.values.singleOrNull()?.historySynced == true }
+        val complete = saved.values.single()
+        assertEquals(RunModel("two", "backup"), complete.servedModel)
+        manager.close()
+        val reopened = manager()
+        reopened.restore()
+        assertEquals(complete, reopened.statsRecords[complete.requestId])
+        assertEquals(1, calls.count { it.url.encodedPath == "/v1/runs" })
+    }
+
+    @Test fun openingInfoForAnOlderMatchedTurnRecoversOnlyItsRunMetadata() {
+        val old = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "completed",
+            historySynced = true, completionOutput = "saved answer")
+        saved[old.requestId] = old
+        runStatus = "completed"
+        approval = """, "model":"public-alias", "runtime":{"provider":"cloud","model":"actual","requested":{"model":"alias"}}"""
+        val history = listOf(Message(10, role = "user", content = "hello"), Message(11, role = "assistant", content = "saved answer"))
+        val manager = manager()
+        manager.restore()
+        manager.refreshMessageRoute("one", 10, history)
+        manager.refreshMessageRoute("one", 11, history)
+        await { manager.statsRecords["request"]?.servedModel?.model == "actual" }
+        assertNull(saved["request"]!!.modelFallback)
+        assertEquals(1, calls.size)
+        assertEquals("GET", calls.single().method)
+    }
+
     @Test fun lostAcknowledgementRetriesThePersistedModelAndAttachmentsUnchanged() {
         loseAck = true
         val options = BellpullRunOptions(selection = ModelSelection("fixture-model", "fixture", ModelOptions(ReasoningChoice(false))),
