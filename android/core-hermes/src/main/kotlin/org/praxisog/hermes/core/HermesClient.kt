@@ -188,6 +188,33 @@ class HermesClient(
         }
     }
     fun planning(): HermesResult<PlanningSnapshot> = get("/api/bellpull/planning") { json.decodeFromString<PlanningSnapshot>(it).validated() }
+    fun savedRoutineResults(before: String? = null, job: String? = null): HermesResult<SavedRoutineResults> {
+        val query = listOfNotNull(before?.let { "before=" + urlPart(it) }, job?.let { "job=" + urlPart(it) })
+        val path = "/api/bellpull/planning/results" + if (query.isEmpty()) "" else query.joinToString("&", prefix = "?")
+        return get(path) { body ->
+            json.decodeFromString<SavedRoutineResults>(body).also { page ->
+                require(page.results.size <= 50 && page.results.all {
+                    (job == null || it.job == job) && it.job.length in 1..255 && it.stamp.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}")) &&
+                        it.revision.matches(Regex("[a-f0-9]{64}")) && it.size >= 0
+                })
+                require(page.next == null || page.results.lastOrNull()?.let { it.stamp + "/" + it.job } == page.next)
+                require(page.next == null || page.next != before)
+            }
+        }
+    }
+    fun savedRoutineResult(file: SavedRoutineResult, offset: Long): HermesResult<RoutineResultPage> {
+        val query = "job=" + urlPart(file.job) + "&stamp=" + urlPart(file.stamp) +
+            "&revision=" + urlPart(file.revision) + "&offset=" + offset
+        return get("/api/bellpull/planning/result?" + query) { body ->
+            json.decodeFromString<RoutineResultPage>(body).also { page ->
+                require(page.job == file.job && page.stamp == file.stamp && page.revision == file.revision && page.offset == offset)
+                val bytes = page.text.toByteArray(Charsets.UTF_8).size
+                val end = offset + bytes
+                require(offset in 0..file.size && bytes <= 32768 && end in offset..file.size)
+                require(if (page.next == null) end == file.size else bytes > 0 && end == page.next && end < file.size)
+            }
+        }
+    }
     fun planningAction(kind: String, body: JsonObject): HermesResult<JsonObject> {
         require(kind in setOf("reminders","routines","proposals"))
         return post("/api/bellpull/planning/$kind",body.toString()) { json.parseToJsonElement(it).jsonObject }

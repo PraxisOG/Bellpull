@@ -39,6 +39,13 @@ async def serve(source, home, port):
         if action in ("offline", "online"):
             state["offline"] = action == "offline"
         elif action == "drop-report": state["drop_report"] = True
+        elif action == "saved-result":
+            from cron import jobs
+            with jobs.use_cron_store(home):
+                job = jobs.create_job(name="Delivery recovery fixture", prompt="fixture", schedule="every 1d", deliver="local")
+                output = jobs.save_job_output(job["id"], "Saved on Hermes before delivery failed.")
+                jobs.mark_job_run(job["id"], True, None, delivery_error="Fixture transport unavailable")
+            return web.json_response(dict(job=job["id"], stamp=output.stem))
         elif action == "propose":
             args = await request.json()
             value = json.loads(registry.dispatch("bellpull_planning", args, scope=manager.scope_key))

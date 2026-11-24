@@ -56,6 +56,10 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         override fun onChange(selfChange: Boolean) { if (active) refresh() }
     }
     fun permissionChanged() { refresh() }
+    suspend fun savedResults(before: String?, job: String?) = withContext(Dispatchers.IO) { client.savedRoutineResults(before, job) }
+    suspend fun savedResult(file: SavedRoutineResult, offset: Long) = withContext(Dispatchers.IO) {
+        client.savedRoutineResult(file, offset)
+    }
     fun canRead()=phone.canRead()
     fun canWrite()=phone.canWrite()
     fun open(value: Boolean) {

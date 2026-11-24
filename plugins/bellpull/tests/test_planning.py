@@ -326,3 +326,99 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
             finally:
                 stop(); await client.close()
                 for database in getattr(adapter,"_session_dbs",{}).values(): database.close()
+
+    async def test_read_retained_native_result_after_failed_delivery(self):
+        from cron import jobs
+        from plugins.bellpull.routine_results import CHUNK_BYTES
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME":home,"BELLPULL_NTFY_URL":""}):
+            saved = "a" * (CHUNK_BYTES - 1) + "🍵\nSaved after delivery failed."
+            with jobs.use_cron_store(Path(home)):
+                job = jobs.create_job(name="Receipt fixture", prompt="fixture", schedule="every 1d", deliver="local")
+                jobs.save_job_output(job["id"], saved)
+                jobs.mark_job_run(job["id"], True, None, delivery_error="fixture delivery failed")
+                original_job = jobs.get_job(job["id"])
+            adapter = APIServerAdapter(PlatformConfig(enabled=True,extra={"key":"routine-fixture"}))
+            app = web.Application()
+            stop = wire(app, adapter)
+            client = TestClient(TestServer(app))
+            await client.start_server()
+            headers = {"Authorization":"Bearer routine-fixture"}
+            base = "/api/bellpull/planning/"
+            try:
+                self.assertEqual(401, (await client.get(base+"results")).status)
+                self.assertEqual(401, (await client.get(base+"result")).status)
+                response = await client.get(base+"results", headers=headers)
+                self.assertEqual("no-store", response.headers.get("Cache-Control"))
+                page = await response.json()
+                self.assertIsNone(page["next"])
+                ref, = page["results"]
+                self.assertEqual(job["id"], ref["job"])
+                self.assertEqual(len(saved.encode()), ref["size"])
+                first = await (await client.get(base+"result", params=ref, headers=headers)).json()
+                self.assertEqual(CHUNK_BYTES - 1, first["next"])
+                last = await (await client.get(base+"result", params=dict(ref, offset=first["next"]), headers=headers)).json()
+                self.assertIsNone(last["next"])
+                self.assertEqual(saved, first["text"] + last["text"])
+                with jobs.use_cron_store(Path(home)):
+                    self.assertEqual(original_job, jobs.get_job(job["id"]))
+                    jobs.remove_job(job["id"])
+                self.assertEqual(404, (await client.get(base+"result", params=ref, headers=headers)).status)
+            finally:
+                stop()
+                await client.close()
+                for db in getattr(adapter,"_session_dbs",{}).values(): db.close()
+
+
+class RoutineOutputTest(unittest.TestCase):
+    def test_bot_chat_receipt_tracks_native_owner_and_preserves_ambiguous_state(self):
+        from plugins.bellpull.routine_results import bot_chat_receipts
+        try:
+            from tools.bot_live_delivery import deliver_to_live_owner, claim_pending_delivery, complete_delivery, read_delivery_result
+            from cron.bot_chat_delivery import read_pending
+        except ImportError:
+            self.skipTest("Native owner-pinned Bot Chat receipt API unavailable")
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME":home}):
+            owner = dict(profile_home=home, session_id="test", lease_id="fixture", live_session_id="owner")
+            key = "f" * 64
+            job = {"id":"routine","last_delivery_queued":{"bot-chat:(own)":{"status":"queued","delivery_id":key}}}
+            deliver_to_live_owner(home, owner, "private fixture", delivery_id=key)
+            self.assertEqual("queued", bot_chat_receipts(job)[0]["status"])
+            self.assertIsNotNone(claim_pending_delivery(home, owner))
+            self.assertEqual("claimed", bot_chat_receipts(job)[0]["status"])
+            complete_delivery(home, key, status="ambiguous", reason="owner lost after admission")
+            receipt, = bot_chat_receipts(job)
+            self.assertEqual(dict(target="bot-chat:(own)",id=key,status="ambiguous",source="owner"),receipt)
+            self.assertEqual("ambiguous", read_delivery_result(home,key)["status"])
+            self.assertIsNone(read_pending(key))
+            self.assertIsNone(claim_pending_delivery(home, owner))
+
+    def test_stable_cursor_profile_and_revision(self):
+        from plugins.bellpull import routine_results as results
+        with tempfile.TemporaryDirectory() as temp, patch.object(results, "PAGE_SIZE", 1):
+            home = Path(temp)
+            stamp = "2026-11-23_12-34-56"
+            for job in ("a", "b"):
+                folder = home/"cron"/"output"/job
+                folder.mkdir(parents=True)
+                (folder/(stamp+".md")).write_text(job)
+            first = results.list_results(home)
+            second = results.list_results(home, first["next"])
+            self.assertEqual(["b", "a"], [p["results"][0]["job"] for p in (first, second)])
+            self.assertIsNone(second["next"])
+            ref = first["results"][0]
+            other = home/"other"
+            other.mkdir()
+            self.assertFalse(results.list_results(other)["results"])
+            def read(root):
+                return results.read_result(root, ref["job"], stamp, ref["revision"], "0")
+            with self.assertRaises(ArtifactError) as missing:
+                read(other)
+            self.assertEqual(404, missing.exception.status)
+            # Native cron may atomically replace a file with the same second in its name.
+            replacement = home/"replacement"
+            replacement.write_text("new result")
+            replacement.replace(home/"cron"/"output"/ref["job"]/(stamp+".md"))
+            with self.assertRaises(ArtifactError) as changed:
+                read(home)
+            self.assertEqual(409, changed.exception.status)
+            self.assertEqual("new result",results.read_result(home,"b",stamp,results.list_results(home)["results"][0]["revision"],"0")["text"])

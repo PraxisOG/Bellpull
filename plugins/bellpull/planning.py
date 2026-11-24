@@ -17,6 +17,7 @@ import time
 from aiohttp import web
 from .artifacts import ArtifactError
 from .principal import artifact_scope
+from . import routine_results
 
 
 def identity(value):
@@ -254,12 +255,23 @@ def _routines(jobs):
     result=[]
     for job in jobs.list_jobs(include_disabled=True)[:500]:
         result.append({k:job.get(k) for k in ("id","name","prompt","schedule_display","next_run_at","last_run_at","last_status","last_error","enabled","state","deliver","no_agent")})
+        if isinstance(job.get("deliver"), list):
+            result[-1]["deliver"] = ", ".join(item for item in job["deliver"] if isinstance(item, str))
         for key,maximum in (("name",200),("prompt",10000),("last_error",2000),("schedule_display",500)):
             if isinstance(result[-1][key],str): result[-1][key]=result[-1][key][:maximum]
         result[-1]["fingerprint"]=digest(jobs.get_job(job["id"]) or job)
         schedule=job.get("schedule") or {}
         result[-1]["schedule_input"]=(schedule.get("run_at") if schedule.get("kind")=="once" else f"every {schedule.get('minutes')}m" if schedule.get("kind")=="interval" else schedule.get("expr"))
         result[-1]["last_delivery_error"]=job.get("last_delivery_error")
+        execution = job.get("latest_execution")
+        if isinstance(execution, dict) and execution.get("job_id") == job["id"] and execution.get("id"):
+            result[-1]["latest_execution"] = {key: execution.get(key) for key in (
+                "id", "status", "delivery_outcome", "claimed_at", "finished_at")}
+        if job.get("last_delivery_unverified"):
+            result[-1]["last_delivery_unverified"] = True
+        receipts = routine_results.bot_chat_receipts(job)
+        if receipts:
+            result[-1]["bot_chat_receipts"] = receipts
     return result
 
 
@@ -327,8 +339,20 @@ def current_store():
 def routes(adapter):
     async def snapshot(request):
         store=current_store(); value=await asyncio.to_thread(store.snapshot)
-        value.update(routines=await asyncio.to_thread(routines) if cron_ready() else [],routines_available=cron_ready())
+        value.update(routines=await asyncio.to_thread(routines) if cron_ready() else [],routines_available=cron_ready(),
+                     saved_results_available=True)
         return web.json_response(value,headers={"Cache-Control":"no-store"})
+    async def results(request):
+        from hermes_constants import get_hermes_home
+        value = await asyncio.to_thread(routine_results.list_results, get_hermes_home(), request.query.get("before"),
+                                        request.query.get("job"))
+        return web.json_response(value, headers={"Cache-Control":"no-store"})
+    async def result(request):
+        from hermes_constants import get_hermes_home
+        query = request.query
+        value = await asyncio.to_thread(routine_results.read_result, get_hermes_home(), query.get("job"),
+                                        query.get("stamp"), query.get("revision"), query.get("offset","0"))
+        return web.json_response(value, headers={"Cache-Control":"no-store"})
     async def mutate(request):
         body,error=await adapter._read_json_body(request)
         if error is not None: return error
@@ -346,7 +370,9 @@ def routes(adapter):
         if error is not None: return error
         if not isinstance(body,dict): raise ArtifactError("JSON object required.",400)
         return web.json_response(await asyncio.to_thread(current_store().calendar,request.match_info["device"],body))
-    return [("GET","/api/bellpull/planning",snapshot),("POST","/api/bellpull/planning/{kind}",mutate),("PUT","/api/bellpull/calendar/{device}",calendar)]
+    return [("GET","/api/bellpull/planning",snapshot),
+            ("GET","/api/bellpull/planning/results",results),("GET","/api/bellpull/planning/result",result),
+            ("POST","/api/bellpull/planning/{kind}",mutate),("PUT","/api/bellpull/calendar/{device}",calendar)]
 
 
 def register(ctx):

@@ -90,15 +90,7 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
             }
             when (val response = withContext(Dispatchers.IO) { client.planning() }) {
                 is HermesResult.Ok -> {
-                    update { previous ->
-                        val now = System.currentTimeMillis()
-                        response.value.routines.fold(previous.reconcile(response.value, now)) { value, routine ->
-                            val old = previous.planning?.routines?.find { it.id == routine.id }
-                            if (routine.last == null || old == null || (old.last == routine.last && old.lastStatus == routine.lastStatus)) value
-                            else value.receive(InboxEntry("routine:${routine.id}:${routine.last}:${routine.lastStatus}", "routine",
-                                routine.name ?: "Routine result", "${routine.lastStatus ?: "Finished"}\n${routine.lastError.orEmpty()}\n${routine.lastDeliveryError.orEmpty()}".trim(), now))
-                        }
-                    }
+                    update { previous -> previous.reconcile(response.value, System.currentTimeMillis()) }
                     withContext(Dispatchers.IO) { cache.writePlanning(response.value) }
                     onSnapshot(response.value)
                     hasSynced = true

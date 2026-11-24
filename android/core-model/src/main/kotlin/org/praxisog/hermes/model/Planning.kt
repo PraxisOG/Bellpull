@@ -2,6 +2,8 @@ package org.praxisog.hermes.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.*
 import java.time.*
 import java.security.MessageDigest
 
@@ -11,15 +13,58 @@ import java.security.MessageDigest
     @SerialName("schedule_display") val schedule: String? = null, @SerialName("next_run_at") val next: String? = null,
     @SerialName("last_run_at") val last: String? = null, @SerialName("last_status") val lastStatus: String? = null,
     @SerialName("last_error") val lastError: String? = null, val enabled: Boolean = false,
-    val state: String? = null, val deliver: String? = null, val fingerprint: String,
+    val state: String? = null, @Serializable(with=RoutineDestinationSerializer::class) val deliver: String? = null, val fingerprint: String,
     @SerialName("schedule_input") val scheduleInput: String? = null,
-    @SerialName("last_delivery_error") val lastDeliveryError: String? = null)
+    @SerialName("last_delivery_error") val lastDeliveryError: String? = null,
+    @SerialName("latest_execution") val latestExecution: RoutineExecution? = null,
+    @SerialName("last_delivery_unverified") val lastDeliveryUnverified: Boolean = false,
+    @SerialName("bot_chat_receipts") val botChatReceipts: List<BotChatReceipt> = emptyList())
+
+// Older plugins forward the native destination string or list unchanged.
+internal object RoutineDestinationSerializer : JsonTransformingSerializer<String>(String.serializer()) {
+    override fun transformDeserialize(element: JsonElement): JsonElement =
+        if (element is JsonArray) JsonPrimitive(element.joinToString(", ") { it.jsonPrimitive.content }) else element
+}
+
+@Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String) {
+    fun label(): String {
+        val state = when (status) {
+            "queued" -> "queued"
+            "claimed" -> "processing"
+            "settled" -> "completed"
+            "failed", "ambiguous", "suppressed", "cancelled" -> status
+            "transferred" -> "handed off, completion unconfirmed"
+            else -> "status unknown"
+        }
+        val name = target.removePrefix("bot-chat:").let { if (it == "(own)") "Bot Chat" else "Bot Chat ($it)" }
+        return if (source == "scheduler") "$name last recorded as $state" else "$name · $state"
+    }
+}
+
+@Serializable data class RoutineExecution(val id: String, val status: String? = null,
+    @SerialName("delivery_outcome") val deliveryOutcome: String? = null,
+    @SerialName("claimed_at") val claimedAt: String? = null, @SerialName("finished_at") val finishedAt: String? = null)
+
+fun RoutineExecution.deliveryLabel(): String = when (deliveryOutcome) {
+    "queued" -> "Queued for delivery"
+    "failed" -> "Delivery failed"
+    "delivered" -> "Scheduler reported delivery"
+    "not_configured" -> "Delivery destination unavailable"
+    "suppressed", "suppressed_acked" -> "Delivery suppressed"
+    else -> "Delivery unconfirmed"
+}
+
+@Serializable data class SavedRoutineResult(val job: String, val stamp: String, val revision: String, val size: Long)
+@Serializable data class SavedRoutineResults(val results: List<SavedRoutineResult>, val next: String? = null)
+@Serializable data class RoutineResultPage(val job: String, val stamp: String, val revision: String,
+    val offset: Long, val text: String, val next: Long? = null)
 @Serializable data class CalendarProposal(val id: String, val device: String, val action: String, val state: String,
     val title: String, @SerialName("start_ms") val start: Long? = null, @SerialName("end_ms") val end: Long? = null,
     @SerialName("event_id") val eventId: String? = null, val fingerprint: String? = null, val result: String? = null)
 @Serializable data class PlanningSnapshot(val version: Int, val reminders: List<Reminder>,
     val routines: List<Routine> = emptyList(), val proposals: List<CalendarProposal> = emptyList(),
-    @SerialName("routines_available") val routinesAvailable: Boolean = false, @SerialName("observed_at") val observedAt: Double) {
+    @SerialName("routines_available") val routinesAvailable: Boolean = false, @SerialName("observed_at") val observedAt: Double,
+    @SerialName("saved_results_available") val savedResultsAvailable: Boolean = false) {
     fun validated(): PlanningSnapshot {
         require(version == 1 && reminders.size <= 1000 && routines.size <= 500 && proposals.size <= 100)
         require(reminders.distinctBy { it.id }.size == reminders.size)

@@ -56,6 +56,8 @@ import kotlinx.coroutines.delay
     var editor by remember { mutableStateOf<String?>(null) }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var editingRoutine by remember { mutableStateOf<Routine?>(null) }
+    var showResults by remember(workspace) { mutableStateOf(false) }
+    var resultsJob by remember(workspace) { mutableStateOf<String?>(null) }
     var selectedEvent by remember { mutableStateOf<PhoneCalendarEvent?>(null) }
     var eventEditor by remember { mutableStateOf(false) }
     var proposal by remember { mutableStateOf<CalendarProposal?>(null) }
@@ -137,12 +139,14 @@ import kotlinx.coroutines.delay
         workspace.result?.let { Text(it,style=MaterialTheme.typography.bodySmall) }
         if (workspace.loading || workspace.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         when(tab) {
-            "Inbox" -> if (delivery != null) InboxContent(delivery.state.entries, delivery::mark) { entry ->
+            "Inbox" -> if (delivery != null) InboxContent(delivery.state.entries, delivery::mark, openChat = { entry ->
                 entry.sessionId?.let { context.startActivity(Intent(context, MainActivity::class.java)
                     .putExtra(ReplyNotifications.EXTRA_SESSION, it)
                     .putExtra(ReplyNotifications.EXTRA_PROFILE, BellpullRuntime.get(context).profileId)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }
-            }
+            }, openResults = if (workspace.snapshot?.savedResultsAvailable == true) { job ->
+                resultsJob=job; showResults=true
+            } else null)
             "Reminders" -> {
                 Button(onClick={ editingReminder=null; editor="Reminder" },enabled=workspace.supported && !workspace.busy) { Text("Add reminder") }
                 val values=(delivery?.state?.reminders() ?: workspace.snapshot?.reminders.orEmpty()).sortedBy { it.dueMs }
@@ -170,6 +174,9 @@ import kotlinx.coroutines.delay
             "Routines" -> {
                 Text("Hermes runs these jobs on its own scheduler. A routine can use tools and inference; it is separate from a simple reminder.",style=MaterialTheme.typography.bodySmall)
                 Button(onClick={ editingRoutine=null; editor="Routine" },enabled=workspace.snapshot?.routinesAvailable==true && !workspace.busy) { Text("Add Hermes routine") }
+                if (workspace.snapshot?.savedResultsAvailable == true) {
+                    OutlinedButton(onClick={ resultsJob=null; showResults=true }) { Text("View saved results") }
+                }
                 if (workspace.snapshot?.routinesAvailable!=true) Text("Hermes scheduler controls are unavailable.")
                 workspace.snapshot?.routines.orEmpty().forEach { routine -> PlanningCard {
                     Text(routine.name ?: routine.id,style=MaterialTheme.typography.titleSmall)
@@ -177,7 +184,15 @@ import kotlinx.coroutines.delay
                     Text("Next: ${routine.next ?: "Not scheduled"}\nLast: ${routine.last ?: "Never"} · ${routine.lastStatus ?: "No result"}\nDelivery: ${routine.deliver ?: "local"}",style=MaterialTheme.typography.bodySmall)
                     routine.lastError?.let { Text(it.take(1000),color=MaterialTheme.colorScheme.error) }
                     routine.lastDeliveryError?.let { Text("Delivery: ${it.take(1000)}",color=MaterialTheme.colorScheme.error) }
+                    routine.latestExecution?.let { run ->
+                        Text("Latest execution: ${run.status ?: "unknown"} · ${run.deliveryLabel()}", style=MaterialTheme.typography.bodySmall)
+                    }
+                    if (routine.lastDeliveryUnverified) Text("Last dispatch lacks a confirmation from its destination.", style=MaterialTheme.typography.bodySmall)
+                    routine.botChatReceipts.forEach { receipt -> Text(receipt.label(), style=MaterialTheme.typography.bodySmall) }
                     FlowRow {
+                        if (workspace.snapshot?.savedResultsAvailable == true) {
+                            TextButton(onClick={ resultsJob=routine.id; showResults=true }) { Text("Results") }
+                        }
                         TextButton(onClick={ workspace.routine(routine,if (routine.enabled) "pause" else "resume") },enabled=!workspace.busy) { Text(if (routine.enabled) "Pause" else "Resume") }
                         TextButton(onClick={ editingRoutine=routine; editor="Routine" },enabled=!workspace.busy) { Text("Edit") }
                         TextButton(onClick={ workspace.routine(routine,"delete") },enabled=!workspace.busy) { Text("Cancel routine") }
@@ -199,6 +214,7 @@ import kotlinx.coroutines.delay
         }
         }
     }
+    if (showResults) key(workspace, resultsJob) { RoutineResultsDialog(workspace, resultsJob) { showResults=false } }
     editor?.let { kind -> PlanningEditor(kind,editingReminder,editingRoutine,workspace.busy,{ editor=null }) { title,whenText,prompt,operation ->
         workspace.action(if (kind=="Reminder") "reminders" else "routines",buildJsonObject {
             put("action",if (editingReminder!=null || editingRoutine!=null) "edit" else "create")
@@ -373,7 +389,8 @@ private fun newOperation()=UUID.randomUUID().toString().replace("-","")
 internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm z"))
 
 
-@Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit) {
+@Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit,
+    openResults: ((String?) -> Unit)? = null) {
     var selected by remember { mutableStateOf<InboxEntry?>(null) }
     var showDismissed by remember { mutableStateOf(false) }
     Text("Received on this phone · newest 200 items. Opening or dismissing an inbox item never approves a request or completes a reminder.", style=MaterialTheme.typography.bodySmall)
@@ -391,10 +408,17 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
         }
     } }
     }
-    selected?.let { entry -> AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
+    selected?.let { selectedEntry ->
+        val entry = entries.find { it.id == selectedEntry.id } ?: selectedEntry
+        AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
         text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
             Text(entry.body)
             if (entry.truncated) Text("Saved preview truncated. Open the conversation online for the complete response.")
         } }, confirmButton={ TextButton(onClick={ selected=null }) { Text("Close") } },
-        dismissButton={ if (entry.sessionId != null) TextButton(onClick={ openChat(entry); selected=null }) { Text("Open conversation") } }) }
+        dismissButton={
+            if (entry.sessionId != null) TextButton(onClick={ openChat(entry); selected=null }) { Text("Open conversation") }
+            else if (entry.kind == "routine" && openResults != null) TextButton(onClick={
+                selected=null; openResults(entry.routineId)
+            }) { Text("View saved results") }
+        }) }
 }
