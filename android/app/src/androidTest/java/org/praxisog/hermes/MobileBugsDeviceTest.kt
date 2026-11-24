@@ -54,7 +54,7 @@ class MobileBugsDeviceTest {
                     runtime.phase3?.drafts?.size == 2 && runtime.store?.openSessionId != null
                 }
                 val session = checkNotNull(runtime.store?.openSessionId)
-                ui.awaitMain("Attachment model selection did not load") { runtime.phase3?.selections?.containsKey(session) == true }
+                ui.awaitMain("Attachment model selection did not load") { runtime.phase3?.sessionModels?.containsKey(session) == true }
                 assertTrue(runtime.phase3!!.runAttachmentsSupported)
                 assertTrue(runtime.store!!.runs!!.states.isEmpty())
                 ui.screenshot("mobile-bugs-attachment-draft")

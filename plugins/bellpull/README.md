@@ -4,7 +4,7 @@ plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,
 run `python3 tools/package-plugin.py OUTPUT_DIRECTORY` from a checkout with PyYAML.
 
-> **Android 0.20.10 / build 60** shows the provider and model that answered a durable run. Plugin **0.9.5-mobile-preview** reports a confirmed provider switch and forwards an explicit Bellpull model lock to the stock durable-run executor. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1)
+> **Android 0.20.10 / build 60** shows the provider and model that answered a durable run. Plugin **0.9.5-mobile-preview** reports confirmed provider switches, distinguishes a server default from a saved selection, and forwards an explicit Bellpull model lock to the stock durable-run executor. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1)
 
 > An earlier experimental pair was **Android 0.20.5 / build 55** with plugin **0.9.4-mobile-preview**.
 > Android can browse saved routine output in Routines and Inbox. The model catalog reports a missing provider to the Integration status panel.

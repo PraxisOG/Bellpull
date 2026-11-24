@@ -1423,3 +1423,13 @@ Stock Hermes 0.21.5 omits the confirmed-lock flag between durable run admission
 and agent construction. The plugin forwards an authenticated Bellpull request's
 explicit model lock to the native resolver. A failed selected route stays
 failed. Unpinned native runs keep their configured fallback chain.
+
+
+For stock hosts with the native model and attachment bridge, the authenticated
+session-model response includes `follows_server_route: true` when that session
+has no saved model lock. Android rechecks this state before sending text. A
+plain text turn then follows the host’s routing policy, including provider
+fallback. Saving a model or a reasoning choice pins the session. A turn with
+attached files pins the selected route so its verified input capabilities
+apply to those files. Older servers omit the flag and retain their original
+request format.

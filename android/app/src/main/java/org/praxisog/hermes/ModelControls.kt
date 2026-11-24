@@ -15,7 +15,7 @@ import org.praxisog.hermes.model.*
 
 @Composable
 internal fun ConversationThinkingMenu(workspace: Phase3Workspace, sessionId: String, onDismiss: () -> Unit) {
-    val selection = workspace.selections[sessionId]
+    val selection = workspace.sessionModels[sessionId]?.selection
     val route = selection?.let { selected -> workspace.catalog?.models?.find {
         it.model == selected.model && it.provider == selected.provider
     } }
@@ -60,7 +60,10 @@ internal fun ThinkingLevelMenuItems(selection: ModelSelection?, route: ModelRout
 @Composable
 internal fun ModelControl(workspace: Phase3Workspace, sessionId: String?) {
     var picker by remember(sessionId) { mutableStateOf(false) }
-    val selected = if (sessionId == null) workspace.defaultSelection else workspace.selections[sessionId]
+    val selected = if (sessionId == null) workspace.defaultSelection else workspace.sessionModels[sessionId]?.selection
+    if (sessionId != null && workspace.sessionModels[sessionId]?.followsServerRoute == true) {
+        Text("Text replies follow the server’s model route.", style = MaterialTheme.typography.bodySmall)
+    }
     if (picker) ModelPicker(workspace.catalog, selected, workspace.errors[sessionId ?: "models"],
         sessionId == null, onRefresh = { workspace.refreshModels(sessionId) },
         onChoose = { value, done -> workspace.choose(sessionId, value, done) }, onDismiss = { picker = false })

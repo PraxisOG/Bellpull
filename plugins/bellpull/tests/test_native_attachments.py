@@ -110,6 +110,19 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
         self.fail("Run did not settle")
 
+    async def test_server_default_and_saved_model_selection_are_distinct(self):
+        path = "/api/bellpull/sessions/" + self.session + "/model"
+        features = (await (await self.client.get("/api/bellpull/capabilities", headers=self.headers)).json())["features"]
+        original = await (await self.client.get(path, headers=self.headers)).json()
+        self.assertEqual(CATALOG["default"], original["selection"])
+        self.assertEqual(features["bellpull_native_model_controls"] and features["bellpull_run_attachments"],
+                         original["follows_server_route"])
+        # Choosing the same model is still an explicit lock.
+        saved = await self.client.put(path, headers=self.headers, json=CATALOG["default"])
+        self.assertEqual(200, saved.status, await saved.text())
+        self.assertFalse((await saved.json())["follows_server_route"])
+        self.assertFalse((await (await self.client.get(path, headers=self.headers)).json())["follows_server_route"])
+
     async def test_mismatched_bellpull_lock_is_rejected_before_new_run(self):
         body = self.payload("unused")
         body["bellpull"]["artifact_ids"] = []

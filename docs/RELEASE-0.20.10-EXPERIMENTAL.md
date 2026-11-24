@@ -2,7 +2,7 @@
 
 Android build **60** shows the model and provider behind a completed durable run. Long-press its reply and open **Message info**. If an older client saved the run ID, opening the sheet can recover the route from Hermes. **Settings → Servers → Integration status** shows the last observed completed run with model evidence for the active profile.
 
-Plugin **0.9.5-mobile-preview** reports a confirmed provider switch during a durable run and retains it with the run status. The notice includes the original route, destination and advertised image capability when available. Stock 0.21.5 also needs the plugin to forward an explicit Bellpull model lock from durable admission to agent construction. Unpinned native runs use the configured fallback chain. An explicitly selected model keeps its lock during a provider outage.
+Plugin **0.9.5-mobile-preview** reports a confirmed provider switch during a durable run and retains it with the run status. The notice includes the original route, destination and advertised image capability when available. Stock 0.21.5 also needs the plugin to forward an explicit Bellpull model lock from durable admission to agent construction. A text-only chat without a saved model choice follows the server’s route and can use its configured fallback chain. Choosing a model or reasoning setting pins the session. An attachment pins its submission to the selected route. An explicitly selected model keeps its lock during a provider outage.
 
 ## Verification
 

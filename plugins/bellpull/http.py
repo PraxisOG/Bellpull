@@ -347,7 +347,7 @@ def wire(app, adapter):
             ("GET", "/api/bellpull/artifacts/storage", storage),
             ("DELETE", "/api/bellpull/artifacts/{artifact_id}", storage),
         ])
-        routes.extend(models_files.routes(adapter, include_models=models_ready))
+        routes.extend(models_files.routes(adapter, include_models=models_ready, allow_server_routing=stock_models_ready and attachments_ready))
     if offline_ready:
         routes.extend(offline.routes(adapter))
     if titles_ready:
