@@ -54,6 +54,9 @@ class Recognizer:
             await self.release(state)
             raise
 
+    async def create_batch(self):
+        return await self.create()
+
     async def feed(self, state, data):
         def feed():
             state[0].add_audio((np.frombuffer(data, dtype="<i2").astype(np.float32) / 32768).tolist(), 16000)
@@ -73,24 +76,23 @@ class Recognizer:
             await asyncio.shield(self.run(state[0].close))
 
 
-class BatchRecognizer(Recognizer):
-    """GPU one-shot inference, with the same serialized ownership as native STT."""
-    streaming = False
-
+class RocmRecognizer(Recognizer):
     async def create(self):
-        return bytearray()
+        return self.model.open_stream(partials=True)
+
+    async def create_batch(self):
+        return self.model.open_stream(partials=False)
 
     async def feed(self, state, data):
-        state.extend(data)
-        return ''
+        return await self.run(state.feed, data)
 
     async def finish(self, state):
-        return await self.run(self.model.transcribe, state)
+        return await self.run(state.finish)
 
     async def release(self, state):
         if state is not None:
-            # Queue after any cancelled native inference before wiping its input.
-            await asyncio.shield(self.run(lambda: state.__setitem__(slice(None), bytes(len(state)))))
+            # The worker owns audio and tensors until any in-flight inference returns.
+            await asyncio.shield(self.run(state.close))
 
 
 from tts_stream import StreamingSynthesis, stream_response
@@ -199,7 +201,7 @@ def create_app(recognizer, key, model_name="medium", precision="fp32", synthesiz
                     raise ValueError("Recording exceeds 60 seconds")
             except (wave.Error, EOFError, ValueError) as exc:
                 raise web.HTTPBadRequest(text=str(exc)) from exc
-            state = await recognizer.create()
+            state = await recognizer.create_batch()
             # Same decoder path as live streaming; avoid one monolithic native call
             # monopolizing the worker while another connection needs partials.
             for at in range(0, len(pcm), 3200):
@@ -306,7 +308,7 @@ def main():
         from rocm_models import Moonshine, Kokoro
         try:
             model = Moonshine()
-            recognizer = BatchRecognizer(model)
+            recognizer = RocmRecognizer(model)
         except Exception:
             logging.exception('ROCm Moonshine could not load; recognition is unavailable.')
         if not args.stt_only:

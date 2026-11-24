@@ -30,8 +30,21 @@ When updating that existing installation, deploy `server.py`, `tts_stream.py`,
 `rocm_models.py`, `run_rocm.py` and `kokoro-models.json` together into the service's
 source directory, then restart when idle. The service continues to run
 `run_rocm.py`; keep its existing credentials, model cache and GPU configuration.
-ROCm Moonshine currently advertises `stt_streaming: false` and uses batch `/stt`.
-CPU Moonshine retains incremental WebSocket recognition.
+ROCm Moonshine accepts live PCM on the authenticated `/stt/stream` WebSocket
+and advertises `stt_streaming: true` when the model is loaded. The helper
+retains encoder frames once the model has heard their full acoustic context.
+Each recording owns its cache. Interim text can change as the speaker continues.
+The streaming decoder reuses the settled frames at finish. Multipart `/stt`
+continues to decode a complete clip in one pass.
+
+To check a ROCm installation, run `tools/benchmark-streaming-stt.py` with the
+public fixtures described below. To compare the cached GPU tensors and final
+text with one-shot recognition, run the following inside the installed ROCm
+Python environment with the helper sources and the public fixture mounted.
+
+```bash
+BELLPULL_ROCM_TEST_WAV=/path/to/fixtures/clean.wav python -m unittest discover -s server-speech -p test_rocm_stream.py -v
+```
 
 ## CPU recognition
 
