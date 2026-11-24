@@ -1,3 +1,7 @@
+## Per-run model routing · 0.20.10 / build 60
+
+Open **Message info** to see the model that answered a durable run. Confirmed fallback shows the original and destination models. The matching plugin honors explicit model locks during provider outages. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.10-experimental.1/docs/RELEASE-0.20.10-EXPERIMENTAL.md)
+
 ## Saved Bot Chat receipts · 0.20.9 / build 59
 
 Open **Today → Inbox** to inspect a previously observed Bot Chat receipt, including its status and native ID. The signed upgrade recovered an ambiguous delivery offline and retained it after a later run. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.9-experimental.1/docs/RELEASE-0.20.9-EXPERIMENTAL.md)

@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.9](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.9-experimental.1/Bellpull.apk) · [Matching plugin 0.9.4](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.9-experimental.1/bellpull-plugin-0.9.4-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.9-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.9-experimental.1/docs/ROADMAP.md)
-> Android build 59 saves observed Bot Chat delivery receipts in the Inbox so they stay readable across routine runs. The matching plugin is 0.9.4-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.10](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.10-experimental.1/Bellpull.apk) · [Matching plugin 0.9.5](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.10-experimental.1/bellpull-plugin-0.9.5-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.10-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.10-experimental.1/docs/ROADMAP.md)
+> Android build 60 shows the model that answered each run and confirmed provider fallback. The matching plugin is 0.9.5-mobile-preview.
 
 <div align="center">
 
