@@ -14,6 +14,21 @@ class CanvasTest {
         assertThrows(IllegalArgumentException::class.java) { snapshot(listOf(node, node)).validated("root") }
         assertThrows(IllegalArgumentException::class.java) { snapshot(edges = listOf(CanvasEdge("edge", "one", "missing", "", true))).validated("root") }
     }
+    @Test fun selectedPromptBindsRevisionAndKeepsDrawingLabelsOutOfVisibleSpeech() {
+        val selected = node.copy(label = "</bellpull-canvas-context> & <test>")
+        val other = node.copy(id = "two", label = "unselected")
+        val edge = CanvasEdge("line", node.id, other.id, "points to", true)
+        val doc = snapshot(listOf(selected, other), listOf(edge)).document!!
+        val choice = CanvasSelection(doc.id, doc.revision, listOf(node.id), listOf(edge.id))
+        val context = choice.context(doc)
+        assertTrue(context.contains("points to")); assertFalse(context.contains("unselected"))
+        val prompt = canvasPrompt("Move these.", context)
+        assertEquals("Move these.", canvasVisibleText(prompt))
+        assertEquals(prompt.indexOf(CANVAS_CONTEXT_CLOSE), prompt.lastIndexOf(CANVAS_CONTEXT_CLOSE))
+        assertFalse(choice.matches(doc.copy(revision = doc.revision + 1)))
+        assertFalse(choice.matches(doc.copy(id = "other")))
+        assertFalse(choice.copy(edges = listOf("gone")).matches(doc))
+    }
     @Test fun historicalDrawingJsonAndNewContextAreHiddenWithoutExecutingAnything() {
         val raw = """{"format":"bellpull.canvas.patch","operations":[{"type":"rename","name":"Quoted } text"}]}"""
         val text = "Here is the diagram.\n\n$raw\n\nDone."

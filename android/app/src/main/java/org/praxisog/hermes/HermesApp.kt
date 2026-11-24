@@ -125,8 +125,8 @@ internal fun HermesApp(
     refreshingSessions: Boolean = false,
     connectionUnavailable: Boolean = fallbackBanner != null,
 ) {
-    LaunchedEffect(canvas, openSessionId, foreground, canvas?.visible, canvas?.supported) {
-        canvas?.observe(openSessionId, foreground && canvas.visible)
+    LaunchedEffect(canvas, openSessionId, foreground, canvas?.watching, canvas?.supported) {
+        canvas?.observe(openSessionId, foreground && canvas.watching)
     }
     var activityOpen by rememberSaveable(openSessionId) { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(if (projects?.selectedProject != null) WorkspaceMode.PROJECTS else WorkspaceMode.CHATS) }
@@ -328,6 +328,16 @@ internal fun HermesApp(
                                     else EmptyDetail()
                                 } else {
                                     if (disconnected) DisconnectedBanner(openSettings)
+                                    if (canvas?.selection != null && canvas.session == openSessionId) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(onClick = { canvas.visible = true }) {
+                                                Text(if (canvas.selectionReady) "Canvas selection · " +
+                                                    (canvas.selection!!.nodes.size + canvas.selection!!.edges.size)
+                                                else "Review changed or disconnected canvas")
+                                            }
+                                            TextButton(onClick = { canvas.select() }) { Text("Clear selection") }
+                                        }
+                                    }
                                     RunControls(runPresentation, onRetryRun, onApproval, onAbandonRun)
                                     if (activityOpen && coding != null) CodingActivityPanel(coding.snapshot, coding.loading,
                                         coding.supported, coding.disconnected, coding.problem, runPresentation?.label,
@@ -396,7 +406,8 @@ internal fun HermesApp(
                         if (canvas.fullScreen) androidx.compose.ui.window.Dialog(onDismissRequest = { canvas.fullScreen = false },
                             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                             CanvasScreen(canvas, Modifier.fillMaxSize().safeDrawingPadding()) { canvas.visible = false }
-                        } else ModalBottomSheet(onDismissRequest = { canvas.visible = false }) {
+                        } else ModalBottomSheet(onDismissRequest = { canvas.visible = false },
+                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                             CanvasScreen(canvas, Modifier.fillMaxWidth().fillMaxHeight(.9f)) { canvas.visible = false }
                         }
                     }

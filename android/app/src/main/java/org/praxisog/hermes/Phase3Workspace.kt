@@ -88,18 +88,18 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     fun clearDefault() { if (cache.writeDefaultModel(null)) defaultSelection = null }
     fun applyDefaultToNewSession(id: String) { defaultSelection?.let { choose(id, it) {} } }
 
-    fun addUris(sessionId: String, uris: List<Uri>, uploadOnly: Boolean = false) {
-        if (closed) return
+    fun addUris(sessionId: String, uris: List<Uri>, uploadOnly: Boolean = false): Job? {
+        if (closed) return null
         val errorKey = if (uploadOnly) "upload-import" else sessionId
         val importKey = if (uploadOnly) "uploads" else sessionId
         val uploadGeneration = serverUploadGeneration
         if (if (uploadOnly) !filesSupported else !runAttachmentsSupported) {
             errors[errorKey] = "This server cannot receive ${if (uploadOnly) "files" else "chat attachments"}. Your draft is saved."
-            return
+            return null
         }
         errors.remove(errorKey)
         importing[importKey] = (importing[importKey] ?: 0) + 1
-        scope.launch {
+        return scope.launch {
             imports.lock()
             try { for (uri in uris) {
                 if (closed) return@launch
@@ -206,7 +206,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         if (persist(drafts.filterNot { it.id in ids })) ids.forEach { local(it).delete(); progress.remove(it) }
         refreshArtifacts()
     }
-    fun send(store: HermesStore, text: String): Boolean {
+    fun send(store: HermesStore, text: String, contextCurrent: () -> Boolean = { true }): Boolean {
         val id = store.openSessionId ?: return false
         if (sending[id] == true || (importing[id] ?: 0) > 0 || store.runPresentation?.busy == true || text.isBlank() || store.branchingSession ||
             store.turn is TurnState.Streaming || store.history !is UiState.Ready) return false
@@ -248,6 +248,10 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                 if (!active()) return@launch
                 if (store.openSessionId != id || store.drafts.revision(id) != revision) {
                     errors[id] = "Files are ready. Review this conversation's draft and send when ready."; return@launch
+                }
+                if (!contextCurrent()) {
+                    errors[id] = "The canvas selection changed. Review the drawing and send again."
+                    return@launch
                 }
                 store.send(text, BellpullRunOptions(selection = selected, artifactIds = files.map { it.id }))
             } finally { if (!closed && sendGenerations[id] == generation) sending[id] = false }
