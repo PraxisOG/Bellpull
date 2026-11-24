@@ -212,6 +212,10 @@ internal fun SettingsWorkspace(preferences: BellpullPreferences, onChange: (Bell
                 preferences.debuggingVoiceInterface) { onChange(preferences.copy(debuggingVoiceInterface = it)) }
             voiceSettings?.invoke()
             speechLab?.let { SettingsSection("Experimental", "On-device models and direct-audio benchmarks") { it() } }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            TextButton(onClick = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)) }) {
+                Text("Manage dictation keyboards")
+            }
         }
         voiceOutputSettings?.let { SettingsSection("Voice output", "Models, server offload and playback") { it() } }
         voiceAnnouncementSettings?.let { SettingsSection("Voice announcements", "Tool, search, thinking and working speech") { it() } }
