@@ -1,3 +1,7 @@
+## Saved Bot Chat receipts · 0.20.9 / build 59
+
+Today’s Inbox keeps observed Bot Chat delivery receipts across routine runs. Open a saved item to see the receipt ID, status source and time the phone saved it. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1) · [Verification](RELEASE-0.20.9-EXPERIMENTAL.md)
+
 ## Batch approval review · 0.20.8 / build 58
 
 Open **Today → Review approvals** to answer requests from several chats together. Choose which operations to allow once or deny and leave the rest pending. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.8-experimental.1) · [Verification](RELEASE-0.20.8-EXPERIMENTAL.md)
