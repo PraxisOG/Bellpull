@@ -1,3 +1,7 @@
+## Missed Bot Chat receipts · 0.20.11 / build 61
+
+Open **Today → Inbox → Bot Chat delivery history** to read retained receipt and execution IDs, including earlier delivery timeout notices. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.11-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.11-experimental.1/docs/RELEASE-0.20.11-EXPERIMENTAL.md)
+
 ## Per-run model routing · 0.20.10 / build 60
 
 Open **Message info** to see the model that answered a durable run. Confirmed fallback shows the original and destination models. The matching plugin honors explicit model locks during provider outages. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.10-experimental.1/docs/RELEASE-0.20.10-EXPERIMENTAL.md)
