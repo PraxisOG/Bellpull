@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from plugins.bellpull.coding import CodingStore, Observer, cli_invocation, decode_line, launch_transport
-from plugins.bellpull.coding_workspace import git as workspace_git, inspect_workspace, owned_bytes
+from plugins.bellpull.coding_workspace import capture_workspace_base, git as workspace_git, inspect_workspace, owned_bytes
 from plugins.bellpull.artifacts import ArtifactError
 from plugins.bellpull.lineage import compression_ids
 from hermes_state import SessionDB
@@ -188,6 +188,31 @@ class WorkspaceTest(unittest.TestCase):
 
     def tearDown(self): self.temp.cleanup()
     def git(self,*args): subprocess.run(["git","-C",str(self.root),*args],check=True)
+
+    def test_observed_base_survives_commit_but_rejects_a_replaced_worktree(self):
+        baseline = capture_workspace_base(self.root)
+        self.assertIsNotNone(baseline)
+        (self.root/"hello.txt").write_text("Committed edit\n")
+        self.git("commit","-qam","Commit the edit")
+        self.assertEqual([], inspect_workspace(self.root)["files"])
+        listing = inspect_workspace(self.root, baseline=baseline)
+        entry, = listing["files"]
+        preview = inspect_workspace(self.root, entry["id"], baseline)
+        self.assertEqual(baseline["commit"], preview["base_commit"])
+        self.assertIn("-Before", preview["diff"])
+        self.assertIn("+Committed edit", preview["diff"])
+        moved = self.root.with_name("archived-worktree")
+        self.root.rename(moved)
+        self.root.mkdir()
+        self.git("init","-q")
+        with self.assertRaisesRegex(ArtifactError, "no longer available"):
+            inspect_workspace(self.root, entry["id"], baseline)
+
+    def test_unavailable_recorded_base_is_reported_without_falling_back_to_head(self):
+        baseline = capture_workspace_base(self.root)
+        baseline["commit"] = "f"*40
+        with self.assertRaisesRegex(ArtifactError, "recorded Git base"):
+            inspect_workspace(self.root, baseline=baseline)
 
     def test_changed_and_untracked_files_have_opaque_readonly_diff_ids(self):
         (self.root/"hello.txt").write_text("After\n"); (self.root/"new.txt").write_text("New\n")

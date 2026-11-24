@@ -93,7 +93,7 @@ class CombinedWorkspaceScreenshotTest {
                     planningView={ PlanningScreen(planning,true,clock={1791774000000L},requestPermission={}) })
             }
             compose.onNodeWithContentDescription("More options").performClick()
-            compose.onNodeWithText("OpenCode activity").performClick()
+            compose.onNodeWithText("Coding activity").performClick()
             compose.onNodeWithTag("coding-activity").assertExists()
             try { compose.waitUntil(5000) { coding.snapshot?.works?.singleOrNull()?.id == work.id } }
             catch (error: Exception) { throw AssertionError("Coding=${coding.problem}; loading=${coding.loading}; requests=${requests.map { it.url.encodedPath }}", error) }

@@ -39,15 +39,29 @@ internal fun CodingActivityPanel(snapshot: CodingSnapshot?, loading: Boolean, su
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (snapshot?.works.isNullOrEmpty() && !loading) item {
-                Text("No observed OpenCode work in this conversation.", style = MaterialTheme.typography.titleSmall)
-                Text("The adapter observes Hermes-owned background OpenCode launches. JSON mode has structured parts; ordinary terminal mode has text only. Opening Activity never starts another task.", style = MaterialTheme.typography.bodySmall)
+                if (snapshot?.executors.orEmpty().any { it == "codex" || it == "claude" }) {
+                    Text("No observed coding work in this conversation.", style = MaterialTheme.typography.titleSmall)
+                    Text("Activity shows Hermes-owned OpenCode, Codex, and Claude Code processes.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Text("No observed OpenCode work in this conversation.", style = MaterialTheme.typography.titleSmall)
+                    Text("The adapter observes Hermes-owned background OpenCode launches. JSON mode has structured parts; ordinary terminal mode has text only. Opening Activity never starts another task.", style = MaterialTheme.typography.bodySmall)
+                }
             }
             snapshot?.works.orEmpty().forEach { work ->
                 item(key = "work:${work.id}") {
                     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("OpenCode · ${work.state.replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.titleSmall)
-                            Text(work.openCodeSessionId ?: if (work.transport == "terminal_text") "Terminal text · no verified OpenCode session ID" else "Waiting for its session identity", style = MaterialTheme.typography.labelSmall)
+                            val executor = when (work.executor) {
+                                "opencode" -> "OpenCode"
+                                "codex" -> "Codex"
+                                "claude" -> "Claude Code"
+                                else -> "Coding process"
+                            }
+                            val state = if (work.executor != "opencode" && work.state in setOf("completed", "failed") && work.exitCode != null)
+                                "Process exited with code ${work.exitCode}" else work.state.replaceFirstChar { it.uppercase() }
+                            Text("$executor · $state", style = MaterialTheme.typography.titleSmall)
+                            val identity = if (work.executor == "opencode") work.openCodeSessionId else work.executorSessionId
+                            Text(identity ?: if (work.transport == "terminal_text") "Terminal text · no verified OpenCode session ID" else "Waiting for its session identity", style = MaterialTheme.typography.labelSmall)
                             Text("Hermes run ${work.runId}", style = MaterialTheme.typography.labelSmall)
                             work.workspaceLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                             Text(work.note, style = MaterialTheme.typography.bodySmall)

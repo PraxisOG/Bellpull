@@ -19,6 +19,7 @@ class CodingContractTest {
                 assertEquals("GET",request.method); assertEquals("Bearer fixture",request.header("Authorization"))
                 val body=if (request.url.encodedPath.endsWith("/coding")) {
                     assertEquals("4",request.url.queryParameter("after"))
+                    assertEquals("all",request.url.queryParameter("executors"))
                     Json.encodeToString(CodingSnapshot(1,"root",listOf("root"),4,false,false,works=emptyList(),rows=emptyList(),observedAt=1.0))
                 } else {
                     assertEquals(file,request.url.queryParameter("file"))

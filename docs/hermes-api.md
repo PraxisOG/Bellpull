@@ -256,6 +256,27 @@ scoping. No phone-to-OpenCode connection or new run admission is involved.
   Binary/oversized/symlink/inaccessible previews return visible errors. No writes,
   external diff/textconv/hooks, filesystem search, revert or terminal endpoint.
 
+Pass `executors=all` on the coding activity GET to include Hermes-owned
+`codex exec --json` and `claude -p --verbose --output-format stream-json`
+processes. The default projection retains the OpenCode view for older clients.
+The response lists supported observer formats in `executors`. New work entries
+identify the `executor` and, after a matching start event, its
+`executor_session_id`. Codex thread IDs and Claude session IDs are independent
+of the Hermes run and process IDs. Events without an executor-supplied time use
+`timestamp_ms: 0`; the journal sequence orders them. A process exit and the
+executor's reported turn result have distinct evidence. These reads publish
+inert progress and tool results. Matched Claude Bash calls show a bounded,
+redacted command and result. The CLI reports whether its tool returned an
+error. Codex command events can also carry a numeric exit code. Approval decisions use the originating
+Hermes approval contract.
+
+When the first process receipt identifies a Git worktree with a commit, workspace
+previews return that full hash in `base_commit`. The file list and previews
+compare the current worktree to this recorded revision, including changes
+committed since observation started. Edits from other sources can appear.
+Records without a captured base use the live HEAD comparison. A replaced
+worktree or an unavailable recorded base produces an explicit error.
+
 The initial transports observe exact simple background `opencode run --format
 json` terminal receipts and simple PTY/TUI/plain-run launches as inert terminal text. It verifies the live Hermes turn and process ownership/
 incarnation. CLI text/tool parts arrive when those parts complete. The observer

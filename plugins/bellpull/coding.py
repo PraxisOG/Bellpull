@@ -1,4 +1,4 @@
-"""Read-only OpenCode observation. Never launches, writes to, or stops a child.
+"""Read-only observation of Hermes-owned coding processes.
 
 CLI ownership comes from a real terminal post-tool receipt, the exact live Hermes
 turn, and ProcessRegistry ownership/incarnation. Polling its rolling tail avoids
@@ -20,6 +20,8 @@ import weakref
 
 from aiohttp import web
 from .artifacts import ArtifactError, checked_session
+from .coding_executors import consume_frames
+from .coding_workspace import capture_workspace_base
 from .lineage import compression_ids
 from .principal import artifact_scope
 
@@ -128,7 +130,18 @@ def launch_transport(command):
         args=list(lexer)
     except ValueError:
         return None
-    if not args or Path(args[0]).name != "opencode" or any(a and set(a)<=set(";&|<>()") for a in args):
+    if not args or any(a and set(a) <= set(";&|<>()") for a in args):
+        return None
+    executable = Path(args[0]).name
+    flags = args[1:args.index("--")] if "--" in args else args[1:]
+    if executable == "codex":
+        return "codex_json" if flags[:1] == ["exec"] and "--json" in flags else None
+    if executable == "claude":
+        printing = "-p" in flags or "--print" in flags
+        stream = "--output-format=stream-json" in flags or any(
+            flags[i:i+2] == ["--output-format", "stream-json"] for i in range(len(flags)-1))
+        return "claude_stream_json" if printing and stream else None
+    if executable != "opencode":
         return None
     # Simple PTY/TUI and plain run launches have only an inert rolling text tail.
     # Server/attach/administrative subcommands require another verified adapter.
@@ -200,8 +213,8 @@ class CodingStore:
             conn.execute("DELETE FROM rows WHERE rowid IN (SELECT rowid FROM rows WHERE work=? ORDER BY seq DESC LIMIT -1 OFFSET ?)",(work["id"],MAX_ROWS))
             conn.execute("DELETE FROM events WHERE seq <= (SELECT COALESCE(MAX(seq),0)-? FROM events)",(MAX_EVENTS,))
 
-    def snapshot(self, session, aliases, after=None):
-        works=[w for w in self.works() if w["session_id"] in aliases]
+    def snapshot(self, session, aliases, after=None, all_executors=False):
+        works=[w for w in self.works() if w["session_id"] in aliases and (all_executors or w.get("executor", "opencode") == "opencode")]
         ids={w["id"] for w in works}
         with self.db() as conn:
             low=conn.execute("SELECT COALESCE(MIN(seq),0) FROM events").fetchone()[0]
@@ -216,8 +229,9 @@ class CodingStore:
             rows=[dict(json.loads(data),sequence=seq) for seq,data,work in reversed(values) if work in ids][-MAX_ROWS:]
         public=[]
         for work in works:
-            public.append({k:v for k,v in work.items() if k not in ("owner_task_id","incarnation","observed_total","workspace","home")})
-        return dict(version=1,session_id=session,session_ids=aliases,cursor=high,reset=reset,
+            public.append({k:v for k,v in work.items() if k not in ("owner_task_id","incarnation","observed_total","workspace","home","awaiting_thread","discard_frame","workspace_baseline","claude_commands")})
+        executors = ["opencode", "codex", "claude"] if all_executors else ["opencode"]
+        return dict(version=1,session_id=session,session_ids=aliases,cursor=high,reset=reset,executors=executors,
                     gap=expired or any(w.get("gap") for w in works) or after is not None and reset,
                     works=public,rows=rows,observed_at=time.time())
 
@@ -299,13 +313,19 @@ class Observer:
         home=Path(get_hermes_home()).resolve()
         store=self.store(home)
         wid=hashlib.sha256(f"{candidates[0]}\0{tool_call_id}\0{pid}\0{process.started_at}".encode()).hexdigest()[:32]
+        workspace = str(Path(process.cwd).resolve()) if process.pid_scope == "host" and process.cwd else None
+        baseline = capture_workspace_base(workspace) if workspace else None
         with self.lock:
             if any(w["id"]==wid for w in store.works()): return
-            workspace=str(Path(process.cwd).resolve()) if process.pid_scope=="host" and process.cwd else None
             work=dict(id=wid,session_id=session_id,run_id=candidates[0],process_id=pid,open_code_session_id=None,
                       transport=transport,state="running",workspace_id=wid if workspace else None,workspace_label=workspace,
                       workspace=workspace,owner_task_id=task_id,incarnation=str(process.started_at),observed_total=0,
                       started_at=process.started_at,gap=False,note="CLI reports completed text/tool parts; it has no interactive request feed." if transport=="cli_json" else "Terminal text only; redraws, partial output and prompts are not structured requests.")
+            if transport in ("codex_json", "claude_stream_json"):
+                work.update(executor="codex" if transport == "codex_json" else "claude",
+                            executor_session_id=None, note="Structured output from the Hermes-owned coding process.")
+            if baseline:
+                work["workspace_baseline"] = baseline
             if not store.save(work): return
             self.sample(store,work,process)
 
@@ -325,6 +345,13 @@ class Observer:
         with process._lock:
             total,tail=process.total_output_chars,process.output_buffer
             exited,code,reason=process.exited,process.exit_code,process.completion_reason
+        work["state"]=("stopped" if reason=="killed" else "lost" if reason=="lost" else "completed" if code==0 else "failed" if code is not None else "unknown") if exited else "running"
+        if exited:
+            work["exit_code"] = code
+        if work.get("transport") in ("codex_json", "claude_stream_json"):
+            consume_frames(work, total, tail, exited, store.emit, MAX_LINE)
+            store.save(work)
+            return
         delta=total-work["observed_total"]
         identity=(str(store.path),work["id"])
         pending=self.partial.get(identity,"")
@@ -354,7 +381,6 @@ class Observer:
                 store.emit(work,dict(key=f"output:{total-delta}:{index}",kind="output",label="Terminal output",detail=clipped(clean),timestamp_ms=int(time.time()*1000),truncated=len(clean)>MAX_DETAIL))
         self.partial[identity]=pending
         work["observed_total"]=total
-        work["state"]=("stopped" if reason=="killed" else "lost" if reason=="lost" else "completed" if code==0 else "failed" if code is not None else "unknown") if exited else "running"
         if exited:
             if pending:
                 decoded=decode_line(pending,work.get("open_code_session_id"))
@@ -367,7 +393,6 @@ class Observer:
                     if not isinstance(foreign,dict) or not foreign.get("sessionID"):
                         store.emit(work,dict(key="final-output",kind="output",label="Final terminal output",detail=clipped(pending),timestamp_ms=int(time.time()*1000),truncated=len(pending)>MAX_DETAIL))
             self.partial.pop(identity,None)
-            work["exit_code"]=code
         store.save(work)
 
     async def snapshot(self, request):
@@ -382,7 +407,10 @@ class Observer:
         raw=request.query.get("after")
         if raw is not None and not re.fullmatch(r"[0-9]{1,18}",raw):
             raise ArtifactError("Invalid activity cursor.",400)
-        value=await asyncio.to_thread(store.snapshot,session,aliases,int(raw) if raw is not None else None)
+        value=await asyncio.to_thread(store.snapshot,session,aliases,int(raw) if raw is not None else None,
+                                      request.query.get("executors") == "all")
+        if not self.supported:
+            value["executors"] = []
         value.update(available=self.supported,note="" if self.supported else "This Hermes version lacks verified tool/turn/process ownership hooks. Update Hermes to enable observation.")
         return web.json_response(value,headers={"Cache-Control":"no-store"})
 
@@ -396,7 +424,7 @@ class Observer:
         _,error=await self.adapter._get_existing_session_or_404(work["session_id"])
         if error is not None: return error
         if not work.get("workspace"): raise ArtifactError("This backend has no verified local workspace.",409)
-        value=await asyncio.to_thread(inspect_workspace,work["workspace"],request.query.get("file"))
+        value=await asyncio.to_thread(inspect_workspace,work["workspace"],request.query.get("file"),work.get("workspace_baseline"))
         return web.json_response(value,headers={"Cache-Control":"no-store"})
 
     def routes(self):
