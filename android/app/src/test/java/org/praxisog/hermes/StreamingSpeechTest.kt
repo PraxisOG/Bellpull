@@ -53,7 +53,7 @@ class StreamingSpeechTest {
     }
 
     @Test fun onlyUnsupportedUpgradeAllowsBatchFallback() {
-        for (status in listOf(404, 401, 503)) MockWebServer().use { server ->
+        for (status in listOf(404, 405, 501, 401, 429, 503)) MockWebServer().use { server ->
             server.enqueue(MockResponse().setResponseCode(status))
             val batch = Batch()
             val live = StreamingServerTranscriber(connection(server), batch)
@@ -61,8 +61,9 @@ class StreamingSpeechTest {
                 live.begin {}
                 live.audio(byteArrayOf(0, 0))
                 val result = live.transcribe(wav(byteArrayOf(0, 0)))
-                assertEquals(status == 404, result.isSuccess)
-                assertEquals(if (status == 404) 1 else 0, batch.calls)
+                val batchSupported = status in setOf(404, 405, 501)
+                assertEquals(batchSupported, result.isSuccess)
+                assertEquals(if (batchSupported) 1 else 0, batch.calls)
             } finally { live.close() }
         }
     }
