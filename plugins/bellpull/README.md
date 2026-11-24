@@ -1,11 +1,11 @@
-The development bundle is **0.9.3-mobile-preview**. Its authenticated capabilities
+The current experimental bundle is **0.9.3-mobile-preview**. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,
 run `python3 tools/package-plugin.py OUTPUT_DIRECTORY` from a checkout with PyYAML.
 
-> Latest experimental pair: **Android 0.20.2 / build 52**, plugin **0.9.2-voice-files-preview**.
-> Adds streaming Kokoro and agent-selected live Markdown files. See [live files](../../docs/LIVE-SERVER-FILES.md), [speech-helper update instructions](../../server-speech/README.md) and [validation](../../docs/SERVER-VOICE-FILES-2026-11-15.md).
+> The latest experimental pair is **Android 0.20.4 / build 54** with plugin **0.9.3-mobile-preview**.
+> Includes streaming Kokoro, shared server paths and build identification. See [live files](../../docs/LIVE-SERVER-FILES.md), [speech-helper update instructions](../../server-speech/README.md) and [validation](../../docs/SERVER-VOICE-FILES-2026-11-15.md).
 > Includes the previous cellular recovery, background-delivery and mobile repairs.
 > Deploy the complete matching plugin and restart the gateway when idle. Updating the speech helper is a separate step described in the bundle.
 > [Download the matching experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).

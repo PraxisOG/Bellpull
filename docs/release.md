@@ -1,3 +1,7 @@
+## Experimental mobile and server voice update · 0.20.4 / build 54
+
+Android 0.20.4 pairs with plugin 0.9.3-mobile-preview. This release adds per-chat voice routing, a system dictation keyboard, shared file paths, Canvas selection and export, and approval review in Today. It also repairs keyboard placement and GPU transcription negotiation. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.4-experimental.1) · [Release notes and verification](RELEASE-0.20.4-EXPERIMENTAL.md)
+
 ## Experimental voice interruption repair — 0.20.3 / build 53
 
 [Download Android 0.20.3](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.3-experimental.1).
