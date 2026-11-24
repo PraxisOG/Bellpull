@@ -1,3 +1,7 @@
+## Batch approval review · 0.20.8 / build 58
+
+Open **Today → Review approvals** to answer requests from several chats together. Choose which operations to allow once or deny and leave the rest pending. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.8-experimental.1) · [Verification](RELEASE-0.20.8-EXPERIMENTAL.md)
+
 ## Spoken approvals · 0.20.7 / build 57
 
 Say “read the approval request” during a call or voice conversation. After Bellpull reads the operation, you can allow it once or deny it by voice. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.7-experimental.1) · [Verification](RELEASE-0.20.7-EXPERIMENTAL.md)

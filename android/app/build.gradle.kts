@@ -94,9 +94,9 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 57
-        versionName = "0.20.7-experimental"
-        if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") versionName = "0.20.7-canvas-preview"
+        versionCode = 58
+        versionName = "0.20.8-experimental"
+        if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") versionName = "0.20.8-canvas-preview"
         manifestPlaceholders["bellpullAppLabel"] = if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") "Bellpull Canvas" else "Bellpull"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
