@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.11 / build 61 and plugin 0.9.6-mobile-preview**
-> Today → Inbox recovers earlier Bot Chat receipts and identifies timeout notices by their original execution and delivery IDs.
-> [Release notes and verification](docs/RELEASE-0.20.11-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.12 / build 62 and plugin 0.9.7-mobile-preview**
+> Open **Coding activity** in a chat to inspect its Hermes-owned Codex, Claude Code and OpenCode processes, command results and workspace changes.
+> [Release notes and verification](docs/RELEASE-0.20.12-EXPERIMENTAL.md).
 
 <div align="center">
 
@@ -64,8 +64,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.20.11-experimental / build 61**
-> pairs with Bellpull plugin **0.9.6-mobile-preview**. Server features need
+> **This is an experimental prerelease:** Android **0.20.12-experimental / build 62**
+> pairs with Bellpull plugin **0.9.7-mobile-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework
