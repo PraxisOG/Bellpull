@@ -70,4 +70,30 @@ class LiveFilesWorkspaceTest {
             files.reviewEdit(); assertNull(files.pending)
         } finally { files.close(); client.close() }
     }
+    @Test fun sharedPathRefreshUsesConditionalReadAndClearsRevokedContent() = runBlocking<Unit> {
+        var allowed = true
+        var conditional = false
+        val path = "work/notes #1.txt"
+        val client = HermesClient("http://127.0.0.1", { "synthetic" }, httpClient = OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            if (request.url.queryParameter("path") == null) {
+                response(request, """{"files":[],"path_roots":["work"]}""")
+            } else {
+                assertEquals(path, request.url.queryParameter("path"))
+                conditional = request.header("If-None-Match") == etag
+                val reply = response(request, """{"id":"$id","source_path":"$path","access":"read","etag":${JsonPrimitive(etag)},"text":"hello"}""")
+                when { !allowed -> reply.newBuilder().code(404).build(); conditional -> reply.newBuilder().code(304).build(); else -> reply }
+            }
+        }.build())
+        val files = LiveFilesWorkspace(this, client, true)
+        try {
+            files.openPath(path); await { files.fresh && !files.loading }
+            assertEquals("hello", files.snapshot?.text); assertFalse(files.add("changed"))
+            files.refresh(); await { conditional && !files.loading }
+            assertEquals("hello", files.snapshot?.text)
+            allowed = false; files.refresh(); await { files.problem != null && !files.loading }
+            assertNull(files.snapshot)
+        } finally { files.close(); client.close() }
+    }
+
 }

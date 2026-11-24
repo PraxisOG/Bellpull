@@ -204,6 +204,11 @@ async def serve(source, port, home, streaming=False, audit_repair=False, project
         database.create_session(session_id="phone_fixture", source="api_server", model="fixture")
         database.set_session_title("phone_fixture", "Stock file sharing fixture")
         if live_files:
+            shared = home / 'shared-docs'
+            shared.mkdir()
+            (shared / 'Weekly notes.txt').write_text('This document was opened directly by its shared path.')
+            (home / 'bellpull').mkdir(exist_ok=True)
+            (home / 'bellpull' / 'file-roots.json').write_text(json.dumps({'docs': str(shared)}))
             for name, text, access in [("Groceries.md", "# Groceries\n\n- [ ] Milk\n- [x] Bread\n", "checklist"),
                                        ("Read only.md", "# Read only\n\n- [ ] This cannot be changed\n", "read")]:
                 path = home / name

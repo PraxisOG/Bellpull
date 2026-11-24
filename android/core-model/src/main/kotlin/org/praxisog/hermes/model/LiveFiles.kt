@@ -10,10 +10,12 @@ import kotlinx.serialization.json.JsonObject
     @SerialName("accessed_at") val accessedAt: Double = 0.0,
     @SerialName("reference_revision") val referenceRevision: Long = 1,
 )
-@Serializable data class LiveFileList(val version: Int = 1, val files: List<LiveFile> = emptyList())
+@Serializable data class LiveFileList(val version: Int = 1, val files: List<LiveFile> = emptyList(),
+    @SerialName("path_roots") val pathRoots: List<String> = emptyList())
 @Serializable data class LiveFileTask(val line: Int, val text: String, val checked: Boolean)
 @Serializable data class LiveFileSnapshot(val version: Int = 1, val id: String, val text: String,
-    val etag: String, val access: String, val tasks: List<LiveFileTask> = emptyList()) {
+    val etag: String, val access: String, val tasks: List<LiveFileTask> = emptyList(),
+    @SerialName("source_path") val sourcePath: String? = null) {
     fun validated(expected: String): LiveFileSnapshot = apply {
         require(version == 1 && id == expected && text.length <= 2 * 1024 * 1024)
         require(access in setOf("read", "checklist") && etag.matches(Regex("\"[a-f0-9]{64}\"")))

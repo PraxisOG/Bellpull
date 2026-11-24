@@ -10,9 +10,11 @@ import java.util.UUID
 /** A profile owns this workspace. Pending writes retain their identity across network loss/restarts. */
 internal class LiveFilesWorkspace(private val scope: CoroutineScope, private val client: HermesClient,
     supported: Boolean, private val readPending: () -> PendingFileEdit? = { null },
-    private val savePending: (PendingFileEdit?) -> Boolean = { true }) {
+    private val savePending: (PendingFileEdit?) -> Boolean = { true }, val profileId: String? = null) {
     var supported by mutableStateOf(supported)
     var entries by mutableStateOf(emptyList<LiveFile>()); private set
+    var pathRoots by mutableStateOf(emptyList<String>()); private set
+    var selectedPath by mutableStateOf<String?>(null); private set
     var selectedId by mutableStateOf<String?>(null); private set
     var snapshot by mutableStateOf<LiveFileSnapshot?>(null); private set
     var problem by mutableStateOf<String?>(null); private set
@@ -26,8 +28,12 @@ internal class LiveFilesWorkspace(private val scope: CoroutineScope, private val
     private var refreshAgain = false
     val selected get() = entries.firstOrNull { it.id == selectedId }
     init { refresh() }
-    fun open(id: String) {
-        if (id != selectedId) { selectedId = id; snapshot = null; fresh = false; revision++ }
+    fun open(id: String) = select(id, null)
+    fun openPath(path: String) = select(null, path)
+    private fun select(id: String?, path: String?) {
+        if (id != selectedId || path != selectedPath) {
+            selectedId = id; selectedPath = path; snapshot = null; fresh = false; problem = null; revision++
+        }
         refresh()
     }
     fun refresh() {
@@ -36,17 +42,23 @@ internal class LiveFilesWorkspace(private val scope: CoroutineScope, private val
         refreshJob = scope.launch {
             do {
                 refreshAgain = false; loading = true; fresh = false
-                val id = selectedId; val token = revision
+                val id = selectedId; val path = selectedPath; val token = revision
                 val list = withContext(Dispatchers.IO) { client.liveFiles() }
                 ensureActive(); if (closed) return@launch
-                if (list is HermesResult.Ok) entries = list.value.files
+                if (list is HermesResult.Ok) { entries = list.value.files; pathRoots = list.value.pathRoots }
                 else problem = list.errorOrNull()?.toUserMessage()
-                if (id != null && id == selectedId && token == revision) {
-                    val result = withContext(Dispatchers.IO) { client.liveFile(id, snapshot?.etag) }
+                if ((id != null || path != null) && token == revision) {
+                    val etag = snapshot?.etag
+                    val result = withContext(Dispatchers.IO) {
+                        if (path != null) client.liveFileByPath(path, etag) else client.liveFile(requireNotNull(id), etag)
+                    }
                     ensureActive(); if (closed) return@launch
                     if (token == revision && !busy) when (result) {
                         is HermesResult.Ok -> { result.value?.let { snapshot = it }; fresh = true; if (pending == null) problem = null }
-                        is HermesResult.Err -> problem = result.error.toUserMessage()
+                        is HermesResult.Err -> {
+                            if (path != null && result.error !is HermesError.Unreachable) snapshot = null
+                            problem = result.error.toUserMessage()
+                        }
                     }
                 } else if (list is HermesResult.Ok && pending == null) problem = null
                 loading = false

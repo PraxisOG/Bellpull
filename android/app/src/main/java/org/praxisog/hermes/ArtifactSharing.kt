@@ -17,7 +17,7 @@ internal object ArtifactSharing {
     fun temporary(context: Context, profileId: String, name: String): File {
         require(profileId.matches(Regex("[a-zA-Z0-9_-]{1,80}")))
         val folder = File(context.cacheDir, "bellpull-shared/$profileId/${UUID.randomUUID()}").apply { mkdirs() }
-        val safe = name.substringAfterLast('/').substringAfterLast('\\').filter { it.code >= 32 }.take(180).ifBlank { "attachment" }
+        val safe = name.substringAfterLast('/').substringAfterLast('\\').filter { it.code >= 32 }.take(180).takeUnless { it.isBlank() || it == "." || it == ".." } ?: "attachment"
         return File(folder, safe)
     }
     fun uri(context: Context, file: File): Uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
@@ -29,10 +29,13 @@ internal object ArtifactSharing {
             android.widget.Toast.makeText(context, "Could not prepare the file for sharing.", android.widget.Toast.LENGTH_LONG).show()
             return
         }
+        present(context, target, artifact.name, artifact.mime, open)
+    }
+    fun present(context: Context, target: File, name: String, mime: String, open: Boolean) {
         val uri = uri(context, target)
         val intent = Intent(if (open) Intent.ACTION_VIEW else Intent.ACTION_SEND).apply {
-            if (open) setDataAndType(uri, artifact.mime) else { type = artifact.mime; putExtra(Intent.EXTRA_STREAM, uri) }
-            clipData = ClipData.newRawUri(artifact.name, uri)
+            if (open) setDataAndType(uri, mime) else { type = mime; putExtra(Intent.EXTRA_STREAM, uri) }
+            clipData = ClipData.newRawUri(name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         launch(context, Intent.createChooser(intent, if (open) "Open attachment" else "Share attachment"))
