@@ -1,9 +1,9 @@
-> Current experimental: app **0.20.10 / build 60**, plugin **0.9.5-mobile-preview**.
-> [Release validation and limits](RELEASE-0.20.10-EXPERIMENTAL.md).
+> Current experimental: app **0.20.11 / build 61**, plugin **0.9.6-mobile-preview**.
+> [Release validation and limits](RELEASE-0.20.11-EXPERIMENTAL.md).
 
 ## Car audio and streaming speech experiment
 
-This branch builds **0.20.10-experimental / build 60**. Initialize submodules
+This branch builds **0.20.11-experimental / build 61**. Initialize submodules
 recursively. Use `bash tools/build-local-lab.sh assembleRelease --max-workers=4`
 to put the SDK Ninja on PATH for the Vulkan host shader generator. Existing
 NDK r29 and CMake 3.31.6 are required. Models are imported separately, not bundled.
@@ -11,17 +11,17 @@ See [voice evidence](evidence/car-streaming-20261020/README.md) and [Phase 14](P
 
 # Build the experimental preview
 
-This branch builds **0.20.10-experimental / build 60**, with the
-**0.9.5-mobile-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
+This branch builds **0.20.11-experimental / build 61**, with the
+**0.9.6-mobile-preview** plugin. See [Shared Canvas](SHARED-CANVAS.md), [Phase 18](PHASE-18-KANBAN.md) and
 [release evidence](release.md). Published tags and archives preserve older
 versions; use the exact branch or revision to reproduce this build.
 
 ## Get all source files
 
-Clone the immutable experimental release tag recursively to reproduce 0.20.10:
+Clone the immutable experimental release tag recursively to reproduce 0.20.11:
 
 ```bash
-git clone --recurse-submodules --branch android-v0.20.10-experimental.1 \
+git clone --recurse-submodules --branch android-v0.20.11-experimental.1 \
   https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 git submodule status --recursive
@@ -40,13 +40,13 @@ To reproduce a release, fetch and check out its tag, then run
 
 All revisions are publicly fetchable. GitHub's automatic source ZIP/tarballs do
 **not** include submodule contents. Use the recursive clone above, or download
-**Bellpull-source-0.20.10.tar.gz**, which includes this release's tracked
+**Bellpull-source-0.20.11.tar.gz**, which includes this release's tracked
 source and native trees. That archive also contains
 `SOURCE-REVISIONS.json`.
 
 ```bash
-tar -xzf Bellpull-source-0.20.10.tar.gz
-cd Bellpull-source-0.20.10
+tar -xzf Bellpull-source-0.20.11.tar.gz
+cd Bellpull-source-0.20.11
 ```
 
 ## Toolchain

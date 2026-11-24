@@ -1,4 +1,4 @@
-The current experimental bundle is **0.9.5-mobile-preview**. Its authenticated capabilities
+The current experimental bundle is **0.9.6-mobile-preview**. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,

@@ -1,3 +1,7 @@
+## Missed Bot Chat receipts · 0.20.11 / build 61
+
+Open **Today → Inbox → Bot Chat delivery history** to inspect retained same-profile receipts, including timeout notices that the phone missed. Each row includes the original native execution and delivery IDs. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.11-experimental.1) · [Verification](RELEASE-0.20.11-EXPERIMENTAL.md)
+
 ## Per-run models and fallback · 0.20.10 / build 60
 
 Open **Message info** on a reply to see the model and provider that answered. **Settings → Servers → Integration status** shows the latest observed completed run for the active profile. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.10-experimental.1) · [Verification](RELEASE-0.20.10-EXPERIMENTAL.md)
