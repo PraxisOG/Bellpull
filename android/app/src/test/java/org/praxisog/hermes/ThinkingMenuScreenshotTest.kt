@@ -95,8 +95,8 @@ class ThinkingMenuScreenshotTest {
 
     private fun awaitOptions() {
         compose.waitForIdle()
-        awaitState { workspace.errors.isNotEmpty() || (workspace.selections[id] != null && workspace.catalog != null) }
-        assertTrue("Options unavailable: ${workspace.errors}; selected=${workspace.selections[id]}; catalog=${workspace.catalog}", workspace.selections[id] != null && workspace.catalog != null)
+        awaitState { workspace.errors.isNotEmpty() || (workspace.sessionModels[id]?.selection != null && workspace.catalog != null) }
+        assertTrue("Options unavailable: ${workspace.errors}; selected=${workspace.sessionModels[id]?.selection}; catalog=${workspace.catalog}", workspace.sessionModels[id]?.selection != null && workspace.catalog != null)
     }
 
     private fun capture(name: String) {
@@ -117,13 +117,13 @@ class ThinkingMenuScreenshotTest {
         compose.onNodeWithText("Low").performClick()
         compose.onNodeWithText("Thinking level").assertDoesNotExist()
         compose.onNodeWithText("Session info").assertDoesNotExist()
-        awaitState { workspace.selections[id]?.options?.reasoning?.effort == "low" }
+        awaitState { workspace.sessionModels[id]?.selection?.options?.reasoning?.effort == "low" }
         assertEquals(listOf(original.copy(options = ModelOptions(ReasoningChoice(effort = "low")))), writes)
         openThinking()
         compose.onNodeWithText("Low").assertIsSelected()
         compose.onNodeWithText("Default").performClick()
         compose.onNodeWithText("Thinking level").assertDoesNotExist()
-        awaitState { workspace.selections[id]?.options?.reasoning == null }
+        awaitState { workspace.sessionModels[id]?.selection?.options?.reasoning == null }
         assertEquals(original.copy(options = ModelOptions()), writes.last())
     }
 
@@ -145,7 +145,7 @@ class ThinkingMenuScreenshotTest {
         compose.onNodeWithText("Off").performClick()
         compose.onNodeWithText("Thinking level").assertDoesNotExist()
         awaitState { workspace.errors[id] != null }
-        assertEquals(original, workspace.selections[id])
+        assertEquals(original, workspace.sessionModels[id]?.selection)
         compose.onNodeWithText(workspace.errors.getValue(id)).assertIsDisplayed()
     }
 }

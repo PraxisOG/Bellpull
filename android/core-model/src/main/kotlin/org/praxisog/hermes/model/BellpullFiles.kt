@@ -15,7 +15,11 @@ data class ModelSelection(val model: String, val provider: String,
     val vision: Boolean = false, val reasoning: ReasoningCapabilities = ReasoningCapabilities())
 @Serializable data class ModelCatalog(val version: Int, val models: List<ModelRoute>,
     val default: ModelSelection, val note: String = "")
-@Serializable data class SessionModel(@SerialName("session_id") val sessionId: String, val selection: ModelSelection)
+@Serializable data class SessionModel(@SerialName("session_id") val sessionId: String, val selection: ModelSelection,
+    @SerialName("follows_server_route") val followsServerRoute: Boolean = false) {
+    fun runOptions(artifactIds: List<String>): BellpullRunOptions? =
+        if (followsServerRoute && artifactIds.isEmpty()) null else BellpullRunOptions(selection = selection, artifactIds = artifactIds)
+}
 
 /** Serialized before POST; these exact choices and file IDs belong to this request. */
 @Serializable data class BellpullRunOptions(@kotlinx.serialization.Required val version: Int = 1, val selection: ModelSelection,

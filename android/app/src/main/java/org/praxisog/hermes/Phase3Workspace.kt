@@ -18,7 +18,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
     val root = File(context.filesDir, "bellpull-files/$profileId").apply { mkdirs() }
     val thumbnails = ArtifactThumbnails(File(context.cacheDir, "artifact-thumbnails/$profileId"), client)
     var catalog by mutableStateOf<ModelCatalog?>(null); private set
-    val selections = mutableStateMapOf<String, ModelSelection>()
+    val sessionModels = mutableStateMapOf<String, SessionModel>()
     var defaultSelection by mutableStateOf(cache.defaultModel()); private set
     var drafts by mutableStateOf(cache.draftFiles()); private set
     var artifacts by mutableStateOf<List<Artifact>>(emptyList()); private set
@@ -66,9 +66,9 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         if (modelsSupported) scope.launch { loadSelection(sessionId) }
         if (filesSupported) refreshArtifacts()
     }
-    private suspend fun loadSelection(id: String): ModelSelection? {
+    private suspend fun loadSelection(id: String): SessionModel? {
         return when (val result = withContext(Dispatchers.IO) { client.sessionModel(id) }) {
-            is HermesResult.Ok -> if (!closed) result.value.selection.also { selections[id] = it } else null
+            is HermesResult.Ok -> if (!closed) result.value.also { sessionModels[id] = it } else null
             is HermesResult.Err -> { fail(id, result.error); null }
         }
     }
@@ -80,7 +80,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         }
         scope.launch {
             when (val result = withContext(Dispatchers.IO) { client.selectModel(id, value) }) {
-                is HermesResult.Ok -> if (!closed) { selections[id] = result.value.selection; errors.remove(id); done(true) }
+                is HermesResult.Ok -> if (!closed) { sessionModels[id] = result.value; errors.remove(id); done(true) }
                 is HermesResult.Err -> { fail(id, result.error); if (!closed) done(false) }
             }
         }
@@ -223,7 +223,8 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
         sending[id] = true; errors.remove(id)
         scope.launch {
             try {
-                val selected = selections[id] ?: loadSelection(id) ?: return@launch
+                val sessionModel = sessionModels[id]?.takeUnless { it.followsServerRoute } ?: loadSelection(id) ?: return@launch
+                val selected = sessionModel.selection
                 if (files.sumOf { it.size } > LIMIT) { errors[id] = "Combined attachments exceed 25 MiB."; return@launch }
                 val route = catalog?.models?.find { it.model == selected.model && it.provider == selected.provider }
                 if (files.any { it.mime in setOf("image/png", "image/jpeg", "image/webp") } && route?.vision != true) {
@@ -253,7 +254,7 @@ internal class Phase3Workspace(private val context: Context, val profileId: Stri
                     errors[id] = "The canvas selection changed. Review the drawing and send again."
                     return@launch
                 }
-                store.send(text, BellpullRunOptions(selection = selected, artifactIds = files.map { it.id }))
+                store.send(text, sessionModel.runOptions(files.map { it.id }))
             } finally { if (!closed && sendGenerations[id] == generation) sending[id] = false }
         }
         return true

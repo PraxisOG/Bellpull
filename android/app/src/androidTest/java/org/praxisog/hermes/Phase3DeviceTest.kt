@@ -76,7 +76,7 @@ class Phase3DeviceTest {
             scenario.recreate()
             compose.onNodeWithText("Add to a draft").assertDoesNotExist()
             assertEquals(ids, runtime.phase3!!.drafts.map { it.id })
-            compose.waitUntil(10_000) { runtime.phase3?.selections?.containsKey(session) == true }
+            compose.waitUntil(10_000) { runtime.phase3?.sessionModels?.containsKey(session) == true }
             compose.onNodeWithText("Send", useUnmergedTree = true).performClick()
             compose.waitUntil(20_000) { runtime.phase3?.errors?.get(session) == "Hermes returned HTTP 503." }
             assertEquals(ids, runtime.phase3!!.drafts.map { it.id })

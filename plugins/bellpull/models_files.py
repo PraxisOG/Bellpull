@@ -174,8 +174,7 @@ def validate_selection(value, available):
     return {"model": route["model"], "provider": route["provider"], "model_options": options}, route
 
 
-def session_selection(adapter, session, available):
-    locked = adapter._runtime_request_from_persisted_session_lock(session, {})
+def session_selection(locked, available):
     if locked:
         requested = locked["requested"]
         return {"model": requested.get("model"), "provider": requested.get("provider"),
@@ -183,7 +182,7 @@ def session_selection(adapter, session, available):
     return available["default"]
 
 
-def routes(adapter, *, include_models=True):
+def routes(adapter, *, include_models=True, allow_server_routing=False):
     uploads = asyncio.Semaphore(2)
     cached = {}  # Per native connection; profile/principal separated, bounded.
 
@@ -228,9 +227,13 @@ def routes(adapter, *, include_models=True):
             selection = adapter._session_runtime_request_from_body(dict(selected, require_model_lock=True))
             if not adapter._persist_session_runtime_lock(session_id, selection):
                 raise ArtifactError("Could not save the session model selection.", 500)
+            follows_server = False
         else:
-            selected = session_selection(adapter, session, available)
-        return web.json_response({"session_id": session_id, "selection": selected}, headers={"Cache-Control": "no-store"})
+            locked = adapter._runtime_request_from_persisted_session_lock(session, {})
+            selected = session_selection(locked, available)
+            follows_server = allow_server_routing and not locked
+        return web.json_response({"session_id": session_id, "selection": selected, "follows_server_route": follows_server},
+                                 headers={"Cache-Control": "no-store"})
 
     async def list_artifacts(request):
         store = store_for(adapter, request)
