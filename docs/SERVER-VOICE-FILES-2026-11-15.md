@@ -92,3 +92,41 @@ checked optimistically and do not share the Bellpull edit lock.
 Deploy the APK, complete matching plugin bundle and speech-helper sources as a
 coherent update. The helper deployment instructions preserve an existing ROCm
 runtime and cached models: [speech helper](../server-speech/README.md).
+
+## PowerMac deployment and CPU comparison, 2026-11-24
+
+The installed ROCm helper recognized speech but rejected Android’s Kokoro streaming
+request with HTTP 400. Its whole-WAV request still returned 24 kHz audio. Updating
+the helper enabled streaming. The installed gateway plugin then dropped the PCM
+sample-rate header, which the Android player needs. Installing the published
+0.9.2 voice-files plugin restored the header. The gateway continued advertising
+all previously enabled capabilities.
+
+Through the updated live gateway, Moonshine recognized the synthetic 2.86-second
+clip in 123 ms. Kokoro returned its first PCM in 129 ms and 5.275 seconds of
+24 kHz mono audio in 250 ms. Android’s player on an API 36 emulator played three
+utterances, 9.05 seconds in total. Playback started in 161 ms, the gaps were
+2.4 and 2.1 ms, and Stop returned in 1.2 ms. A loopback test relay substituted
+the gateway bearer at the host boundary and forwarded the live stream and headers.
+
+The table gives medians from three warm runs on the same Ryzen 5 7600 host.
+The real-time factor is elapsed synthesis time divided by generated audio duration.
+
+| Input | CPU first PCM | CPU real-time factor | ROCm first PCM | ROCm real-time factor |
+| --- | ---: | ---: | ---: | ---: |
+| Short | 367 ms | 0.302 | 107 ms | 0.058 |
+| Long | 496 ms | 0.247 | 125 ms | 0.044 |
+| Punctuation-heavy | 282 ms | 0.280 | 95 ms | 0.056 |
+
+Simultaneous Kokoro synthesis increased median Moonshine latency from 879 to
+1,278 ms on CPU and from 127 to 256 ms on ROCm. All transcripts matched the
+warm-up result. The Android CPU playback run started in 584 ms, with 2.1 and
+2.2 ms between sentences. Two CPU thread-setting experiments traded latency
+between tasks. The production settings were retained. The Android timings
+measure the playback callback. Vehicle routing and acoustic onset need a physical
+route measurement.
+
+Run `tools/benchmark-server-voice.py sample.wav --port 8645` in the helper’s
+Python environment with its configured `BELLPULL_SPEECH_KEY`. Supply a synthetic
+or public 16 kHz mono PCM16 clip. The harness records timing and transcript
+agreement. [Raw results](evidence/server-voice-20261124/results.json).
