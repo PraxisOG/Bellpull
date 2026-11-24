@@ -430,7 +430,7 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
                     Text("Status saved ${displayInstant(at)}", style = MaterialTheme.typography.bodySmall)
                 }
                 receipt.executionId?.let { SelectionContainer { Text("Execution $it", style = MaterialTheme.typography.bodySmall) } }
-                if (receipt.degradedNotice) Text("This status tracks a notice about a delivery timeout. The original output is in the routine’s saved results.")
+                if (receipt.degradedNotice) Text("This status tracks a notice about a delivery timeout. Open the routine’s saved results to look for the original output.")
                 SelectionContainer { Text("Receipt ${receipt.id}", style = MaterialTheme.typography.bodySmall) }
             }
             if (entry.truncated) Text("Saved preview truncated. Open the conversation online for the complete response.")
