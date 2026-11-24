@@ -13,6 +13,25 @@ import org.robolectric.annotation.Config
 class MossVoiceSettingsTest {
     private val app get() = RuntimeEnvironment.getApplication()
 
+    @Test fun conversationRoutingSurvivesRestartAndDoesNotChangeProfileDefaults() {
+        val prefs = app.getSharedPreferences("chat-voice", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val settings = VoiceSettings(prefs)
+        val defaults = VoiceConfiguration(output = VoiceOutputConfiguration(engine = VoiceOutputEngine.KOKORO))
+        settings.save(defaults)
+        settings.saveRoute("a", ConversationVoiceRoute.SERVER_FALLBACK)
+        settings.saveRoute("b", ConversationVoiceRoute.LOCAL)
+        val restored = VoiceSettings(prefs)
+        assertEquals(VoiceOutputEngine.SERVER_MOSS, restored.forConversation("a").output.engine)
+        assertTrue(restored.forConversation("a").allowLocalTranscriptionFallback)
+        assertTrue(restored.forConversation("a").allowSystemOutputFallback)
+        assertFalse(restored.forConversation("b").transcribeViaServer)
+        assertEquals(VoiceOutputEngine.SYSTEM, restored.forConversation("b").output.engine)
+        assertEquals(defaults, restored.forConversation("unrelated"))
+        restored.saveRoute("a", ConversationVoiceRoute.PROFILE)
+        assertEquals(defaults, restored.forConversation("a"))
+    }
+
     @Test fun mossRoundTripsUsingStableLowercaseIdAndPreservesOtherSettings() {
         val prefs = app.getSharedPreferences("moss-roundtrip", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()

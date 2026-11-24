@@ -12,8 +12,22 @@ internal data class VoiceConfiguration(val endpoint: String = "", val key: Strin
     val output: VoiceOutputConfiguration = VoiceOutputConfiguration(),
     val announcements: VoiceAnnouncements = VoiceAnnouncements(),
     val transcribeViaServer: Boolean = false,
-    val allowLocalTranscriptionFallback: Boolean = false) {
+    val allowLocalTranscriptionFallback: Boolean = false,
+    val allowSystemOutputFallback: Boolean = false) {
     override fun toString() = "VoiceConfiguration(credentials=redacted)"
+}
+
+internal enum class ConversationVoiceRoute(val label: String) {
+    PROFILE("Profile defaults"), LOCAL("On this device"), SERVER("Server"), SERVER_FALLBACK("Server with on-device fallback");
+
+    fun applyTo(defaults: VoiceConfiguration): VoiceConfiguration = when (this) {
+        PROFILE -> defaults
+        LOCAL -> defaults.copy(recognition = VoiceRecognition.LOCAL, transcribeViaServer = false,
+            output = defaults.output.copy(engine = VoiceOutputEngine.SYSTEM), allowLocalTranscriptionFallback = false)
+        SERVER, SERVER_FALLBACK -> defaults.copy(transcribeViaServer = true,
+            output = defaults.output.copy(engine = VoiceOutputEngine.SERVER_MOSS),
+            allowLocalTranscriptionFallback = this == SERVER_FALLBACK, allowSystemOutputFallback = this == SERVER_FALLBACK)
+    }
 }
 
 /** Recheck at each permission/service boundary; a model can be deleted while a dialog is open. */
@@ -30,6 +44,16 @@ internal class VoiceSettings(private val prefs: SharedPreferences) {
         MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM))
+    fun route(session: String?): ConversationVoiceRoute {
+        val saved = session?.let { prefs.getString("chat_voice_$it", null) }
+        return ConversationVoiceRoute.entries.firstOrNull { it.name == saved } ?: ConversationVoiceRoute.PROFILE
+    }
+    fun forConversation(session: String?) = route(session).applyTo(read())
+    fun saveRoute(session: String, route: ConversationVoiceRoute) {
+        val edit = prefs.edit()
+        if (route == ConversationVoiceRoute.PROFILE) edit.remove("chat_voice_$session") else edit.putString("chat_voice_$session", route.name)
+        check(edit.commit()) { "Could not save this conversation’s voice choice." }
+    }
     fun read() = VoiceConfiguration(prefs.getString("endpoint", "").orEmpty(), prefs.getString("key", "").orEmpty(),
         prefs.getString("model", "whisper-1").orEmpty(), prefs.getFloat("rate", 1.05f), prefs.getInt("pause", 1600), prefs.getBoolean("concise", true),
         prefs.getString("recognition", null)?.let(VoiceRecognition::valueOf)

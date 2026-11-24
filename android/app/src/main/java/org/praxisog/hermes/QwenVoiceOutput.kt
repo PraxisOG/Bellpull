@@ -330,8 +330,13 @@ internal class VoiceOutputLab(context: Context, private val serverConnection: ()
     fun output(config: VoiceConfiguration, usage: Int = AudioAttributes.USAGE_VOICE_COMMUNICATION): VoiceOutput {
         startProblem(config)?.let { error(it) }
         config.output.validated()
-        if (config.output.engine == VoiceOutputEngine.SERVER_MOSS)
-            return ServerMossVoiceOutput(checkNotNull(serverConnection()) { "Select a connected server profile first." }, config, usage = usage)
+        if (config.output.engine == VoiceOutputEngine.SERVER_MOSS) {
+            val server = ServerMossVoiceOutput(checkNotNull(serverConnection()) { "Select a connected server profile first." }, config, usage = usage)
+            if (!config.allowSystemOutputFallback) return server
+            return ConversationVoiceOutput(server, AndroidVoiceOutput(app, config.rate, usage)) {
+                android.widget.Toast.makeText(app, "Server speech unavailable. Switching to on-device read-aloud.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         if (config.output.engine == VoiceOutputEngine.SYSTEM) {
             // Free the heavyweight engine when switching back to Android, off the UI thread.
             return object : VoiceOutput {

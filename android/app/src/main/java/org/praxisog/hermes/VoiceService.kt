@@ -88,7 +88,7 @@ class VoiceService : Service() {
             checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             stopSelf(); return START_NOT_STICKY
         }
-        val config = VoiceSettings(this, profile).read()
+        val config = VoiceSettings(this, profile).forConversation(id)
         usingTelecom = runtime.voiceRequestedMode == VoiceMode.CALL &&
             packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TELECOM)
         if (runtime.voiceDictationToDraft && !runtime.voiceButtonHeld) { stopSelf(); return START_NOT_STICKY }

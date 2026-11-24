@@ -258,3 +258,17 @@ admission; later tool events can arrive after execution starts. Prompt instructi
 and observed tool status cannot establish a before-execution guarantee. No
 fabricated approval or undocumented endpoint was introduced to pretend otherwise.
 A future verified host pause/ack mechanism would be needed for that guarantee.
+
+## Voice routing for one conversation
+
+With a remote conversation open, go to **Settings → Voice input → Voice for this
+chat**. The same choice appears in the detailed Voice conversation panel. Choose
+**Profile defaults**, **On this device**, **Server**, or **Server with on-device
+fallback**. The selection belongs to that conversation in the current server
+profile. Read aloud uses its output setting as well.
+
+The device route uses the selected Moonshine model and Android’s offline voice.
+The server route uses the profile’s Bellpull proxy for Moonshine recognition and
+Kokoro read-aloud. The fallback option permits local recognition and offline
+playback when the server fails. The voice controls indicate a switch. If the
+server already played part of a sentence, playback pauses for explicit recovery.

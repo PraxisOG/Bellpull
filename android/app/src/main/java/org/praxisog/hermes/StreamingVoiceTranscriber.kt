@@ -38,6 +38,7 @@ internal class StreamingServerTranscriber(
     private var began = false
     private var bytes = 0
     private var localFallback: VoiceTranscriber? = null
+    override var routeNotice: String? = null; private set
 
     override fun begin(partial: (String) -> Unit) {
         check(!began && !closed.get())
@@ -112,7 +113,7 @@ internal class StreamingServerTranscriber(
         } catch (error: Exception) {
             val cause = if (error is ExecutionException) error.cause ?: error else error
             if (closed.get() || cause is CancellationException) throw CancellationException("Transcription cancelled.")
-            if (cause is StreamingUnavailable) batch.transcribe(wav).getOrThrow()
+            if (cause is StreamingUnavailable) batch.transcribe(wav).getOrThrow().also { routeNotice = batch.routeNotice }
             else {
                 val fallback = synchronized(this) {
                     if (closed.get()) throw CancellationException("Transcription cancelled.")
@@ -120,6 +121,7 @@ internal class StreamingServerTranscriber(
                 } ?: throw cause
                 fallback.transcribe(wav).getOrThrow().also {
                     if (closed.get()) throw CancellationException("Transcription cancelled.")
+                    routeNotice = "Transcribed on this device after the server failed"
                 }
             }
         }

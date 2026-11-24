@@ -200,6 +200,7 @@ internal class ServerVoiceTranscriber(private val transport: ServerSpeechTranspo
     private val local: () -> VoiceTranscriber?) : VoiceTranscriber {
     @Volatile private var closed = false
     private var fallback: VoiceTranscriber? = null
+    override var routeNotice: String? = null; private set
     override fun transcribe(wav: ByteArray): Result<String> = runCatching {
         checkOpen()
         try { transport.stt(wav).also { checkOpen() } }
@@ -211,7 +212,7 @@ internal class ServerVoiceTranscriber(private val transport: ServerSpeechTranspo
                 checkOpen()
                 local()?.also { fallback = it }
             } ?: throw error
-            next.transcribe(wav).getOrThrow().also { checkOpen() }
+            next.transcribe(wav).getOrThrow().also { checkOpen(); routeNotice = "Transcribed on this device after the server failed" }
         }
     }
     private fun checkOpen() { if (closed) throw CancellationException("Server transcription cancelled.") }
