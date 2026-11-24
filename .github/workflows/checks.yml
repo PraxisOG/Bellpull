@@ -30,12 +30,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          # Robolectric downloads instrumented Android SDKs into Maven's local cache.
+          cache: maven
+          cache-dependency-path: android/app/build.gradle.kts
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
       - run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;29.0.14206865' 'cmake;3.31.6'
       - uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
       - run: bash tools/build-local-lab.sh test verifyRoborazziDebug assembleDebug lintDebug
+        env:
+          JAVA_TOOL_OPTIONS: -Drobolectric.dependency.repo.url=https://repo.maven.apache.org/maven2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
