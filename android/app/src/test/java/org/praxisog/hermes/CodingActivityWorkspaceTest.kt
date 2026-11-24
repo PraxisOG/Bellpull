@@ -48,7 +48,13 @@ class CodingActivityWorkspaceTest {
             workspace.observe("root",false)
             assertEquals("Observed root",workspace.snapshot!!.rows.single().detail)
             assertTrue(requests.all { it.method=="GET" && it.url.encodedPath.startsWith("/p/work/api/bellpull/") })
-            workspace.close(); val count=requests.size; Thread.sleep(80); assertEquals(count,requests.size)
+            workspace.close()
+            // An HTTP read dispatched before close can still reach the interceptor during cancellation.
+            runBlocking { withTimeout(5000) { scope.coroutineContext.job.children.toList().joinAll() } }
+            val count = requests.size
+            workspace.observe("other", true)
+            runBlocking { withTimeout(5000) { scope.coroutineContext.job.children.toList().joinAll() } }
+            assertEquals(count, requests.size)
         } finally { workspace.close(); client.close(); scope.cancel() }
     }
     @Test fun unsupportedProfileUsesOnlyItsCacheAndNeverProbesAnotherAccount() {
