@@ -57,10 +57,7 @@ def wire(app, adapter):
         body, request = entry["body"], entry["request"]
         session = checked_session(body.get("session_id"))
         if entry["locked"]:
-            selected = body["bellpull"].get("selection")
-            if not isinstance(selected, dict) or any(not isinstance(selected.get(key), str)
-                    or not selected[key].strip() or selected[key] != body.get(key) for key in ("provider", "model")):
-                raise ArtifactError("The requested model lock must match the Bellpull selection.", 409)
+            models_files.check_run_lock(body, body["bellpull"].get("selection"))
             runtime = adapter._session_runtime_request_from_body(body)
             if adapter._runtime_lock_error(runtime) is not None:
                 raise ArtifactError("Hermes could not resolve the selected model lock.", 409)

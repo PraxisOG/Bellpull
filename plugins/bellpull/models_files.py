@@ -302,12 +302,22 @@ def routes(adapter, *, include_models=True):
     return [(method, path, authenticated(handler)) for method, path, handler in rows]
 
 
+def check_run_lock(body, selected):
+    if not isinstance(selected, dict) or any(not isinstance(selected.get(key), str)
+            or not selected[key].strip() or selected[key] != body.get(key) for key in ("provider", "model")):
+        raise ArtifactError("The requested model lock must match the Bellpull selection.", 409)
+    if body.get("model_options", {}) != selected.get("model_options", {}):
+        raise ArtifactError("The requested model options must match the Bellpull selection.", 409)
+
+
 def prepare_run(adapter, request, body, session_id, text):
     """Called only AFTER idempotency replay lookup; never mutate the fingerprinted body."""
     options = body.get("bellpull")
     if not isinstance(options, dict) or options.get("version") != 1 or set(options) - {"version", "selection", "artifact_ids"}:
         raise ArtifactError("Unsupported Bellpull run options.")
     checked_session(session_id)
+    if body.get("require_model_lock") is True:
+        check_run_lock(body, options.get("selection"))
     selected, route = validate_selection(options.get("selection"), catalog(adapter))
     ids = options.get("artifact_ids", [])
     if not isinstance(ids, list) or len(ids) > MAX_ATTACHMENTS or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids):
