@@ -63,3 +63,32 @@ Request bodies are limited to 16 KiB; new item text to 1,000 characters. Edit
 receipts are retained to prevent old retries from replaying, capped at 100,000
 per profile. No delete, arbitrary text replacement or directory-browser API is
 introduced.
+
+## Open a shared path from the phone
+
+The server owner can create `bellpull/file-roots.json` in the active Hermes data
+home. Each name maps to an absolute directory on that server. For example,
+`{"notes":"/srv/shared-notes"}` makes `notes/weekly/plan.md` available by path.
+In **Files**, type that path into **Find a file** and tap **Open by path**. The
+viewer supports Markdown, plain text, text sizing, Save, Share and pull-to-refresh.
+Returning to the app checks the current document again. Opening a path grants
+read access for that request and creates no registered file or checklist grant.
+Removing an alias revokes subsequent requests, including conditional refreshes.
+
+The authenticated file list exposes configured aliases under `path_roots`. The
+`bellpull_file_paths` capability indicates whether this profile has configured
+roots. An absent or invalid configuration disables direct reads. The existing
+per-file registry continues serving its own explicitly referenced documents.
+`GET /api/bellpull/files?path=notes%2Fweekly%2Fplan.md` returns UTF-8 text, a
+strong ETag, source path, byte size and modification time in nanoseconds. Optional
+integer `offset` and `limit` parameters page the 2 MiB maximum document without
+splitting UTF-8 characters. Use `next_offset` for the next page. The minimum page
+limit is four bytes. A matching `If-None-Match` returns HTTP 304. The service
+rejects traversal, symlinks, hard links, special files and binary content.
+
+The API 36 emulator opened `docs/Weekly notes.txt` through the Files search field
+against a disposable stock Hermes server. The document had never been registered
+by the agent. The same run verified the read-only controls, saved a checklist
+change to a separately registered document and reopened both views. Server and
+client tests cover conditional reads, permission revocation, non-ASCII page
+boundaries and path containment.

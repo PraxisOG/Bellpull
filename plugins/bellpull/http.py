@@ -202,6 +202,7 @@ def wire(app, adapter):
             "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
                 "bellpull_live_files": files_ready,
+                "bellpull_file_paths": files_ready and bool(await asyncio.to_thread(live_files.shared_paths.roots)),
                 "bellpull_native_model_controls": stock_models_ready,
                 "bellpull_run_attachments": host_ready or attachments_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,

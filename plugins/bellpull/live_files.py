@@ -6,6 +6,7 @@ from aiohttp import web
 from .artifacts import ArtifactError, checked_session
 from .live_files_store import LiveFiles
 from .principal import artifact_scope
+from . import shared_paths
 
 
 def store():
@@ -55,11 +56,26 @@ def register(ctx):
 
 def routes(adapter):
     async def handle(request):
+        if request.method == "GET" and request.match_info.get("file_id") is None and "path" in request.query:
+            try:
+                offset = int(request.query.get("offset", "0"))
+                limit = int(request.query.get("limit", str(shared_paths.MAX_TEXT)))
+            except ValueError:
+                raise ArtifactError("Provide integer offset and limit values.")
+            path = request.query["path"]
+            def read_path():
+                return shared_paths.snapshot(shared_paths.roots(), path, offset, limit)
+            result = await asyncio.to_thread(read_path)
+            headers = {"Cache-Control": "no-store", "ETag": result["etag"]}
+            if request.headers.get("If-None-Match") == result["etag"]:
+                return web.Response(status=304, headers=headers)
+            return web.json_response(result, headers=headers)
         registry = await asyncio.to_thread(store)
         identity = request.match_info.get("file_id")
         headers = {"Cache-Control": "no-store"}
         if identity is None:
             result = await asyncio.to_thread(registry.list)
+            result["path_roots"] = sorted(await asyncio.to_thread(shared_paths.roots))
         elif request.method == "GET":
             result = await asyncio.to_thread(registry.snapshot, identity)
             headers["ETag"] = result["etag"]

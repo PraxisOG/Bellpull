@@ -35,6 +35,21 @@ class LiveFilesVoiceDeviceTest {
                     it.contentDescription?.toString() in setOf("Back to sessions", "Show sessions", "Files list")
                 }))
                 ui.tapText("Files")
+                ui.await("Shared directory names missing") { ui.text("Shared directories: docs") != null }
+                val search = checkNotNull(ui.find { it.isEditable })
+                assertTrue(search.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "docs/Weekly notes.txt")
+                }))
+                ui.tapText("Open by path")
+                ui.await("Direct document missing") { ui.text("This document was opened directly by its shared path.") != null }
+                assertEquals("read", files.snapshot?.access)
+                assertNull(ui.text("Add item"))
+                assertNotNull(ui.text("Save")); assertNotNull(ui.text("Share"))
+                if (ui.text("Find a file") == null) ui.tap(checkNotNull(ui.find { it.contentDescription?.toString() == "Files list" }))
+                val filter = checkNotNull(ui.find { it.isEditable })
+                assertTrue(filter.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
+                }))
                 ui.tapText("Groceries.md")
                 ui.await("Grocery viewer missing") { ui.text("Checklist editing allowed") != null }
                 ui.screenshot("files-checklist")
@@ -48,6 +63,12 @@ class LiveFilesVoiceDeviceTest {
                 ui.tapText("New list item")
                 val field = checkNotNull(ui.find { it.className?.toString() == "android.widget.EditText" && it.isFocused })
                 field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Apples from phone") })
+                // Wait for the IME transition so the LazyColumn scroll target keeps its bounds.
+                ui.automation.waitForIdle(500, 3000)
+                if (ui.automation.windows.any { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }) {
+                    ui.automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                    ui.await("Keyboard did not dismiss") { ui.automation.windows.none { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD } }
+                }
                 ui.tapText("Add item")
                 ui.awaitMain("New list item was not saved") { files.snapshot?.text?.contains("- [ ] Apples from phone") == true && !files.busy }
                 assertTrue((api.liveFile(initial.id) as HermesResult.Ok).value!!.text.contains("- [ ] Apples from phone"))

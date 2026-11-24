@@ -9,7 +9,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 from plugins.bellpull.artifacts import ArtifactError
 from plugins.bellpull.live_files_store import LiveFiles, tasks
-from plugins.bellpull import live_files
+from plugins.bellpull import live_files, shared_paths
 
 
 class LiveFilesTest(unittest.TestCase):
@@ -74,6 +74,28 @@ class LiveFilesTest(unittest.TestCase):
         with self.assertRaises(ArtifactError): self.store.snapshot(self.id)
         self.path.write_bytes(b"x" * (2 * 1024 * 1024 + 1))
         with self.assertRaises(ArtifactError): self.store.snapshot(self.id)
+    def test_shared_roots_relative_pages_and_revocation(self):
+        self.assertEqual({}, shared_paths.roots(self.home))
+        config = self.home / "bellpull" / "file-roots.json"
+        config.parent.mkdir(exist_ok=True)
+        config.write_text(json.dumps({"docs": str(self.home)}))
+        path = self.home / "file #1.txt"
+        path.write_text("AB😀CD")
+        roots = shared_paths.roots(self.home)
+        first = shared_paths.snapshot(roots, "docs/file #1.txt", 0, 5)
+        second = shared_paths.snapshot(roots, "docs/file #1.txt", first["next_offset"])
+        self.assertEqual(first["text"] + second["text"], "AB😀CD")
+        self.assertEqual((first["access"], first["size"], first["etag"]), ("read", 8, second["etag"]))
+        self.assertEqual(self.store.list()["files"][0]["id"], self.id)
+        for bad in ("docs/../file", "/docs/file", "unknown/file", "docs//file"):
+            with self.assertRaises(ArtifactError): shared_paths.snapshot(roots, bad)
+        link = self.home / "alias.txt"; link.symlink_to(path)
+        with self.assertRaises(ArtifactError): shared_paths.snapshot(roots, "docs/alias.txt")
+        config.unlink()
+        with self.assertRaises(ArtifactError) as denied:
+            shared_paths.snapshot(shared_paths.roots(self.home), "docs/file #1.txt")
+        self.assertEqual(404, denied.exception.status)
+
     def test_code_examples_are_not_editable_tasks(self):
         value = "```md\n- [ ] Example\n```\n    - [ ] Code\n\t- [ ] Code\n- [ ] Real\n~~~\n- [ ] More code\n~~~"
         self.assertEqual([{"line": 5, "text": "Real", "checked": False}], tasks(value))
@@ -99,6 +121,27 @@ class FileHttpTest(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(caps["features"]["bellpull_live_files"])
         finally:
             stop(); adapter._run_idempotency_store.close()
+
+    async def test_shared_path_rechecks_grant_before_returning_304(self):
+        with tempfile.TemporaryDirectory() as folder:
+            document = Path(folder) / "notes.txt"; document.write_text("first")
+            grants = {"work": folder}
+            @web.middleware
+            async def errors(request, handler):
+                try: return await handler(request)
+                except ArtifactError as exc: return web.json_response({"error": str(exc)}, status=exc.status)
+            app = web.Application(middlewares=[errors])
+            for method, route, handler in live_files.routes(None): app.router.add_route(method, route, handler)
+            with patch.object(shared_paths, "roots", return_value=grants):
+                async with TestClient(TestServer(app)) as client:
+                    url = "/api/bellpull/files?path=work/notes.txt"
+                    first = await client.get(url); self.assertEqual(200, first.status)
+                    headers = {"If-None-Match": first.headers["ETag"]}
+                    self.assertEqual(304, (await client.get(url, headers=headers)).status)
+                    document.write_text("updated")
+                    self.assertEqual("updated", (await (await client.get(url, headers=headers)).json())["text"])
+                    grants.clear()
+                    self.assertEqual(404, (await client.get(url, headers=headers)).status)
 
     async def test_snapshot_etag_pin_edit_and_bounded_request(self):
         with tempfile.TemporaryDirectory() as folder:

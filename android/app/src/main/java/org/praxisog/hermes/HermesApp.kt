@@ -252,6 +252,7 @@ internal fun HermesApp(
                         Column(paneModifier) {
                             if (mode == WorkspaceMode.TOOLS) LiveFilesList(liveFiles, Modifier.weight(1f),
                                 open = { liveFiles?.open(it); fileAttachments = false; drawerOnCover = false },
+                                openPath = { liveFiles?.openPath(it); fileAttachments = false; drawerOnCover = false },
                                 attachments = { fileAttachments = true; drawerOnCover = false })
                             else SessionListScreen(state = scopedSessions, now = now, selectedId = openSessionId,
                                 onOpen = open, onRetry = onRetrySessions, onNewSession = onNewSession,

@@ -229,7 +229,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             capabilities.features["bellpull_model_controls"] == true || capabilities.features["bellpull_native_model_controls"] == true,
             capabilities.features["bellpull_artifact_lifecycle"] == true,
             capabilities.features["bellpull_run_attachments"] ?: (capabilities.features["bellpull_persistent_artifacts"] == true && capabilities.features["bellpull_model_controls"] == true)) }
-        liveFiles = cache?.let { saved -> LiveFilesWorkspace(scope, client, capabilities.features["bellpull_live_files"] == true, saved::readFileEdit, saved::writeFileEdit) }
+        liveFiles = cache?.let { saved -> LiveFilesWorkspace(scope, client, capabilities.features["bellpull_live_files"] == true, saved::readFileEdit, saved::writeFileEdit, profileId) }
         next.onToolCompleted = { name -> if (name == "bellpull_file") liveFiles?.refresh() }
         next.runs?.onToolCompleted = next.onToolCompleted
         next.defaultModel = { phase3?.defaultSelection }

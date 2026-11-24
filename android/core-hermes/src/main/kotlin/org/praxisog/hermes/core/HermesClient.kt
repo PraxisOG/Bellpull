@@ -111,18 +111,26 @@ class HermesClient(
     fun liveFiles(): HermesResult<LiveFileList> = get("/api/bellpull/files") {
         json.decodeFromString<LiveFileList>(it).also { list ->
             require(list.version == 1 && list.files.size <= 2000)
+            require(list.pathRoots.size <= 32 && list.pathRoots.all { it.matches(Regex("[A-Za-z0-9_-]{1,48}")) })
             require(list.files.all { row -> row.id.matches(Regex("[a-f0-9]{32}")) && row.access in setOf("read", "checklist") })
         }
     }
-    fun liveFile(id: String, etag: String? = null): HermesResult<LiveFileSnapshot?> {
-        val request = authed(liveFilePath(id)).apply { etag?.let { header("If-None-Match", it) } }.get().build()
+    fun liveFile(id: String, etag: String? = null) = readLiveFile(liveFilePath(id), etag) { it.validated(id) }
+
+    fun liveFileByPath(path: String, etag: String? = null) = readLiveFile("/api/bellpull/files?path=" + urlPart(path), etag) {
+        require(it.sourcePath == path && it.access == "read" && it.id.matches(Regex("[a-f0-9]{32}")))
+        it.validated(it.id)
+    }
+
+    private fun readLiveFile(address: String, etag: String?, validate: (LiveFileSnapshot) -> LiveFileSnapshot): HermesResult<LiveFileSnapshot?> {
+        val request = authed(address).apply { etag?.let { header("If-None-Match", it) } }.get().build()
         val call = trackedCall(httpClient, request)
         return try {
             call.execute().use { response ->
                 when {
                     response.code == 304 && etag != null -> HermesResult.Ok(null)
                     !response.isSuccessful -> HermesResult.Err(mapHttpError(response, null))
-                    else -> HermesResult.Ok(json.decodeFromString<LiveFileSnapshot>(response.body!!.string()).validated(id))
+                    else -> HermesResult.Ok(validate(json.decodeFromString(response.body!!.string())))
                 }
             }
         } catch (e: IOException) { HermesResult.Err(mapIoError(e)) }
