@@ -3,6 +3,7 @@ import difflib
 import hashlib
 import os
 from pathlib import Path
+import re
 import selectors
 import signal
 import stat
@@ -78,17 +79,52 @@ def owned_bytes(root, relative):
     finally: os.close(fd)
 
 
-def inspect_workspace(directory, file_id=None):
+def workspace_identity(root):
+    directory = root.stat()
+    marker = (root / ".git").lstat()
+    return [directory.st_dev, directory.st_ino, marker.st_dev, marker.st_ino]
+
+
+def capture_workspace_base(directory):
+    """Pin the commit and worktree visible at the first native process receipt."""
+    root = Path(directory)
+    try:
+        if not root.is_absolute() or root.resolve() != root:
+            return None
+        identity = workspace_identity(root)
+        code, output = git(root, "rev-parse", "--show-toplevel", "HEAD^{commit}", limit=16384)
+        top, _, commit = output.removesuffix(b"\n").rpartition(b"\n")
+        if code or top != os.fsencode(root) or not re.fullmatch(rb"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit):
+            return None
+        if identity == workspace_identity(root):
+            return {"commit": commit.decode("ascii"), "identity": identity}
+    except (OSError, ArtifactError):
+        pass
+    return None
+
+
+def inspect_workspace(directory, file_id=None, baseline=None):
     root=Path(directory)
     # Do not silently follow a replaced workspace root or expand to its parent repo.
     if not root.is_absolute() or root.is_symlink() or root.resolve()!=root or not root.is_dir():
         raise ArtifactError("The recorded workspace is no longer available.",410)
+    base = "HEAD"
+    if baseline is not None:
+        try:
+            same_workspace = workspace_identity(root) == baseline["identity"]
+        except OSError:
+            same_workspace = False
+        if not same_workspace:
+            raise ArtifactError("The worktree recorded for this process is no longer available.",410)
+        base = baseline["commit"]
     code,top=git(root,"rev-parse","--show-toplevel",limit=8192)
     if code or top.decode(errors="replace").strip()!=str(root):
         return dict(version=1,label="Workspace changes",files=[],note="Read-only changes require the recorded workspace to be a Git repository root.",truncated=False)
     # Cached diffs compare objects/index only. Do NOT refresh the index: refresh
     # may hash worktree content through repository-configured clean/process filters.
-    code,tracked=git(root,"diff-index","--cached","--no-ext-diff","--no-textconv","--no-renames","--name-only","-z","HEAD","--",limit=1048576)
+    code,tracked=git(root,"diff-index","--cached","--no-ext-diff","--no-textconv","--no-renames","--name-only","-z",base,"--",limit=1048576)
+    if code and baseline is not None:
+        raise ArtifactError("The recorded Git base could not be read.",409)
     if code:
         # An unborn repository has no HEAD; ls-files lists tracked paths directly.
         code,tracked=git(root,"ls-files","-z",limit=1048576)
@@ -106,14 +142,17 @@ def inspect_workspace(directory, file_id=None):
         except UnicodeDecodeError: continue
         if Path(name).is_absolute() or ".." in Path(name).parts: continue
         files.append(dict(id=hashlib.sha256(raw).hexdigest(),path=name))
-    result=dict(version=1,label="Workspace changes",files=files,note="Changes may include edits made outside this OpenCode task or metadata-only changes. Multi-link files are excluded from previews because workspace containment cannot be proven.",truncated=len(names)>MAX_FILES)
+    result=dict(version=1,label="Workspace changes",files=files,note="Changes may include other edits or metadata-only changes. Multi-link files are excluded from previews because workspace containment cannot be proven.",truncated=len(names)>MAX_FILES)
+    if baseline is not None:
+        result["base_commit"] = base
+        result["note"] = f"Live worktree changes since first observed commit {base[:12]}. " + result["note"]
     if file_id is None: return result
     entry=next((f for f in files if f["id"]==file_id),None)
     if entry is None: raise ArtifactError("Changed file not found. Refresh the workspace list.",404)
     try:
         after=owned_bytes(root,entry["path"])
         # cat-file returns raw blob bytes, without clean/smudge/textconv filters.
-        code,before=git(root,"cat-file","blob",f"HEAD:{entry['path']}")
+        code,before=git(root,"cat-file","blob",f"{base}:{entry['path']}")
         if code: before=b""
         if b"\0" in before or b"\0" in after: raise ArtifactError("Binary files have no text diff preview.",409)
         old,new=before.decode("utf-8"),after.decode("utf-8")

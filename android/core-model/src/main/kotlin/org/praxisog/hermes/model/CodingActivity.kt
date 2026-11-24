@@ -18,6 +18,8 @@ data class CodingWork(
     @SerialName("exit_code") val exitCode: Int? = null,
     val gap: Boolean = false,
     val note: String = "",
+    val executor: String = "opencode",
+    @SerialName("executor_session_id") val executorSessionId: String? = null,
 ) { override fun toString() = "CodingWork(state=$state, identities=redacted)" }
 
 @Serializable
@@ -47,14 +49,16 @@ data class CodingSnapshot(
     val works: List<CodingWork>,
     val rows: List<CodingRow>,
     @SerialName("observed_at") val observedAt: Double,
+    val executors: List<String> = listOf("opencode"),
 ) {
     fun validated(requested: String): CodingSnapshot {
         require(version == 1 && sessionId == requested && requested in sessionIds && cursor >= 0)
         require(sessionIds.size in 1..1000 && sessionIds.distinct().size == sessionIds.size)
+        require(executors.size <= 32 && executors.all { it.length in 1..64 })
         require(works.size <= 128 && works.map { it.id }.distinct().size == works.size)
         val ids = works.map { it.id }.toSet()
         works.forEach { require(it.id.matches(Regex("[a-f0-9]{32}")) && it.sessionId in sessionIds &&
-            it.runId.isNotBlank() && it.processId.isNotBlank() && it.state in setOf("running", "completed", "failed", "stopped", "lost", "unknown")) }
+            it.runId.isNotBlank() && it.processId.isNotBlank() && it.executor.length in 1..64 && (it.executorSessionId?.length ?: 0) <= 256 && it.state in setOf("running", "completed", "failed", "stopped", "lost", "unknown")) }
         require(rows.size <= 300 && rows.zipWithNext().all { (a,b) -> a.sequence < b.sequence })
         rows.forEach { require(it.workId in ids && it.sequence in 1..cursor && it.key.length <= 1024 &&
             it.detail.length <= 32768 && (it.command?.length ?: 0) <= 32768 && it.label.length <= 512) }

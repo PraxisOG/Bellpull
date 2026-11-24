@@ -1,3 +1,7 @@
+## Coding activity · 0.20.12 / build 62
+
+Open the conversation menu and choose **Coding activity**. The activity view shows the executor, its session, command results and process exit. Workspace changes include edits committed since Bellpull first observed the worktree. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.12-experimental.1) · [Verification](RELEASE-0.20.12-EXPERIMENTAL.md)
+
 ## Missed Bot Chat receipts · 0.20.11 / build 61
 
 Open **Today → Inbox → Bot Chat delivery history** to inspect retained same-profile receipts, including timeout notices that the phone missed. Each row includes the original native execution and delivery IDs. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.11-experimental.1) · [Verification](RELEASE-0.20.11-EXPERIMENTAL.md)

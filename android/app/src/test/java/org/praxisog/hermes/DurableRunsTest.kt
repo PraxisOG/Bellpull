@@ -118,10 +118,12 @@ class DurableRunsTest {
     @Volatile private var streamFailures = 0
     private val eventBodies = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val drafts = ChatDrafts()
+    @Volatile private var beforeJournalWrite: ((RunSubmission) -> Unit)? = null
     private val journal = object : RunJournal {
         override fun readRuns() = saved.values.toList()
         override fun writeRun(value: RunSubmission): Boolean {
             if (!storeWorks) return false
+            beforeJournalWrite?.invoke(value)
             saved[value.requestId] = value
             return true
         }
@@ -305,23 +307,47 @@ class DurableRunsTest {
         assertEquals("Replacement", manager.states["one"]!!.submission.text)
     }
 
-    @Test fun stopAcknowledgedAfterTerminalStatusKeepsATerminalPresentation() {
+    @Test fun stopAcknowledgedAfterTerminalStatusKeepsATerminalPresentation() =
+        stopDuringHistoryWrite(matchedReply = false)
+
+    @Test fun stopAcknowledgedDuringSettlementPersistsBothReceipts() =
+        stopDuringHistoryWrite(matchedReply = true)
+
+    private fun stopDuringHistoryWrite(matchedReply: Boolean) {
         stoppedStatus = "completed"
-        historyBody = """{"data":[]}"""
-        val gate = java.util.concurrent.CountDownLatch(1)
-        stopResponseGate = gate
+        if (!matchedReply) historyBody = """{"data":[]}"""
+        val stopResponse = java.util.concurrent.CountDownLatch(1)
+        val retryStarted = java.util.concurrent.CountDownLatch(1)
+        val finishRetry = java.util.concurrent.CountDownLatch(1)
+        stopResponseGate = stopResponse
+        beforeJournalWrite = { record ->
+            val targetWrite = if (matchedReply) record.historySynced else record.historyChecks == 1
+            if (targetWrite && !record.stopRequested) {
+                retryStarted.countDown()
+                check(finishRetry.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            }
+        }
         val manager = manager()
         try {
             manager.send("one", "hello", emptySet())
             await { manager.states["one"]?.submission?.runId != null }
             manager.stop("one")
-            await { manager.states["one"]?.submission?.terminal == true }
-            gate.countDown()
+            assertTrue(retryStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            stopResponse.countDown()
             await { manager.states["one"]?.submission?.stopRequested == true }
-            assertTrue(manager.states["one"]!!.turn is TurnState.StoppedByUser)
-            assertFalse(manager.states["one"]!!.busy)
+            finishRetry.countDown()
             await { manager.states["one"]?.submission?.historySynced == true }
-        } finally { gate.countDown() }
+            val final = manager.states["one"]!!
+            assertTrue(final.submission.stopRequested)
+            assertTrue(final.turn is TurnState.StoppedByUser)
+            assertFalse(final.busy)
+            val persisted = saved.getValue(final.submission.requestId)
+            assertTrue(persisted.stopRequested)
+            assertTrue(persisted.historySynced)
+        } finally {
+            stopResponse.countDown()
+            finishRetry.countDown()
+        }
     }
 
     @Test fun reasoningAndInterimProseUpdateWhileTheRunIsStillWorking() {

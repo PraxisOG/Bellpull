@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.11 / build 61 and plugin 0.9.6-mobile-preview**
-> Today → Inbox recovers earlier Bot Chat receipts and identifies timeout notices by their original execution and delivery IDs.
-> [Release notes and verification](docs/RELEASE-0.20.11-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.12 / build 62 and plugin 0.9.7-mobile-preview**
+> Open **Coding activity** in a chat to inspect its Hermes-owned Codex, Claude Code and OpenCode processes, command results and workspace changes.
+> [Release notes and verification](docs/RELEASE-0.20.12-EXPERIMENTAL.md).
 
 <div align="center">
 
@@ -49,7 +49,7 @@ the project, coding and calendar panels show the development preview.*
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
-| **Coding activity** | Open a chat → **⋮ → OpenCode activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
+| **Coding activity** | Open a chat → **⋮ → Coding activity** to see Hermes-owned OpenCode, Codex and Claude Code processes, retained output and read-only workspace diffs. Build 61 labels this menu **OpenCode activity**. |
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
 | **Today overview** | See today's calendar, due reminders, pending decisions, tracked work and unread replies from existing local records. |
 | **Phone assistant** | Choose Bellpull in Android’s assistant picker, use explicit phone commands, or continue spoken/typed words as a new chat draft. |
@@ -64,8 +64,8 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.20.11-experimental / build 61**
-> pairs with Bellpull plugin **0.9.6-mobile-preview**. Server features need
+> **This is an experimental prerelease:** Android **0.20.12-experimental / build 62**
+> pairs with Bellpull plugin **0.9.7-mobile-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
 > [Kanban implementation notes](docs/PHASE-18-KANBAN.md). Phase 10's delivery framework

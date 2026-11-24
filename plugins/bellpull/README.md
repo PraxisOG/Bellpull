@@ -1,4 +1,4 @@
-The current experimental bundle is **0.9.6-mobile-preview**. Its authenticated capabilities
+This source builds **0.9.7-mobile-preview**. Coding activity clients can request Hermes-owned Codex and Claude Code process events with `executors=all`. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,
@@ -49,7 +49,7 @@ run `python3 tools/package-plugin.py OUTPUT_DIRECTORY` from a checkout with PyYA
 
 # Bellpull integration plugin 0.9.2-voice-files-preview
 
-This single plugin includes shared Canvas, native Kanban, OpenCode activity, reminders/native Hermes routines,
+This single plugin includes shared Canvas, native Kanban, coding activity, reminders/native Hermes routines,
 opt-in phone calendar context/proposals, and the existing chat/files/projects features.
 Pair this source with Android **0.20.2-experimental** (build 52).
 The published 0.18.2 queue/text repairs require no plugin runtime update from 0.8.1,

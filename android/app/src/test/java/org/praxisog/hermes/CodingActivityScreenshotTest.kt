@@ -40,6 +40,25 @@ class CodingActivityScreenshotTest {
         compose.onNodeWithText("Chat / follow up").performClick(); assertEquals(1,chats)
         compose.onNodeWithText("Allow once").assertDoesNotExist()
     }
+    @Test fun showsTheExecutorIdentityAndDistinguishesExitFromLostWork() {
+        val observed = androidx.compose.runtime.mutableStateOf(work.copy(
+            executor = "codex", executorSessionId = "codex-thread", exitCode = 0, state = "completed"))
+        compose.setContent {
+            val view = snapshot.copy(works = listOf(observed.value), rows = emptyList())
+            HermesTheme {
+                CodingActivityPanel(view, false, true, false, null, "Running", {}, {}, {}, {}, false)
+            }
+        }
+        compose.onNodeWithText("Codex · Process exited with code 0").assertIsDisplayed()
+        compose.onNodeWithText("codex-thread").assertIsDisplayed()
+        compose.runOnIdle {
+            observed.value = work.copy(executor = "claude", executorSessionId = "claude-session",
+                state = "lost", exitCode = 1)
+        }
+        compose.onNodeWithText("Claude Code · Lost").assertIsDisplayed()
+        compose.onNodeWithText("claude-session").assertIsDisplayed()
+        compose.onNodeWithText("Hermes run run_one").assertIsDisplayed()
+    }
     @Test fun activityCover() = show()
     @Test @Config(qualifiers="w840dp-h900dp-night") fun activityUnfolded() = show()
     @Test fun disconnectedActivityCover() = show(disconnected=true)

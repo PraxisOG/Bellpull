@@ -104,7 +104,7 @@ internal fun ConversationToolbar(
                                 onClick = { menuOpen = false; onOffline() })
                             DropdownMenuItem(text = { Text("View artifacts") }, enabled = hasSession,
                                 onClick = { menuOpen = false; onArtifacts() })
-                            if (onActivity != null) DropdownMenuItem(text = { Text("OpenCode activity") }, enabled = hasSession,
+                            if (onActivity != null) DropdownMenuItem(text = { Text("Coding activity") }, enabled = hasSession,
                                 modifier = Modifier.testTag("open-coding-activity"),
                                 onClick = { menuOpen = false; onActivity() })
                             HorizontalDivider()
