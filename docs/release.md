@@ -1,3 +1,7 @@
+## Spoken approvals · 0.20.7 / build 57
+
+Say “read the approval request” during a call or voice conversation. After Bellpull reads the operation, you can allow it once or deny it by voice. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.7-experimental.1) · [Verification](RELEASE-0.20.7-EXPERIMENTAL.md)
+
 ## Experimental Android dictation update · 0.20.6 / build 56
 
 Hold the chat microphone to dictate when speech playback is unavailable. This Android update pairs with plugin 0.9.4-mobile-preview. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.6-experimental.1) · [Release notes](RELEASE-0.20.6-EXPERIMENTAL.md)
