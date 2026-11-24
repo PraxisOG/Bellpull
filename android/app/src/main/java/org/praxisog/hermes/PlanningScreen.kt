@@ -57,6 +57,7 @@ import kotlinx.coroutines.delay
     var editor by remember { mutableStateOf<String?>(null) }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var editingRoutine by remember { mutableStateOf<Routine?>(null) }
+    var showHistory by remember(workspace) { mutableStateOf(false) }
     var showResults by remember(workspace) { mutableStateOf(false) }
     var resultsJob by remember(workspace) { mutableStateOf<String?>(null) }
     var selectedEvent by remember { mutableStateOf<PhoneCalendarEvent?>(null) }
@@ -144,6 +145,8 @@ import kotlinx.coroutines.delay
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }
             }, openResults = if (workspace.snapshot?.savedResultsAvailable == true) { job ->
                 resultsJob=job; showResults=true
+            } else null, openHistory = if (workspace.snapshot?.botChatHistoryAvailable == true) {
+                { showHistory = true }
             } else null)
             "Reminders" -> {
                 Button(onClick={ editingReminder=null; editor="Reminder" },enabled=workspace.supported && !workspace.busy) { Text("Add reminder") }
@@ -212,6 +215,9 @@ import kotlinx.coroutines.delay
         }
         }
     }
+    if (showHistory) BotChatHistoryDialog(workspace, { showHistory = false }, { job ->
+        showHistory = false; resultsJob = job; showResults = true
+    })
     if (showResults) key(workspace, resultsJob) { RoutineResultsDialog(workspace, resultsJob) { showResults=false } }
     editor?.let { kind -> PlanningEditor(kind,editingReminder,editingRoutine,workspace.busy,{ editor=null }) { title,whenText,prompt,operation ->
         workspace.action(if (kind=="Reminder") "reminders" else "routines",buildJsonObject {
@@ -388,10 +394,11 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
 
 
 @Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit,
-    openResults: ((String?) -> Unit)? = null) {
+    openResults: ((String?) -> Unit)? = null, openHistory: (() -> Unit)? = null) {
     var selected by remember { mutableStateOf<InboxEntry?>(null) }
     var showDismissed by remember { mutableStateOf(false) }
     Text("Received on this phone · newest 200 items. Opening or dismissing an inbox item never approves a request or completes a reminder.", style=MaterialTheme.typography.bodySmall)
+    openHistory?.let { TextButton(onClick = it) { Text("Bot Chat delivery history") } }
     FilterChip(showDismissed, { showDismissed = !showDismissed }, label={ Text("Show dismissed") })
     val visible = entries.asReversed().filter { showDismissed || it.dismissedAt == null }
     if (visible.isEmpty()) Text("No saved inbox items yet.")
@@ -422,6 +429,8 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
                 entry.receiptChangedAt?.takeIf { it > 0 }?.let { at ->
                     Text("Status saved ${displayInstant(at)}", style = MaterialTheme.typography.bodySmall)
                 }
+                receipt.executionId?.let { SelectionContainer { Text("Execution $it", style = MaterialTheme.typography.bodySmall) } }
+                if (receipt.degradedNotice) Text("This status tracks a notice about a delivery timeout. The original output is in the routine’s saved results.")
                 SelectionContainer { Text("Receipt ${receipt.id}", style = MaterialTheme.typography.bodySmall) }
             }
             if (entry.truncated) Text("Saved preview truncated. Open the conversation online for the complete response.")

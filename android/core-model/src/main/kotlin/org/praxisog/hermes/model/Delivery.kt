@@ -54,7 +54,8 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
         // Acknowledged operations stay optimistic until a canonical snapshot arrives.
         val next = withCachedReceipts().copy(planning = snapshot, lastSync = now, operations = operations.filter { it.status != "acknowledged" })
         val valid = next.reminders().map { occurrence(it) }.toSet()
-        return snapshot.routines.fold(next.copy(displayed = displayed.intersect(valid))) { state, routine ->
+        val history = snapshot.botChatHistory?.let { next.rememberHistory(it, now, planning?.botChatHistory) } ?: next
+        return snapshot.routines.fold(history.copy(displayed = displayed.intersect(valid))) { state, routine ->
             val previous = planning?.routines?.find { it.id == routine.id }
             state.reconcileRoutine(routine, previous, now).rememberReceipts(routine, previous, now)
         }
@@ -70,18 +71,35 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
 
     private fun rememberReceipts(routine: Routine, previous: Routine?, now: Long): DeliveryState =
         routine.botChatReceipts.fold(this) { state, incoming ->
-            if (!RECEIPT_ID.matches(incoming.id) || !incoming.target.startsWith("bot-chat:")) return@fold state
-            val id = "bot-chat:${incoming.id}"
-            val old = state.entries.find { it.id == id }
-            if (old == null && incoming in previous?.botChatReceipts.orEmpty()) return@fold state // Already evicted.
-            val receipt = incoming.copy(target = incoming.target.take(400))
-            if (old?.botChatReceipt != null && !receipt.supersedes(old.botChatReceipt)) return@fold state
-            if (old == null) state.receive(InboxEntry(id, "delivery", routine.name ?: "Routine delivery",
-                receipt.label(), now, routineId = routine.id, botChatReceipt = receipt, receiptChangedAt = now))
-            else state.copy(entries = state.entries.map {
-                if (it.id == id) it.copy(body = receipt.label(), botChatReceipt = receipt, receiptChangedAt = now) else it
-            })
+            state.rememberReceipt(routine.id, routine.name, incoming, now, incoming in previous?.botChatReceipts.orEmpty())
         }
+
+    fun rememberHistory(page: BotChatHistory, now: Long, previous: BotChatHistory? = null): DeliveryState {
+        val names = planning?.routines.orEmpty().associate { it.id to it.name }
+        val seen = previous?.deliveries.orEmpty().toSet()
+        return page.deliveries.asReversed().fold(this) { state, delivery ->
+            state.rememberReceipt(delivery.job, names[delivery.job] ?: delivery.job, delivery.receipt, now, delivery in seen)
+        }
+    }
+
+    private fun rememberReceipt(job: String, name: String?, incoming: BotChatReceipt, now: Long, seen: Boolean): DeliveryState {
+        if (!RECEIPT_ID.matches(incoming.id) || !incoming.target.startsWith("bot-chat:")) return this
+        val id = "bot-chat:${incoming.id}"
+        val old = entries.find { it.id == id }
+        if (old == null && seen) return this // Already evicted.
+        val prior = old?.botChatReceipt
+        if (old != null && old.routineId != job) return this
+        if (prior?.executionId != null && incoming.executionId != null && prior.executionId != incoming.executionId) return this
+        val observed = if (prior == null || incoming.supersedes(prior)) incoming else prior
+        val receipt = observed.copy(target = observed.target.take(400), executionId = prior?.executionId ?: incoming.executionId,
+            degradedNotice = incoming.degradedNotice || prior?.degradedNotice == true)
+        if (prior == receipt) return this
+        if (old == null) return receive(InboxEntry(id, "delivery", name ?: "Routine delivery", receipt.label(), now,
+            routineId = job, botChatReceipt = receipt, receiptChangedAt = now))
+        return copy(entries = entries.map {
+            if (it.id == id) it.copy(body = receipt.label(), botChatReceipt = receipt, receiptChangedAt = now) else it
+        })
+    }
 
     private fun reconcileRoutine(routine: Routine, previous: Routine?, now: Long): DeliveryState {
         val run = routine.latestExecution

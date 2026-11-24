@@ -8,6 +8,26 @@ class DeliveryTest {
     private val reminder = Reminder("a".repeat(32), "A reminder", 1000, "pending", 1)
     private fun state() = DeliveryState(planning = PlanningSnapshot(1, listOf(reminder), observedAt = 1.0))
     private fun operation(action: String, due: Long? = null) = ReminderOperation("b".repeat(32), reminder.id, 1, action, due)
+    @Test fun missedNoticeUsesOriginalExecutionAndSurvivesCurrentReceiptAndOfflineRestore() {
+        val job = "original-job"
+        val original = "1".repeat(32)
+        val latest = "2".repeat(32)
+        val notice = BotChatReceipt("bot-chat:(own)", "a".repeat(64), "ambiguous", "deferred", original, true)
+        val current = BotChatReceipt("bot-chat:(own)", "b".repeat(64), "settled", "owner", latest)
+        val history = BotChatHistory(listOf(
+            HistoricalBotChatDelivery(job, "2026-11-24T12:04:00Z", current),
+            HistoricalBotChatDelivery(job, "2026-11-24T11:04:00Z", notice)))
+        val routine = Routine(job, name = "Routine", fingerprint = "f", botChatReceipts = listOf(current.copy(executionId = null)))
+        val snapshot = PlanningSnapshot(1, emptyList(), listOf(routine), observedAt = 2.0, botChatHistory = history)
+        val first = DeliveryState().reconcile(snapshot, 100)
+        assertEquals(listOf(notice, current), first.entries.map { it.botChatReceipt })
+        assertEquals("Bot Chat delivery notice · ambiguous", first.entries.first().body)
+        val second = first.reconcile(snapshot.copy(botChatHistory = null), 200)
+        val restored = Json.decodeFromString<DeliveryState>(Json.encodeToString(second))
+        assertEquals(first.entries, restored.entries)
+        assertEquals(first.entries, restored.rememberHistory(history, 300).entries)
+    }
+
     @Test fun receivedAndDisplayedAreDifferentAndSurviveRestart() {
         val received = state().receivedReminders(2000)
         assertEquals(1, received.entries.size)

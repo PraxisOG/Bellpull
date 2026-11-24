@@ -327,6 +327,35 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
                 stop(); await client.close()
                 for database in getattr(adapter,"_session_dbs",{}).values(): database.close()
 
+    async def test_bot_chat_history_read_uses_gateway_auth_and_keeps_planning_available(self):
+        from plugins.bellpull import routine_history
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME":home,"BELLPULL_NTFY_URL":""}):
+            adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key":"history-fixture"}))
+            app = web.Application()
+            stop = wire(app, adapter)
+            client = TestClient(TestServer(app))
+            await client.start_server()
+            base = "/api/bellpull/planning"
+            headers = {"Authorization":"Bearer history-fixture"}
+            try:
+                path = base + "/bot-chat-history"
+                self.assertEqual(401, (await client.get(path)).status)
+                if routine_history.available():
+                    page = await (await client.get(path, headers=headers)).json()
+                    self.assertEqual({"deliveries":[], "next":None, "unreadable":0}, page)
+                    self.assertEqual(400, (await client.get(path, params={"before":"invalid"}, headers=headers)).status)
+                    with patch.object(routine_history, "page", side_effect=ArtifactError("History unavailable.", 503)):
+                        self.assertEqual(503, (await client.get(path, headers=headers)).status)
+                        snapshot = await (await client.get(base, headers=headers)).json()
+                        self.assertTrue(snapshot["bot_chat_history_available"])
+                        self.assertNotIn("bot_chat_history", snapshot)
+                else:
+                    self.assertEqual(501, (await client.get(path, headers=headers)).status)
+            finally:
+                stop()
+                await client.close()
+                for database in getattr(adapter,"_session_dbs",{}).values(): database.close()
+
     async def test_read_retained_native_result_after_failed_delivery(self):
         from cron import jobs
         from plugins.bellpull.routine_results import CHUNK_BYTES

@@ -26,7 +26,9 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
         if (element is JsonArray) JsonPrimitive(element.joinToString(", ") { it.jsonPrimitive.content }) else element
 }
 
-@Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String) {
+@Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String,
+    @SerialName("execution_id") val executionId: String? = null,
+    @SerialName("degraded_notice") val degradedNotice: Boolean = false) {
     private val evidenceRank get() = when (source) {
         "owner" -> 3
         "deferred" -> 2
@@ -51,8 +53,26 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
             "transferred" -> "handed off, completion unconfirmed"
             else -> "status unknown"
         }
-        val name = target.removePrefix("bot-chat:").let { if (it == "(own)") "Bot Chat" else "Bot Chat ($it)" }
+        val destination = target.removePrefix("bot-chat:").let { if (it == "(own)") "Bot Chat" else "Bot Chat ($it)" }
+        val name = if (degradedNotice) "$destination delivery notice" else destination
         return if (source == "scheduler") "$name last recorded as $state" else "$name · $state"
+    }
+}
+
+@Serializable data class HistoricalBotChatDelivery(val job: String, @SerialName("claimed_at") val claimedAt: String,
+    val receipt: BotChatReceipt)
+@Serializable data class BotChatHistory(val deliveries: List<HistoricalBotChatDelivery>, val next: String? = null, val unreadable: Int = 0) {
+    fun validated(): BotChatHistory {
+        require(unreadable in 0..100)
+        require(deliveries.size <= 100 && deliveries.distinctBy { it.receipt.id }.size == deliveries.size)
+        require(next == null || next.length in 1..100)
+        deliveries.forEach { row ->
+            require(row.job.length in 1..255 && row.claimedAt.length in 1..48)
+            require(row.receipt.id.matches(Regex("[0-9a-f]{64}")) && row.receipt.target == "bot-chat:(own)")
+            require(row.receipt.executionId?.matches(Regex("[0-9a-f]{32}")) == true)
+            require(row.receipt.source in setOf("deferred", "owner"))
+        }
+        return this
     }
 }
 
@@ -79,8 +99,11 @@ fun RoutineExecution.deliveryLabel(): String = when (deliveryOutcome) {
 @Serializable data class PlanningSnapshot(val version: Int, val reminders: List<Reminder>,
     val routines: List<Routine> = emptyList(), val proposals: List<CalendarProposal> = emptyList(),
     @SerialName("routines_available") val routinesAvailable: Boolean = false, @SerialName("observed_at") val observedAt: Double,
-    @SerialName("saved_results_available") val savedResultsAvailable: Boolean = false) {
+    @SerialName("saved_results_available") val savedResultsAvailable: Boolean = false,
+    @SerialName("bot_chat_history_available") val botChatHistoryAvailable: Boolean = false,
+    @SerialName("bot_chat_history") val botChatHistory: BotChatHistory? = null) {
     fun validated(): PlanningSnapshot {
+        botChatHistory?.validated()
         require(version == 1 && reminders.size <= 1000 && routines.size <= 500 && proposals.size <= 100)
         require(reminders.distinctBy { it.id }.size == reminders.size)
         reminders.forEach { require(it.id.matches(Regex("[a-f0-9]{32}")) && it.title.length in 1..400 && it.dueMs > 0 && it.revision > 0 && it.state in setOf("pending","completed","dismissed")) }

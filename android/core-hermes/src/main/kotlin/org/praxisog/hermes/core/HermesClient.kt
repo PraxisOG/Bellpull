@@ -188,6 +188,13 @@ class HermesClient(
         }
     }
     fun planning(): HermesResult<PlanningSnapshot> = get("/api/bellpull/planning") { json.decodeFromString<PlanningSnapshot>(it).validated() }
+    fun botChatHistory(before: String?): HermesResult<BotChatHistory> {
+        val path = "/api/bellpull/planning/bot-chat-history" + (before?.let { "?before=" + urlPart(it) } ?: "")
+        return get(path) { body ->
+            json.decodeFromString<BotChatHistory>(body).validated().also { require(it.next == null || it.next != before) }
+        }
+    }
+
     fun savedRoutineResults(before: String? = null, job: String? = null): HermesResult<SavedRoutineResults> {
         val query = listOfNotNull(before?.let { "before=" + urlPart(it) }, job?.let { "job=" + urlPart(it) })
         val path = "/api/bellpull/planning/results" + if (query.isEmpty()) "" else query.joinToString("&", prefix = "?")

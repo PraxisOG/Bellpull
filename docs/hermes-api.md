@@ -43,6 +43,25 @@ and on routine items in the inbox.
   source and when the phone saved that status. The execution summary keeps
   the scheduler's separate delivery outcome.
 
+On hosts with the native execution ledger and Bot Chat receipt readers, planning
+advertises `bot_chat_history_available`. Its optional `bot_chat_history` includes the
+first page for a freshly connected Inbox. An authenticated
+`GET /api/bellpull/planning/bot-chat-history` returns the same page shape. Pass
+its opaque `next` cursor as `before` for earlier executions. A page examines up
+to 50 native executions in descending claim-time and execution-ID order. An empty
+`deliveries` array can have a continuation when the examined jobs used other
+destinations. Its `unreadable` count identifies receipt reads that failed on that page. Other readable receipts remain visible. Retention can remove records between reads.
+
+Each item in `deliveries` names the producer job, native execution ID, the
+execution's claim time, and an observed same-profile receipt. Receipt fields
+include its native ID, target, status, source and `degraded_notice`. A degraded
+notice reports a problem delivering the original output. Its own completion
+confirms delivery of the notice only. Missing or pruned records supply no
+receipt. The reader uses the authenticated profile's execution ledger and
+Hermes' exact-ID receipt reads. It sends only receipt metadata. An incompatible
+ledger or failed read can make history unavailable while the rest of planning
+continues to work.
+
 Opening or paging a saved result only reads the profile's existing cron output.
 The scheduler remains responsible for its retention, including removal on
 explicit job deletion.

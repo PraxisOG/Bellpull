@@ -56,6 +56,11 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         override fun onChange(selfChange: Boolean) { if (active) refresh() }
     }
     fun permissionChanged() { refresh() }
+    suspend fun botChatHistory(before: String?): HermesResult<BotChatHistory> {
+        val result = withContext(Dispatchers.IO) { client.botChatHistory(before) }
+        if (!closed && result is HermesResult.Ok) delivery?.rememberHistory(result.value)
+        return result
+    }
     suspend fun savedResults(before: String?, job: String?) = withContext(Dispatchers.IO) { client.savedRoutineResults(before, job) }
     suspend fun savedResult(file: SavedRoutineResult, offset: Long) = withContext(Dispatchers.IO) {
         client.savedRoutineResult(file, offset)

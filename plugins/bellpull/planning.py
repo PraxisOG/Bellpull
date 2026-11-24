@@ -17,7 +17,7 @@ import time
 from aiohttp import web
 from .artifacts import ArtifactError
 from .principal import artifact_scope
-from . import routine_results
+from . import routine_history, routine_results
 
 
 def identity(value):
@@ -341,7 +341,18 @@ def routes(adapter):
         store=current_store(); value=await asyncio.to_thread(store.snapshot)
         value.update(routines=await asyncio.to_thread(routines) if cron_ready() else [],routines_available=cron_ready(),
                      saved_results_available=True)
+        value["bot_chat_history_available"] = routine_history.available()
+        if value["bot_chat_history_available"]:
+            try:
+                value["bot_chat_history"] = await asyncio.to_thread(routine_history.page)
+            except ArtifactError:
+                # The history route reports its own read failure and can be retried.
+                pass
         return web.json_response(value,headers={"Cache-Control":"no-store"})
+    async def history(request):
+        value = await asyncio.to_thread(routine_history.page, request.query.get("before"))
+        return web.json_response(value, headers={"Cache-Control":"no-store"})
+
     async def results(request):
         from hermes_constants import get_hermes_home
         value = await asyncio.to_thread(routine_results.list_results, get_hermes_home(), request.query.get("before"),
@@ -371,6 +382,7 @@ def routes(adapter):
         if not isinstance(body,dict): raise ArtifactError("JSON object required.",400)
         return web.json_response(await asyncio.to_thread(current_store().calendar,request.match_info["device"],body))
     return [("GET","/api/bellpull/planning",snapshot),
+            ("GET","/api/bellpull/planning/bot-chat-history",history),
             ("GET","/api/bellpull/planning/results",results),("GET","/api/bellpull/planning/result",result),
             ("POST","/api/bellpull/planning/{kind}",mutate),("PUT","/api/bellpull/calendar/{device}",calendar)]
 

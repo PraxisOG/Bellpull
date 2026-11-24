@@ -17,6 +17,11 @@ STAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}")
 DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 
 
+def receipt_status(value):
+    known = {"queued", "claimed", "settled", "failed", "ambiguous", "suppressed", "transferred", "cancelled"}
+    return value if isinstance(value, str) and value in known else "unknown"
+
+
 def bot_chat_receipts(job):
     """Project only producer-referenced receipts. Never enter another target profile."""
     queued = job.get("last_delivery_queued")
@@ -45,8 +50,7 @@ def bot_chat_receipts(job):
                     state, source = pending.get("status"), "deferred"
         except (ImportError, OSError, ValueError, TypeError):
             pass
-        known = {"queued", "claimed", "settled", "failed", "ambiguous", "suppressed", "transferred", "cancelled"}
-        records.append(dict(target=target, id=key, status=state if isinstance(state, str) and state in known else "unknown",
+        records.append(dict(target=target, id=key, status=receipt_status(state),
                             source=source))
     return records
 
