@@ -33,7 +33,8 @@ internal class HttpVoiceTranscriber(config: VoiceConfiguration) : VoiceTranscrib
     override fun transcribe(wav: ByteArray) = client.transcribe(wav)
     override fun close() = client.close()
 }
-internal class StoreVoiceConversation(private val store: HermesStore, private val id: String) : VoiceConversation {
+internal class StoreVoiceConversation(private val store: HermesStore, private val id: String,
+    private val canvas: CanvasWorkspace? = null) : VoiceConversation {
     private var previousIds = emptySet<Int>()
     private var legacyIdentity: String? = null
     override val selected get() = store.openSessionId == id
@@ -69,7 +70,8 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
         if (!ready || run().busy) return false
         previousIds = (store.history as? UiState.Ready)?.value.orEmpty().map { it.id }.toSet()
         if (store.runs == null) legacyIdentity = "voice-legacy-${java.util.UUID.randomUUID()}"
-        store.send(text)
+        val prompt = if (canvas == null) text else canvas.prepare(id, text) ?: return false
+        store.send(prompt)
         return store.turn is TurnState.Streaming || store.runPresentation?.busy == true
     }
     override fun cancel() { if (selected) store.stop() }

@@ -16,14 +16,18 @@ internal class CanvasWorkspace(private val scope: CoroutineScope, private val cl
     var connected by mutableStateOf(false); private set
     var busy by mutableStateOf(false); private set
     var problem by mutableStateOf<String?>(null); private set
-    private var session: String? = null
+    var selection by mutableStateOf<CanvasSelection?>(null); private set
+    val watching get() = visible || selection != null
+    val selectionReady get() = connected && supported && selection?.matches(snapshot?.document) == true
+    var session by mutableStateOf<String?>(null); private set
     private var generation = 0
+    private var editGeneration = 0
     private var job: Job? = null
     @Volatile private var transport: HermesClient.Streaming? = null
     private var closed = false
     fun observe(id: String?, active: Boolean) {
         transport?.cancel(); transport = null; job?.cancel(); generation++
-        if (id != session) { session = id; snapshot = id?.let(cache::readCanvas); problem = null; busy = false }
+        if (id != session) { editGeneration++; selection = null; session = id; snapshot = id?.let(cache::readCanvas); problem = null; busy = false }
         connected = false
         if (closed || id == null || !supported || !active) return
         val token = generation
@@ -52,6 +56,7 @@ internal class CanvasWorkspace(private val scope: CoroutineScope, private val cl
     fun mutate(action: String, canvasId: String? = snapshot?.document?.id, extra: JsonObject = buildJsonObject {}, onSettled: (Boolean) -> Unit = {}) {
         val id = session
         if (id == null || closed || !connected || busy || (action != "create" && canvasId == null)) { onSettled(false); return }
+        val editToken = ++editGeneration
         val token = generation; val revision = snapshot?.document?.revision
         val body = buildJsonObject {
             put("action", action); put("canvas_id", canvasId ?: UUID.randomUUID().toString()); put("operation_id", UUID.randomUUID().toString())
@@ -73,12 +78,22 @@ internal class CanvasWorkspace(private val scope: CoroutineScope, private val cl
                         if (token == generation) problem = "Edit was not confirmed or conflicted. Review the drawing before trying again. " + response.error.toUserMessage()
                     }
                 }
-            } finally { if (token == generation) busy = false; onSettled(confirmed) }
+            } finally { if (editToken == editGeneration) busy = false; onSettled(confirmed) }
         }
     }
     fun edit(operations: List<JsonObject>, revision: Long? = null, onSettled: (Boolean) -> Unit = {}) = mutate("edit", extra = buildJsonObject {
         put("operations", JsonArray(operations)); revision?.let { put("base_revision", it) }
     }, onSettled = onSettled)
-    fun prepare(text: String): String = if (visible && supported) canvasPrompt(text) else text
+    fun select(nodes: List<String> = emptyList(), edges: List<String> = emptyList()) {
+        val doc = snapshot?.document
+        selection = if (doc == null || nodes.isEmpty() && edges.isEmpty()) null
+            else CanvasSelection(doc.id, doc.revision, nodes.distinct(), edges.distinct())
+    }
+    fun prepare(id: String?, text: String): String? {
+        if (id == null || id != session) return text
+        val chosen = selection ?: return if (visible && supported) canvasPrompt(text) else text
+        if (!selectionReady) return null
+        return canvasPrompt(text, chosen.context(checkNotNull(snapshot?.document)))
+    }
     fun close() { closed = true; generation++; transport?.cancel(); job?.cancel(); connected = false }
 }

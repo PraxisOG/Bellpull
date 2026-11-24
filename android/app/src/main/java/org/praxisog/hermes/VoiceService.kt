@@ -123,7 +123,7 @@ class VoiceService : Service() {
                 check(acquireAudio())
             }
             val savedVoice = VoiceSettings(this, profile)
-            val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id), config,
+            val voice = VoiceSession(id, profile, scope, StoreVoiceConversation(store, id, runtime.canvas), config,
                 runtime.voiceOutputs.output(config), AndroidVoiceCapture(scope), transcriber = {
                     if (config.transcribeViaServer) {
                         val connection = runtime.speechConnection()

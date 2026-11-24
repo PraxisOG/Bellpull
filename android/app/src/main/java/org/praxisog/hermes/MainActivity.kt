@@ -308,7 +308,16 @@ class MainActivity : ComponentActivity() {
                             else { localSelected = false; if (current == null) exampleId = BellpullExample.ID else current.openSession(id) }
                         },
                         onCloseSession = { if (current == null) exampleId = null else current.closeSession() },
-                        onSend = { text -> current?.let { val typed = voiceConfig.typedPrompt(text); val prompt = runtime.canvas?.prepare(typed) ?: typed; if (files != null) files.send(it, prompt) else it.send(prompt) } ?: false }, onStop = { current?.stop() },
+                        onSend = send@{ text ->
+                            val store = current ?: return@send false
+                            val canvas = runtime.canvas
+                            val chat = store.openSessionId
+                            val typed = voiceConfig.typedPrompt(text)
+                            val prompt = if (canvas == null) typed else canvas.prepare(chat, typed) ?: return@send false
+                            if (files == null) store.send(prompt) else files.send(store, prompt) {
+                                canvas == null || canvas.prepare(chat, typed) == prompt
+                            }
+                        }, onStop = { current?.stop() },
                         onRetrySessions = { current?.refreshSessions() }, onRetryHistory = { current?.refreshHistory() },
                         refreshingSessions = current?.refreshingSessions == true,
                         onNewSession = { preview = null; localSelected = false; if (current == null) { exampleId = null; exampleDraft = TextFieldValue() } else current.newSession() },

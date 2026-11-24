@@ -34,7 +34,10 @@ private fun operation(type: String, fields: JsonObjectBuilder.() -> Unit): JsonO
 @Composable
 internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modifier, onClose: () -> Unit = {}) {
     val doc = workspace.snapshot?.document
-    var selected by remember(doc?.id) { mutableStateOf<List<String>>(emptyList()) }
+    val chosen = workspace.selection?.takeIf { it.canvasId == doc?.id }
+    val selected = chosen?.nodes.orEmpty()
+    val selectedEdges = chosen?.edges.orEmpty()
+    val hitRadius = with(androidx.compose.ui.platform.LocalDensity.current) { 12.dp.toPx() }
     var properties by remember(doc?.id) { mutableStateOf(false) }
     var connect by remember(doc?.id) { mutableStateOf(false) }
     var pan by remember { mutableStateOf(false) }
@@ -60,7 +63,6 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
     }
     LaunchedEffect(doc?.id, doc?.content?.nodes?.size, size) { if (!fitted) fit() }
     LaunchedEffect(size, properties) { fit() }
-    LaunchedEffect(doc?.revision) { selected = selected.filter { id -> doc?.content?.nodes?.any { it.id == id } == true } }
     val nodes = doc?.content?.nodes.orEmpty().map { node ->
         key(node.id) {
             // A local gesture already supplied the motion. Hold its absolute position
@@ -82,15 +84,30 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
     val currentPan by rememberUpdatedState(pan)
     val currentConnect by rememberUpdatedState(connect)
     val currentSelected by rememberUpdatedState(selected)
+    val currentEdges by rememberUpdatedState(selectedEdges)
     fun hit(position: Offset): CanvasNode? {
         val p = (position - currentOffset) / currentZoom
         return currentNodes.lastOrNull { p.x >= it.x && p.x <= it.x + it.width && p.y >= it.y && p.y <= it.y + it.height }
+    }
+    fun edgeAt(position: Offset): String? {
+        fun center(n: CanvasNode) = currentOffset + Offset((n.x + n.width / 2).toFloat(), (n.y + n.height / 2).toFloat()) * currentZoom
+        return currentDoc?.content?.edges?.mapNotNull { edge ->
+            val a = currentNodes.find { it.id == edge.from }?.let(::center) ?: return@mapNotNull null
+            val b = currentNodes.find { it.id == edge.to }?.let(::center) ?: return@mapNotNull null
+            val d = b - a
+            val length = d.getDistanceSquared()
+            if (length == 0f) return@mapNotNull null
+            val p = position - a
+            val t = ((p.x * d.x + p.y * d.y) / length).coerceIn(0f, 1f)
+            edge.id to (position - (a + d * t)).getDistance()
+        }?.filter { it.second <= hitRadius }?.minByOrNull { it.second }?.first
     }
     Surface(modifier.testTag("shared-canvas-panel")) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Canvas", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(12.dp))
                 Row {
+                    if (doc != null) CanvasExportMenu(workspace, doc)
                     TextButton(enabled = !workspace.busy && dragged == null, onClick = { workspace.fullScreen = !workspace.fullScreen }) { Text(if (workspace.fullScreen) "Exit full screen" else "Full screen") }
                     TextButton(onClick = { workspace.fullScreen = false; onClose() }) { Text("Close") }
                 }
@@ -111,6 +128,10 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
             }
             Text(if (workspace.connected) "Shared with this conversation · revision ${doc?.revision ?: 0}" else "Cached drawing · reconnect to edit",
                 style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 12.dp))
+            if (workspace.selection != null && !workspace.selectionReady) {
+                Text("Drawing changed or disconnected. Select objects again before sending.", modifier = Modifier.padding(horizontal = 12.dp))
+                TextButton(onClick = { workspace.select() }) { Text("Clear selection") }
+            }
             workspace.problem?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(8.dp)) }
             if (doc == null) {
                 Text("Create a drawing or ask Hermes to draw in this chat.", modifier = Modifier.padding(16.dp))
@@ -124,13 +145,16 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
                                 add = false
                                 val node = CanvasNode(UUID.randomUUID().toString(), shape, "New $shape", ((size.width / 2f - offset.x) / zoom).toDouble(),
                                     ((size.height / 2f - offset.y) / zoom).toDouble(), 180.0, 100.0, "sand")
-                                workspace.edit(listOf(operation("add-node") { put("node", Json.encodeToJsonElement(node)) }))
-                                selected = listOf(node.id); properties = true
+                                workspace.edit(listOf(operation("add-node") { put("node", Json.encodeToJsonElement(node)) })) { ok ->
+                                    if (ok && workspace.snapshot?.document?.content?.nodes?.any { it.id == node.id } == true) {
+                                        workspace.select(listOf(node.id)); properties = true
+                                    }
+                                }
                             }) }
                         }
                     }
                     TextButton(onClick = { pan = !pan; connect = false }) { Text(if (pan) "Select" else "Pan") }
-                    TextButton(enabled = editable, onClick = { connect = !connect; pan = false; selected = emptyList() }) { Text(if (connect) "Tap two objects" else "Connect") }
+                    TextButton(enabled = editable, onClick = { connect = !connect; pan = false; workspace.select() }) { Text(if (connect) "Tap two objects" else "Connect") }
                     TextButton(onClick = { fit() }) { Text("Fit") }
                     TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(.15f) }) { Text("−") }
                     TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("+") }
@@ -141,14 +165,19 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
                         val target = hit(position)
                         if (currentConnect && target != null && currentSelected.size == 1 && currentSelected[0] != target.id && canEdit) {
                             workspace.edit(listOf(operation("add-edge") { put("edge", Json.encodeToJsonElement(CanvasEdge(UUID.randomUUID().toString(), currentSelected[0], target.id, "", true))) }))
-                            connect = false; selected = listOf(target.id)
-                        } else selected = target?.let { listOf(it.id) }.orEmpty()
-                    }, onLongPress = { position -> hit(position)?.let { selected = (currentSelected + it.id).distinct(); properties = true } }) }
+                            connect = false; workspace.select(listOf(target.id))
+                        } else if (target != null) workspace.select(listOf(target.id))
+                        else workspace.select(edges = edgeAt(position)?.let(::listOf).orEmpty())
+                    }, onLongPress = { position ->
+                        val node = hit(position)
+                        if (node != null) { workspace.select(currentSelected + node.id, currentEdges); properties = true }
+                        else edgeAt(position)?.let { workspace.select(currentSelected, currentEdges + it) }
+                    }) }
                     .pointerInput(doc.id) { detectDragGestures(onDragStart = { position ->
                         draggedNode = if (!currentPan && !currentConnect && canEdit) hit(position) else null
                         dragged = draggedNode?.id; draggedRevision = currentDoc?.revision ?: 0; delta = Offset.Zero
                         localMove = draggedNode
-                        dragged?.let { selected = listOf(it) }
+                        dragged?.let { workspace.select(listOf(it)) }
                     }, onDrag = { change, amount ->
                         change.consume()
                         if (dragged != null) {
@@ -174,10 +203,12 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
                             val start = center(a); val end = center(b); val direction = end - start
                             val scale = min((b.width.toFloat() * zoom / 2) / max(abs(direction.x), .001f), (b.height.toFloat() * zoom / 2) / max(abs(direction.y), .001f))
                             val tip = end - direction * scale.coerceAtMost(.9f)
-                            drawLine(Color(0xff92877b), start, tip, 2f)
+                            val ink = if (edge.id in selectedEdges) Color(0xff762b42) else Color(0xff92877b)
+                            val weight = if (edge.id in selectedEdges) 4f else 2f
+                            drawLine(ink, start, tip, weight)
                             if (edge.arrow) {
                                 val angle = atan2(direction.y, direction.x)
-                                for (side in listOf(-.5, .5)) drawLine(Color(0xff92877b), tip, tip - Offset(cos(angle + side).toFloat(), sin(angle + side).toFloat()) * 10f, 2f)
+                                for (side in listOf(-.5, .5)) drawLine(ink, tip, tip - Offset(cos(angle + side).toFloat(), sin(angle + side).toFloat()) * 10f, weight)
                             }
                             paint.textSize = max(8f, 12f * zoom)
                             drawContext.canvas.nativeCanvas.drawText(edge.label.take(80), (start.x + tip.x) / 2, (start.y + tip.y) / 2 - 5, paint)

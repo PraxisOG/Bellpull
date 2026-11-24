@@ -95,3 +95,27 @@ The desktop's original drawing files and history remain unchanged after import.
 The primary phone app remains on its existing release. Development returns to
 desktop parity after this source merge. Separate plugins are not consolidated or
 deployed as part of it; the user continues to manage Moe updates.
+
+## Mobile selection and export
+
+Tap a shape or connector to include it in a canvas request. Long-press to add
+another object. Closing the panel keeps the selection in the chat and continues
+listening for edits while the app is in the foreground. Typed turns and voice
+turns include the selected object IDs, their drawing data and the base revision.
+If the drawing changes or the connection drops, review the selection or clear
+it before sending. Bellpull keeps a rejected draft. Drawing context stays inside
+the existing disclosure and is omitted from Read aloud.
+
+Use **Export** on the drawing to save the current revision as SVG or PNG through
+Android's document picker. With conversation file uploads available, the same
+menu can upload either format directly to the open conversation. PNGs preserve
+the drawing's aspect ratio and measure at most 2048 pixels on the longest side.
+Exporting uses the current snapshot and does not start a model run.
+
+The API 36 emulator opened Canvas from the normal conversation menu against a
+disposable stock Hermes gateway, selected a shape, received a remote edit with
+the panel closed, and retained the typed draft after rejecting the stale
+selection. Both Android Downloads exports matched the files retrieved from the
+conversation library by SHA-256. The compact layout now opens the sheet fully
+so the drawing fitted to its viewport is visible on entry. Physical HTTPS over
+Tailscale remains a separate field check.
