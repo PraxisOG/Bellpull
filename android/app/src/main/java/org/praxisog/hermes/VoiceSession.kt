@@ -155,12 +155,14 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         mode = initialMode
         prepareOutput(::readyToListen)
         observe = scope.launch {
-            snapshotFlow { conversation.selected to conversation.run() }.collectLatest {
-                // Main.immediate can wake us inside the store's snapshot publication. Finish that
-                // update before admitting queued speech, then act on the current chat and run.
-                yield()
+            snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (_, observed) ->
+                // Main.immediate can wake us inside the store's snapshot publication. A queued
+                // send must wait for that update to finish and recheck the current run.
+                val run = if (!observed.busy && queuedText.isNotBlank()) {
+                    yield()
+                    conversation.run()
+                } else observed
                 if (closed) return@collectLatest
-                val run = conversation.run()
                 if (!conversation.selected) { pause("Voice stays with its original chat. Reopen that chat and resume."); return@collectLatest }
                 if (state == VoiceState.PAUSED) return@collectLatest
                 listeningBlock(run)?.let { pause(it); return@collectLatest }
