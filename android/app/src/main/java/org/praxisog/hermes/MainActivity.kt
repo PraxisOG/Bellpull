@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
         androidx.core.view.ViewCompat.requestApplyInsets(window.decorView)
         val reader = MessageReader(this) { usage ->
             check(runtime.voice == null) { "End voice conversation before using Read aloud." }
-            runtime.voiceOutputs.output(runtime.profileId?.let { VoiceSettings(this, it).read() } ?: VoiceConfiguration(), usage)
+            runtime.voiceOutputs.output(runtime.profileId?.let { VoiceSettings(this, it).forConversation(store?.openSessionId) } ?: VoiceConfiguration(), usage)
         }
         messageReader = reader
         profiles = ServerProfiles(this, scope, runtime, onLeaving = {
@@ -149,6 +149,14 @@ class MainActivity : ComponentActivity() {
 
                     val savedVoiceSettings = remember(profiles.activeId) { profiles.activeId?.let { VoiceSettings(applicationContext, it) } }
                     var voiceConfig by remember(savedVoiceSettings) { mutableStateOf(savedVoiceSettings?.read() ?: VoiceConfiguration()) }
+                    val voiceChat = current?.openSessionId?.takeUnless { localSelected || isOffline }
+                    var voiceRoute by remember(savedVoiceSettings, voiceChat) { mutableStateOf(savedVoiceSettings?.route(voiceChat) ?: ConversationVoiceRoute.PROFILE) }
+                    val chatVoice = voiceRoute.applyTo(voiceConfig)
+                    val chatVoiceChooser: (@Composable () -> Unit)? = if (voiceChat != null && savedVoiceSettings != null) ({
+                        ConversationVoiceChooser(voiceRoute, runtime.voice == null) { choice ->
+                            savedVoiceSettings.saveRoute(voiceChat, choice); voiceRoute = choice
+                        }
+                    }) else null
                     if (assistantOpen) {
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
                             PhoneAssistantPanel(runtime, foreground, assistantDraft, { assistantDraft = it }, onDismiss = { assistantOpen = false },
@@ -164,10 +172,10 @@ class MainActivity : ComponentActivity() {
                     }
                     if (voiceOpen && profiles.activeId != null) {
                         HermesTheme(appearance = preferences.value.appearance, palette = preferences.value.palette) {
-                            VoicePanel(runtime.voice, voiceConfig, runtime.voiceStartError,
+                            VoicePanel(runtime.voice, chatVoice, runtime.voiceStartError,
                                 { savedVoiceSettings!!.save(it); voiceConfig = savedVoiceSettings.read() }, ::requestVoice, { voiceOpen = false },
                                 onReturnToChat = { runtime.voice?.let { current?.openSession(it.sessionId) }; voiceOpen = false },
-                                speechLab = runtime.speechLab, outputLab = runtime.voiceOutputs)
+                                speechLab = runtime.speechLab, outputLab = runtime.voiceOutputs, profileDefaults = voiceConfig, routeChooser = chatVoiceChooser)
                         }
                     }
                     pendingShare?.takeIf { showShare }?.let { incoming ->
@@ -258,6 +266,7 @@ class MainActivity : ComponentActivity() {
                             val profile = profiles.activeId
                             if (profile == null) androidx.compose.material3.Text("Select a server profile to configure voice conversations.")
                             else {
+                                chatVoiceChooser?.invoke()
                                 VoiceSettingsEditor(voiceConfig, runtime.voice == null,
                                     { savedVoiceSettings!!.save(it); voiceConfig = savedVoiceSettings.read() }, runtime.speechLab)
                                 androidx.compose.material3.TextButton(onClick = ::toggleVoice) {
@@ -360,7 +369,7 @@ class MainActivity : ComponentActivity() {
                         composerLeading = current?.openSessionId?.let { id -> {
                             androidx.compose.foundation.layout.Row {
                                 val active = runtime.voice != null || runtime.voiceRequestedSession != null
-                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || runtime.voiceProblem(voiceConfig) == null,
+                                VoiceButton(active, active || preferences.value.debuggingVoiceInterface || runtime.voiceProblem(chatVoice) == null,
                                     preferences.value.reduceMotion, ::toggleVoice, ::holdVoice, ::releaseVoice)
                                 if (files != null) {
                                     if (!files.runAttachmentsSupported) UnavailableAttachmentsButton(files.filesSupported)
@@ -371,7 +380,7 @@ class MainActivity : ComponentActivity() {
                             }
                         } },
                         attachmentStrip = current?.openSessionId?.let { id -> {
-                            val problem = runtime.voiceProblem(voiceConfig)
+                            val problem = runtime.voiceProblem(chatVoice)
                             VoiceInlineStatus(runtime.voice, runtime.voiceStartError ?: problem,
                                 profiles::showSettings, {
                                     runtime.voice?.let { voice ->
@@ -589,7 +598,7 @@ class MainActivity : ComponentActivity() {
     private fun voiceReady(): Boolean {
         val profile = runtime.profileId
         if (profile == null) { runtime.voiceStartError = "Open a conversation before starting voice."; return false }
-        runtime.voiceStartError = runtime.voiceProblem(VoiceSettings(this, profile).read())
+        runtime.voiceStartError = runtime.voiceProblem(VoiceSettings(this, profile).forConversation(store?.openSessionId))
         return runtime.voiceStartError == null
     }
     private fun requestNotifications(enabled: Boolean) {

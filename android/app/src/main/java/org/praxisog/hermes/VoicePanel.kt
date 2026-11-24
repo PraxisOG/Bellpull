@@ -34,7 +34,8 @@ internal fun VoiceGlyph(active: Boolean = false) {
 @Composable
 internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startError: String?,
     onSave: (VoiceConfiguration) -> Unit, onStart: (VoiceMode) -> Unit, onDismiss: () -> Unit,
-    onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null) {
+    onReturnToChat: () -> Unit = onDismiss, speechLab: SpeechLab? = null, outputLab: VoiceOutputLab? = null,
+    profileDefaults: VoiceConfiguration = config, routeChooser: (@Composable () -> Unit)? = null) {
     var editing by remember { mutableStateOf(!config.transcribeViaServer && config.recognition == VoiceRecognition.PRIVATE_SERVER && config.endpoint.isBlank()) }
     var mode by remember { mutableStateOf(VoiceMode.CALL) }
     BellpullDialog(onDismissRequest = onDismiss) {
@@ -42,7 +43,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Voice conversation", style = MaterialTheme.typography.titleLarge)
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (editing) VoiceSettingsEditor(config, voice == null, { onSave(it); editing = false }, speechLab)
+                    if (!editing && voice == null) routeChooser?.invoke()
+                    if (editing) VoiceSettingsEditor(profileDefaults, voice == null, { onSave(it); editing = false }, speechLab)
                     else if (voice == null) {
                         val startProblem = config.startProblem {
                             if (speechLab == null) "Choose and download a model in Settings → Voice input → Experimental first."
@@ -75,6 +77,8 @@ internal fun VoicePanel(voice: VoiceSession?, config: VoiceConfiguration, startE
                         if (voice.partialTranscript.isNotBlank()) Text(voice.partialTranscript)
                         if (voice.state in setOf(VoiceState.STARTING, VoiceState.TRANSCRIBING, VoiceState.WORKING, VoiceState.WAITING)) LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("${when (voice.mode) { VoiceMode.CALL -> "Call mode"; VoiceMode.CONVERSATION -> "Hands-free"; VoiceMode.DICTATION -> "Review before sending"; VoiceMode.PUSH_TO_TALK -> "Push to talk" }} · ${voice.voiceName}", style = MaterialTheme.typography.labelMedium)
+                        voice.inputRouteNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        voice.outputRouteNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         voice.notice?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(voice.mode == VoiceMode.CALL, { voice.chooseMode(VoiceMode.CALL) }, label = { Text("Call mode") })
@@ -228,4 +232,17 @@ internal fun VoiceAnnouncementSettings(config: VoiceConfiguration, enabled: Bool
         save(flags.copy(working = it))
     }
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+}
+
+@Composable
+internal fun ConversationVoiceChooser(selected: ConversationVoiceRoute, enabled: Boolean, change: (ConversationVoiceRoute) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }, enabled = enabled) { Text("Voice for this chat · ${selected.label}") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            ConversationVoiceRoute.entries.forEach { choice ->
+                DropdownMenuItem(text = { Text(choice.label) }, onClick = { open = false; change(choice) })
+            }
+        }
+    }
 }

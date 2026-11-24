@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 internal interface VoiceOutput {
+    val routeNotice: String? get() = null
     fun prepare(onReady: (String) -> Unit, onError: (String) -> Unit)
     fun retryPreparation() {}
     fun speak(text: String, started: () -> Unit, complete: () -> Unit)

@@ -24,6 +24,7 @@ internal interface VoiceConversation {
     fun cancel()
 }
 internal interface VoiceTranscriber {
+    val routeNotice: String? get() = null
     fun transcribe(wav: ByteArray): Result<String>
     fun close()
 }
@@ -98,6 +99,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     var transcript by mutableStateOf(initialTranscript); private set
     var partialTranscript by mutableStateOf(""); private set
     var notice by mutableStateOf<String?>(null); private set
+    var inputRouteNotice by mutableStateOf<String?>(null); private set
+    val outputRouteNotice get() = output.routeNotice
     var voiceName by mutableStateOf(""); private set
     var microphoneMuted by mutableStateOf(false); private set
     var playedText by mutableStateOf(""); private set
@@ -137,6 +140,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var suppressed = false
     private var finished = false
     private var readyOutput = false
+    private var outputPreparation = 0L
     private var startupReconciled = false
     private var ownAudioAtSpeechStart = ""
     private var completingTurn = false
@@ -202,6 +206,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         else listen()
     }
     private fun prepareOutput(whenReady: () -> Unit) {
+        val preparation = ++outputPreparation
         val token = generation
         output.prepare({ name ->
             if (!closed && token == generation) {
@@ -209,7 +214,12 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (!beforeResume()) { pause("Audio is unavailable. Resume after the call or audio interruption finishes.") }
                 else whenReady()
             }
-        }, { problem -> if (!closed && token == generation) pause(problem) })
+        }, { problem ->
+            if (!closed && preparation == outputPreparation && (readyOutput || token == generation)) {
+                readyOutput = false
+                pause(problem)
+            }
+        })
     }
     private fun listeningBlock(run: VoiceRun): String? = when {
         run.attention -> "Hermes needs your attention. Open the chat to review its request."
@@ -332,6 +342,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             partialTranscript = ""
             transcriptionMs = (System.nanoTime() - endedAt) / 1_000_000
             result.fold({ text ->
+                inputRouteNotice = provider.routeNotice
                 pendingAudio = null; canRetryTranscription = false
                 if (text.isBlank() || likelyEcho(text, ownAudioAtSpeechStart, ownShortPhrases)) {
                     notice = if (text.isBlank()) "No speech recognized. Try again." else "Ignored playback echo."
