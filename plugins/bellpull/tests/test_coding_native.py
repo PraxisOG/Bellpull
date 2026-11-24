@@ -33,6 +33,15 @@ NATIVE_TRACKING = (
 @unittest.skipUnless(NATIVE_TRACKING, "Host lacks native ownership/output tracking; unsupported-host rejection is tested separately")
 class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
     async def test_stock_admission_coding_and_planning_share_one_plugin_and_one_run(self):
+        await self.observe("opencode")
+
+    async def test_codex_events_stay_with_one_native_process_and_run(self):
+        await self.observe("codex")
+
+    async def test_claude_events_stay_with_one_native_process_and_run(self):
+        await self.observe("claude")
+
+    async def observe(self, executor):
         release=threading.Event()
         original_sink=process_registry.on_output
         core=Path(api_server.__file__).resolve().parents[2]
@@ -42,9 +51,24 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
             home=Path(temporary)
             (home/"config.yaml").write_text("plugins:\n  enabled:\n    - bellpull\n")
             workspace=home/"workspace"; workspace.mkdir()
-            executable=workspace/"opencode"
-            envelope=dict(type="text",timestamp=123,sessionID="ses_fixture",part=dict(id="part_fixture",messageID="msg_fixture",sessionID="ses_fixture",type="text",text="Observed fixture output"))
-            executable.write_text("#!/usr/bin/env python3\nimport time\nprint("+repr(json.dumps(envelope))+",flush=True)\ntime.sleep(1)\n")
+            executable=workspace/executor
+            sid = "6181c478-e0f6-4b19-acaa-986b2b6e06ce"
+            if executor == "opencode":
+                sid = "ses_fixture"
+                flags = " run --format json fixture"
+                events = [dict(type="text", timestamp=123, sessionID=sid,
+                               part=dict(id="part_fixture", messageID="msg_fixture", sessionID=sid,
+                                         type="text", text="Observed fixture output"))]
+            elif executor == "codex":
+                flags = " exec --json fixture"
+                events = [{"type":"thread.started", "thread_id":sid}, {"type":"item.completed",
+                           "item":{"id":"item_0", "type":"agent_message", "text":"Observed fixture output"}}]
+            else:
+                flags = " -p --verbose --output-format stream-json fixture"
+                events = [dict(type="system", subtype="init", session_id=sid), dict(type="assistant", session_id=sid,
+                          message=dict(id="msg_fixture", content=[dict(type="text", text="Observed fixture output")]))]
+            output = "\n".join(json.dumps(event) for event in events)
+            executable.write_text("#!/usr/bin/env python3\nimport time\nprint("+repr(output)+",flush=True)\ntime.sleep(1)\n")
             executable.chmod(0o700)
             manager=get_plugin_manager(); manager.discover_and_load()
             key="coding-disposable-key"
@@ -56,7 +80,7 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     _current_turn_id="coding-turn-fixture"
                     def run_conversation(self,**values):
                         admissions.append(values)
-                        command=shlex.quote(str(executable))+" run --format json fixture"
+                        command=shlex.quote(str(executable))+flags
                         proc=process_registry.spawn_local(command,cwd=str(workspace),task_id=values["task_id"],owner_task_id=values["task_id"])
                         processes.append(proc)
                         from hermes_cli.lifecycle import invoke_hook
@@ -83,9 +107,13 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     response=await client.post(origin+"/v1/runs",headers={"Idempotency-Key":"coding-once"},json={"input":"Fixture","session_id":session})
                     self.assertEqual(202,response.status,await response.text())
                     run=(await response.json())["run_id"]
+                    response=await client.post(origin+"/v1/runs",headers={"Idempotency-Key":"coding-once"},json={"input":"Fixture","session_id":session})
+                    self.assertEqual(run,(await response.json())["run_id"])
+                    coding=origin+f"/api/bellpull/sessions/{session}/coding"
+                    params = {} if executor == "opencode" else {"executors":"all"}
                     async def observed():
                         for _ in range(60):
-                            response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding")
+                            response=await client.get(coding, params=params)
                             self.assertEqual(200,response.status,await response.text())
                             value=await response.json()
                             if any(r["detail"]=="Observed fixture output" for r in value["rows"]): return value
@@ -100,8 +128,15 @@ class CodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     response=await client.post(origin+"/api/bellpull/planning/reminders",json=dict(
                         operation_id="f"*32,action="complete",id=current["id"],revision=current["revision"]))
                     self.assertEqual(200,response.status,await response.text())
-                    self.assertEqual("ses_fixture",snapshot["works"][0]["open_code_session_id"])
-                    response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding?after={snapshot['cursor']}")
+                    work, = snapshot["works"]
+                    self.assertEqual(executor, work.get("executor", "opencode"))
+                    self.assertEqual(sid, work["open_code_session_id"] if executor == "opencode" else work["executor_session_id"])
+                    if executor != "opencode":
+                        old_view = await (await client.get(coding)).json()
+                        self.assertEqual([], old_view["works"])
+                        self.assertEqual([], old_view["rows"])
+                    self.assertEqual(1,len(processes))
+                    response=await client.get(coding, params={**params, "after":str(snapshot["cursor"])})
                     delta=await response.json(); self.assertFalse(delta["reset"]); self.assertEqual([],delta["rows"])
                     wid=snapshot["works"][0]["id"]
                     response=await client.get(origin+f"/api/bellpull/coding/{wid}/workspace")
@@ -148,10 +183,11 @@ class UnsupportedCodingNativeTest(unittest.IsolatedAsyncioTestCase):
                     response=await client.post(origin+"/api/sessions",json={})
                     self.assertEqual(201,response.status)
                     session=(await response.json())["session"]["id"]
-                    response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding")
+                    response=await client.get(origin+f"/api/bellpull/sessions/{session}/coding", params={"executors":"all"})
                     self.assertEqual(200,response.status)
                     snapshot=await response.json()
                     self.assertFalse(snapshot["available"])
+                    self.assertEqual([],snapshot["executors"])
                     self.assertTrue(snapshot["note"])
                     self.assertEqual([],snapshot["works"])
                     self.assertEqual([],snapshot["rows"])

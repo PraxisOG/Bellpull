@@ -172,7 +172,7 @@ class HermesClient(
     fun modelCatalog(): HermesResult<ModelCatalog> = get("/api/bellpull/models") { json.decodeFromString(it) }
     fun codingActivity(sessionId: String, after: Long? = null): HermesResult<CodingSnapshot> {
         require(after == null || after >= 0)
-        return get("/api/bellpull/sessions/${urlPart(sessionId)}/coding" + (after?.let { "?after=$it" } ?: ""), sessionId) {
+        return get("/api/bellpull/sessions/${urlPart(sessionId)}/coding?executors=all" + (after?.let { "&after=$it" } ?: ""), sessionId) {
             json.decodeFromString<CodingSnapshot>(it).validated(sessionId)
         }
     }

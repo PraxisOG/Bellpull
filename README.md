@@ -49,7 +49,7 @@ the project, coding and calendar panels show the development preview.*
 | **Projects** | Move chats into one project, pin references, add a description, archive folders, and search within a project or across conversations. |
 | **Voice input** | Use downloaded Moonshine locally or stream audio to your server; Call mode integrates with Android Telecom. Tap for conversation or hold for dictation. |
 | **Voice output** | Use the installed Android voice, Kokoro with sentence streaming, or on-device Qwen3-TTS and Pocket TTS. Qwen remains slow on the test phone. |
-| **Coding activity** | Open a chat → **⋮ → OpenCode activity** to observe Hermes-owned OpenCode children, retained output and read-only workspace diffs. |
+| **Coding activity** | Open a chat → **⋮ → Coding activity** to see Hermes-owned OpenCode, Codex and Claude Code processes, retained output and read-only workspace diffs. Build 61 labels this menu **OpenCode activity**. |
 | **Reminders and routines** | Use **Today** for persistent reminders and supported native Hermes routine controls. |
 | **Today overview** | See today's calendar, due reminders, pending decisions, tracked work and unread replies from existing local records. |
 | **Phone assistant** | Choose Bellpull in Android’s assistant picker, use explicit phone commands, or continue spoken/typed words as a new chat draft. |
