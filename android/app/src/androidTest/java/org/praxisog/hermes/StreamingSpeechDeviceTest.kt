@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /** Real PCM over the production Android WebSocket implementation and plugin proxy,
- * into the server's native CPU model. Public prerecorded fixture; no live chat.
+ * into the configured speech helper. Public prerecorded fixture; no live chat.
  */
 @RunWith(AndroidJUnit4::class)
 class StreamingSpeechDeviceTest {
@@ -74,7 +74,7 @@ class StreamingSpeechDeviceTest {
                 putString("first_partial_ms", first.get().toString())
                 putString("partial_count", partials.get().toString())
                 putString("final_after_audio_ms", tail.toString())
-                putString("path", "phone -> plugin proxy -> CPU medium (precision recorded by helper health)")
+                putString("path", "Android -> profile speech proxy -> streaming STT")
             })
         } finally { live.close() }
     }

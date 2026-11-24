@@ -7,7 +7,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from server import Recognizer, create_app
 
 
-class FakeRecognizer:
+class FakeRecognizer(Recognizer):
     def __init__(self):
         self.active = 0
         self.released = 0

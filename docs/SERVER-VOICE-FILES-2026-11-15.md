@@ -141,3 +141,15 @@ live PowerMac gateway, the same Android test failed before the change and passed
 afterward, observing one 501 handshake followed by exactly one successful batch
 request. Moonshine recognized “green apple” and “kitchen table” with local
 fallback disabled. The Android client code used for both runs was identical.
+
+## PowerMac live GPU transcription after the 0.20.4 release
+
+The ROCm helper now transcribes microphone frames over the existing WebSocket.
+On four public recordings replayed at microphone speed, the first nonempty
+partial arrived in 0.86–2.53 seconds. All four final transcripts matched the
+same model's one-shot result, including its recognition errors. An API 36
+Android emulator using the live PowerMac gateway received ten changing
+partials during the 12.56-second clean recording. The first arrived at 2.57
+seconds and the final followed the last audio by 616 ms. The test fails if
+Android replays a multipart request. The packaged 0.20.4 Android client
+already supports this protocol. [Fixture results](evidence/server-voice-20261124/rocm-streaming.json)

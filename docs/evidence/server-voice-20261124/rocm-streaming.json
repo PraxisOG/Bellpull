@@ -1,0 +1,57 @@
+{
+  "fixtures": [
+    {
+      "fixture": "clean",
+      "sha256": "812d86d5b7c92e72489948254ff6177117206c44878ae942d1fdb01e12d9fe8c",
+      "audio_seconds": 12.555,
+      "first_partial_ms": 2527,
+      "partial_count": 10,
+      "final_after_last_audio_ms": 364,
+      "final_after_annotated_last_word_ms": 2830,
+      "text": "The dull light fell more faintly upon the page, whereon another equation began to unfold itself slowly, and to spread abroad its widening tail.",
+      "final_matches_batch": true
+    },
+    {
+      "fixture": "numbers-measurements",
+      "sha256": "2686ad71ab8015a99b22d42e6ae893f07e3384ff07c077fbd500714d1eae6d4a",
+      "audio_seconds": 6.74,
+      "first_partial_ms": 873,
+      "partial_count": 6,
+      "final_after_last_audio_ms": 250,
+      "final_after_annotated_last_word_ms": 2660,
+      "text": "Fairview was twelve miles away, but by ten o'clock they drew up at the county drail.",
+      "final_matches_batch": true
+    },
+    {
+      "fixture": "natural-pauses",
+      "sha256": "a4ddd06c78a1c045b168e7a94d35b0af79f46e5b281723c0952c0d68601c8f3c",
+      "audio_seconds": 16.65,
+      "first_partial_ms": 861,
+      "partial_count": 14,
+      "final_after_last_audio_ms": 534,
+      "final_after_annotated_last_word_ms": 3045,
+      "text": "It may be that a great colorless will use his utmost force of color as a singer, his full power of voice, but loud or low, the virtue is in both cases, always in refinement, never in loudness.",
+      "final_matches_batch": true
+    },
+    {
+      "fixture": "road-noise",
+      "sha256": "cf4949a15422c7d60ba16b49a62c197e9d1fa793c03880f4483a0d674c1c96f2",
+      "audio_seconds": 12.555,
+      "first_partial_ms": 870,
+      "partial_count": 13,
+      "final_after_last_audio_ms": 334,
+      "final_after_annotated_last_word_ms": 2799,
+      "text": "The dull light fell more faintly upon the page whereon another equation began to unfold itself slowly and to spread abroad its widening tail.",
+      "final_matches_batch": true
+    }
+  ],
+  "conditions": "100ms chunks replayed at microphone speed. Includes appended fixture silence; excludes Bellpull's separate turn-end gate and Hermes/TTS latency.",
+  "backend": "ROCm Moonshine Medium FP32",
+  "android": {
+    "device": "API 36 foldable emulator",
+    "route": "Android through the live PowerMac Hermes gateway to ROCm",
+    "first_partial_ms": 2573,
+    "partial_count": 10,
+    "final_after_audio_ms": 616
+  }
+}
