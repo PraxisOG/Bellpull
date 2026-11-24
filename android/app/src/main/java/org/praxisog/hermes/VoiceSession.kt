@@ -4,7 +4,6 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import org.praxisog.hermes.core.PrivateTranscription
-import org.praxisog.hermes.model.RunApproval
 
 internal enum class VoiceMode { CALL, CONVERSATION, DICTATION, PUSH_TO_TALK }
 internal const val APPROVAL_WAITING = "Approval waiting in chat. Say “read the approval request” to hear the request. Other words wait until this run finishes."
@@ -16,16 +15,15 @@ internal enum class VoiceState(val label: String) {
 internal data class VoiceRun(val identity: String? = null, val busy: Boolean = false, val text: String = "",
     val final: Boolean = false, val attention: Boolean = false, val error: String? = null, val connectionLost: Boolean = false, val admitted: Boolean = true,
     val activities: List<VoiceActivity> = emptyList(), val stopRequested: Boolean = false, val stopError: String? = null,
-    val executing: Boolean = busy, val approval: VoiceApproval? = null, val approvalNotice: String? = null) {
+    val executing: Boolean = busy, val approval: PendingRunApproval? = null, val approvalNotice: String? = null) {
     val approvalPending get() = approval != null
 }
-internal data class VoiceApproval(val runId: String, val request: RunApproval)
 internal interface VoiceConversation {
     val selected: Boolean
     val ready: Boolean
     fun run(): VoiceRun
     fun send(text: String): Boolean
-    fun decideApproval(target: VoiceApproval, choice: String): Boolean = false
+    fun decideApproval(target: PendingRunApproval, choice: String): Boolean = false
     fun cancel()
 }
 internal interface VoiceTranscriber {
@@ -69,7 +67,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
             durable?.stopError,
             durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming,
-            approval = durable?.submission?.runId?.let { runId -> durable.approval?.let { VoiceApproval(runId, it) } },
+            approval = durable?.pendingApproval,
             approvalNotice = durable?.notice?.takeIf { durable.approval != null })
     }
     override fun send(text: String): Boolean {
@@ -79,7 +77,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
         val prompt = if (canvas == null) text else canvas.prepare(id, text) ?: return false
         return store.send(prompt)
     }
-    override fun decideApproval(target: VoiceApproval, choice: String) = ready &&
+    override fun decideApproval(target: PendingRunApproval, choice: String) = ready &&
         store.runs?.respond(id, target.request.requestId, choice, target.runId, target.request) == true
     override fun cancel() { if (selected) store.stop() }
 }
@@ -123,7 +121,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val gate = VoiceGate(config.pauseMs)
     private val sentences = VoiceSentences()
     private val announced = mutableSetOf<String>()
-    private data class Utterance(val text: String, val done: (() -> Unit)? = null, val approval: VoiceApproval? = null)
+    private data class Utterance(val text: String, val done: (() -> Unit)? = null, val approval: PendingRunApproval? = null)
     private val speech = ArrayDeque<Utterance>()
     private val activitySpeech = ArrayDeque<String>()
     private var speaking = false
@@ -152,8 +150,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var readyOutput = false
     private var outputPreparation = 0L
     private var startupReconciled = false
-    private var approvalAtSpeechStart: VoiceApproval? = null
-    private var reviewedApproval: VoiceApproval? = null
+    private var approvalAtSpeechStart: PendingRunApproval? = null
+    private var reviewedApproval: PendingRunApproval? = null
     private var heardBeforeSpeech = false
     private var ownAudioAtSpeechStart = ""
     private var completingTurn = false
@@ -171,7 +169,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         }
         prepareOutput(::readyToListen)
         observe = scope.launch {
-            var previousApproval: VoiceApproval? = null
+            var previousApproval: PendingRunApproval? = null
             snapshotFlow { conversation.selected to conversation.run() }.collectLatest { (_, observed) ->
                 // Main.immediate can wake us inside the store's snapshot publication. A queued
                 // send must wait for that update to finish and recheck the current run.

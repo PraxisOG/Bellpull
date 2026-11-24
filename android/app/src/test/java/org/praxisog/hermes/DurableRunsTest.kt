@@ -72,6 +72,7 @@ class DurableRunsTest {
     @Volatile private var runStatus = "running"
     @Volatile private var approval = ""
     @Volatile private var statusOffline = false
+    @Volatile private var loseApprovalAck = false
     @Volatile private var rejectStop = false
     @Volatile private var stoppedStatus = "cancelled"
     @Volatile private var stopResponseGate: java.util.concurrent.CountDownLatch? = null
@@ -119,7 +120,11 @@ class DurableRunsTest {
                 stopResponseGate?.await(3, java.util.concurrent.TimeUnit.SECONDS)
                 """{"run_id":"run_same","status":"stopping"}"""
             }
-            path.endsWith("/approval") -> { approval = ""; """{"resolved":1}""" }
+            path.endsWith("/approval") -> {
+                approval = ""
+                if (loseApprovalAck) throw IOException("Acknowledgement lost after decision")
+                """{"resolved":1}"""
+            }
             path.endsWith("/messages") && historyLag -> """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"Working","tool_calls":[{"id":"tool","function":{"name":"terminal"}}]}]}"""
             path.endsWith("/messages") -> if (runStatus == "completed")
                 """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"saved answer"}]}"""
@@ -515,16 +520,34 @@ class DurableRunsTest {
         await { manager.states["one"]?.approval?.requestId == "gate" }
         manager.respond("one", "gate", "once", expectedRunId = "earlier-run")
         statusOffline = true
-        manager.respond("one", "gate", "once", expectedRunId = "run_same")
+        val outcomes = CopyOnWriteArrayList<ApprovalOutcome>()
+        manager.respond("one", "gate", "once", expectedRunId = "run_same", onResult = { outcomes += it })
         await { manager.states["one"]?.checking == false }
         assertEquals("gate", manager.states["one"]?.approval?.requestId)
         assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
+        assertEquals(listOf(ApprovalOutcome.CHECK_FAILED), outcomes)
         statusOffline = false
-        manager.respond("one", "gate", "deny", expectedRunId = "run_same")
+        manager.respond("one", "gate", "deny", expectedRunId = "run_same", onResult = { outcomes += it })
+        await { outcomes.lastOrNull() == ApprovalOutcome.ACCEPTED }
         await { calls.any { it.url.encodedPath.endsWith("/approval") } }
         val decision = calls.single { it.url.encodedPath.endsWith("/approval") }
         val body = okio.Buffer().also { decision.body!!.writeTo(it) }.readUtf8()
         assertTrue(body.contains("\"choice\":\"deny\"")); assertTrue(body.contains("\"resolve_all\":false"))
+    }
+    @Test fun lostDecisionAcknowledgementIsReportedAsUnconfirmedAndDoesNotReplay() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
+        runStatus = "waiting_for_approval"
+        approval = """, "approval":{"request_id":"gate","command":"label the card","choices":["once","deny"]}"""
+        val manager = manager()
+        manager.restore()
+        await { manager.states["one"]?.approval?.requestId == "gate" }
+        loseApprovalAck = true
+        val outcomes = CopyOnWriteArrayList<ApprovalOutcome>()
+        assertTrue(manager.respond("one", "gate", "once", onResult = { outcomes += it }))
+        await { outcomes.isNotEmpty() && manager.states["one"]?.approval == null }
+        assertEquals(listOf(ApprovalOutcome.UNCONFIRMED), outcomes)
+        assertFalse(manager.respond("one", "gate", "once"))
+        assertEquals(1, calls.count { it.url.encodedPath.endsWith("/approval") })
     }
     @Test fun staleApprovalCannotApproveItsReplacement() {
         saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
@@ -534,8 +557,10 @@ class DurableRunsTest {
         manager.restore()
         await { manager.states["one"]?.approval?.requestId == "old" }
         approval = """, "approval":{"request_id":"new","command":"replacement","choices":["once","deny"]}"""
-        manager.respond("one", "old", "once")
+        val outcomes = CopyOnWriteArrayList<ApprovalOutcome>()
+        manager.respond("one", "old", "once", onResult = { outcomes += it })
         await { manager.states["one"]?.checking == false }
+        assertEquals(listOf(ApprovalOutcome.CHANGED), outcomes)
         assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
     }
 }

@@ -16,7 +16,8 @@ import org.praxisog.hermes.model.*
 import java.time.*
 import java.time.format.DateTimeFormatter
 
-internal data class TodayWork(val sessionId: String, val title: String, val status: String, val preview: String = "")
+internal data class TodayWork(val sessionId: String, val title: String, val status: String, val preview: String = "",
+    val approval: PendingRunApproval? = null, val checking: Boolean = false, val notice: String? = null)
 internal data class TodaySource(val message: String, val available: Boolean = true, val saved: Boolean = false)
 internal data class TodayData(
     val day: LocalDate,
@@ -61,7 +62,10 @@ internal fun todayData(
         }.distinctBy { "${it.calendarId}:${it.id}:${it.start}" }.sortedWith(compareBy<PhoneCalendarEvent> { !it.allDay }.thenBy { it.start }),
         effective.filter { it.state == "pending" && it.dueMs <= bounds.last }.sortedWith(compareBy<Reminder> { it.dueMs }.thenBy { it.id }),
         (delivery?.planning ?: planning)?.proposals.orEmpty().filter { it.device == device && it.state == "pending" },
-        decisions.map { (id, value) -> work(id, if (!value.submission.terminal && value.approval != null) "Needs approval" else "Needs review") },
+        decisions.map { (id, value) ->
+            work(id, if (!value.submission.terminal && value.approval != null) "Needs approval" else "Needs review")
+                .copy(approval = value.pendingApproval, checking = value.checking, notice = value.notice)
+        },
         running, unread, delivery?.operations.orEmpty().map { it.reminderId }.toSet())
 }
 
@@ -84,13 +88,20 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
     onProposal: (CalendarProposal) -> Unit, onOpenSession: (String) -> Unit,
     onCalendar: () -> Unit, onReminders: () -> Unit, onInbox: () -> Unit,
     modifier: Modifier = Modifier, busy: Boolean = false, tasks: (@Composable () -> Unit)? = null,
-    decisionControls: (@Composable (String) -> Unit)? = null,
+    onApproval: ((TodayWork, String, (ApprovalOutcome) -> Unit) -> Unit)? = null,
 ) {
     var allEvents by rememberSaveable { mutableStateOf(false) }
     var allReminders by rememberSaveable { mutableStateOf(false) }
     var allWork by rememberSaveable { mutableStateOf(false) }
     val zone = ZoneId.systemDefault()
     val time = DateTimeFormatter.ofPattern("HH:mm")
+    val offered = data.decisions.filter { row ->
+        !row.checking && row.approval?.request?.choices.orEmpty().any { it == "once" || it == "deny" }
+    }
+    var review by remember { mutableStateOf<List<TodayWork>?>(null) }
+    review?.let { snapshot ->
+        if (onApproval != null) BatchApprovalDialog(snapshot, data.decisions, onApproval) { review = null }
+    }
     LazyColumn(modifier.fillMaxSize().testTag("today-dashboard"), verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 24.dp)) {
         item("date") {
@@ -134,6 +145,9 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
         if (data.reminders.size > 3) item("reminders-more") { TextButton(onClick = { allReminders = !allReminders }) { Text(if (allReminders) "Show fewer reminders" else "Show all ${data.reminders.size} reminders") } }
         if (tasks != null) item("kanban-tasks") { tasks() }
         item("work-heading") { TodayHeading("Agent attention & work", "Inbox", onInbox); TodaySourceLabel(workSource) }
+        if (onApproval != null && offered.size > 1) item("review-approvals") {
+            OutlinedButton(onClick = { review = offered.toList() }) { Text("Review approvals (${offered.size})") }
+        }
         if (data.proposals.isEmpty() && data.decisions.isEmpty()) item("decisions-empty") {
             if (workSource.available && reminderSource.available) Text("No pending decisions in the available records.", style = MaterialTheme.typography.bodySmall)
         }
@@ -143,7 +157,12 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
             TextButton(onClick = { onProposal(proposal) }, modifier = Modifier.testTag("today-proposal-${proposal.id}")) { Text("Review proposal") }
         } }
         items(data.decisions, key = { "decision:${it.sessionId}" }) { work ->
-            TodayWorkCard(work, onOpenSession, "Review in chat") { decisionControls?.invoke(work.sessionId) }
+            TodayWorkCard(work, onOpenSession, "Review in chat") {
+                if (work.approval != null && onApproval != null) {
+                    ApprovalDecision(work.approval.request, work.checking) { _, choice -> onApproval(work, choice) {} }
+                    work.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+            }
         }
         item("running-heading") { Text("Running work", style = MaterialTheme.typography.titleSmall) }
         if (data.running.isEmpty()) item("running-empty") {

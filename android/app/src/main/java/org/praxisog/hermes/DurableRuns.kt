@@ -22,6 +22,10 @@ internal fun canPruneRun(record: RunSubmission, beforeEpochSeconds: Double): Boo
 
 internal const val RUN_JOURNAL_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
+internal data class PendingRunApproval(val runId: String, val request: RunApproval)
+
+internal enum class ApprovalOutcome { ACCEPTED, CHANGED, CHECK_FAILED, UNCONFIRMED }
+
 internal data class RunPresentation(
     val submission: RunSubmission,
     val turn: TurnState = TurnState.Streaming(""),
@@ -30,6 +34,10 @@ internal data class RunPresentation(
     val checking: Boolean = false,
     val stopError: String? = null,
 ) {
+    val pendingApproval: PendingRunApproval? get() {
+        val runId = submission.runId ?: return null
+        return approval?.takeUnless { submission.terminal }?.let { PendingRunApproval(runId, it) }
+    }
     val busy: Boolean get() = !submission.terminal ||
         (submission.runId != null && !submission.stopRequested && !submission.historySynced &&
             !submission.historyNeedsReview && !submission.trackingDismissed)
@@ -453,7 +461,7 @@ internal class DurableRuns(
     }
 
     fun respond(sessionId: String, requestId: String, choice: String, expectedRunId: String? = null,
-        expectedApproval: RunApproval? = null): Boolean {
+        expectedApproval: RunApproval? = null, onResult: (ApprovalOutcome) -> Unit = {}): Boolean {
         val state = states[sessionId] ?: return false
         val runId = state.submission.runId ?: return false
         val gate = state.approval ?: return false
@@ -469,14 +477,19 @@ internal class DurableRuns(
             // Review the exact operation again after any reconnect or queue delay.
             try {
                 val latest = io { client.runStatus(runId) }
-                if (!stillCurrent()) return@launch
+                if (!stillCurrent()) {
+                    onResult(ApprovalOutcome.CHANGED)
+                    return@launch
+                }
                 if (latest is HermesResult.Err) {
                     update(sessionId) { it.copy(notice = "Could not check this approval. Review it again when connected.") }
+                    onResult(ApprovalOutcome.CHECK_FAILED)
                     return@launch
                 }
                 val status = (latest as HermesResult.Ok).value
                 if (status.runId != runId || status.isTerminal || status.approval != gate) {
                     update(sessionId) { it.copy(approval = null, notice = "This approval changed. Refreshing…") }
+                    onResult(ApprovalOutcome.CHANGED)
                     return@launch
                 }
                 val result = io { client.respondToApproval(runId, requestId, choice) }
@@ -484,6 +497,7 @@ internal class DurableRuns(
                     if (result is HermesResult.Ok) it.copy(approval = null, notice = null)
                     else it.copy(notice = "Decision not confirmed. Its current status will be checked before you can answer again.")
                 }
+                onResult(if (result is HermesResult.Ok) ApprovalOutcome.ACCEPTED else ApprovalOutcome.UNCONFIRMED)
             } finally {
                 if (states[sessionId]?.submission?.runId == runId) update(sessionId) { it.copy(checking = false) }
             }

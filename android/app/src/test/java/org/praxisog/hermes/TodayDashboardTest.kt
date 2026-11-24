@@ -90,14 +90,71 @@ class TodayDashboardTest {
         val choices = mutableListOf<String>()
         val gate = org.praxisog.hermes.model.RunApproval("gate", "review fixture operation", choices = listOf("once", "deny"))
         compose.setContent { HermesTheme {
-            TodayDashboard(data(), now, current, current, current, { _, _ -> }, {}, {}, { error("Unexpected chat switch") },
-                {}, {}, {}, decisionControls = { session ->
-                    ApprovalDecision(gate, false) { request, choice -> choices += "$session/$request/$choice" }
+            val row = data().decisions.single().copy(approval = PendingRunApproval("run", gate))
+            TodayDashboard(data().copy(decisions = listOf(row)), now, current, current, current,
+                { _, _ -> }, {}, {}, { error("Unexpected chat switch") }, {}, {}, {}, onApproval = { item, choice, _ ->
+                    choices += "${item.sessionId}/${item.approval!!.request.requestId}/$choice"
                 })
         } }
         compose.onNodeWithText("review fixture operation").performScrollTo().assertExists()
         compose.onNodeWithText("Deny").performScrollTo().performClick()
         assertEquals(listOf("decision/gate/deny"), choices)
+    }
+    private fun pending(id: String, options: List<String> = listOf("once", "deny")) =
+        TodayWork(id, "Chat $id", "Needs approval", approval = PendingRunApproval("run-$id",
+            RunApproval("request-$id", command = "Label card $id", choices = options)))
+
+    @Test fun batchReviewsExactRequestsAndReportsIndependentResults() {
+        val calls = mutableListOf<Pair<TodayWork, String>>()
+        val a = pending("a")
+        val b = pending("b")
+        val c = pending("c")
+        var rows by mutableStateOf(listOf(a, b, c))
+        compose.setContent { HermesTheme {
+            TodayDashboard(data().copy(decisions = rows), now, current, current, current, { _, _ -> }, {}, {}, {}, {}, {}, {},
+                onApproval = { row, choice, report ->
+                    calls += row to choice
+                    report(if (row == a) ApprovalOutcome.ACCEPTED else ApprovalOutcome.UNCONFIRMED)
+                })
+        } }
+        compose.onNodeWithTag("today-dashboard").performScrollToNode(hasText("Review approvals (3)"))
+        compose.onNodeWithText("Review approvals (3)").performClick()
+        compose.onNodeWithText("Send decisions (0)").assertIsNotEnabled()
+        compose.onNodeWithText("Set all to allow once").performClick()
+        val list = compose.onNodeWithTag("approval-batch")
+        list.performScrollToNode(hasTestTag("review-b-deny"))
+        compose.onNodeWithTag("review-b-deny").performClick()
+        compose.runOnIdle {
+            rows = listOf(a, b, c.copy(approval = c.approval!!.copy(request = c.approval.request.copy(command = "Changed"))), pending("d"))
+            assertTrue(calls.isEmpty())
+        }
+        compose.onNodeWithText("Send decisions (2)").performClick()
+        assertEquals(listOf(a to "once", b to "deny"), calls)
+        list.performScrollToNode(hasText("Allowed once"))
+        list.performScrollToNode(hasText("Decision unconfirmed. Check the chat before retrying."))
+        list.performScrollToNode(hasText("Request changed or ended. Decision skipped."))
+        compose.onNodeWithText("Done").performClick()
+        assertEquals(2, calls.size)
+    }
+
+    @Test fun bulkChoicesRespectEachRequestAndCancelDiscardsSelections() {
+        val a = pending("a", listOf("deny"))
+        val b = pending("b")
+        val decisions = mutableListOf<String>()
+        compose.setContent { HermesTheme {
+            TodayDashboard(data().copy(decisions = listOf(a, b)), now, current, current, current,
+                { _, _ -> }, {}, {}, {}, {}, {}, {}, onApproval = { _, choice, _ -> decisions += choice })
+        } }
+        compose.onNodeWithTag("today-dashboard").performScrollToNode(hasText("Review approvals (2)"))
+        compose.onNodeWithText("Review approvals (2)").performClick()
+        compose.onNodeWithText("Set all to deny").performClick()
+        compose.onNodeWithText("Send decisions (2)").assertIsEnabled()
+        compose.onNodeWithText("Set 1 to allow once").performClick()
+        compose.onNodeWithText("Send decisions (1)").assertIsEnabled()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Review approvals (2)").performClick()
+        compose.onNodeWithText("Send decisions (0)").assertIsNotEnabled()
+        assertTrue(decisions.isEmpty())
     }
     @Test @Config(qualifiers="w840dp-h900dp") fun openingTheAlreadySelectedChatLeavesTodayAndPreservesDraft() {
         var focus by mutableIntStateOf(0)

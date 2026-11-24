@@ -10,14 +10,14 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class VoiceSessionTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-    private val pendingApproval = VoiceApproval("native-run", RunApproval("request", "color_confirmation",
+    private val pendingApproval = PendingRunApproval("native-run", RunApproval("request", "color_confirmation",
         "Approve labeling this test card blue?", listOf("once", "deny")))
     private val target = object : VoiceConversation {
         var selection by mutableStateOf(true)
         var value by mutableStateOf(VoiceRun())
         val sent = CopyOnWriteArrayList<String>()
-        val decisions = CopyOnWriteArrayList<Pair<VoiceApproval, String>>()
-        override fun decideApproval(target: VoiceApproval, choice: String): Boolean {
+        val decisions = CopyOnWriteArrayList<Pair<PendingRunApproval, String>>()
+        override fun decideApproval(target: PendingRunApproval, choice: String): Boolean {
             decisions += target to choice
             return true
         }
