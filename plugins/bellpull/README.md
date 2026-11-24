@@ -1,14 +1,12 @@
-The current experimental bundle is **0.9.3-mobile-preview**. Its authenticated capabilities
+The current experimental bundle is **0.9.4-mobile-preview**. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,
 run `python3 tools/package-plugin.py OUTPUT_DIRECTORY` from a checkout with PyYAML.
 
-> The latest experimental pair is **Android 0.20.4 / build 54** with plugin **0.9.3-mobile-preview**.
-> Includes streaming Kokoro, shared server paths and build identification. See [live files](../../docs/LIVE-SERVER-FILES.md), [speech-helper update instructions](../../server-speech/README.md) and [validation](../../docs/SERVER-VOICE-FILES-2026-11-15.md).
-> Includes the previous cellular recovery, background-delivery and mobile repairs.
-> Deploy the complete matching plugin and restart the gateway when idle. Updating the speech helper is a separate step described in the bundle.
-> [Download the matching experimental release](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.2-experimental.1).
+> The latest experimental pair is **Android 0.20.5 / build 55** with plugin **0.9.4-mobile-preview**.
+> Android can browse saved routine output in Routines and Inbox. The model catalog reports a missing provider to the Integration status panel.
+> Deploy the matching plugin and restart the gateway when idle. [Downloads and verification](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1).
 
 > Previous published experimental pair: **Android 0.20.0 / build 50**, plugin **0.9.0-kanban-tree-preview**.
 > Adds explicit task/subtask containment and complete hierarchy pagination while

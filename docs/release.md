@@ -1,3 +1,7 @@
+## Experimental Android delivery and voice recovery · 0.20.5 / build 55
+
+Android 0.20.5 pairs with plugin 0.9.4-mobile-preview. This build fixes the handoff between an interrupted voice turn and its replacement. It also tracks grouped delegated replies, opens saved routine results after reconnecting, and shows separate gateway, plugin and model status. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1) · [Release notes and verification](RELEASE-0.20.5-EXPERIMENTAL.md)
+
 ## Experimental mobile and server voice update · 0.20.4 / build 54
 
 Android 0.20.4 pairs with plugin 0.9.3-mobile-preview. This release adds per-chat voice routing, a system dictation keyboard, shared file paths, Canvas selection and export, and approval review in Today. It also repairs keyboard placement and GPU transcription negotiation. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.4-experimental.1) · [Release notes and verification](RELEASE-0.20.4-EXPERIMENTAL.md)
