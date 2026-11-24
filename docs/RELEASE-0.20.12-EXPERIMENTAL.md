@@ -4,6 +4,8 @@ Android build 62 and plugin 0.9.7-mobile-preview add Codex and Claude Code to th
 
 **Workspace changes** compares the live worktree with the commit present when Bellpull first observed the process. The comparison includes subsequent commits. The dialog identifies the base revision. Other edits in the same worktree also appear.
 
+An acknowledged Stop now survives a concurrent history write and app recovery.
+
 ## Verification
 
 On stock Hermes 0.21.5, deterministic Codex and Claude fixtures each ran a failing unit test, fixed it in a detached worktree, reran the test successfully and committed the change. A second client reconnected while each process was running. Both clients saw one run and one child. The committed diff remained visible and the original checkout retained its unrelated edit.

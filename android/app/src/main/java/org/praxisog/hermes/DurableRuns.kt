@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.*
 import java.util.UUID
@@ -68,6 +70,7 @@ internal class DurableRuns(
     val states = mutableStateMapOf<String, RunPresentation>()
     val statsRecords = mutableStateMapOf<String, RunSubmission>()
     private val jobs = mutableMapOf<String, Job>()
+    private val journalWrites = Mutex()
     private val streams = java.util.concurrent.ConcurrentHashMap<String, HermesClient.Streaming>()
     var onHistory: (String, List<Message>) -> Unit = { _, _ -> }
     var onCompleted: (String, Message?) -> Unit = { _, _ -> }
@@ -408,19 +411,20 @@ internal class DurableRuns(
         if (record.status == "completed" && !record.stopRequested && record.completionOutput == null && record.runId != null) {
             val status = io { client.runStatus(record.runId!!) }
             if (status is HermesResult.Ok && status.value.isTerminal) {
-                record = record.withRouteEvidence(status.value).copy(completionOutput = status.value.output,
-                    serverCreatedAt = status.value.createdAt ?: record.serverCreatedAt)
-                save(record)
+                val current = states[sessionId]?.submission?.takeIf { it.requestId == record.requestId } ?: return
+                record = current.withRouteEvidence(status.value).copy(completionOutput = status.value.output,
+                    serverCreatedAt = status.value.createdAt ?: current.serverCreatedAt)
                 update(sessionId) { it.copy(submission = record, turn = terminalTurn(record)) }
+                save(record)
             }
         }
         while (currentCoroutineContext().isActive && !syncHistory(sessionId)) {
             val current = states[sessionId]?.submission ?: return
             val next = current.copy(historyChecks = current.historyChecks + 1,
                 historyNeedsReview = current.historyChecks + 1 >= maxHistoryChecks)
-            save(next)
             update(sessionId) { it.copy(submission = next,
                 notice = if (next.historyNeedsReview) historyReviewNotice else it.notice) }
+            save(next)
             if (next.historyNeedsReview) return
             delay(retryMs)
         }
@@ -448,15 +452,22 @@ internal class DurableRuns(
             return false
         }
         if (settle && !record.historySynced) {
-            val synced = record.copy(historySynced = true, historyNeedsReview = false)
-            if (!save(synced)) return false
+            var synced = record.copy(historySynced = true, historyNeedsReview = false)
+            // A stop receipt can arrive during a journal write. Persist both receipts before settling.
+            while (true) {
+                if (!save(synced)) return false
+                val current = states[sessionId]?.submission?.takeIf { it.requestId == requestId } ?: return true
+                val latest = current.copy(historySynced = true, historyNeedsReview = false)
+                if (latest == synced) break
+                synced = latest
+            }
+            update(sessionId) { it.copy(submission = synced, notice = null,
+                turn = if (synced.status == "completed" && reply != null)
+                    if (synced.stopRequested) TurnState.StoppedByUser("") else TurnState.Idle
+                    else reconcileDurableTurn(it.turn, messages, synced)) }
             onCompleted(sessionId, reply)
             journal.pruneRuns(clock() - RUN_JOURNAL_RETENTION_SECONDS)
             statsRecords.keys.retainAll(journal.readRuns().map { it.requestId }.toSet())
-            update(sessionId) { it.copy(submission = synced, notice = null,
-                turn = if (record.status == "completed" && reply != null)
-                    if (record.stopRequested) TurnState.StoppedByUser("") else TurnState.Idle
-                    else reconcileDurableTurn(it.turn, messages, record)) }
         }
         return true
     }
@@ -478,6 +489,12 @@ internal class DurableRuns(
                             (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
                                 stopRequested = true, statusLabel = "Stopping…"), notice = null) }
                     save(next)
+                    if (next.terminal && next.historyNeedsReview) {
+                        jobs[sessionId]?.join()
+                        val pending = states[sessionId]?.submission
+                        if (pending?.requestId == next.requestId && !pending.historySynced)
+                            track(sessionId, fresh = false, resetHistoryChecks = true)
+                    }
                 }
                 is HermesResult.Err -> update(sessionId) {
                     val problem = "Stop was not confirmed. ${result.error.toUserMessage()}"
@@ -541,7 +558,10 @@ internal class DurableRuns(
     }
 
     private suspend fun save(record: RunSubmission): Boolean {
-        val saved = io { runCatching { journal.writeRun(record) }.getOrDefault(false) }
+        // The status poll and the stop response can both persist this run. Keep write order.
+        val saved = journalWrites.withLock {
+            io { runCatching { journal.writeRun(record) }.getOrDefault(false) }
+        }
         storageError = if (saved) null else "Could not save run recovery data to this device."
         return saved
     }
