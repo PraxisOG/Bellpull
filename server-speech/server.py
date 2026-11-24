@@ -215,7 +215,7 @@ def create_app(recognizer, key, model_name="medium", precision="fp32", synthesiz
 
     async def streaming(request):
         if recognizer is not None and not getattr(recognizer, 'streaming', True):
-            raise web.HTTPServiceUnavailable(text='This GPU helper uses one-shot dictation at /stt')
+            raise web.HTTPNotImplemented(text='This GPU helper uses one-shot dictation at /stt')
         acquire()
         state = None
         ws = web.WebSocketResponse(max_msg_size=MAX_FRAME, heartbeat=10)

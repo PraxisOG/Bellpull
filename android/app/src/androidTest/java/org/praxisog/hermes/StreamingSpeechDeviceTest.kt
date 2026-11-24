@@ -19,6 +19,27 @@ import java.util.concurrent.atomic.AtomicLong
  */
 @RunWith(AndroidJUnit4::class)
 class StreamingSpeechDeviceTest {
+    @Test fun batchOnlyGpuFallsBackThroughTheProfileWithoutLocalTranscription() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        check(context.packageName == "org.praxisog.hermes.fixture")
+        val audio = File(context.filesDir, "gpu-batch-fixture.wav").readBytes()
+        val connection = ServerConnection(ServerProfile("fixture-gpu", "GPU fixture", "http://127.0.0.1:18671"),
+            "bellpull-stock-device-fixture")
+        val batch = ServerVoiceTranscriber(ProfileSpeechTransport(connection)) { error("Unexpected local inference") }
+        val live = StreamingServerTranscriber(connection, batch)
+        try {
+            live.begin { fail("Unexpected partial from a batch-only GPU") }
+            val pcm = audio.copyOfRange(44, audio.size)
+            for (at in pcm.indices step 3200) {
+                live.audio(pcm.copyOfRange(at, minOf(at + 3200, pcm.size)))
+                SystemClock.sleep(100)
+            }
+            val transcript = live.transcribe(audio).getOrThrow()
+            assertTrue(transcript.contains("green apple", ignoreCase = true))
+            assertTrue(transcript.contains("kitchen table", ignoreCase = true))
+        } finally { live.close() }
+    }
+
     @Test fun publicSpeechStreamsThroughPluginAndFinalizesWithoutBatchReplay() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         check(context.packageName == "org.praxisog.hermes.fixture")

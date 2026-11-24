@@ -91,6 +91,12 @@ class ServerTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual("error", (await ws.receive_json())["type"])
             await ws.close()
 
+    async def test_batch_only_recognizer_declines_websocket_with_capability_status(self):
+        self.recognizer.streaming = False
+        response = await self.client.get('/stt/stream', headers=self.headers)
+        self.assertEqual(501, response.status)
+        self.assertEqual(0, self.recognizer.active)
+
     async def test_cleanup_failure_still_releases_capacity(self):
         async def failed_release(state):
             raise RuntimeError("Synthetic native cleanup failure")
