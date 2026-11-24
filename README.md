@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.5 / build 55 and plugin 0.9.4-mobile-preview**
-> Includes voice interruption recovery, delivery of grouped delegated replies, saved routine results, and gateway and plugin status in Android Settings.
-> [Release notes and verification](docs/RELEASE-0.20.5-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.6 / build 56 and plugin 0.9.4-mobile-preview**
+> Hold the chat microphone to dictate into a draft, including on devices without an installed speech output engine.
+> [Release notes and verification](docs/RELEASE-0.20.6-EXPERIMENTAL.md).
 
 <div align="center">
 
@@ -13,10 +13,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.20.5-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.20.6-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.5-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1)
+[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.6-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.6-experimental.1)
 
 </div>
 
@@ -64,7 +64,7 @@ yours to configure. Speech input can run entirely on the phone; model downloads
 are required. Bellpull never silently substitutes a speech engine or inference model.
 
 > [!IMPORTANT]
-> **This is an experimental prerelease:** Android **0.20.5-experimental / build 55**
+> **This is an experimental prerelease:** Android **0.20.6-experimental / build 56**
 > pairs with Bellpull plugin **0.9.4-mobile-preview**. Server features need
 > the plugin and compatible Hermes capabilities. Native Kanban includes task
 > creation, field editing and durable offline recovery. See the
@@ -90,7 +90,7 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 
 ## Get started
 
-1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1), or [build from the release source](docs/BUILDING.md).
+1. [Download the latest experimental pair](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.6-experimental.1), or [build from the release source](docs/BUILDING.md).
 2. Install it on Android 10 or newer. Update an existing Bellpull installation in place;
    preserve its data and signing identity rather than uninstalling it.
 3. Open the app. **Explore a sample chat** works without a server.
@@ -99,14 +99,14 @@ are required. Bellpull never silently substitutes a speech engine or inference m
 5. For on-device voice, choose and download a model in **Settings → Voice input**.
    Choose speech playback separately under **Voice output**.
 
-[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.5-experimental.1/Bellpull-source-0.20.5.tar.gz) ·
+[Complete source archive](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.6-experimental.1/Bellpull-source-0.20.6.tar.gz) ·
 [Build instructions](docs/BUILDING.md) ·
 [Release history](https://github.com/PraxisOG/Bellpull/releases) ·
-[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.5-experimental.1/SHA256SUMS)
+[Checksums](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.6-experimental.1/SHA256SUMS)
 
 ## Connect Hermes
 
-The release includes the [**matching plugin 0.9.4 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.5-experimental.1/bellpull-plugin-0.9.4-mobile-preview.tar.gz).
+The release includes the [**matching plugin 0.9.4 bundle**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.6-experimental.1/bellpull-plugin-0.9.4-mobile-preview.tar.gz).
 Update the plugin to browse saved routine results and report a missing model provider in Settings. The bundle also
 includes [speech-helper update instructions](server-speech/README.md) for streaming Kokoro.
 Restart the gateway after replacing the plugin code. Unpack the archive, enter its directory and back up the data home, then
@@ -157,13 +157,13 @@ isolation, malformed audio, overload, authentication and cleanup. See the
 
 ## For contributors and agents
 
-The published experimental app and plugin source is tagged **`android-v0.20.5-experimental.1`**.
+The published experimental app and plugin source is tagged **`android-v0.20.6-experimental.1`**.
 Use that release tag to reproduce its APK and matching plugin. The release source
-is on `release/0.20.5-experimental`; see [validation and limits](docs/RELEASE-0.20.5-EXPERIMENTAL.md).
+is on `release/0.20.6-experimental`; see [validation and limits](docs/RELEASE-0.20.6-EXPERIMENTAL.md).
 Earlier versions remain in Git history and release tags.
 
 ```bash
-git clone --recurse-submodules --branch android-v0.20.5-experimental.1 https://github.com/PraxisOG/Bellpull.git
+git clone --recurse-submodules --branch android-v0.20.6-experimental.1 https://github.com/PraxisOG/Bellpull.git
 cd Bellpull
 ./android/gradlew -p android test verifyRoborazziDebug assembleDebug lintDebug
 ```

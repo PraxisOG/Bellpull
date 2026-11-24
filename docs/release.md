@@ -1,3 +1,7 @@
+## Experimental Android dictation update · 0.20.6 / build 56
+
+Hold the chat microphone to dictate when speech playback is unavailable. This Android update pairs with plugin 0.9.4-mobile-preview. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.6-experimental.1) · [Release notes](RELEASE-0.20.6-EXPERIMENTAL.md)
+
 ## Experimental Android delivery and voice recovery · 0.20.5 / build 55
 
 Android 0.20.5 pairs with plugin 0.9.4-mobile-preview. This build fixes the handoff between an interrupted voice turn and its replacement. It also tracks grouped delegated replies, opens saved routine results after reconnecting, and shows separate gateway, plugin and model status. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.5-experimental.1) · [Release notes and verification](RELEASE-0.20.5-EXPERIMENTAL.md)
