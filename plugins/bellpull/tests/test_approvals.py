@@ -18,6 +18,11 @@ from tools.approval import request_tool_approval
 
 class Phase2Test(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        profile = tempfile.TemporaryDirectory()
+        self.addCleanup(profile.cleanup)
+        environment = patch.dict(os.environ, {"HERMES_HOME": profile.name})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.executions = []
         self.published = []
         self.adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={'key': 'isolated-phase2-key'}))  # gitleaks:allow -- isolated test fixture only
@@ -97,6 +102,19 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
         waiting = await self.status(run_id, 'waiting_for_approval')
         request_id = waiting['approval']['request_id']
         self.assertTrue(request_id)
+        # Keep the native gate open until its callback has reached the delivery journal.
+        for _ in range(100):
+            response = await self.client.get("/api/bellpull/notifications/history", headers=self.headers)
+            self.assertEqual(200, response.status)
+            pending = [
+                e
+                for e in (await response.json())["events"]
+                if e["run_id"] == run_id and e["approval_request_id"] == request_id
+            ]
+            if pending:
+                break
+            await asyncio.sleep(0.02)
+        self.assertEqual(["waiting_for_approval"], [e["status"] for e in pending])
         stale = await self.client.post('/v1/runs/' + run_id + '/approval', headers=self.headers, json={'request_id': 'stale', 'choice': 'once'})
         self.assertEqual(409, stale.status)
         self.assertEqual([], self.executions)
@@ -107,9 +125,20 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
         repeat = await self.client.post('/v1/runs/' + run_id + '/approval', headers=self.headers, json=body)
         self.assertEqual(409, repeat.status)
         self.assertEqual(['fixture'], self.executions)
-        await asyncio.sleep(.1)
-        self.assertTrue(self.published)
-        self.assertTrue(all(set(item[1]) == {'run_id', 'session_id', 'status'} for item in self.published))
+        for _ in range(100):
+            response = await self.client.get("/api/bellpull/notifications/history", headers=self.headers)
+            self.assertEqual(200, response.status)
+            events = [event for event in (await response.json())["events"] if event["run_id"] == run_id]
+            collected = {event["status"] for event in events}
+            accepted = {hint.get("event_id") for _, hint in self.published}
+            if collected == {"waiting_for_approval", "completed"} and all(
+                e["event_id"] in accepted for e in events
+            ):
+                break
+            await asyncio.sleep(0.02)
+        self.assertEqual({"waiting_for_approval", "completed"}, collected)
+        self.assertTrue(all(e["event_id"] in accepted for e in events))
+        self.assertTrue(all(set(hint) == {"event_id"} for _, hint in self.published))
 
     async def test_unattended_run_stays_denied_beside_interactive_run(self):
         _, first = await self.submit('interactive-' + str(id(self)))
