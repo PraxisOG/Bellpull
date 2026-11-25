@@ -16,6 +16,28 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
 class DurableRunsTest {
+    @Test fun newerExternalWakeSurvivesWhileAnEarlierCompletionAwaitsHistory() {
+        runStatus = "completed"
+        historyOffline = true
+        historyBody = """{"data":[{"id":10,"role":"user","content":"hello","timestamp":100},{"id":11,"role":"assistant","content":"saved answer","timestamp":101},{"id":12,"role":"user","content":"continue","timestamp":103},{"id":13,"role":"assistant","content":"new answer","timestamp":104}]}"""
+        val manager = manager(maxHistoryChecks = 500)
+        val completed = CopyOnWriteArrayList<Int>()
+        manager.onCompleted = { _, reply -> reply?.let { completed += it.id } }
+        manager.observe("run_same", "one", 0)
+        await { (manager.states["one"]?.submission?.historyChecks ?: 0) >= 1 }
+        manager.observe("run_later", "one", 0)
+        await { calls.any { it.url.encodedPath == "/v1/runs/run_later" } }
+        val oldChecks = manager.states["one"]!!.submission.historyChecks
+        await { (manager.states["one"]?.submission?.historyChecks ?: 0) >= oldChecks + 3 }
+        historyOffline = false
+        await {
+            val state = manager.states["one"]
+            state?.submission?.runId == "run_later" && !state.busy && completed.lastOrNull() == 13
+        }
+        assertEquals(listOf(11, 13), completed.toList())
+        assertTrue(calls.all { it.method == "GET" })
+    }
+
     @Test fun fallbackAndServingModelSurviveRecoveryWithoutResubmission() {
         approval = """, "model":"request-alias", "bellpull_model_fallback":{"from":{"provider":"one","model":"primary"},"to":{"provider":"two","model":"backup","vision":false}}"""
         val manager = manager()
@@ -142,6 +164,8 @@ class DurableRunsTest {
         }
         var code = 200
         val body = when {
+            path == "/v1/runs/run_later" ->
+                """{"run_id":"run_later","session_id":"one","status":"completed","created_at":103,"updated_at":105,"output":"new answer"}"""
             path.endsWith("/messages") && historyBody != null -> historyBody!!
             path == "/v1/runs" -> {
                 assertTrue("journal must precede submission", saved.values.any { it.requestId == request.header("Idempotency-Key") })
