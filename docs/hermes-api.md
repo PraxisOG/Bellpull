@@ -728,9 +728,19 @@ authenticated `GET /api/bellpull/notifications/history?after=0&limit=50`.
 The cursor is the latest event revision the client has applied. Pages contain up to 100
 current receipts in increasing revision order and return `next_cursor` and `has_more`.
 Dispatch attempts and transport acceptance advance the revision on the same event ID.
+Clients send the returned `journal_id` with their next cursor. This ID identifies the
+owning scope and database instance. If the journal changes or a backup restores an
+earlier revision, the response sets `reset` and starts the page at zero.
 Each receipt includes the source, run and session IDs, status, severity, occurrence and
 storage times, optional approval request ID, attempt count, last HTTP status and
 transport acceptance time. Clients can reconcile by ID without resubmitting a run.
+
+Bellpull saves the current page and its cursor together in the profile’s encrypted
+Inbox. It reads the next page on reconnect, during foreground refresh, or while the
+notification service polls. Each entry keeps its original run, local read or dismissal
+state, and latest transport status. A device with notifications disabled can still
+read saved receipts, including after an offline restart. The Linux emulator desktop
+preview uses this same client. Opening a receipt links to its existing conversation.
 
 The journal records transitions delivered by the native status hook. A brief approval
 can settle before that hook reports it. The native approval API remains the source

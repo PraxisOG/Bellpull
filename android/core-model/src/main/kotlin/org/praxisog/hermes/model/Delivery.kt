@@ -10,7 +10,7 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
     val receivedAt: Long, val sessionId: String? = null, val openedAt: Long? = null,
     val dismissedAt: Long? = null, val truncated: Boolean = false,
     val routineId: String? = null, val botChatReceipt: BotChatReceipt? = null,
-    val receiptChangedAt: Long? = null,
+    val receiptChangedAt: Long? = null, val runReceipt: RunNotificationReceipt? = null,
 )
 @Serializable data class ReminderOperation(
     val operationId: String, val reminderId: String, val revision: Long,
@@ -23,6 +23,7 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
     val operations: List<ReminderOperation> = emptyList(),
     val displayed: Set<String> = emptySet(),
     val lastSync: Long = 0, val receiptHistoryInitialized: Boolean = false,
+    val notificationJournal: String? = null, val notificationCursor: Long = 0,
 ) {
     fun reminders(): List<Reminder> = planning?.reminders.orEmpty().map { reminder ->
         val operation = operations.firstOrNull { it.reminderId == reminder.id && it.status != "blocked" }

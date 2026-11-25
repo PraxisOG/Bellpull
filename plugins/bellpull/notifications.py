@@ -114,16 +114,18 @@ class Relay:
     async def history(self, scope, request):
         after = request.query.get("after", "0")
         limit = request.query.get("limit", "50")
+        journal_id = request.query.get("journal_id")
         if (
             not re.fullmatch(r"[0-9]{1,18}", after)
             or not re.fullmatch(r"[0-9]{1,3}", limit)
             or not 1 <= int(limit) <= 100
+            or (journal_id is not None and not re.fullmatch(r"[0-9a-f]{64}", journal_id))
         ):
             return web.json_response(
                 {"error": {"message": "Invalid notification cursor or limit"}}, status=400
             )
         try:
-            result = await asyncio.to_thread(self.journal.history, topic(scope), int(after), int(limit))
+            result = await asyncio.to_thread(self.journal.history, topic(scope), int(after), int(limit), journal_id)
         except (OSError, sqlite3.Error):
             return web.json_response(
                 {"error": {"message": "Notification history is unavailable"}}, status=503

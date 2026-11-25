@@ -22,6 +22,8 @@ class NotificationJournal:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS clock (singleton INTEGER PRIMARY KEY, revision INTEGER NOT NULL);
                 INSERT OR IGNORE INTO clock VALUES (1,0);
+                CREATE TABLE IF NOT EXISTS instance (singleton INTEGER PRIMARY KEY, id TEXT NOT NULL);
+                INSERT OR IGNORE INTO instance VALUES (1,lower(hex(randomblob(16))));
                 CREATE TABLE IF NOT EXISTS events (
                     event_id TEXT PRIMARY KEY, topic TEXT NOT NULL, run_id TEXT NOT NULL,
                     session_id TEXT NOT NULL, status TEXT NOT NULL, approval TEXT NOT NULL,
@@ -144,13 +146,20 @@ class NotificationJournal:
             ).fetchone()
             return self.public(row) if row else None
 
-    def history(self, topic, after, limit):
+    def history(self, topic, after, limit, journal_id=None):
         with self.db() as db:
+            db.execute("BEGIN")
+            instance_id = db.execute("SELECT id FROM instance WHERE singleton=1").fetchone()[0]
+            current_id = hashlib.sha256(f"{instance_id}/{topic}".encode()).hexdigest()
+            revision = db.execute("SELECT revision FROM clock WHERE singleton=1").fetchone()[0]
+            reset = (journal_id is not None and journal_id != current_id) or after > revision
+            if reset:
+                after = 0
             rows = db.execute(
                 "SELECT * FROM events WHERE topic=? AND revision>? ORDER BY revision LIMIT ?",
                 (topic, after, limit + 1),
             ).fetchall()
         page = [self.public(row) for row in rows[:limit]]
         return dict(
-            events=page, next_cursor=page[-1]["revision"] if page else after, has_more=len(rows) > limit
+            journal_id=current_id, after=after, reset=reset, events=page, next_cursor=page[-1]["revision"] if page else after, has_more=len(rows) > limit
         )

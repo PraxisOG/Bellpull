@@ -166,7 +166,7 @@ internal class BellpullRuntime private constructor(context: Context) {
         private set
     var notificationEventsAvailable by mutableStateOf(false)
         private set
-    val replyNotificationsAvailable get() = store != null && (notificationEventsAvailable || delivery?.supported == true)
+    val replyNotificationsAvailable get() = store != null && (notificationEventsAvailable || delivery?.supported == true || delivery?.notificationHistorySupported == true)
     private var notifications: ReplyNotifications? = null
     var visibleSessionId: String? = null
     private fun loadDrafts() {
@@ -227,7 +227,7 @@ internal class BellpullRuntime private constructor(context: Context) {
             override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
         } }, capabilities.features["bellpull_coding_activity"] == true)
         delivery = cache?.let { DeliveryWorkspace(context, profileId.orEmpty(), scope, it, client,
-            capabilities.features["bellpull_planning"] == true) { snapshot -> planning?.acceptSnapshot(snapshot) } }
+            capabilities.features["bellpull_planning"] == true, capabilities.features["bellpull_notification_history"] == true) { snapshot -> planning?.acceptSnapshot(snapshot) } }
         planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true, delivery) }
         scope.launch { snapshotFlow { planning?.policy }.collect { phoneContext?.request() } }
         projects = cache?.let { ProjectWorkspace(scope, client, it, capabilities.features["bellpull_projects"] == true,
@@ -246,6 +246,11 @@ internal class BellpullRuntime private constructor(context: Context) {
         next.runs?.interactiveApprovals = capabilities.interactiveApprovals
         notifications = ReplyNotifications(context, scope, cache, next, profileId.orEmpty(),
             isVoiceActive = { voice != null || voiceRequestedSession != null }) { it == visibleSessionId || voice?.sessionId == it }
+        delivery?.reconcileRunAttention = { receipt ->
+            if (store === next && receipt.canObserveRun && notifications?.enabled() == true) {
+                next.runs?.observe(receipt.runId, receipt.sessionId, receipts.snapshot()[receipt.sessionId]?.readThrough ?: 0)
+            }
+        }
         next.onReply = { id, message ->
             syncOfflineMemory()
             delivery?.receive(org.praxisog.hermes.model.InboxEntry("reply:$id:${message.id}", "reply",
@@ -294,6 +299,13 @@ internal class BellpullRuntime private constructor(context: Context) {
             planning?.supported = result.value.features["bellpull_planning"]==true
             canvas?.supported = result.value.features["bellpull_canvas"]==true
             delivery?.supported = result.value.features["bellpull_planning"]==true
+            delivery?.let { workspace ->
+                val supported = result.value.features["bellpull_notification_history"] == true
+                if (workspace.notificationHistorySupported != supported) {
+                    workspace.notificationHistorySupported = supported
+                    if (supported) workspace.refresh()
+                }
+            }
             projects?.configure(result.value.features["bellpull_projects"] == true, result.value.features["bellpull_conversation_pins"] == true, result.value.features["bellpull_background_folder"] == true)
             store?.backgroundFolders = result.value.features["bellpull_background_folder"] == true
             liveFiles?.let { it.supported = result.value.features["bellpull_live_files"] == true; it.refresh() }

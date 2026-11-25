@@ -5,6 +5,7 @@ import android.net.*
 import android.os.SystemClock
 import androidx.compose.runtime.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
@@ -15,13 +16,18 @@ import java.util.UUID
 /** Profile-scoped delivery coordinator. One sync at a time; no inference calls. */
 internal class DeliveryWorkspace(private val context: Context, private val profileId: String,
     private val scope: CoroutineScope, private val cache: SessionCache, private val client: HermesClient,
-    var supported: Boolean, private val onSnapshot: (PlanningSnapshot) -> Unit = {}) {
+    var supported: Boolean, var notificationHistorySupported: Boolean = false, private val onSnapshot: (PlanningSnapshot) -> Unit = {}) {
     var state by mutableStateOf(DeliveryState()); private set
     var problem by mutableStateOf<String?>(null); private set
     var syncing by mutableStateOf(false); private set
     var ready by mutableStateOf(false); private set
     var hasSynced by mutableStateOf(false); private set
     var alertStatus by mutableStateOf(""); private set
+    var notificationHistoryProblem by mutableStateOf<String?>(null); private set
+    var reconcileRunAttention: (RunNotificationReceipt) -> Unit = {}
+    private val historyRequests = Channel<Unit>(Channel.CONFLATED)
+    private val historyWorker = scope.launch { for (request in historyRequests) syncNotificationHistory() }
+    private var nextHistoryAttempt = 0L
     private val alerts = ReminderAlerts(context, profileId)
     private val lock = Mutex()
     private var nextAttempt = 0L
@@ -63,7 +69,11 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
         }
     }
     suspend fun sync(force: Boolean = false) {
-        if (closed || !ready || !supported || (!force && SystemClock.elapsedRealtime() < nextAttempt) || !lock.tryLock()) return
+        if (closed || !ready) return
+        if (notificationHistorySupported && (force || SystemClock.elapsedRealtime() >= nextHistoryAttempt)) {
+            historyRequests.trySend(Unit)
+        }
+        if (!supported || (!force && SystemClock.elapsedRealtime() < nextAttempt) || !lock.tryLock()) return
         syncing = true
         try {
             refreshLocal()
@@ -101,6 +111,47 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
             }
         } catch (error: Exception) { failed(error); backoff() }
         finally { syncing = false; lock.unlock() }
+    }
+    private suspend fun syncNotificationHistory() {
+        nextHistoryAttempt = SystemClock.elapsedRealtime() + SYNC_INTERVAL_MS
+        try {
+            do {
+                if (closed || !notificationHistorySupported) return
+                val saved = withContext(Dispatchers.IO) { cache.readDelivery() }
+                val result = withContext(Dispatchers.IO) {
+                    client.notificationHistory(saved.notificationJournal, saved.notificationCursor)
+                }
+                if (closed || !notificationHistorySupported) return
+                val page = when (result) {
+                    is HermesResult.Ok -> result.value
+                    is HermesResult.Err -> { notificationHistoryProblem = result.error.toUserMessage(); return }
+                }
+                lock.withLock {
+                    if (closed) return
+                    update { current ->
+                        if (current.notificationJournal == saved.notificationJournal &&
+                            current.notificationCursor == saved.notificationCursor) {
+                            current.receiveRunNotifications(page, System.currentTimeMillis())
+                        } else current
+                    }
+                }
+                if (closed || !notificationHistorySupported) return
+                val previouslyStored = saved.entries.mapNotNull { it.runReceipt?.eventId }.toSet()
+                for (receipt in page.events) {
+                    if (receipt.eventId !in previouslyStored &&
+                        receipt.status in setOf("waiting_for_approval", "failed", "interrupted")) {
+                        reconcileRunAttention(receipt)
+                    }
+                }
+                notificationHistoryProblem = null
+            } while (page.hasMore)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            notificationHistoryProblem = error.message ?: "Could not save run notifications."
+        } finally {
+            nextHistoryAttempt = SystemClock.elapsedRealtime() + SYNC_INTERVAL_MS
+        }
     }
     private fun backoff() {
         failures = (failures + 1).coerceAtMost(4)
@@ -151,6 +202,8 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
     fun close() {
         if (closed) return
         closed = true
+        historyRequests.close()
+        historyWorker.cancel()
         if (registered) network.unregisterNetworkCallback(callback)
         alerts.cancel()
     }

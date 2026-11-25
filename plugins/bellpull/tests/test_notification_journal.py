@@ -49,6 +49,28 @@ class NotificationJournalTest(unittest.TestCase):
             self.assertEqual("attention", event["severity"])
             self.assertEqual(90, event["occurred_at"])
 
+    def test_scoped_cursor_survives_restart_and_recovers_after_replacement(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as restored:
+            journal = NotificationJournal(home)
+            journal.record("owner", "run", "session", "completed", "", 10)
+            original = journal.history("owner", 0, 50)
+            cursor, journal_id = original["next_cursor"], original["journal_id"]
+            resumed = NotificationJournal(home).history("owner", cursor, 50, journal_id)
+            self.assertEqual((cursor, [], journal_id), (resumed["after"], resumed["events"], resumed["journal_id"]))
+            rolled_back = journal.history("owner", cursor + 100, 50, journal_id)
+            self.assertTrue(rolled_back["reset"])
+            self.assertEqual(original["events"], rolled_back["events"])
+            journal.record("other", "separate", "elsewhere", "failed", "", 11)
+            other = journal.history("other", cursor, 50, journal_id)
+            self.assertEqual(0, other["after"])
+            self.assertNotEqual(journal_id, other["journal_id"])
+            self.assertEqual(["separate"], [event["run_id"] for event in other["events"]])
+            replacement = NotificationJournal(restored)
+            replacement.record("owner", "new", "session", "interrupted", "", 12)
+            reset = replacement.history("owner", cursor, 50, journal_id)
+            self.assertNotEqual(journal_id, reset["journal_id"])
+            self.assertEqual(["new"], [event["run_id"] for event in reset["events"]])
+
     def test_cursor_pages_approvals_and_excludes_other_scopes(self):
         with tempfile.TemporaryDirectory() as home:
             journal = NotificationJournal(home)
