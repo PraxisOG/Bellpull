@@ -1,3 +1,7 @@
+## Run notification recovery · 0.20.13 / build 63
+
+Open **Today → Inbox** to review run receipts after reconnecting. A saved receipt shows the original run and when the relay accepted it. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.13-experimental.1) · [Verification](RELEASE-0.20.13-EXPERIMENTAL.md)
+
 ## Coding activity · 0.20.12 / build 62
 
 Open the conversation menu and choose **Coding activity**. The activity view shows the executor, its session, command results and process exit. Workspace changes include edits committed since Bellpull first observed the worktree. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.12-experimental.1) · [Verification](RELEASE-0.20.12-EXPERIMENTAL.md)
