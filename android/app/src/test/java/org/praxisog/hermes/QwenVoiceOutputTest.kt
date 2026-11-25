@@ -66,12 +66,13 @@ class QwenVoiceOutputTest {
     }
     @Test fun stopFlushesPlaybackAndRejectsLateNativeChunksAndCompletion() {
         val first = CountDownLatch(1); val cancelled = CountDownLatch(1); val freed = CountDownLatch(1)
+        val nativeAccepted = CountDownLatch(1); val stopRequested = CountDownLatch(1)
         val complete = AtomicBoolean(false); val stopped = AtomicBoolean(false)
         val runtime = LocalTtsRuntime({}) { object : LocalTtsEngine {
             override fun synthesize(text: String, config: VoiceOutputConfiguration, sink: LocalTtsSink): Int {
                 assertTrue(sink.onChunk(FloatArray(2400)))
-                val end = System.nanoTime() + 2_000_000_000
-                while (!sink.isCancelled() && System.nanoTime() < end) Thread.yield()
+                nativeAccepted.countDown()
+                await(stopRequested)
                 assertTrue(sink.isCancelled()); assertFalse(sink.onChunk(FloatArray(2400)))
                 cancelled.countDown(); return -5
             }
@@ -84,8 +85,8 @@ class QwenVoiceOutputTest {
             override fun close() { stopped.set(true) }
         } }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), callbacks = Dispatchers.Unconfined)
         val ready = CountDownLatch(1); voice.prepare({ ready.countDown() }, { fail(it) }); await(ready)
-        voice.speak("A phrase", { first.countDown() }, { complete.set(true) }); await(first)
-        voice.stop(); assertTrue(stopped.get()); await(cancelled)
+        voice.speak("A phrase", { first.countDown() }, { complete.set(true) }); await(first); await(nativeAccepted)
+        voice.stop(); stopRequested.countDown(); assertTrue(stopped.get()); await(cancelled)
         voice.close(); runtime.unload(); await(freed); assertFalse(complete.get())
     }
     @Test fun severeThermalsFailBeforeNativeLoadOrPlayback() {
