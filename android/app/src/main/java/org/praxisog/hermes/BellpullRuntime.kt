@@ -270,7 +270,9 @@ internal class BellpullRuntime private constructor(context: Context) {
             catchUp.archive = { id, message -> profileDelivery?.archiveReply(id, message) ?: false }
             next.onSessions = { sessions ->
                 syncOfflineMemory()
-                catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.busy != true })
+                // A completed run can still be matching a specific reply. Other new canonical
+                // message IDs in that chat remain eligible for the normal unread notification.
+                catchUp.sync(sessions.filter { session -> next.runs?.states?.get(session.id)?.submission?.terminal != false })
                 projects?.refresh()
             }
         }
