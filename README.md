@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull Android 0.20.25 / build 75 and plugin 0.9.22](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.25-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.25-experimental.1/Bellpull.apk) · [Matching plugin 0.9.22](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.25-experimental.1/bellpull-plugin-0.9.22-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.25-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.25-experimental.1/docs/ROADMAP.md)
-> Local speech can finish a short final audio buffer after playback runs out of samples.
+> **Latest experimental release · [Bellpull Android 0.20.26 / build 76 and plugin 0.9.22](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.26-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.26-experimental.1/Bellpull.apk) · [Matching plugin 0.9.22](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.26-experimental.1/bellpull-plugin-0.9.22-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.26-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.26-experimental.1/docs/ROADMAP.md)
+> Review and answer pending tool approvals on stock Hermes 0.23.4 in chat, Today or voice mode.
 
 <div align="center">
 
