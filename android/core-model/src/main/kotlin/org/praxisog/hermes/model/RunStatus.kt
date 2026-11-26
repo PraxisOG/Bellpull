@@ -36,11 +36,24 @@ data class RunStatus(
     @SerialName("bellpull_phase") val bellpullPhase: String? = null,
     val runtime: JsonElement? = null,
     @SerialName("bellpull_model_fallback") val modelFallback: JsonElement? = null,
+    @SerialName("execution_generation") val executionGeneration: Long? = null,
+    @SerialName("pending_controls") val pendingControls: List<RunControl>? = null,
 ) {
     /** Statuses observed live. A stop moves a run here before it settles. */
     val isStopping: Boolean get() = status == "stopping"
     val isTerminal: Boolean get() = status in TERMINAL
 
+    /** Hermes authority runs bind each pending prompt to one execution generation. */
+    val pendingApproval: RunApproval? get() {
+        if (isTerminal) return null
+        val controls = pendingControls ?: return approval?.takeIf { it.requestId.isNotBlank() }
+        if (status != "waiting_for_approval" || executionGeneration == null || executionGeneration <= 0) return null
+        val control = controls.firstOrNull {
+            it.kind == "approval" && it.promptId.isNotBlank() && it.executionGeneration == executionGeneration
+        } ?: return null
+        return RunApproval(control.promptId, control.command, control.description, control.choices,
+            executionGeneration, control.edit)
+    }
 
     companion object {
         private val TERMINAL = setOf("completed", "failed", "cancelled", "stopped", "interrupted")
@@ -60,6 +73,26 @@ data class RunApproval(
     val command: String? = null,
     val description: String? = null,
     val choices: List<String> = emptyList(),
+    @SerialName("execution_generation") val executionGeneration: Long? = null,
+    val edit: JsonElement? = null,
+) {
+    val editPreview: String? get() {
+        val proposal = edit as? JsonObject ?: return edit?.toString()
+        val after = (proposal["new_text"] as? JsonPrimitive)?.takeIf { it.isString } ?: return proposal.toString()
+        val before = (proposal["old_text"] as? JsonPrimitive)?.takeIf { it.isString }
+        return listOfNotNull(before?.let { "Before\n${it.content}" }, "After\n${after.content}").joinToString("\n\n")
+    }
+}
+
+@Serializable
+data class RunControl(
+    val kind: String = "",
+    @SerialName("prompt_id") val promptId: String = "",
+    @SerialName("execution_generation") val executionGeneration: Long? = null,
+    val command: String? = null,
+    val description: String? = null,
+    val choices: List<String> = emptyList(),
+    val edit: JsonElement? = null,
 )
 
 /** Exact submitted payload identity, saved before the first network request. */

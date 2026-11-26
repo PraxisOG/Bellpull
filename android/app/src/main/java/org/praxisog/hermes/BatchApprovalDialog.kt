@@ -51,6 +51,7 @@ internal fun BatchApprovalDialog(
                         Text(row.title, style = MaterialTheme.typography.titleSmall)
                         request.description?.let { Text(it) }
                         request.command?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        request.editPreview?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         if (submitted) {
                             val message = when (results[id]) {
                                 ApprovalOutcome.ACCEPTED -> if (choices[id] == "once") "Allowed once" else "Denied"

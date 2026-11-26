@@ -362,21 +362,21 @@ internal class DurableRuns(
                             serverCreatedAt = status.createdAt ?: current.serverCreatedAt,
                             completionUsage = if (status.isTerminal) status.usage ?: current.completionUsage else current.completionUsage,
                             serverCompletedAt = if (status.isTerminal) status.updatedAt ?: current.serverCompletedAt else current.serverCompletedAt)
-                        val oldApproval = states[sessionId]?.approval?.requestId
+                        val oldApproval = states[sessionId]?.approval
+                        val approval = status.pendingApproval
                         update(sessionId) { it.copy(submission = record,
-                            approval = status.approval?.takeIf { approval -> approval.requestId.isNotBlank() },
+                            approval = approval,
                             stopError = it.stopError.takeUnless { status.isTerminal },
                             notice = if (!status.isTerminal && it.stopError != null) it.stopError
-                                else if (streamGap && !status.isTerminal && status.approval == null)
+                                else if (streamGap && !status.isTerminal && approval == null)
                                 "Hermes is working. Live text is unavailable; the saved reply will appear when ready." else null,
                             turn = if (status.isTerminal) terminalTurn(record, status.output.orEmpty())
                                 else (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
                                     canStop = true, stopRequested = record.stopRequested,
-                                    statusLabel = statusLabel(status.approval))) }
+                                    statusLabel = statusLabel(approval))) }
                         if (current != record) save(record)
-                        status.approval?.let { approval ->
-                            if (approval.requestId.isNotBlank() && oldApproval != approval.requestId)
-                                onAttention(sessionId, "approval:${approval.requestId}")
+                        if (approval != null && approval != oldApproval) {
+                            onAttention(sessionId, "approval:${approval.requestId}")
                         }
                         if (status.isTerminal) {
                             liveJob.cancel()
@@ -555,12 +555,12 @@ internal class DurableRuns(
                     return@launch
                 }
                 val status = (latest as HermesResult.Ok).value
-                if (status.runId != runId || status.isTerminal || status.approval != gate) {
+                if (status.runId != runId || status.pendingApproval != gate) {
                     update(sessionId) { it.copy(approval = null, notice = "This approval changed. Refreshing…") }
                     onResult(ApprovalOutcome.CHANGED)
                     return@launch
                 }
-                val result = io { client.respondToApproval(runId, requestId, choice) }
+                val result = io { client.respondToApproval(runId, requestId, choice, gate.executionGeneration) }
                 if (stillCurrent()) update(sessionId) {
                     if (result is HermesResult.Ok) it.copy(approval = null, notice = null)
                     else it.copy(notice = "Decision not confirmed. Its current status will be checked before you can answer again.")

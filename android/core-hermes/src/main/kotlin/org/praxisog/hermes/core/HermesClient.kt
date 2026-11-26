@@ -769,11 +769,21 @@ class HermesClient(
         finally { finished(call) }
     }
 
-    fun respondToApproval(runId: String, requestId: String, choice: String): HermesResult<Unit> {
+    fun respondToApproval(runId: String, requestId: String, choice: String, executionGeneration: Long? = null): HermesResult<Unit> {
         require(requestId.isNotBlank() && choice in setOf("once", "deny"))
         return post("/v1/runs/$runId/approval", buildJsonObject {
-            put("request_id", requestId); put("choice", choice); put("resolve_all", false)
-        }.toString()) { Unit }
+            put("request_id", requestId)
+            put("choice", choice)
+            if (executionGeneration == null) put("resolve_all", false)
+            else put("execution_generation", executionGeneration)
+        }.toString()) { body ->
+            if (executionGeneration != null) {
+                val receipt = json.parseToJsonElement(body).jsonObject
+                require(receipt["status"]?.jsonPrimitive?.content == "resolved" &&
+                    receipt["run_id"]?.jsonPrimitive?.content == runId &&
+                    receipt["prompt_id"]?.jsonPrimitive?.content == requestId) { "Approval decision was not confirmed" }
+            }
+        }
     }
 
     /**

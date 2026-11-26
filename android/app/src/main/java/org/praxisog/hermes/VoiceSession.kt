@@ -427,7 +427,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
             notice = if (target == null) "No approval is waiting in this chat." else APPROVAL_WAITING
         } else if (choice == null) {
             reviewedApproval = null
-            val details = listOfNotNull(target.request.description, target.request.command)
+            val details = listOfNotNull(target.request.description, target.request.command, target.request.editPreview)
                 .filter { it.isNotBlank() }.distinct().joinToString(". ")
             if (details.isBlank()) {
                 notice = "Review this operation in chat."

@@ -57,6 +57,7 @@ internal fun ApprovalDecision(approval: org.praxisog.hermes.model.RunApproval, c
             Column(Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState())) {
                 Text(approval.description ?: "Review this operation before allowing it.", style = MaterialTheme.typography.bodySmall)
                 approval.command?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                approval.editPreview?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if ("once" in approval.choices) Button(enabled = !checking,

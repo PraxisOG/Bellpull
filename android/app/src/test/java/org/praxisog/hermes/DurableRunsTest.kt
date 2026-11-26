@@ -130,6 +130,7 @@ class DurableRunsTest {
     @Volatile private var approval = ""
     @Volatile private var statusOffline = false
     @Volatile private var loseApprovalAck = false
+    @Volatile private var approvalReceipt = """{"resolved":1}"""
     @Volatile private var rejectStop = false
     @Volatile private var stoppedStatus = "cancelled"
     @Volatile private var stopResponseGate: java.util.concurrent.CountDownLatch? = null
@@ -184,7 +185,7 @@ class DurableRunsTest {
             path.endsWith("/approval") -> {
                 approval = ""
                 if (loseApprovalAck) throw IOException("Acknowledgement lost after decision")
-                """{"resolved":1}"""
+                approvalReceipt
             }
             path.endsWith("/messages") && historyLag -> """{"data":[{"id":10,"role":"user","content":"hello"},{"id":11,"role":"assistant","content":"Working","tool_calls":[{"id":"tool","function":{"name":"terminal"}}]}]}"""
             path.endsWith("/messages") -> if (runStatus == "completed")
@@ -658,6 +659,70 @@ class DurableRunsTest {
         manager.respond("one", "old", "once", onResult = { outcomes += it })
         await { manager.states["one"]?.checking == false }
         assertEquals(listOf(ApprovalOutcome.CHANGED), outcomes)
+        assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
+    }
+
+    private fun nativeApproval(generation: Long, promptGeneration: Long = generation, edit: String = "null") = """
+        , "execution_generation":$generation, "pending_controls":[
+          {"kind":"clarify","prompt_id":"question","execution_generation":$generation},
+          {"kind":"approval","prompt_id":"blue","execution_generation":$promptGeneration,
+           "description":"Label the card blue?","choices":["once","deny","session","always"],"edit":$edit}]
+    """.trimIndent()
+
+    @Test fun restoredNativeApprovalReviewsAndAnswersTheExactGeneration() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "running")
+        runStatus = "waiting_for_approval"
+        approval = nativeApproval(3)
+        approvalReceipt = """{"run_id":"run_same","prompt_id":"blue","status":"resolved"}"""
+        val manager = manager()
+        manager.restore()
+        await { manager.states["one"]?.approval?.executionGeneration == 3L }
+        val reviewed = manager.states["one"]!!.approval!!
+        assertEquals("Label the card blue?", reviewed.description)
+        assertFalse(manager.respond("one", "blue", "session"))
+        val outcomes = CopyOnWriteArrayList<ApprovalOutcome>()
+        assertTrue(manager.respond("one", "blue", "once", "run_same", reviewed) { outcomes += it })
+        await { outcomes.singleOrNull() == ApprovalOutcome.ACCEPTED }
+        val decision = calls.single { it.url.encodedPath.endsWith("/approval") }
+        val payload = okio.Buffer().also { decision.body!!.writeTo(it) }.readUtf8()
+        assertEquals(kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"request_id":"blue","choice":"once","execution_generation":3}"""),
+            kotlinx.serialization.json.Json.parseToJsonElement(payload))
+    }
+
+    @Test fun nativeApprovalRequiresMatchingGenerationsAtReviewAndAnExactReceipt() {
+        runStatus = "waiting_for_approval"
+        approval = nativeApproval(3, 2)
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.submission?.status == "waiting_for_approval" }
+        assertNull(manager.states["one"]?.approval)
+        approval = nativeApproval(3)
+        await { manager.states["one"]?.approval?.executionGeneration == 3L }
+        val reviewed = manager.states["one"]!!.approval!!
+        approval = nativeApproval(4)
+        await { manager.states["one"]?.approval?.executionGeneration == 4L }
+        assertFalse(manager.respond("one", "blue", "deny", "run_same", reviewed))
+        assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
+        approvalReceipt = """{"run_id":"run_same","prompt_id":"blue","status":"already_resolved"}"""
+        val outcomes = CopyOnWriteArrayList<ApprovalOutcome>()
+        assertTrue(manager.respond("one", "blue", "deny") { outcomes += it })
+        await { outcomes.singleOrNull() == ApprovalOutcome.UNCONFIRMED }
+        assertEquals(1, calls.count { it.url.encodedPath.endsWith("/approval") })
+    }
+
+    @Test fun changedEditRequiresFreshReviewEvenWhenPromptAndGenerationMatch() {
+        runStatus = "waiting_for_approval"
+        fun edit(value: String) = nativeApproval(1, edit = """{"old_text":"blue","new_text":"$value"}""")
+        approval = edit("green")
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.approval?.edit != null }
+        val reviewed = manager.states["one"]!!.approval!!
+        assertEquals("Before\nblue\n\nAfter\ngreen", reviewed.editPreview)
+        approval = edit("yellow")
+        await { manager.states["one"]?.approval?.editPreview?.endsWith("yellow") == true }
+        assertFalse(manager.respond("one", "blue", "once", "run_same", reviewed))
         assertTrue(calls.none { it.url.encodedPath.endsWith("/approval") })
     }
 }
