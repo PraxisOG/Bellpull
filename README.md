@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.13](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.13-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.13-experimental.1/Bellpull.apk) · [Matching plugin 0.9.8](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.13-experimental.1/bellpull-plugin-0.9.8-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/ROADMAP.md)
-> Android build 63 recovers missed run notifications in Today → Inbox. The matching plugin is 0.9.8-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.14](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.14-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.14-experimental.1/Bellpull.apk) · [Matching plugin 0.9.9](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.14-experimental.1/bellpull-plugin-0.9.9-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.14-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.14-experimental.1/docs/ROADMAP.md)
+> Android build 64 shows when the owner processing a Bot Chat delivery was replaced. The matching plugin is 0.9.9-mobile-preview.
 
 <div align="center">
 

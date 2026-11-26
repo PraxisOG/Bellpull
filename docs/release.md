@@ -1,3 +1,7 @@
+## Bot Chat delivery recovery · 0.20.14 / build 64
+
+Open **Today → Inbox** to check whether a claimed Bot Chat delivery changed owners. **View saved results** opens the retained output. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.14-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.14-experimental.1/docs/RELEASE-0.20.14-EXPERIMENTAL.md)
+
 ## Offline run notifications · 0.20.13 / build 63
 
 Open **Today → Inbox** to read a missed run receipt, see when ntfy accepted it and return to the original chat. Saved receipts remain available offline. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.13-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/RELEASE-0.20.13-EXPERIMENTAL.md)
