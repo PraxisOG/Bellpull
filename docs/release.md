@@ -1,3 +1,7 @@
+## Offline run notifications · 0.20.13 / build 63
+
+Open **Today → Inbox** to read a missed run receipt, see when ntfy accepted it and return to the original chat. Saved receipts remain available offline. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.13-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/RELEASE-0.20.13-EXPERIMENTAL.md)
+
 ## Coding activity and workspace review · 0.20.12 / build 62
 
 Open a chat’s **Coding activity** menu to inspect Hermes-owned processes, command results and worktree changes since the first observed commit. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.12-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.12-experimental.1/docs/RELEASE-0.20.12-EXPERIMENTAL.md)

@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.12](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.12-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.12-experimental.1/Bellpull.apk) · [Matching plugin 0.9.7](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.12-experimental.1/bellpull-plugin-0.9.7-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.12-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.12-experimental.1/docs/ROADMAP.md)
-> Android build 62 shows Codex and Claude Code activity, command results and committed worktree changes. The matching plugin is 0.9.7-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.13](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.13-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.13-experimental.1/Bellpull.apk) · [Matching plugin 0.9.8](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.13-experimental.1/bellpull-plugin-0.9.8-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.13-experimental.1/docs/ROADMAP.md)
+> Android build 63 recovers missed run notifications in Today → Inbox. The matching plugin is 0.9.8-mobile-preview.
 
 <div align="center">
 
