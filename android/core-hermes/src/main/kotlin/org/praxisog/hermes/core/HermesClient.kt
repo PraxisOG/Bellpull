@@ -399,6 +399,8 @@ class HermesClient(
 
     private fun urlPart(value: String) = java.net.URLEncoder.encode(value, Charsets.UTF_8.name())
 
+    private fun runPath(runId: String) = "/v1/runs/${urlPart(runId).replace("+", "%20")}"
+
     /**
      * `GET /v1/capabilities`. Returns the feature flags. This is the cheapest authenticated
      * call, so it doubles as the connection check.
@@ -706,7 +708,7 @@ class HermesClient(
      * `"cancelled"`, so this cannot be used to discover that a turn was interrupted.
      */
     fun runStatus(runId: String): HermesResult<RunStatus> =
-        get("/v1/runs/$runId") { json.decodeFromString(it) }
+        get(runPath(runId)) { json.decodeFromString(it) }
 
     /** Repeating this exact body/key recovers admission; never substitute a fresh key. */
     fun submitRun(sessionId: String, input: String, requestId: String, interactiveApprovals: Boolean = false,
@@ -786,7 +788,7 @@ class HermesClient(
      * in any later response will say so.
      */
     fun stopRun(runId: String): HermesResult<RunStatus> {
-        val result = post("/v1/runs/$runId/stop", "{}") { json.decodeFromString<RunStatus>(it) }
+        val result = post("${runPath(runId)}/stop", "{}") { json.decodeFromString<RunStatus>(it) }
         val error = (result as? HermesResult.Err)?.error
         return if (error is HermesError.ServerError && error.code == "run_not_active") {
             HermesResult.Err(HermesError.RunNotStoppableYet(runId))

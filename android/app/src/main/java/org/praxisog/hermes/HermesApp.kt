@@ -349,7 +349,8 @@ internal fun HermesApp(
                                         coding.supported, coding.disconnected, coding.problem, runPresentation?.label,
                                         coding::retry, { coding.inspect(it) }, { activityOpen = false }, onStop,
                                         canStop = (turn as? TurnState.Streaming)?.canStop == true,
-                                        modifier = Modifier.weight(1f))
+                                        modifier = Modifier.weight(1f), observedRuns = coding,
+                                        localRunId = runPresentation?.submission?.runId)
                                     else screenState.SaveableStateProvider(openSessionId) {
                                         SessionDetailScreen(history = history, turn = turn, onSend = onSend,
                                             runSubmission = runPresentation?.submission,

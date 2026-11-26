@@ -71,4 +71,48 @@ class CodingActivityWorkspaceTest {
             assertEquals(0,requests.get()); offline.close(); separate.close()
         } finally { client.close(); scope.cancel() }
     }
+
+    @Test fun stoppingDesktopWorkVerifiesTheNativeParentAndOriginalChat() {
+        val workId = "a".repeat(32)
+        val requests = CopyOnWriteArrayList<String>()
+        var status = RunStatus("run_one", "running", sessionId = "other")
+        val client = HermesClient("https://fixture.invalid/p/work", { "fixture" },
+            httpClient = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+                val request = chain.request()
+                val path = request.url.encodedPath
+                requests += "${request.method} $path"
+                val body = when (path) {
+                    "/p/work/api/bellpull/sessions/root/coding" -> wire.encodeToString(snapshot("root"))
+                    "/p/work/v1/runs/run_one" -> wire.encodeToString(status)
+                    "/p/work/v1/runs/run_one/stop" -> wire.encodeToString(RunStatus("run_one", "stopping"))
+                    else -> error("Unexpected call $path")
+                }
+                Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                    .body(body.toResponseBody("application/json".toMediaType())).build()
+            }.build())
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val cache = Cache().apply { writeCoding(snapshot("root")) }
+        val workspace = CodingActivityWorkspace(scope, client, cache, true, pollMs = 60_000)
+        try {
+            workspace.observe("root", false)
+            workspace.stopObserved(workId)
+            assertTrue(requests.isEmpty())
+            workspace.observe("root", true)
+            waitUntil { !workspace.disconnected && !workspace.loading }
+            workspace.stopObserved(workId)
+            waitUntil { !workspace.stopInFlight }
+            assertTrue(workspace.stopNotice!!.contains("confirm"))
+            status = status.copy(sessionId = "root", status = "completed")
+            workspace.stopObserved(workId)
+            waitUntil { !workspace.stopInFlight }
+            assertTrue(workspace.stopNotice!!.contains("completed"))
+            assertFalse(requests.any { it.startsWith("POST") })
+            status = status.copy(status = "running")
+            workspace.stopObserved(workId)
+            waitUntil { !workspace.stopInFlight }
+            assertEquals("Stop requested.", workspace.stopNotice)
+            assertEquals(listOf("POST /p/work/v1/runs/run_one/stop"), requests.filter { it.startsWith("POST") })
+            assertEquals("running", workspace.snapshot!!.works.single().state)
+        } finally { workspace.close(); client.close(); scope.cancel() }
+    }
 }

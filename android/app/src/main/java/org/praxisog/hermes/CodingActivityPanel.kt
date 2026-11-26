@@ -20,7 +20,10 @@ import org.praxisog.hermes.model.*
 internal fun CodingActivityPanel(snapshot: CodingSnapshot?, loading: Boolean, supported: Boolean,
     disconnected: Boolean, problem: String?, coordinator: String?, onRetry: () -> Unit,
     onInspect: (String) -> Unit, onChat: () -> Unit, onStop: () -> Unit,
-    canStop: Boolean, modifier: Modifier = Modifier) {
+    canStop: Boolean, modifier: Modifier = Modifier, observedRuns: CodingActivityWorkspace? = null,
+    localRunId: String? = null) {
+    val stopTargets = snapshot?.works.orEmpty().filter { it.state == "running" && it.runId != localRunId }
+        .distinctBy { it.runId }.map { it.id }.toSet()
     Column(modifier.testTag("coding-activity")) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Hermes · ${coordinator ?: "Conversation"}", style = MaterialTheme.typography.labelLarge,
@@ -66,6 +69,15 @@ internal fun CodingActivityPanel(snapshot: CodingSnapshot?, loading: Boolean, su
                             work.workspaceLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                             Text(work.note, style = MaterialTheme.typography.bodySmall)
                             if (work.workspaceId != null) TextButton(onClick = { onInspect(work.id) }) { Text("Workspace changes") }
+                            if (observedRuns != null && supported && snapshot?.available == true && work.id in stopTargets) {
+                                TextButton(onClick = { observedRuns.stopObserved(work.id) },
+                                    enabled = !disconnected && !loading && !observedRuns.stopInFlight) {
+                                    Text("Stop this Hermes run")
+                                }
+                                if (observedRuns.stopTarget == work.id) observedRuns.stopNotice?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                 }
