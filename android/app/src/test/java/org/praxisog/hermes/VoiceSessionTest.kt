@@ -652,6 +652,56 @@ class VoiceSessionTest {
             ready!!("new"); assertTrue(capture.active)
         } finally { delayed.close() }
     }
+    @Test fun changingVoiceModeAndPressingTalkWhileNavigationHasFocusKeepCaptureClosed() {
+        voice.start()
+        voice.suspendForAudio()
+        voice.chooseMode(VoiceMode.DICTATION)
+        assertEquals(VoiceState.WAITING, voice.state)
+        assertFalse(capture.active)
+        voice.chooseMode(VoiceMode.PUSH_TO_TALK)
+        voice.beginPushToTalk()
+        assertEquals(VoiceState.WAITING, voice.state)
+        assertFalse(capture.active)
+        voice.recoverAudio()
+        assertEquals(VoiceState.READY, voice.state)
+        assertFalse(capture.active)
+        voice.beginPushToTalk()
+        assertTrue(capture.active)
+        voice.endPushToTalk(canceled = true)
+        assertTrue(target.sent.isEmpty())
+    }
+
+    @Test fun unrelatedRunFinishingDuringFocusLossWaitsForGainToListen() {
+        target.value = VoiceRun("other", busy = true)
+        voice.start()
+        assertTrue(capture.active)
+        voice.suspendForAudio()
+        target.value = VoiceRun("other", busy = false, final = true)
+        tick()
+        assertEquals(VoiceState.WAITING, voice.state)
+        assertFalse(capture.active)
+        voice.recoverAudio()
+        assertEquals(VoiceState.LISTENING, voice.state)
+        assertTrue(capture.active)
+        assertTrue(target.sent.isEmpty())
+    }
+
+    @Test fun cancelingWorkWhileNavigationHasFocusKeepsCaptureClosedUntilGain() {
+        voice.start()
+        utterance()
+        output.complete()
+        voice.suspendForAudio()
+        voice.cancelWork()
+        target.value = target.value.copy(busy = false, final = true)
+        tick()
+        assertFalse(capture.active)
+        assertEquals(VoiceState.WAITING, voice.state)
+        voice.recoverAudio()
+        assertTrue(capture.active)
+        assertEquals(1, target.sent.size)
+        assertEquals(1, target.canceled)
+    }
+
     @Test fun transientFocusPreservesSpeechAndGainNeverResumesAnExplicitPause() {
         voice.start(); utterance(); output.complete()
         target.value = VoiceRun("run-1", true, "First phrase. Next")

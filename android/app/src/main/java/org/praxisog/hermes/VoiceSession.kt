@@ -268,7 +268,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         else -> null
     }
     private fun openMic() {
-        if (micOpen || closed || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
+        if (micOpen || closed || audioSuspended || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
         listeningBlock(conversation.run())?.let { pause(it); return }
         micOpen = capture.start(::frame, ::pause)
         if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output?.chime()
@@ -296,7 +296,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         }
     }
     private fun listen() {
-        if (closed || !readyOutput || !conversation.selected) return
+        if (closed || audioSuspended || !readyOutput || !conversation.selected) return
         if (conversation.run().busy) { state = VoiceState.WAITING; openMic(); return }
         if (mode == VoiceMode.PUSH_TO_TALK && !pushHeld) { state = VoiceState.READY; closeMic(); return }
         state = VoiceState.LISTENING
@@ -306,7 +306,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     }
     /** Public to the capture port; deterministic PCM tests exercise the same path as AudioRecord. */
     fun frame(pcm: ShortArray, count: Int) {
-        if (closed || microphoneMuted || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
+        if (closed || audioSuspended || microphoneMuted || state in setOf(VoiceState.PAUSED, VoiceState.STOPPED, VoiceState.TRANSCRIBING, VoiceState.REVIEW) || completingTurn) return
         val result = gate.accept(pcm, count, holdTurn, manual = mode == VoiceMode.PUSH_TO_TALK && pushHeld)
         if (result.began) {
             approvalAtSpeechStart = conversation.run().approval
@@ -336,7 +336,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         if (muted && state == VoiceState.RECORDING) recoverTentative()
     }
     fun beginPushToTalk(toDraft: Boolean = false) {
-        if (closed || (!toDraft && mode != VoiceMode.PUSH_TO_TALK) || state in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) return
+        if (closed || audioSuspended || (!toDraft && mode != VoiceMode.PUSH_TO_TALK) || state in setOf(VoiceState.TRANSCRIBING, VoiceState.REVIEW, VoiceState.PAUSED)) return
         if (speaking) stopSpeaking()
         if (toDraft) { closeMic(); mode = VoiceMode.PUSH_TO_TALK; dictationToDraft = true }
         pushHeld = true; holdTurn = true
@@ -637,10 +637,11 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun discardPlayback() {
         if (submitted) { interruptedPlayback = playedText; rememberPlayback(true) }
         generation++; output?.stop(); activeSpeech = null; audible = false; speech.clear(); activitySpeech.clear()
-        speaking = false; suppressed = true; tentative = false; audioSuspended = false; completingTurn = false
+        speaking = false; suppressed = true; tentative = false; completingTurn = false
     }
     fun stopSpeaking() {
         discardPlayback()
+        if (audioSuspended) return
         if (submitted && conversation.run().busy) state = VoiceState.WORKING else listen()
     }
     fun cancelWork() {
