@@ -125,14 +125,15 @@ class Relay:
                         body.extend(chunk)
                         if len(body) > 4096:
                             return {"state": "unknown", "http_status": code}
-                    doc = json.loads(body)
+                    try:
+                        doc = json.loads(body)
+                    except (ValueError, RecursionError):
+                        return {"state": "unknown", "http_status": code}
                     healthy = doc.get("healthy") if isinstance(doc, dict) else None
                     if not isinstance(healthy, bool):
                         return {"state": "unknown", "http_status": code}
                     return {"state": "healthy" if healthy else "unavailable", "http_status": code}
-        except (ValueError, RecursionError):
-            return {"state": "unknown", "http_status": 200}
-        except (ClientError, asyncio.TimeoutError):
+        except (ClientError, asyncio.TimeoutError, ValueError):
             return {"state": "unreachable"}
 
     async def dispatch_status(self, scope, host_ready):
