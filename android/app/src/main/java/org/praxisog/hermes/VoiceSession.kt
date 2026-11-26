@@ -129,7 +129,8 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var activeActivity = false
     private var audible = false
     private var tentative = false
-    private var audioSuspended = false
+    var audioSuspended = false
+        private set
     private val recentPlayback = ArrayDeque<Pair<Long, String>>()
     private var ownShortPhrases = emptyList<String>()
     private var generation = 0L
