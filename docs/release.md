@@ -1,3 +1,7 @@
+## Unknown run recovery · Android 0.20.28 experimental
+
+Build 78 identifies an unverified run and lets you recheck its original admission. Includes server plugin 0.9.26. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.28-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.28-experimental.1/docs/RELEASE-0.20.28-EXPERIMENTAL.md)
+
 ## Unavailable calendar accounts · Android 0.20.27 experimental
 
 Build 77 reports missing selected accounts and confirms a fresh planning read when they return. Includes server plugin 0.9.26. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.27-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.27-experimental.1/docs/RELEASE-0.20.27-EXPERIMENTAL.md)

@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull Android 0.20.27 / build 77 and plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.27-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.27-experimental.1/Bellpull.apk) · [Matching plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.27-experimental.1/bellpull-plugin-0.9.26-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.27-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.27-experimental.1/docs/ROADMAP.md)
-> Bellpull shows when a selected calendar account is unavailable and confirms the next complete read after it returns.
+> **Latest experimental release · [Bellpull Android 0.20.28 / build 78 and plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.28-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.28-experimental.1/Bellpull.apk) · [Matching plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.28-experimental.1/bellpull-plugin-0.9.26-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.28-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.28-experimental.1/docs/ROADMAP.md)
+> Bellpull shows when Hermes cannot confirm a run’s outcome. You can recheck the original run from its chat.
 
 <div align="center">
 
