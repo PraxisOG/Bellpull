@@ -1,3 +1,7 @@
+## Coding task cancellation · 0.20.19 / build 69
+
+Install the matching plugin to see **Stopped** after Hermes confirms that it stopped the executor. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.19-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.19-experimental.1/docs/RELEASE-0.20.19-EXPERIMENTAL.md)
+
 ## Background answers on stock Hermes · 0.20.18 / build 68
 
 Install the matching plugin so a saved background answer appears once when you reopen a chat on Hermes 0.23.4. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.18-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.18-experimental.1/docs/RELEASE-0.20.18-EXPERIMENTAL.md)
