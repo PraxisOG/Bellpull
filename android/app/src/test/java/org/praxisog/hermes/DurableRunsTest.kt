@@ -257,8 +257,20 @@ class DurableRunsTest {
     @Test fun unmatchedCompletionStopsPollingAndCanBeRetriedOrReleasedAfterReview() {
         runStatus = "completed"
         historyBody = """{"data":[{"id":20,"role":"assistant","content":"Unrelated summary","timestamp":101}]}"""
+        val writingReview = java.util.concurrent.CountDownLatch(1)
+        val allowWrite = java.util.concurrent.CountDownLatch(1)
+        beforeJournalWrite = { record ->
+            if (record.historyNeedsReview) {
+                writingReview.countDown()
+                allowWrite.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
         val first = manager(maxHistoryChecks = 2)
         first.send("one", "hello", emptySet())
+        try {
+            assertTrue(writingReview.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertFalse(first.states["one"]!!.submission.historyNeedsReview)
+        } finally { allowWrite.countDown() }
         await { first.states["one"]?.submission?.historyNeedsReview == true }
         assertFalse(first.states["one"]!!.submission.historySynced)
         assertFalse("a terminal review must not block new sends", first.states["one"]!!.busy)

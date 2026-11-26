@@ -72,6 +72,13 @@ def observed(home, key, job, execution, notice, owners):
                 execution_id=execution, degraded_notice=notice, **evidence)
 
 
+def delivery_keys(home, job, execution):
+    # Native scheduler_delivery._deliver_to_bot_chat derives these two keys.
+    payload = json.dumps([str(home), job, execution, str(home)], ensure_ascii=False, separators=(",", ":"))
+    primary = hashlib.sha256(payload.encode()).hexdigest()
+    return primary, hashlib.sha256((primary + ":degraded").encode()).hexdigest()
+
+
 def page(before=None):
     from hermes_constants import get_hermes_home
     if not available():
@@ -84,11 +91,7 @@ def page(before=None):
     for job, execution, claimed_at in rows[:PAGE_SIZE]:
         if not valid_job(job) or not isinstance(execution, str) or not EXECUTION_ID.fullmatch(execution):
             continue
-        # scheduler_delivery._deliver_to_bot_chat uses these two exact keys.
-        # Include a result only when a native reader returns the matching record.
-        payload = json.dumps([str(home), job, execution, str(home)], ensure_ascii=False, separators=(",", ":"))
-        key = hashlib.sha256(payload.encode()).hexdigest()
-        notice_key = hashlib.sha256((key + ":degraded").encode()).hexdigest()
+        key, notice_key = delivery_keys(home, job, execution)
         for delivery_id, notice in ((key, False), (notice_key, True)):
             try:
                 receipt = observed(home, delivery_id, job, execution, notice, owners)

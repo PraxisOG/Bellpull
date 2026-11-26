@@ -434,11 +434,20 @@ internal class DurableRuns(
         }
         while (currentCoroutineContext().isActive && !syncHistory(sessionId)) {
             val current = states[sessionId]?.submission ?: return
-            val next = current.copy(historyChecks = current.historyChecks + 1,
-                historyNeedsReview = current.historyChecks + 1 >= maxHistoryChecks)
+            val checks = current.historyChecks + 1
+            val needsReview = checks >= maxHistoryChecks
+            var next = current.copy(historyChecks = checks, historyNeedsReview = needsReview)
+            // Review releases the composer. Persist it first, merging any stop
+            // acknowledgement that arrived while the journal write was in flight.
+            while (true) {
+                if (!save(next)) return
+                val latest = states[sessionId]?.submission?.takeIf { it.requestId == next.requestId } ?: return
+                val merged = latest.copy(historyChecks = checks, historyNeedsReview = needsReview && latest.stopRequested == current.stopRequested)
+                if (merged == next) break
+                next = merged
+            }
             update(sessionId) { it.copy(submission = next,
                 notice = if (next.historyNeedsReview) historyReviewNotice else it.notice) }
-            save(next)
             if (next.historyNeedsReview) return
             delay(retryMs)
         }

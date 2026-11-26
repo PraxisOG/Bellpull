@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.*
 
 @Composable
-internal fun RoutineResultsDialog(workspace: PlanningWorkspace, job: String?, dismiss: () -> Unit) {
+internal fun RoutineResultsDialog(workspace: PlanningWorkspace, job: String?, select: ((SavedRoutineResult) -> Unit)? = null, dismiss: () -> Unit) {
     var selected by remember { mutableStateOf<SavedRoutineResult?>(null) }
     val cursors = remember { mutableStateListOf<String>() }
     val offsets = remember(selected) { mutableStateListOf(0L) }
@@ -73,6 +73,7 @@ internal fun RoutineResultsDialog(workspace: PlanningWorkspace, job: String?, di
                                 Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                                     SelectionContainer { Text(page.value.text.ifEmpty { "Empty result." }) }
                                 }
+                                if (select != null) TextButton(onClick = { select(file) }) { Text("Use this saved result") }
                                 Row {
                                     if (offsets.size > 1) TextButton(onClick = { offsets.removeAt(offsets.lastIndex) }) { Text("Previous") }
                                     page.value.next?.let { next -> TextButton(onClick = { offsets.add(next) }) { Text("Next") } }
