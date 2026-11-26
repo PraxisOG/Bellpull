@@ -60,7 +60,13 @@ class VoiceService : Service() {
         }
     }
     private val noisy = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) { if (started && ownsAudio) pauseAudio("becoming_noisy", "Headphones disconnected. Resume after choosing an audio route.") }
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (!started || !ownsAudio) return
+            // Android also broadcasts when another audio route loses its headphones.
+            val selected = requestedRoute
+            if (Build.VERSION.SDK_INT >= 31 && stillOnSelectedSpeaker(selected?.type, selected?.id, audio.communicationDevice?.id)) return
+            pauseAudio("becoming_noisy", "Headphones disconnected. Resume after choosing an audio route.")
+        }
     }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onCreate() {
@@ -332,6 +338,9 @@ class VoiceService : Service() {
         scope.cancel(); super.onDestroy()
     }
     companion object {
+        internal fun stillOnSelectedSpeaker(selectedType: Int?, selectedId: Int?, activeId: Int?): Boolean =
+            selectedType == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER && selectedId != null && selectedId == activeId
+
         const val STOP = "org.praxisog.hermes.STOP_VOICE"
         const val RESUME = "org.praxisog.hermes.RESUME_VOICE"
         const val PAUSE = "org.praxisog.hermes.PAUSE_VOICE"
