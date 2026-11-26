@@ -49,6 +49,23 @@ class CodingTest(unittest.TestCase):
         self.process.append_output(text)
         self.observer.sample(self.store,self.work,self.process)
 
+    def test_output_and_session_identity_become_visible_together(self):
+        write_row = self.store._write_row
+        during_write = []
+
+        def observe_uncommitted(conn, work, row):
+            write_row(conn, work, row)
+            during_write.append(self.store.snapshot("root", ["root"]))
+
+        with patch.object(self.store, "_write_row", side_effect=observe_uncommitted):
+            self.sample(line("First output"))
+        before, = during_write
+        after = self.store.snapshot("root", ["root"], after=before["cursor"])
+        self.assertIsNone(before["works"][0]["open_code_session_id"])
+        self.assertEqual([], before["rows"])
+        self.assertEqual("ses_one", after["works"][0]["open_code_session_id"])
+        self.assertEqual(["First output"], [row["detail"] for row in after["rows"]])
+
     def test_split_lines_unicode_crlf_updates_and_foreign_sessions(self):
         value=line("héllo 🌙").replace("\n","\r\n")
         self.sample(value[:25]); self.assertEqual([],self.store.snapshot("root",["root"])["rows"])
@@ -76,7 +93,7 @@ class CodingTest(unittest.TestCase):
         self.sample(line("Keep me"))
         other=dict(self.work,id="b"*32,session_id="other")
         self.store.save(other)
-        for i in range(305): self.store.emit(other,dict(key=str(i),detail="other"))
+        self.store.save(other, [dict(key=str(i), detail="other") for i in range(305)])
         self.assertEqual(["Keep me"],[r["detail"] for r in self.store.snapshot("root",["root"])["rows"]])
 
     def test_tail_loss_marks_gap_and_step_finish_does_not_complete_process(self):

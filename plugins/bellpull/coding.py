@@ -180,8 +180,9 @@ class CodingStore:
         with self.db() as conn:
             return [json.loads(r[0]) for r in conn.execute("SELECT data FROM works ORDER BY rowid DESC LIMIT ?",(MAX_WORKS,))]
 
-    def save(self, work):
+    def save(self, work, rows=()):
         with self.db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             present=conn.execute("SELECT 1 FROM works WHERE id=?",(work["id"],)).fetchone()
             if not present:
                 all_works=conn.execute("SELECT id,session,data FROM works ORDER BY rowid").fetchall()
@@ -195,28 +196,36 @@ class CodingStore:
                     for table in ("rows","events","works"):
                         conn.execute(f"DELETE FROM {table} WHERE {'id' if table=='works' else 'work'}=?",(wid,))
                     all_works.remove(old)
+            for row in rows:
+                self._write_row(conn, work, row)
             conn.execute("INSERT INTO works VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
                          (work["id"],work["session_id"],json.dumps(work)))
             conn.execute("DELETE FROM gaps WHERE rowid IN (SELECT rowid FROM gaps ORDER BY rowid DESC LIMIT -1 OFFSET 1000)")
             return True
 
-    def emit(self, work, row):
+    @staticmethod
+    def _write_row(conn, work, row):
         data=json.dumps(dict(row,work_id=work["id"]),sort_keys=True)
-        with self.db() as conn:
-            old=conn.execute("SELECT data FROM rows WHERE work=? AND key=?",(work["id"],row["key"])).fetchone()
-            if old and old[0] == data: return
-            seq=conn.execute("INSERT INTO events(work,data) VALUES(?,?)",(work["id"],data)).lastrowid
-            conn.execute("INSERT INTO rows VALUES(?,?,?,?) ON CONFLICT(work,key) DO UPDATE SET seq=excluded.seq,data=excluded.data",
-                         (work["id"],row["key"],seq,data))
-            if conn.execute("SELECT COUNT(*) FROM rows WHERE work=?",(work["id"],)).fetchone()[0]>MAX_ROWS:
-                work["gap"]=True
-            conn.execute("DELETE FROM rows WHERE rowid IN (SELECT rowid FROM rows WHERE work=? ORDER BY seq DESC LIMIT -1 OFFSET ?)",(work["id"],MAX_ROWS))
-            conn.execute("DELETE FROM events WHERE seq <= (SELECT COALESCE(MAX(seq),0)-? FROM events)",(MAX_EVENTS,))
+        old=conn.execute("SELECT data FROM rows WHERE work=? AND key=?",(work["id"],row["key"])).fetchone()
+        if old and old[0] == data: return
+        seq=conn.execute("INSERT INTO events(work,data) VALUES(?,?)",(work["id"],data)).lastrowid
+        conn.execute("INSERT INTO rows VALUES(?,?,?,?) ON CONFLICT(work,key) DO UPDATE SET seq=excluded.seq,data=excluded.data",
+                     (work["id"],row["key"],seq,data))
+        if conn.execute("SELECT COUNT(*) FROM rows WHERE work=?",(work["id"],)).fetchone()[0]>MAX_ROWS:
+            work["gap"]=True
+        conn.execute("DELETE FROM rows WHERE rowid IN (SELECT rowid FROM rows WHERE work=? ORDER BY seq DESC LIMIT -1 OFFSET ?)",(work["id"],MAX_ROWS))
+        conn.execute("DELETE FROM events WHERE seq <= (SELECT COALESCE(MAX(seq),0)-? FROM events)",(MAX_EVENTS,))
 
     def snapshot(self, session, aliases, after=None, all_executors=False):
-        works=[w for w in self.works() if w["session_id"] in aliases and (all_executors or w.get("executor", "opencode") == "opencode")]
-        ids={w["id"] for w in works}
         with self.db() as conn:
+            conn.execute("BEGIN")
+            records = conn.execute("SELECT data FROM works ORDER BY rowid DESC LIMIT ?", (MAX_WORKS,))
+            works = []
+            for record, in records:
+                work = json.loads(record)
+                if work["session_id"] in aliases and (all_executors or work.get("executor", "opencode") == "opencode"):
+                    works.append(work)
+            ids = {work["id"] for work in works}
             low=conn.execute("SELECT COALESCE(MIN(seq),0) FROM events").fetchone()[0]
             high=(conn.execute("SELECT seq FROM sqlite_sequence WHERE name='events'").fetchone() or [0])[0]
             expired=any(conn.execute("SELECT 1 FROM gaps WHERE session=?",(alias,)).fetchone() for alias in aliases)
@@ -348,9 +357,10 @@ class Observer:
         work["state"]=("stopped" if reason=="killed" else "lost" if reason=="lost" else "completed" if code==0 else "failed" if code is not None else "unknown") if exited else "running"
         if exited:
             work["exit_code"] = code
+        rows = []
         if work.get("transport") in ("codex_json", "claude_stream_json"):
-            consume_frames(work, total, tail, exited, store.emit, MAX_LINE)
-            store.save(work)
+            consume_frames(work, total, tail, exited, lambda _, row: rows.append(row), MAX_LINE)
+            store.save(work, rows)
             return
         delta=total-work["observed_total"]
         identity=(str(store.path),work["id"])
@@ -370,7 +380,7 @@ class Observer:
             if decoded:
                 sid,row=decoded
                 work["open_code_session_id"]=sid
-                store.emit(work,row)
+                rows.append(row)
             elif line.strip():
                 try: foreign=json.loads(line)
                 except (ValueError,RecursionError): foreign=None
@@ -378,22 +388,24 @@ class Observer:
                     continue
                 # Plain warnings are inert text, never actionable permissions.
                 clean=re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)","",line.rstrip())
-                store.emit(work,dict(key=f"output:{total-delta}:{index}",kind="output",label="Terminal output",detail=clipped(clean),timestamp_ms=int(time.time()*1000),truncated=len(clean)>MAX_DETAIL))
-        self.partial[identity]=pending
+                rows.append(dict(key=f"output:{total-delta}:{index}",kind="output",label="Terminal output",detail=clipped(clean),timestamp_ms=int(time.time()*1000),truncated=len(clean)>MAX_DETAIL))
         work["observed_total"]=total
         if exited:
             if pending:
                 decoded=decode_line(pending,work.get("open_code_session_id"))
                 if decoded:
                     work["open_code_session_id"],row=decoded
-                    store.emit(work,row)
+                    rows.append(row)
                 else:
                     try: foreign=json.loads(pending)
                     except (ValueError,RecursionError): foreign=None
                     if not isinstance(foreign,dict) or not foreign.get("sessionID"):
-                        store.emit(work,dict(key="final-output",kind="output",label="Final terminal output",detail=clipped(pending),timestamp_ms=int(time.time()*1000),truncated=len(pending)>MAX_DETAIL))
+                        rows.append(dict(key="final-output",kind="output",label="Final terminal output",detail=clipped(pending),timestamp_ms=int(time.time()*1000),truncated=len(pending)>MAX_DETAIL))
+        store.save(work, rows)
+        if exited:
             self.partial.pop(identity,None)
-        store.save(work)
+        else:
+            self.partial[identity]=pending
 
     async def snapshot(self, request):
         session=checked_session(request.match_info["session_id"])
