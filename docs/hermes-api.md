@@ -328,8 +328,12 @@ of the Hermes run and process IDs. Events without an executor-supplied time use
 executor's reported turn result have distinct evidence. These reads publish
 inert progress and tool results. Matched Claude Bash calls show a bounded,
 redacted command and result. The CLI reports whether its tool returned an
-error. Codex command events can also carry a numeric exit code. Approval decisions use the originating
-Hermes approval contract.
+error. A Claude result can report a successful turn and still list individual tool calls in
+`permission_denials`. A matching session and valid tool-use ID produce a history row
+with the tool name and the outcome `permission not granted`. The row carries no tool
+arguments. Codex command events can also carry a numeric exit code. Recognized Codex
+invocations include global approval and configuration options before `exec`. Interactive
+approval decisions use the originating Hermes run's approval contract.
 
 When the first process receipt identifies a Git worktree with a commit, workspace
 previews return that full hash in `base_commit`. The file list and previews

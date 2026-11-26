@@ -1,3 +1,7 @@
+## Coding activity and tool permissions · plugin 0.9.19
+
+Claude Code can finish a turn after a tool was denied. Coding activity shows both outcomes and follows Codex JSON runs with leading approval or configuration options. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.19-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.19-EXPERIMENTAL.md)
+
 ## Routine delivery history · plugin 0.9.18
 
 Today shows historical Bot Chat receipts on stock Hermes 0.23.4. On 0.21.5, a reviewed retry checks the original chat before sending its saved result. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.18-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.18-EXPERIMENTAL.md)

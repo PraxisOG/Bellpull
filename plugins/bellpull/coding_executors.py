@@ -94,8 +94,18 @@ def claude_rows(work, event, position):
         if not isinstance(event.get("is_error"), bool):
             return []
         problem = event["is_error"]
-        return [row(f"result:{position}", "error" if problem else "step_finished",
-                    "Claude Code turn failed" if problem else "Claude Code turn finished")]
+        rows = []
+        denials = event.get("permission_denials")
+        if isinstance(denials, list):
+            for denial in denials:
+                if not isinstance(denial, dict):
+                    continue
+                tool_id, name = denial.get("tool_use_id"), denial.get("tool_name")
+                if identifier(tool_id) and identifier(name):
+                    rows.append(row("permission:" + tool_id, "tool", name, outcome="permission not granted"))
+        rows.append(row(f"result:{position}", "error" if problem else "step_finished",
+                        "Claude Code turn failed" if problem else "Claude Code turn finished"))
+        return rows
     message = event.get("message")
     if kind not in ("assistant", "user") or not isinstance(message, dict):
         return []

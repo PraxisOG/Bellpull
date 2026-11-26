@@ -12,11 +12,29 @@ class ExecutorEventsTest(unittest.TestCase):
 
     def test_structured_formats_require_the_actual_program_and_option(self):
         self.assertEqual("codex_json", launch_transport("/opt/tools/codex exec --json 'check the toy project'"))
+        self.assertEqual("codex_json", launch_transport("codex -c 'model_provider=\"lab\"' -a on-request exec --json hello"))
+        self.assertEqual("codex_json", launch_transport("codex --no-daemon --ask-for-approval=on-request exec --json hello"))
         self.assertEqual("claude_stream_json", launch_transport("claude --print --verbose --output-format=stream-json fixture"))
         for command in ("echo 'codex exec --json'", "codex --version", "codex exec -- --json",
                         "claude -p 'stream-json'", "claude -p --output-format text",
-                        "printf text | claude -p --output-format stream-json"):
+                        "printf text | claude -p --output-format stream-json", "codex -m exec --json",
+                        "codex app-server exec --json", "codex -p chat -- exec --json"):
             self.assertIsNone(launch_transport(command), command)
+
+    def test_native_permission_denial_is_history_even_if_the_turn_finished_successfully(self):
+        work = dict(transport="claude_stream_json", executor_session_id=self.session)
+        denied = dict(tool_use_id="toolu_1", tool_name="Write", tool_input={"content": "private payload"})
+        event = dict(type="result", session_id=self.session, is_error=False, permission_denials=[
+            denied, dict(denied, tool_name="two words"), "malformed", dict(denied, tool_use_id=None)])
+        result = observed_rows(work, json.dumps(event), 12)
+        self.assertEqual([("permission:toolu_1", "Write", "permission not granted"),
+                          ("result:12", "Claude Code turn finished", None)],
+                         [(item["key"], item["label"], item.get("outcome")) for item in result])
+        self.assertNotIn("private payload", json.dumps(result))
+        self.assertEqual(result, observed_rows(work, json.dumps(event), 12))
+        self.assertFalse(observed_rows(work, json.dumps(dict(event, session_id=self.other)), 13))
+        for unrelated in (dict(event, type="control_request"), dict(event, permission_denials={})):
+            self.assertFalse(any(item["key"].startswith("permission:") for item in observed_rows(work, json.dumps(unrelated), 13)))
 
     def test_codex_binds_first_thread_updates_items_and_keeps_foreign_output_separate(self):
         work = {"transport":"codex_json"}

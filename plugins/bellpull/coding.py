@@ -119,6 +119,26 @@ def decode_line(line, session=None):
     return sid, row
 
 
+def codex_exec_json(flags):
+    # Consume the value of each recognized global option before looking for
+    # the subcommand. A model, profile or prompt may itself be named "exec".
+    value_options = {"-a", "--ask-for-approval", "-c", "--config", "-m", "--model", "-p", "--profile",
+                     "-s", "--sandbox", "--enable", "--disable"}
+    i = 0
+    while i < len(flags):
+        flag = flags[i]
+        name, equal, value = flag.partition("=")
+        if name in value_options:
+            if equal and not value:
+                return False
+            i += 1 if equal else 2
+        elif flag in {"--strict-config", "--no-daemon"}:
+            i += 1
+        else:
+            return flag == "exec" and "--json" in flags[i + 1:]
+    return False
+
+
 def launch_transport(command):
     if cli_invocation(command):
         return "cli_json"
@@ -135,7 +155,7 @@ def launch_transport(command):
     executable = Path(args[0]).name
     flags = args[1:args.index("--")] if "--" in args else args[1:]
     if executable == "codex":
-        return "codex_json" if flags[:1] == ["exec"] and "--json" in flags else None
+        return "codex_json" if codex_exec_json(flags) else None
     if executable == "claude":
         printing = "-p" in flags or "--print" in flags
         stream = "--output-format=stream-json" in flags or any(

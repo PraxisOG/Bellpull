@@ -1,6 +1,6 @@
-> **Latest experimental release · Plugin 0.9.18-mobile-preview and Android 0.20.22 / build 72**
-> Routine delivery history works on Hermes 0.23.4. A reviewed retry on the 0.21.5 mailbox checks the original chat.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.18-EXPERIMENTAL.md).
+> **Latest experimental release · Plugin 0.9.19-mobile-preview and Android 0.20.22 / build 72**
+> Coding activity shows Claude tool permission denials and recognizes Codex runs with leading approval or configuration options.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.19-EXPERIMENTAL.md).
 
 <div align="center">
 
