@@ -233,6 +233,24 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(409,error.exception.status)
         self.assertEqual(revoked["generation"],restarted.calendar(device,dict(body,generation=revoked["generation"]))["generation"])
         self.assertEqual(revoked["generation"]+1,PlanningStore(self.home).calendar(device,dict(revoke=True))["generation"])
+
+    def test_reordered_calendar_upload_keeps_latest_read_and_accepts_retries(self):
+        device = "d"*32
+        body = dict(read_at_ms=self.now, busy_only=True, events=[])
+        initial = self.store.calendar(device, body)
+        latest = dict(body, generation=initial["generation"], read_at_ms=self.now+1000,
+                      events=[dict(id="12", start_ms=self.now+10000, end_ms=self.now+20000)])
+        acknowledged = self.store.calendar(device, latest)
+        restarted = PlanningStore(self.home)
+        self.assertEqual(acknowledged, restarted.calendar(device, latest))
+        for old in (dict(body, generation=initial["generation"]), dict(latest, events=[])):
+            with self.assertRaises(ArtifactError) as error:
+                restarted.calendar(device, old)
+            self.assertEqual(409, error.exception.status)
+            self.assertEqual(acknowledged, restarted.calendar(device))
+        self.assertEqual(self.now, restarted.calendar("e"*32, body)["read_at_ms"])
+        revoked = restarted.calendar(device, dict(revoke=True))
+        self.assertEqual(self.now, restarted.calendar(device, dict(body, generation=revoked["generation"]))["read_at_ms"])
     def test_busy_only_policy_change_fences_detailed_upload(self):
         device="d"*32
         body=dict(read_at_ms=self.now,busy_only=False,events=[])

@@ -135,7 +135,7 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         finally { if (calendarTransport===transport) calendarTransport=null }
     }
     private fun acknowledge(response: HermesResult.Ok<JsonObject>): Boolean {
-        val generation=response.value["generation"]?.jsonPrimitive?.longOrNull
+        val generation=(response.value["generation"] as? JsonPrimitive)?.longOrNull
         if (generation==null || generation<policy.generation) {
             calendarProblem="Hermes did not acknowledge the calendar policy generation. Update the server plugin and retry."
             return false
@@ -157,18 +157,29 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         obsolete.forEach { it.cancelAndJoin() }; obsoleteRefreshes.removeAll(obsolete.toSet())
         if (!policy.sharing || !phone.canRead() || calendarProblem!=null || calendar.readAt==0L) return
         val value=calendar; val selection=policy
-        val response=shareCalendar(buildJsonObject {
+        val upload=buildJsonObject {
             put("generation",selection.generation)
             put("read_at_ms",value.readAt); put("busy_only",selection.busyOnly)
             put("events",buildJsonArray { value.events.forEach { event -> add(buildJsonObject {
                 put("id",event.id.toString())
-                if (!selection.busyOnly) { put("title",event.title); put("fingerprint",event.fingerprint) }
+                if (!selection.busyOnly) { put("title",event.title.trim()); put("fingerprint",event.fingerprint) }
                 put("start_ms",event.start); put("end_ms",event.end); put("all_day",event.allDay)
             }) } })
-        })
-        if (closed || policy!=selection) return
+        }
+        val response=shareCalendar(upload)
+        if (closed || policy!=selection || calendar!==value) return
         when (response) {
-            is HermesResult.Ok -> acknowledge(response)
+            is HermesResult.Ok -> {
+                val receipt = response.value
+                val matches = receipt["device"] == JsonPrimitive(device) &&
+                    listOf("read_at_ms", "busy_only", "events").all { receipt[it] == upload[it] }
+                if (!matches) {
+                    calendarProblem = "Hermes did not confirm this calendar read. Refresh to check again."
+                } else if (acknowledge(response)) {
+                    calendar = value.copy(hermesConfirmed = true)
+                    cache.writeCalendar(calendar)
+                }
+            }
             is HermesResult.Err -> {
                 // (Uploads superseded by a local policy change already returned above.)
                 val stale=when (val error=response.error) {
@@ -183,7 +194,16 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
                     // generation, and state what the user can do.
                     revokePending=true; cache.calendarRevokePending(true)
                     calendarProblem="Hermes no longer recognizes this phone's calendar generation. Sharing re-arms through a fresh revoke on the next connection; events re-upload after that."
-                } else calendarProblem="Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
+                } else {
+                    val conflict = (response.error as? HermesError.ServerError)?.takeIf { it.status == 409 }
+                    calendarProblem = when (conflict?.message) {
+                        "Hermes already has a newer phone calendar read. Refresh the phone calendar." ->
+                            "Hermes kept a newer calendar read. Refresh to sync this phone again."
+                        "Different calendar events have the same read time. Refresh the phone calendar." ->
+                            "Two calendar reads had the same time. Refresh to confirm the latest events."
+                        else -> "Phone read is current; sharing to Hermes failed. ${response.error.toUserMessage()}"
+                    }
+                }
             }
         }
     }

@@ -1,3 +1,7 @@
+## Phone calendar confirmation · 0.20.22 / build 72
+
+Today’s calendar shows the phone read that Hermes confirmed. The matching plugin keeps newer reads when an older upload arrives late. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.22-experimental.1) · [Release notes](RELEASE-0.20.22-EXPERIMENTAL.md)
+
 ## Coding history across tasks · 0.20.21 / build 71
 
 The coding panel marks incomplete history when a chat’s tasks have more than 300 output records between them. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.21-experimental.1) · [Release notes](RELEASE-0.20.21-EXPERIMENTAL.md)

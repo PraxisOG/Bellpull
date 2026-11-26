@@ -138,6 +138,13 @@ explicit job deletion.
   Update the app.` The first
   upload establishes generation 1; subsequent same-policy uploads retain it. Changing
   `busy_only` atomically advances it and acknowledges the new value.
+  Once a snapshot is stored, an older `read_at_ms` receives HTTP 409. Replaying
+  the same read with the acknowledged policy generation returns the stored snapshot. Different
+  events at the same read time and policy receive 409 and require a fresh phone
+  read. These conflicts leave the stored data and policy generation intact.
+  Android confirms a phone read after the response echoes its device, read time,
+  sharing mode and events and acknowledges the policy generation. It caches that
+  confirmation with the specific phone read.
   `{revoke:true,generation:N}` clears this device's dedicated server cache and proposals
   and atomically advances the **server's current** generation, returning
   `{revoked:true,generation:M}`. Revoke always advances it, even with no cache row or

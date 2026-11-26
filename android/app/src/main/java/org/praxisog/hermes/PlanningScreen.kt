@@ -208,6 +208,8 @@ import kotlinx.coroutines.delay
                 CalendarControls(workspace,requestPermission)
                 workspace.calendarProblem?.let { Text(it,color=MaterialTheme.colorScheme.error) }
                 if (workspace.calendar.readAt>0) Text("Phone read: ${displayInstant(workspace.calendar.readAt)} · account/cloud sync is managed by your calendar account.",style=MaterialTheme.typography.bodySmall)
+                if (workspace.policy.sharing && workspace.calendar.readAt > 0 && workspace.calendar.hermesConfirmed)
+                    Text("Hermes confirmed this phone calendar read.", style=MaterialTheme.typography.bodySmall)
                 if (workspace.calendar.truncated) Text("500-event preview limit reached. Narrow the calendars or date range.")
                 Button(onClick={ selectedEvent=null; eventEditor=true },enabled=workspace.policy.writes && workspace.canWrite() && !workspace.busy) { Text("Add calendar event") }
                 CalendarBlocksView(workspace.day,workspace.calendar.events,workspace.snapshot?.reminders.orEmpty(),workspace::selectDay,

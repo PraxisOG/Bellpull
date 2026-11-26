@@ -19,6 +19,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowContentResolver
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.serialization.json.*
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class PlanningWorkspaceTest {
@@ -69,7 +72,8 @@ class PlanningWorkspaceTest {
                     when {
                         payload.contains("\"revoke\"") -> { serverDroppedOurGeneration=false; 200 to """{"revoked":true,"generation":8}""" }
                         serverDroppedOurGeneration -> 409 to """{"error":{"message":"Stale calendar policy generation.","code":"bellpull_rejected"}}"""
-                        else -> 200 to """{"generation":8,"read_at_ms":1,"busy_only":true,"events":[]}"""
+                        else -> 200 to JsonObject(Json.parseToJsonElement(payload).jsonObject +
+                            ("device" to JsonPrimitive("d".repeat(32)))).toString()
                     }
                 }
             }
@@ -94,7 +98,59 @@ class PlanningWorkspaceTest {
             assertFalse(cache.revoke)
             assertEquals(8L,cache.policy.generation)
             assertNull(workspace.calendarProblem)
+            assertTrue(workspace.calendar.hermesConfirmed)
             assertTrue(requests.any { it.method=="PUT" && Buffer().also { b -> it.body!!.writeTo(b) }.readUtf8().contains("\"revoke\"") })
+        } finally { workspace.close(); client.close(); scope.cancel() }
+    }
+    @Test fun calendarConfirmationRequiresTheExactReadAndSurvivesReopening() {
+        shadowOf(app).grantPermissions(Manifest.permission.READ_CALENDAR)
+        val provider=CalendarProviderFixture()
+        provider.attachInfo(app,android.content.pm.ProviderInfo().apply { authority=CalendarContract.AUTHORITY })
+        ShadowContentResolver.registerProviderInternal(CalendarContract.AUTHORITY,provider)
+        val count = AtomicInteger()
+        val mode = AtomicReference("device")
+        val client=HermesClient("https://fixture.invalid",{"fixture"},httpClient=HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request=chain.request()
+            val response = if (request.method == "GET") {
+                200 to """{"version":1,"reminders":[],"observed_at":1}"""
+            } else {
+                val sent = Json.parseToJsonElement(Buffer().also { request.body!!.writeTo(it) }.readUtf8()).jsonObject
+                val receipt = sent.toMutableMap().apply { put("device", JsonPrimitive("d".repeat(32))) }
+                count.incrementAndGet()
+                when (mode.get()) {
+                    "conflict" -> 409 to """{"error":{"code":"bellpull_rejected","message":"Hermes already has a newer phone calendar read. Refresh the phone calendar."}}"""
+                    else -> {
+                        when (mode.get()) {
+                            "device" -> receipt["device"] = JsonPrimitive("e".repeat(32))
+                            "time" -> receipt["read_at_ms"] = JsonPrimitive(1)
+                            "mode" -> receipt["busy_only"] = JsonPrimitive(false)
+                            "events" -> receipt["events"] = JsonArray(listOf(JsonObject(emptyMap())))
+                        }
+                        200 to JsonObject(receipt).toString()
+                    }
+                }
+            }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(response.first).message("fixture")
+                .body(response.second.toResponseBody("application/json".toMediaType())).build()
+        }.build())
+        val cache = PlanningCacheFixture().apply { policy = CalendarPolicy(sharing=true,generation=5) }
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val workspace=PlanningWorkspace(scope,client,cache,app,true)
+        try {
+            for (scenario in listOf("device", "time", "mode", "events", "conflict", "ok")) {
+                val previous = count.get()
+                mode.set(scenario)
+                workspace.refresh()
+                waitUntil { count.get() > previous && !workspace.loading }
+                assertEquals(scenario, scenario == "ok", workspace.calendar.hermesConfirmed)
+                assertEquals(scenario, scenario == "ok", cache.readCalendar()?.hermesConfirmed)
+                if (scenario == "conflict") {
+                    assertTrue(workspace.calendarProblem!!.contains("kept a newer calendar read"))
+                    assertFalse(cache.revoke)
+                }
+            }
+            val reopened=PlanningWorkspace(scope,client,cache,app,true)
+            try { assertTrue(reopened.calendar.hermesConfirmed) } finally { reopened.close() }
         } finally { workspace.close(); client.close(); scope.cancel() }
     }
     @Test fun verifiedProposalReceiptRetriesReportingWithoutRepeatingPhoneWrite() {
