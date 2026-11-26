@@ -1,3 +1,7 @@
+## Notification dispatch status · 0.20.17 / build 67
+
+Open **Settings → Servers → Integration status** to check notification relay health and pending dispatches. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.17-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.17-experimental.1/docs/RELEASE-0.20.17-EXPERIMENTAL.md)
+
 ## Owner memory status · 0.20.16 / build 66
 
 Open a completed **Memory status** tool call to see the provider, owner access and when the chat snapshot was built. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.16-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.16-experimental.1/docs/RELEASE-0.20.16-EXPERIMENTAL.md)
