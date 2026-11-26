@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.20](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.20-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.20-experimental.1/Bellpull.apk) · [Matching plugin 0.9.14](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.20-experimental.1/bellpull-plugin-0.9.14-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.20-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.20-experimental.1/docs/ROADMAP.md)
-> Open a Desktop coding task on Android to stop its original Hermes run. The matching plugin is 0.9.14-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.21](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.21-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.21-experimental.1/Bellpull.apk) · [Matching plugin 0.9.15](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.21-experimental.1/bellpull-plugin-0.9.15-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.21-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.21-experimental.1/docs/ROADMAP.md)
+> Coding activity marks incomplete chat history. The matching plugin is 0.9.15-mobile-preview.
 
 <div align="center">
 

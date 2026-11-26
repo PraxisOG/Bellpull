@@ -1,3 +1,7 @@
+## Coding history across tasks · 0.20.21 / build 71
+
+The coding panel marks incomplete history when a chat’s tasks have more than 300 output records between them. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.21-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.21-experimental.1/docs/RELEASE-0.20.21-EXPERIMENTAL.md)
+
 ## Stop a Desktop coding run from Android · 0.20.20 / build 70
 
 Open the task in **Coding activity** and choose **Stop this Hermes run**. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.20-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.20-experimental.1/docs/RELEASE-0.20.20-EXPERIMENTAL.md)
