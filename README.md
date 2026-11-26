@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.14](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.14-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.14-experimental.1/Bellpull.apk) · [Matching plugin 0.9.9](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.14-experimental.1/bellpull-plugin-0.9.9-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.14-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.14-experimental.1/docs/ROADMAP.md)
-> Android build 64 shows when the owner processing a Bot Chat delivery was replaced. The matching plugin is 0.9.9-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.15](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.15-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.15-experimental.1/Bellpull.apk) · [Matching plugin 0.9.10](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.15-experimental.1/bellpull-plugin-0.9.10-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.15-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.15-experimental.1/docs/ROADMAP.md)
+> Android build 65 adds reviewed retries for saved Bot Chat results. The matching plugin is 0.9.10-mobile-preview.
 
 <div align="center">
 
