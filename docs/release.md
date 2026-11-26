@@ -1,3 +1,7 @@
+## Opted-in phone context · plugin 0.9.23 experimental
+
+New chats can receive phone notifications and upcoming calendar events on stock Hermes 0.23.4. Recently dismissed notifications retain their removal time. The release includes signed Android 0.20.26, build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.23-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.23-experimental.1/docs/RELEASE-PLUGIN-0.9.23-EXPERIMENTAL.md)
+
 ## Native approval review · Android 0.20.26 experimental
 
 Build 76 restores the approval queue and exact decisions for runs on stock Hermes 0.23.4. It includes server plugin 0.9.22-mobile-preview. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.26-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.26-experimental.1/docs/RELEASE-0.20.26-EXPERIMENTAL.md)
