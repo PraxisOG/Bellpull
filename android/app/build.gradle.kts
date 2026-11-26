@@ -94,8 +94,8 @@ android {
                 if (providers.gradleProperty("bellpullDeviceFixture").orNull == "true") "ON" else "OFF"
         } }
         targetSdk = 37
-        versionCode = 74
-        versionName = "0.20.24-experimental"
+        versionCode = 75
+        versionName = "0.20.25-experimental"
         if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") versionName = "0.20.13-canvas-preview"
         manifestPlaceholders["bellpullAppLabel"] = if (providers.gradleProperty("bellpullCanvasFixture").orNull == "true") "Bellpull Canvas" else "Bellpull"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -107,13 +107,20 @@ internal class AndroidVoicePcmPlayer(rate: Float, volume: Float,
         }
     }
     override suspend fun drain() {
+        val endOfSpeech = frames
+        if (stopped || playedFrames() >= endOfSpeech) return
+        // After an underrun, Android can wait for a full buffer before playing again.
+        // Supply silence so even a short final chunk plays, then wait only for the speech.
+        currentCoroutineContext().ensureActive()
+        write(FloatArray(track.bufferSizeInFrames))
         val deadline = android.os.SystemClock.elapsedRealtime() + 65_000
-        while (!stopped && (track.playbackHeadPosition.toLong() and 0xffffffffL) < frames) {
+        while (!stopped && playedFrames() < endOfSpeech) {
             currentCoroutineContext().ensureActive()
             check(android.os.SystemClock.elapsedRealtime() < deadline) { "Audio output did not finish. Try again." }
             delay(15)
         }
     }
+    private fun playedFrames() = track.playbackHeadPosition.toLong() and 0xffffffffL
     override fun stop() { stopped = true; runCatching { track.pause(); track.flush() } }
     override fun close() { stop(); track.release() }
 }
