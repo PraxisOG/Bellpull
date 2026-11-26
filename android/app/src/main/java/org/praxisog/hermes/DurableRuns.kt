@@ -22,6 +22,8 @@ internal interface RunJournal {
 internal fun canPruneRun(record: RunSubmission, beforeEpochSeconds: Double): Boolean =
     record.terminal && (record.historySynced || record.trackingDismissed) && record.createdAt < beforeEpochSeconds
 
+private const val UNKNOWN_RUN_NOTICE = "Hermes cannot confirm how this run ended. Review the original chat in Hermes and check its status again."
+
 internal const val RUN_JOURNAL_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
 internal data class PendingRunApproval(val runId: String, val request: RunApproval)
@@ -45,7 +47,7 @@ internal data class RunPresentation(
             !submission.historyNeedsReview && !submission.trackingDismissed)
     val label: String? get() = when {
         approval != null -> "Needs approval"
-        submission.status == "review" || submission.historyNeedsReview -> "Needs review"
+        submission.status == "unknown" || submission.status == "review" || submission.historyNeedsReview -> "Needs review"
         submission.status == "submitting" -> "Sending"
         submission.status == "reconnecting" -> "Reconnecting"
         submission.status == "failed" || submission.status == "interrupted" -> "Failed"
@@ -89,7 +91,11 @@ internal class DurableRuns(
         journal.readRuns().sortedBy { it.createdAt }.forEach { record ->
             statsRecords[record.requestId] = record
             states[record.sessionId] = RunPresentation(record, terminalTurn(record),
-                notice = if (record.historyNeedsReview) historyReviewNotice else null)
+                notice = when {
+                    record.status == "unknown" -> UNKNOWN_RUN_NOTICE
+                    record.historyNeedsReview -> historyReviewNotice
+                    else -> null
+                })
         }
         states.values.toList().forEach { state ->
             if ((!state.submission.terminal || !state.submission.historySynced) &&
@@ -187,7 +193,7 @@ internal class DurableRuns(
             }
             val record = state.submission.copy(status = "abandoned", historySynced = true)
             if (!save(record)) return@launch
-            if (drafts[sessionId].text.isBlank()) {
+            if (record.runId == null && drafts[sessionId].text.isBlank()) {
                 val text = voicePromptUserText(record.text)
                 drafts.set(sessionId, androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length)))
             }
@@ -270,7 +276,7 @@ internal class DurableRuns(
                 else -> "Working…"
             }
             var streamGap = false
-            val liveJob = launch {
+            val liveJob = launch(start = CoroutineStart.LAZY) {
                 val live = LiveTranscript()
                 val prose = StringBuilder()
                 val reasoning = StringBuilder()
@@ -291,7 +297,7 @@ internal class DurableRuns(
                         // advance after its text has reached the UI, including before EOF.
                         runBlocking { withContext(uiContext) {
                             val current = states[sessionId] ?: return@withContext
-                            if (current.submission.runId != runId || current.submission.terminal) return@withContext
+                            if (current.submission.runId != runId || current.submission.terminal || current.submission.status == "unknown") return@withContext
                             if (event is StreamEvent.Unknown && event.event == "replay.truncated") unsafeReplay = true
                             val seq = event.seq
                             if (seq != null && lastSequence != null && seq <= lastSequence!!) return@withContext
@@ -348,6 +354,7 @@ internal class DurableRuns(
                     reconnectAttempt++
                 } } finally { streams.remove(runId); streamGap = true }
             }
+            if (record.status != "unknown") liveJob.start()
             while (isActive) {
                 val phaseAtRequest = phaseRevision
                 val fallbackAtRequest = fallbackRevision
@@ -362,6 +369,15 @@ internal class DurableRuns(
                             serverCreatedAt = status.createdAt ?: current.serverCreatedAt,
                             completionUsage = if (status.isTerminal) status.usage ?: current.completionUsage else current.completionUsage,
                             serverCompletedAt = if (status.isTerminal) status.updatedAt ?: current.serverCompletedAt else current.serverCompletedAt)
+                        if (status.status == "unknown") {
+                            liveJob.cancel()
+                            streams.remove(runId)?.cancel()
+                            update(sessionId) { it.copy(submission = record, approval = null, stopError = null,
+                                notice = UNKNOWN_RUN_NOTICE, turn = TurnState.Idle) }
+                            if (current != record) save(record)
+                            return@launch
+                        }
+                        if (!status.isTerminal) liveJob.start()
                         val oldApproval = states[sessionId]?.approval
                         val approval = status.pendingApproval
                         update(sessionId) { it.copy(submission = record,
@@ -388,6 +404,11 @@ internal class DurableRuns(
                     }
                     is HermesResult.Err -> {
                         val missing = (result.error as? HermesError.ServerError)?.code == "run_not_found"
+                        if (record.status == "unknown" && !missing) {
+                            liveJob.cancel()
+                            update(sessionId) { it.copy(notice = "$UNKNOWN_RUN_NOTICE Status check failed. ${result.error.toUserMessage()}") }
+                            return@launch
+                        }
                         update(sessionId) { it.copy(notice = if (missing)
                             "Hermes no longer has this run's status. Review its saved history; this request will not be resubmitted."
                             else "Connection lost. Hermes may still be working. Reconnecting…") }
@@ -498,7 +519,7 @@ internal class DurableRuns(
     fun stop(sessionId: String) {
         val state = states[sessionId] ?: return
         val runId = state.submission.runId ?: return
-        if (state.submission.terminal || !state.busy || state.checking) return
+        if (state.submission.terminal || state.submission.status == "unknown" || !state.busy || state.checking) return
         update(sessionId) { it.copy(checking = true, stopError = null) }
         scope.launch {
             when (val result = io { client.stopRun(runId) }) {
@@ -508,9 +529,9 @@ internal class DurableRuns(
                     val next = current.submission.copy(stopRequested = true)
                     // Publish before saving so a status poll cannot lose the stop flag.
                     update(sessionId) { it.copy(submission = next, checking = false,
-                        turn = if (next.terminal) terminalTurn(next) else
+                        turn = if (next.terminal || next.status == "unknown") terminalTurn(next) else
                             (it.turn as? TurnState.Streaming ?: TurnState.Streaming("")).copy(
-                                stopRequested = true, statusLabel = "Stopping…"), notice = null) }
+                                stopRequested = true, statusLabel = "Stopping…"), notice = if (next.status == "unknown") UNKNOWN_RUN_NOTICE else null) }
                     save(next)
                     if (next.terminal && next.historyNeedsReview) {
                         jobs[sessionId]?.join()
@@ -522,6 +543,7 @@ internal class DurableRuns(
                 is HermesResult.Err -> update(sessionId) {
                     val problem = "Stop was not confirmed. ${result.error.toUserMessage()}"
                     if (it.submission.requestId != state.submission.requestId) it
+                    else if (it.submission.status == "unknown") it.copy(checking = false)
                     else it.copy(checking = false, stopError = problem, notice = problem)
                 }
             }
@@ -594,7 +616,7 @@ internal class DurableRuns(
     }
     private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) { block() }
     private fun terminalTurn(record: RunSubmission, output: String = record.completionOutput.orEmpty()): TurnState = when {
-        record.trackingDismissed -> TurnState.Idle
+        record.trackingDismissed || record.status == "unknown" -> TurnState.Idle
         record.stopRequested || record.status in setOf("cancelled", "stopped") -> TurnState.StoppedByUser(output)
         record.status in setOf("failed", "interrupted", "rejected") -> TurnState.Failed(HermesError.BadRequest(record.error ?: "Run ${record.status}.", null))
         record.terminal -> if (record.historySynced) TurnState.Idle else TurnState.Finished(output)

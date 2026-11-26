@@ -206,6 +206,49 @@ class DurableRunsTest {
     }
     @After fun cleanup() { managers.forEach { it.close() }; scope.cancel() }
 
+    @Test fun unknownOutcomeKeepsItsAdmissionAndRechecksOnlyTheOriginalRun() {
+        val manager = manager()
+        manager.send("one", "hello", emptySet())
+        await { manager.states["one"]?.submission?.status == "running" }
+        runStatus = "unknown"
+        approval = """, "approval":{"request_id":"stale","choices":["once"]}"""
+        await { saved.values.singleOrNull()?.status == "unknown" }
+        val state = manager.states.getValue("one")
+        assertEquals("Needs review", state.label)
+        assertTrue(state.busy)
+        assertTrue(state.turn is TurnState.Idle)
+        assertNull(state.pendingApproval)
+        manager.stop("one")
+        assertFalse(manager.send("one", "hello", emptySet()))
+        manager.close()
+
+        statusOffline = true
+        val reopened = manager()
+        reopened.restore()
+        await { reopened.states["one"]?.notice?.contains("Status check failed") == true }
+        assertTrue(reopened.states.getValue("one").turn is TurnState.Idle)
+        statusOffline = false
+        runStatus = "completed"
+        approval = ""
+        await { reopened.retry("one"); reopened.states["one"]?.submission?.historySynced == true }
+        assertEquals("run_same", reopened.states.getValue("one").submission.runId)
+        assertEquals(listOf("/v1/runs"), calls.filter { it.method == "POST" }.map { it.url.encodedPath })
+    }
+
+    @Test fun recheckResumesLiveObservationIfTheOriginalUnknownRunBecomesActive() {
+        saved["request"] = RunSubmission("request", "one", "hello", 100.0, 1, emptySet(), "run_same", "unknown")
+        runStatus = "unknown"
+        val manager = manager()
+        manager.restore()
+        await { calls.any { it.url.encodedPath == "/v1/runs/run_same" } }
+        assertTrue(calls.none { it.url.encodedPath.endsWith("/events") })
+        runStatus = "running"
+        await { manager.retry("one"); manager.states["one"]?.submission?.status == "running" }
+        await { calls.any { it.url.encodedPath == "/v1/runs/run_same/events" } }
+        assertEquals("Running", manager.states.getValue("one").label)
+        assertTrue(calls.all { it.method == "GET" })
+    }
+
     @Test fun compactedPromptReconcilesOnlyWhenTheMatchingFinalReplyIsSaved() {
         runStatus = "completed"
         historyBody = """{"session_id":"tip","data":[{"id":20,"role":"user","content":"Compaction summary","timestamp":101}]}"""

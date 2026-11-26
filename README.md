@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.27 / build 77 and plugin 0.9.26-mobile-preview**
-> Bellpull shows when a selected calendar account is unavailable and confirms the next complete read after it returns.
-> [Release notes](docs/RELEASE-0.20.27-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.28 / build 78 and plugin 0.9.26-mobile-preview**
+> Bellpull shows when Hermes cannot confirm a run’s outcome. You can recheck the original run from its chat.
+> [Release notes](docs/RELEASE-0.20.28-EXPERIMENTAL.md).
 
 <div align="center">
 

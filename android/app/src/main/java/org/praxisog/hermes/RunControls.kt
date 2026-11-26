@@ -21,6 +21,8 @@ internal fun RunControls(state: RunPresentation?, onRetry: () -> Unit, onApprova
             Spacer(Modifier.height(12.dp))
             Text(if (state.submission.historyNeedsReview)
                 "Hermes reports that this run finished. Check its saved conversation before releasing tracking. Your draft stays intact; this accepted prompt will not be put back into the composer."
+                else if (state.submission.runId != null)
+                    "Hermes accepted this request. Review the saved conversation before releasing local tracking. Your current draft will be preserved."
                 else "Stopping tracking does not stop work already accepted by Hermes. Check this conversation before sending again. An empty composer will recover this text; your newer draft will be preserved.")
             TextButton(onClick = {
                 (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)

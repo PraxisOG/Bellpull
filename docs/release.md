@@ -1,3 +1,7 @@
+## Unknown run recovery · Android 0.20.28 experimental
+
+Build 78 shows when Hermes has lost track of a run and lets you recheck its original admission. Includes plugin 0.9.26. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.28-experimental.1) · [Release notes](RELEASE-0.20.28-EXPERIMENTAL.md)
+
 ## Unavailable calendar accounts · Android 0.20.27 experimental
 
 Build 77 reports missing selected calendars, clears the previous shared planning read and resumes sharing when the account returns. Includes plugin 0.9.26. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.27-experimental.1) · [Release notes](RELEASE-0.20.27-EXPERIMENTAL.md)

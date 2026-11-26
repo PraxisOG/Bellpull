@@ -45,7 +45,7 @@ data class RunStatus(
 
     /** Hermes authority runs bind each pending prompt to one execution generation. */
     val pendingApproval: RunApproval? get() {
-        if (isTerminal) return null
+        if (isTerminal || status == "unknown") return null
         val controls = pendingControls ?: return approval?.takeIf { it.requestId.isNotBlank() }
         if (status != "waiting_for_approval" || executionGeneration == null || executionGeneration <= 0) return null
         val control = controls.firstOrNull {

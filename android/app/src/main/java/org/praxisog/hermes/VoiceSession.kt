@@ -58,7 +58,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             durable?.submission?.completionOutput?.takeIf { durable.submission.terminal } ?:
                 if (turn is TurnState.Idle && durable == null) savedLegacyReply.orEmpty() else text,
             durable?.submission?.terminal ?: (turn is TurnState.Finished || turn is TurnState.Idle || turn is TurnState.StoppedByUser),
-            durable?.submission?.historyNeedsReview == true || durable?.submission?.status == "review",
+            durable?.submission?.historyNeedsReview == true || durable?.submission?.status in setOf("review", "unknown"),
             if (turn is TurnState.Failed) turn.error.toUserMessage() else if (durable?.submission?.status in setOf("failed", "rejected", "interrupted"))
                 "Hermes could not finish this turn. Review the chat before retrying." else null,
             durable?.notice?.startsWith("Connection lost.") == true || turn is TurnState.Truncated,
@@ -66,7 +66,7 @@ internal class StoreVoiceConversation(private val store: HermesStore, private va
             voiceActivities((turn as? TurnState.Streaming)?.parts.orEmpty()),
             durable?.submission?.stopRequested == true || (turn as? TurnState.Streaming)?.stopRequested == true,
             durable?.stopError,
-            durable?.submission?.terminal == false || durable == null && turn is TurnState.Streaming,
+            durable?.submission?.let { !it.terminal && it.status != "unknown" } ?: (turn is TurnState.Streaming),
             approval = durable?.pendingApproval,
             approvalNotice = durable?.notice?.takeIf { durable.approval != null })
     }
