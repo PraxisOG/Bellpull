@@ -289,6 +289,13 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
         body["bellpull"]["artifact_ids"] = []
         body["session_id"] = "missing"
         response = await self.submit(body)
+        if not getattr(self.adapter, "_bellpull_native_attachments", None):
+            # Patched hosts own admission and can create this session on first send.
+            self.assertEqual(202, response.status, await response.text())
+            run_id = (await response.json())["run_id"]
+            replay = await self.submit(body)
+            self.assertEqual(run_id, (await replay.json())["run_id"])
+            return
         self.assertEqual(404, response.status, await response.text())
         if not callable(getattr(self.adapter, "_ensure_store", None)):
             return
