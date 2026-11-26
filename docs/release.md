@@ -1,3 +1,7 @@
+## Background answers on stock Hermes · 0.20.18 / build 68
+
+Install the matching plugin so a saved background answer appears once when you reopen a chat on Hermes 0.23.4. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.18-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.18-experimental.1/docs/RELEASE-0.20.18-EXPERIMENTAL.md)
+
 ## Notification dispatch status · 0.20.17 / build 67
 
 Open **Settings → Servers → Integration status** to check notification relay health and pending dispatches. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.17-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.17-experimental.1/docs/RELEASE-0.20.17-EXPERIMENTAL.md)

@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.17](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.17-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.17-experimental.1/Bellpull.apk) · [Matching plugin 0.9.12](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.17-experimental.1/bellpull-plugin-0.9.12-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.17-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.17-experimental.1/docs/ROADMAP.md)
-> Android build 67 shows notification relay health, dispatch backlog and last broker acceptance. The matching plugin is 0.9.12-mobile-preview.
+> **Latest experimental release · [Bellpull 0.20.18](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.18-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.18-experimental.1/Bellpull.apk) · [Matching plugin 0.9.13](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.18-experimental.1/bellpull-plugin-0.9.13-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.18-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.18-experimental.1/docs/ROADMAP.md)
+> Android build 68 recognizes saved background results on stock Hermes 0.23.4. The matching plugin is 0.9.13-mobile-preview.
 
 <div align="center">
 
