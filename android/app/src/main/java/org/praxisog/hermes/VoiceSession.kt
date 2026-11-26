@@ -89,7 +89,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private val onSubmission: (String?) -> Unit = {},
     private val priorRequestId: String? = null,
     private val onDictation: ((String) -> Unit)? = null,
-    private val stopWaitMs: Long = 30_000) {
+    private val stopWaitMs: Long = 5_000) {
     var state by mutableStateOf(VoiceState.STARTING); private set
     var mode by mutableStateOf(VoiceMode.CONVERSATION); private set
     var transcript by mutableStateOf(initialTranscript); private set
@@ -368,7 +368,9 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
                 if (!requested && run.executing && run.admitted) { conversation.cancel(); requested = true }
                 delay(250)
             }
-            pause("Stop has not settled. Your new words are saved; check the chat before resuming.")
+            pause("The previous turn has not settled. Your new words are saved for review; check the chat before sending.")
+            // No delayed observation or playback callback may submit these words now.
+            if (transcript.isNotBlank()) { submitted = false; state = VoiceState.REVIEW }
         }
     }
     private fun enqueue(text: String, done: (() -> Unit)? = null) {

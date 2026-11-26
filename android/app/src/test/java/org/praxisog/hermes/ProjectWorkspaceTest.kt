@@ -146,7 +146,8 @@ class ProjectWorkspaceTest {
         assertEquals("Unsent draft", drafts["root"].text)
         assertEquals("root", store.openSessionId)
         assertEquals("run", store.runs!!.states["root"]!!.submission.runId)
-        assertTrue(store.runs.states["root"]!!.busy)
+        assertTrue(store.runs.states["root"]!!.submission.historyNeedsReview)
+        assertFalse("a finished run awaiting review must not block the composer", store.runs.states["root"]!!.busy)
         store.close(); workspace.close(); client.close()
     }
 }
