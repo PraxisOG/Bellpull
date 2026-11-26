@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull Android 0.20.28 / build 78 and plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.28-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.28-experimental.1/Bellpull.apk) · [Matching plugin 0.9.26](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.28-experimental.1/bellpull-plugin-0.9.26-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.28-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.28-experimental.1/docs/ROADMAP.md)
-> Bellpull shows when Hermes cannot confirm a run’s outcome. You can recheck the original run from its chat.
+> **Latest experimental release · [Bellpull plugin 0.9.27 and Android 0.20.28 / build 78](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.27-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.27-experimental.1/Bellpull.apk) · [Download plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.27-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.27-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.27-experimental.1/docs/ROADMAP.md)
+> Stock Hermes can recover run notification receipts and retry relay delivery after a restart.
 
 <div align="center">
 
