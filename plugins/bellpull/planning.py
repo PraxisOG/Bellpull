@@ -248,10 +248,10 @@ def routines():
     from cron import jobs
     from hermes_constants import get_hermes_home
     with jobs.use_cron_store(get_hermes_home()):
-        return _routines(jobs)
+        return _routines(jobs, routine_results.BotChatOwners(get_hermes_home()))
 
 
-def _routines(jobs):
+def _routines(jobs, owners):
     result=[]
     for job in jobs.list_jobs(include_disabled=True)[:500]:
         result.append({k:job.get(k) for k in ("id","name","prompt","schedule_display","next_run_at","last_run_at","last_status","last_error","enabled","state","deliver","no_agent")})
@@ -269,7 +269,7 @@ def _routines(jobs):
                 "id", "status", "delivery_outcome", "claimed_at", "finished_at")}
         if job.get("last_delivery_unverified"):
             result[-1]["last_delivery_unverified"] = True
-        receipts = routine_results.bot_chat_receipts(job)
+        receipts = routine_results.bot_chat_receipts(job, owners)
         if receipts:
             result[-1]["bot_chat_receipts"] = receipts
     return result

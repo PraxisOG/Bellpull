@@ -8,7 +8,7 @@ import re
 import sqlite3
 
 from .artifacts import ArtifactError
-from .routine_results import receipt_status, valid_job
+from .routine_results import BotChatOwners, receipt_status, valid_job
 
 PAGE_SIZE = 50
 EXECUTION_ID = re.compile(r"[0-9a-f]{32}")
@@ -51,12 +51,14 @@ def execution_page(home, before):
         raise ArtifactError("Could not read the native Bot Chat execution history.", 503) from exc
 
 
-def observed(home, key, job, execution, notice):
+def observed(home, key, job, execution, notice, owners):
     from cron.bot_chat_delivery import read_pending
     from tools.bot_live_delivery import read_delivery_result
+    evidence = {}
     live = read_delivery_result(home, key)
     if isinstance(live, dict) and live.get("delivery_id") == key and live.get("profile_home") == str(home):
         status, source = live.get("status"), "owner"
+        evidence = owners.evidence(live)
     else:
         pending = read_pending(key)
         if not isinstance(pending, dict) or pending.get("id") != key or pending.get("home") != str(home):
@@ -67,7 +69,7 @@ def observed(home, key, job, execution, notice):
             return None
         status, source = pending.get("status"), "deferred"
     return dict(id=key, target="bot-chat:(own)", status=receipt_status(status), source=source,
-                execution_id=execution, degraded_notice=notice)
+                execution_id=execution, degraded_notice=notice, **evidence)
 
 
 def page(before=None):
@@ -76,6 +78,7 @@ def page(before=None):
         raise ArtifactError("This Hermes host does not support Bot Chat receipt history.", 501)
     home = Path(get_hermes_home()).resolve()
     rows = execution_page(home, before)
+    owners = BotChatOwners(home)
     deliveries = []
     unreadable = 0
     for job, execution, claimed_at in rows[:PAGE_SIZE]:
@@ -88,7 +91,7 @@ def page(before=None):
         notice_key = hashlib.sha256((key + ":degraded").encode()).hexdigest()
         for delivery_id, notice in ((key, False), (notice_key, True)):
             try:
-                receipt = observed(home, delivery_id, job, execution, notice)
+                receipt = observed(home, delivery_id, job, execution, notice, owners)
             except (OSError, ValueError, TypeError):
                 unreadable += 1
                 continue

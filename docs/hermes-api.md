@@ -36,7 +36,16 @@ and on routine items in the inbox.
   references. For same-profile targets, Bellpull reads the native owner's
   durable status. For a deferred delivery, it can read the producer's receipt.
   The source field distinguishes these from the scheduler's last observed
-  state. Result pages and snapshots never claim or replay a Bot Chat receipt.
+  state. A same-profile owner receipt with native status `queued` or `claimed`
+  can also carry `owner_state` from the native active-session registry at read
+  time. `registered` means the pinned lease and live owner still matched.
+  `replaced` means a different lease held the same session. `absent` means
+  the pinned lease was missing from a successful registry read. An unavailable
+  registry or an inconclusive identity comparison omits the field. The native
+  receipt status and delivery identity remain authoritative. A registered
+  owner alone cannot confirm progress or completion. The response exposes
+  neither the lease ID nor the live owner ID.
+  Result pages and snapshots never claim or replay a Bot Chat receipt.
   Android keeps observed receipts by native delivery ID in the profile's
   bounded Inbox. A later routine run can replace the scheduler reference while
   the earlier receipt remains readable offline. The receipt detail shows its

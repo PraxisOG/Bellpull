@@ -61,6 +61,56 @@ class RoutineHistoryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as other, patch.dict(os.environ, {"HERMES_HOME":other}):
             self.assertFalse(routine_history.page()["deliveries"])
 
+    def test_owner_registry_evidence_preserves_original_claim_across_a_restart(self):
+        from hermes_cli import active_sessions
+        from tools import bot_live_delivery as mailbox
+        from plugins.bellpull.routine_results import bot_chat_receipts
+
+        _, key = self.event("restart")
+        job = {"id": "restart", "last_delivery_queued": {"bot-chat:(own)": {"delivery_id": key}}}
+        owner = dict(profile_home=str(self.home), session_id="original", lease_id="first", live_session_id="live")
+        registered = dict(session_id="original", lease_id="first", metadata={"live_session_id": "live"})
+        mailbox.deliver_to_live_owner(self.home, owner, "retained result", delivery_id=key)
+
+        def observe(state):
+            history = routine_history.page()["deliveries"][0]["receipt"]
+            latest, = bot_chat_receipts(job)
+            self.assertEqual((key, state), (history["id"], history.get("owner_state")))
+            self.assertEqual((key, state), (latest["id"], latest.get("owner_state")))
+            return history["status"]
+
+        with patch.object(active_sessions, "active_session_registry_snapshot", return_value=[registered]) as lookup:
+            self.assertEqual("queued", observe("registered"))
+            mailbox.claim_pending_delivery(self.home, owner)
+            self.assertEqual("claimed", observe("registered"))
+            lookup.return_value = [dict(registered, session_id="compressed")]
+            self.assertEqual("claimed", observe("registered"))
+            lookup.return_value = [dict(registered, lease_id="second")]
+            self.assertEqual("claimed", observe("replaced"))
+            lookup.return_value = [dict(registered, session_id="another-chat", lease_id="second")]
+            self.assertEqual("claimed", observe("absent"))
+            lookup.side_effect = OSError("registry unavailable")
+            self.assertEqual("claimed", observe(None))
+            lookup.assert_called_with(registry_home=self.home, strict=True)
+            mailbox.complete_delivery(self.home, key, status="settled")
+            lookup.reset_mock()
+            self.assertEqual("settled", observe(None))
+            lookup.assert_not_called()
+        self.assertEqual(1, len(self.executions.list_executions()))
+
+    def test_new_admission_after_registry_sample_waits_for_fresh_evidence(self):
+        from hermes_cli import active_sessions
+        from plugins.bellpull.routine_results import BotChatOwners
+
+        owners = BotChatOwners(self.home)
+        first = dict(session_id="chat", lease_id="first", metadata={"live_session_id": "worker"})
+        pin = dict(profile_home=str(self.home), session_id="chat", lease_id="second", live_session_id="replacement")
+        with patch.object(active_sessions, "active_session_registry_snapshot", return_value=[first]) as lookup:
+            sampled_at, _ = owners.snapshot
+            new = dict(status="queued", owner=pin, created_at=sampled_at + 1)
+            self.assertEqual({}, owners.evidence(new))
+            lookup.assert_called_once()
+
     def test_unrelated_records_and_bad_read_do_not_hide_valid_history(self):
         from cron.bot_chat_delivery import defer
         exe, key = self.event("match")

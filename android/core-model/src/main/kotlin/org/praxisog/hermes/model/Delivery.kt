@@ -11,7 +11,10 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
     val dismissedAt: Long? = null, val truncated: Boolean = false,
     val routineId: String? = null, val botChatReceipt: BotChatReceipt? = null,
     val receiptChangedAt: Long? = null, val runReceipt: RunNotificationReceipt? = null,
-)
+) {
+    // Earlier app versions cached a display string that called every claim "processing".
+    val displayBody get() = botChatReceipt?.label() ?: body
+}
 @Serializable data class ReminderOperation(
     val operationId: String, val reminderId: String, val revision: Long,
     val action: String, val dueMs: Long? = null, val status: String = "pending",
@@ -93,7 +96,10 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
         if (prior?.executionId != null && incoming.executionId != null && prior.executionId != incoming.executionId) return this
         val observed = if (prior == null || incoming.supersedes(prior)) incoming else prior
         val receipt = observed.copy(target = observed.target.take(400), executionId = prior?.executionId ?: incoming.executionId,
-            degradedNotice = incoming.degradedNotice || prior?.degradedNotice == true)
+            degradedNotice = incoming.degradedNotice || prior?.degradedNotice == true,
+            ownerState = if (observed.pendingOwner &&
+                (prior?.ownerState == "replaced" || (incoming.pendingOwner && incoming.ownerState == "replaced"))
+            ) "replaced" else observed.ownerState)
         if (prior == receipt) return this
         if (old == null) return receive(InboxEntry(id, "delivery", name ?: "Routine delivery", receipt.label(), now,
             routineId = job, botChatReceipt = receipt, receiptChangedAt = now))
