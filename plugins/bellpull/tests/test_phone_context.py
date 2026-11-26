@@ -64,6 +64,19 @@ class PhoneContextTest(unittest.TestCase):
         with self.store.db() as db:
             self.assertNotIn("west gate", db.execute("SELECT payload FROM sessions WHERE id='chat'").fetchone()[0])
 
+    def test_recent_removal_stays_in_the_bounded_snapshot(self):
+        body = self.body()
+        original = body["notifications"][0]
+        body["notifications"] = [dict(original, id=str(i), updated_at_ms=self.now - i - 1) for i in range(12)]
+        body["notifications"].append(dict(original, id="just-removed", updated_at_ms=self.now - 1000,
+                                          removed_at_ms=self.now))
+        self.store.update(self.device, body)
+        for part in (self.store.for_session("new-chat", True)[0], self.store.search("")[0]):
+            self.assertTrue(part["truncated"])
+            self.assertEqual(12, len(part["notifications"]))
+            latest = part["notifications"][0]
+            self.assertEqual(("just-removed", self.now), (latest["id"], latest["removed_at_ms"]))
+
     def test_context_is_profile_scoped_and_does_not_create_hermes_sessions(self):
         self.store.update(self.device, self.body())
         self.assertEqual([], ContextStore(self.home / "other-profile").search(""))

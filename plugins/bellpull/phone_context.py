@@ -157,7 +157,7 @@ class ContextStore:
             if not data or row["received"] < now-DAY:
                 continue
             notes = sorted((n for n in data["notifications"] if max(n["updated_at_ms"], n["removed_at_ms"] or 0) >= now-DAY),
-                           key=lambda n: n["updated_at_ms"], reverse=True) if data["notifications_enabled"] else []
+                           key=lambda n: max(n["updated_at_ms"], n["removed_at_ms"] or 0), reverse=True) if data["notifications_enabled"] else []
             events = sorted((e for e in data["calendar"] if e["end_ms"] > now and e["start_ms"] < now+7*DAY),
                             key=lambda e: e["start_ms"]) if data["calendar_enabled"] and data["calendar_read_at_ms"] > now-DAY else []
             if data["notifications_enabled"] or data["calendar_enabled"]:
