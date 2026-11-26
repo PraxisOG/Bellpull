@@ -3,6 +3,7 @@
 Uploading never creates a session or invokes a model. Native Hermes owns runs and
 idempotency; the adapter wrapper only supplies its ephemeral prompt argument.
 """
+import asyncio
 from functools import wraps
 from contextlib import contextmanager
 import inspect
@@ -229,6 +230,68 @@ def current_store():
     return ContextStore(get_hermes_home())
 
 
+_UNAVAILABLE = "\n\nPhone context is unavailable. Do not infer that notifications or calendar are empty."
+
+
+def _wire_admitted(adapter, snapshot, errors):
+    """Supply the selected profile's snapshot only while the original HTTP admission executes."""
+    runner = getattr(adapter, "gateway_runner", None)
+    original = getattr(runner, "_handle_message", None)
+    if not callable(original):
+        return lambda: None
+    try:
+        from gateway.session_api_turn import api_execution
+        from gateway.session_authorities import active_authority
+        from gateway.session_persistence import authority_persistence
+    except ImportError:
+        return lambda: None
+    enabled = True
+
+    def read(admission_id):
+        authority = active_authority(runner)
+        if authority is None:
+            return ""
+        row = authority_persistence(authority).admissions.get(admission_id=admission_id)
+        if row is None or row.status != "started" or row.principal_id != "api":
+            return ""
+        data = row.payload.get("api_turn_v1") or {}
+        if not data.get("run_owner_scope") or data["settings"].get("room_dispatch") is not None:
+            return ""
+        return prompt(snapshot(row.target_session_id))
+
+    @wraps(original)
+    async def handle(event):
+        api = api_execution.get()
+        admission_id = getattr(event, "message_id", None)
+        if (not enabled or not api or api.get("adapter") is not adapter or not admission_id
+                or api["settings"].get("room_dispatch") is not None):
+            return await original(event)
+        try:
+            tail = await asyncio.to_thread(read, admission_id)
+        except errors:
+            tail = _UNAVAILABLE
+        if not tail or not enabled:
+            return await original(event)
+        # The admission row and replay fingerprint stay immutable. The native
+        # runner includes this ephemeral prompt in its per-agent cache key.
+        settings = api["settings"]
+        prompt_text = (settings.get("ephemeral_system_prompt") or "") + tail
+        token = api_execution.set({**api, "settings": {**settings, "ephemeral_system_prompt": prompt_text}})
+        try:
+            return await original(event)
+        finally:
+            api_execution.reset(token)
+
+    runner._handle_message = handle
+
+    def stop():
+        nonlocal enabled
+        enabled = False
+        if runner._handle_message is handle:
+            runner._handle_message = original
+    return stop
+
+
 def wire(adapter):
     create = getattr(adapter, "_create_agent", None)
     try:
@@ -283,15 +346,17 @@ def wire(adapter):
             try:
                 tail = prompt(snapshot(session))
             except errors:
-                tail = "\n\nPhone context is unavailable. Do not infer that notifications or calendar are empty."
+                tail = _UNAVAILABLE
             if tail:
                 bound.arguments["ephemeral_system_prompt"] = (bound.arguments.get("ephemeral_system_prompt") or "") + tail
         return create(*bound.args, **bound.kwargs)
     adapter._create_agent = create_agent
+    stop_admitted = _wire_admitted(adapter, snapshot, errors)
 
     def stop():
         nonlocal active
         active = False
+        stop_admitted()
         if adapter._create_agent is create_agent:
             adapter._create_agent = create
     return True, stop

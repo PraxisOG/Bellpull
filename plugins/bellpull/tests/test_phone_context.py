@@ -205,6 +205,63 @@ class PhoneContextTest(unittest.TestCase):
         self.assertFalse(supported); stop(); self.assertIs(original, adapter._create_agent)
 
 
+class AdmittedContextTest(unittest.IsolatedAsyncioTestCase):
+    async def test_snapshot_lifetime_and_admission_identity(self):
+        try:
+            from gateway.session_api_turn import api_execution
+        except ImportError:
+            self.skipTest("This host runs directly on the API adapter.")
+        from unittest.mock import Mock
+        from plugins.bellpull.phone_context import _wire_admitted
+
+        prompts = []
+
+        async def handle(event):
+            prompts.append(api_execution.get()["settings"]["ephemeral_system_prompt"])
+            if event.message_id == "failure":
+                raise RuntimeError("worker stopped")
+            return "reply"
+
+        adapter = SimpleNamespace(gateway_runner=SimpleNamespace(_handle_message=handle))
+        settings = {"ephemeral_system_prompt": "request"}
+        original = {"adapter": adapter, "settings": settings}
+        row = SimpleNamespace(principal_id="api", status="started", target_session_id="original",
+                              payload={"api_turn_v1": {"run_owner_scope": "owner", "settings": settings}})
+        store = Mock()
+        store.admissions.get.return_value = row
+        snapshot = Mock(return_value=["snapshot"])
+        with (patch("gateway.session_authorities.active_authority", return_value=object()),
+              patch("gateway.session_persistence.authority_persistence", return_value=store),
+              patch("plugins.bellpull.phone_context.prompt", return_value=" snapshot")):
+            stop = _wire_admitted(adapter, snapshot, ())
+            self.addCleanup(stop)
+            token = api_execution.set(original)
+            try:
+                dispatch = adapter.gateway_runner._handle_message
+                self.assertEqual("reply", await dispatch(SimpleNamespace(message_id="a")))
+                snapshot.assert_called_once_with("original")
+                self.assertEqual("request snapshot", prompts[-1])
+                with self.assertRaisesRegex(RuntimeError, "worker stopped"):
+                    await dispatch(SimpleNamespace(message_id="failure"))
+                self.assertIs(original, api_execution.get())
+                self.assertEqual({"ephemeral_system_prompt": "request"}, settings)
+
+                snapshot.reset_mock()
+                settings["room_dispatch"] = {}
+                await dispatch(SimpleNamespace(message_id="room"))
+                settings.pop("room_dispatch")
+                row.payload["api_turn_v1"]["run_owner_scope"] = None
+                await dispatch(SimpleNamespace(message_id="other"))
+                store.admissions.get.return_value = None
+                await dispatch(SimpleNamespace(message_id="missing"))
+                self.assertEqual(["request"] * 3, prompts[-3:])
+                snapshot.assert_not_called()
+                stop()
+                self.assertIs(handle, adapter.gateway_runner._handle_message)
+            finally:
+                api_execution.reset(token)
+
+
 class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
     async def test_real_profile_auth_upload_and_native_run_prompt_lifecycle(self):
         import asyncio

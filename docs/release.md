@@ -1,3 +1,7 @@
+## Phone context for admitted chats · plugin 0.9.25
+
+The full stock Hermes 0.23.4 gateway can supply an opted-in snapshot when it runs a personal Android chat. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.25-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.25-EXPERIMENTAL.md)
+
 ## Provider switches on stock Hermes 0.23.4 · plugin 0.9.24
 
 An admitted chat run reports a confirmed fallback and its advertised image support. Message info can recover the model that answered after a gateway restart. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.24-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.24-EXPERIMENTAL.md)

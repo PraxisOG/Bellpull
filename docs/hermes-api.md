@@ -194,6 +194,11 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 ## Opt-in phone context
 
+On stock Hermes 0.23.4, plugin 0.9.25 applies the personal chat's snapshot as an
+ephemeral system instruction during the original admitted run. The gateway
+retains the original submission and transcript. Turning off sharing clears
+the excerpts used on subsequent turns, including turns in an existing chat.
+
 When `bellpull_phone_context` is advertised, the phone uploads a bounded snapshot
 to `PUT /api/bellpull/context/{device}` with the selected profile's credentials.
 A successful upload acknowledges its sequence. A delayed older upload returns
