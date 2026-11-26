@@ -20,6 +20,20 @@ class PhoneContextTest {
         calendar: PhoneCalendarSnapshot = PhoneCalendarSnapshot(listOf(event()), now), settings: PhoneContextConfiguration = config,
         read: Boolean = true, local: Boolean = false) = phoneContextBody(notes, calPolicy, calendar, settings, profile, read, now, local)
 
+    @Test fun lostCalendarChangesTheSharingPolicyAndKeepsNotificationsAvailable() {
+        val complete = body()
+        val missing = body(calendar = PhoneCalendarSnapshot(unavailableSources = setOf("chosen")))
+        assertFalse(missing.getValue("calendar_enabled").jsonPrimitive.boolean)
+        assertTrue(missing.getValue("calendar").jsonArray.isEmpty())
+        assertEquals(complete["notifications"], missing["notifications"])
+        assertNotEquals(complete["policy"], missing["policy"])
+
+        val partial = body(calendar = PhoneCalendarSnapshot(listOf(event()), now, unavailableSources = setOf("other")))
+        assertEquals(complete["calendar"], partial["calendar"])
+        assertTrue(partial.getValue("truncated").jsonPrimitive.boolean)
+        assertNotEquals(complete["policy"], partial["policy"])
+    }
+
     @Test fun existingExcerptPermissionNeverUpgradesToAutomaticContext() {
         val old = snapshot(note()).let { it.copy(policy = it.policy.copy(serverSharingProfiles = emptySet(), sharingProfiles = setOf(profile))) }
         assertFalse(body(notes = old)["notifications_enabled"]!!.jsonPrimitive.boolean)

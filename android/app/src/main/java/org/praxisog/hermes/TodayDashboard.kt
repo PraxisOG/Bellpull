@@ -73,6 +73,8 @@ internal fun todayCalendarSource(readable: Boolean, selected: Set<String>, calen
     problem: String?, loading: Boolean, now: Long): TodaySource = when {
     !readable -> TodaySource("Calendar access is off. Choose Calendar to enable it.", available = false)
     selected.isEmpty() -> TodaySource("Choose calendars to show in the Calendar tab.", available = false)
+    calendar.unavailableSources.isNotEmpty() -> TodaySource(
+        problem ?: "A selected calendar is unavailable. The schedule may be incomplete.", available = false)
     calendar.readAt == 0L -> TodaySource(problem ?: if (loading) "Reading phone calendar…" else "Calendar has not been read yet.", available = false)
     else -> TodaySource(buildString {
         if (problem != null || now - calendar.readAt > 5 * 60_000L) append("Saved calendar · ")

@@ -111,9 +111,20 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         }
         val selected=policy; val date=day
         runCatching { withContext(Dispatchers.IO) {
-            phone.sources() to phone.read(selected,date.minusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),date.plusDays(15).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+            val available = phone.sources(selected.selected)
+            available to phone.read(selected, date.minusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                date.plusDays(15).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(), available)
         } }.onSuccess { (available,read) ->
-            if (!closed && policy==selected) { sources=available; calendar=read; cache.writeCalendar(read); calendarProblem=null }
+            if (closed || policy != selected) return@onSuccess
+            sources = available
+            if (read.unavailableSources.isNotEmpty() && calendar.unavailableSources.isEmpty() && selected.sharing) {
+                revokePending = true
+                cache.calendarRevokePending(true)
+            }
+            calendar = read
+            cache.writeCalendar(read)
+            calendarProblem = if (read.unavailableSources.isEmpty()) null else
+                "A selected calendar is unavailable. Reconnect its account or update your calendar selection."
         }.onFailure { if (it is CancellationException) throw it; calendarProblem="Calendar read failed. Saved events may be stale: ${it.message}" }
     }
     fun savePolicy(value: CalendarPolicy) {
@@ -147,7 +158,12 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         if (!supported) return
         if (revokePending) {
             val response=shareCalendar(buildJsonObject { put("revoke",true); put("generation",policy.generation) })
-            if (response is HermesResult.Err) { calendarProblem="Sharing is off locally; clearing the server cache is pending reconnection."; return }
+            if (response is HermesResult.Err) {
+                calendarProblem = if (calendar.unavailableSources.isEmpty())
+                    "Sharing is off locally; clearing the server cache is pending reconnection."
+                else "A selected calendar is unavailable. Clearing the previous shared read is pending reconnection."
+                return
+            }
             if (response !is HermesResult.Ok || !acknowledge(response)) return
             revokePending=false; cache.calendarRevokePending(false)
         }
@@ -155,7 +171,7 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         // from committing. Join obsolete calls before admitting a fresh upload.
         val obsolete=obsoleteRefreshes.toList()
         obsolete.forEach { it.cancelAndJoin() }; obsoleteRefreshes.removeAll(obsolete.toSet())
-        if (!policy.sharing || !phone.canRead() || calendarProblem!=null || calendar.readAt==0L) return
+        if (!policy.sharing || !phone.canRead() || calendarProblem!=null || calendar.readAt==0L || calendar.unavailableSources.isNotEmpty()) return
         val value=calendar; val selection=policy
         val upload=buildJsonObject {
             put("generation",selection.generation)

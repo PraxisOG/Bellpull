@@ -29,6 +29,25 @@ class PhoneCalendarTest {
         phone=PhoneCalendar(app)
     }
     private fun policy(source: PhoneCalendarSource)=CalendarPolicy(setOf(source.key),writes=true,destination=source.key)
+    @Test fun missingSelectionIsDistinctFromAnEmptyCalendar() {
+        shadowOf(app).denyPermissions(Manifest.permission.WRITE_CALENDAR)
+        val present = phone.sources().single().key
+        val absent = "disconnected-calendar"
+        val from = 2_000_000_000_000L
+        fun read(vararg keys: String) = phone.read(CalendarPolicy(selected = keys.toSet()), from, from + 60_000)
+
+        assertEquals(setOf(absent), read(absent).unavailableSources)
+        assertEquals(0L, read(absent).readAt)
+        val partial = read(present, absent)
+        assertTrue(partial.readAt > 0)
+        assertEquals(setOf(absent), partial.unavailableSources)
+        for (complete in listOf(read(), read(present))) {
+            assertTrue(complete.readAt > 0)
+            assertTrue(complete.unavailableSources.isEmpty())
+            assertTrue(complete.events.isEmpty())
+        }
+    }
+
     @Test fun createRetryWithStableMarkerVerifiesOneEventAndOneAlert() {
         val source=phone.sources().first(); val policy=policy(source)
         val draft=CalendarDraft("Fixture meeting",2000000000000,2000003600000,alertMinutes=10)

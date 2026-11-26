@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.26 / build 76 and plugin 0.9.26-mobile-preview**
-> Coding activity shows Codex and Claude Code processes started by admitted chats on stock Hermes 0.23.4.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.27 / build 77 and plugin 0.9.26-mobile-preview**
+> Bellpull shows when a selected calendar account is unavailable and confirms the next complete read after it returns.
+> [Release notes](docs/RELEASE-0.20.27-EXPERIMENTAL.md).
 
 <div align="center">
 

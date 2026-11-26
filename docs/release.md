@@ -1,3 +1,7 @@
+## Unavailable calendar accounts · Android 0.20.27 experimental
+
+Build 77 reports missing selected calendars, clears the previous shared planning read and resumes sharing when the account returns. Includes plugin 0.9.26. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.27-experimental.1) · [Release notes](RELEASE-0.20.27-EXPERIMENTAL.md)
+
 ## Coding activity for admitted chats · plugin 0.9.26
 
 Android and Desktop can find coding processes launched by a full stock Hermes 0.23.4 gateway. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.26-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md)

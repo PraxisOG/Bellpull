@@ -180,7 +180,7 @@ fun RoutineExecution.deliveryLabel(): String = when (deliveryOutcome) {
     val busyOnly: Boolean = true, val writes: Boolean = false, val destination: String? = null,
     val generation: Long = 0)
 @Serializable data class PhoneCalendarSnapshot(val events: List<PhoneCalendarEvent> = emptyList(), val readAt: Long = 0,
-    val truncated: Boolean = false, val hermesConfirmed: Boolean = false)
+    val truncated: Boolean = false, val hermesConfirmed: Boolean = false, val unavailableSources: Set<String> = emptySet())
 
 object CalendarTimes {
     fun bounds(day: LocalDate, zone: ZoneId): LongRange =

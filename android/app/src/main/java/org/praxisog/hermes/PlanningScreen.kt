@@ -208,7 +208,7 @@ import kotlinx.coroutines.delay
                 CalendarControls(workspace,requestPermission)
                 workspace.calendarProblem?.let { Text(it,color=MaterialTheme.colorScheme.error) }
                 if (workspace.calendar.readAt>0) Text("Phone read: ${displayInstant(workspace.calendar.readAt)} · account/cloud sync is managed by your calendar account.",style=MaterialTheme.typography.bodySmall)
-                if (workspace.policy.sharing && workspace.calendar.readAt > 0 && workspace.calendar.hermesConfirmed)
+                if (workspace.policy.sharing && workspace.calendar.readAt > 0 && workspace.calendar.hermesConfirmed && workspace.calendarProblem == null)
                     Text("Hermes confirmed this phone calendar read.", style=MaterialTheme.typography.bodySmall)
                 if (workspace.calendar.truncated) Text("500-event preview limit reached. Narrow the calendars or date range.")
                 Button(onClick={ selectedEvent=null; eventEditor=true },enabled=workspace.policy.writes && workspace.canWrite() && !workspace.busy) { Text("Add calendar event") }
@@ -277,6 +277,11 @@ import kotlinx.coroutines.delay
             Checkbox(source.key in w.policy.selected,{ checked -> w.savePolicy(w.policy.copy(selected=if (checked) w.policy.selected+source.key else w.policy.selected-source.key,destination=w.policy.destination.takeUnless { !checked && it==source.key })) },enabled=!w.busy)
             Text(source.name+if (source.writable) "" else " · Read only",Modifier.weight(1f).padding(top=12.dp))
         } }
+        val missing = w.calendar.unavailableSources
+        if (missing.isNotEmpty()) TextButton(onClick = {
+            w.savePolicy(w.policy.copy(selected = w.policy.selected - missing,
+                destination = w.policy.destination?.takeUnless { it in missing }))
+        }, enabled = !w.busy) { Text("Remove unavailable calendars from selection") }
         Row { Checkbox(w.policy.sharing,{ w.savePolicy(w.policy.copy(sharing=it)) },enabled=w.supported && w.policy.selected.isNotEmpty() && !w.busy); Text("Share selected calendar with this Hermes connection",Modifier.weight(1f)) }
         Row { Checkbox(w.policy.busyOnly,{ w.savePolicy(w.policy.copy(busyOnly=it)) },enabled=!w.busy); Text("Share busy times only",Modifier.weight(1f)) }
         if (w.revokePending) Text("Server cache removal is pending reconnect.",color=MaterialTheme.colorScheme.error)

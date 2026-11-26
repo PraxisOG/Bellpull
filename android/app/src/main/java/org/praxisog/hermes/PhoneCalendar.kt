@@ -28,15 +28,24 @@ internal class PhoneCalendar(private val context: Context) {
     private val calendars = CalendarContract.Calendars.CONTENT_URI
     private val events = CalendarContract.Events.CONTENT_URI
     private val projection = arrayOf("_id","calendar_id","title","dtstart","dtend","allDay","eventTimezone","rrule","original_id","eventLocation","duration")
-    fun sources(): List<PhoneCalendarSource> {
+    fun sources(include: Set<String> = emptySet()): List<PhoneCalendarSource> {
         check(canRead()) { "Calendar read permission is required." }
         return resolver.query(calendars,arrayOf("_id","calendar_displayName","calendar_access_level","account_name","account_type"),null,null,null)?.use { c ->
-            buildList { while (c.moveToNext() && size < 100) add(PhoneCalendarSource(c.getLong(0),CalendarTimes.fingerprint(c.getLong(0),c.getString(3),c.getString(4)),c.getString(1).orEmpty(),c.getInt(2)>=CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR)) }
+            buildList {
+                while (c.moveToNext()) {
+                    val id = c.getLong(0)
+                    val key = CalendarTimes.fingerprint(id, c.getString(3), c.getString(4))
+                    if (size < 100 || key in include) {
+                        add(PhoneCalendarSource(id, key, c.getString(1).orEmpty(),
+                            c.getInt(2) >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR))
+                    }
+                }
+            }
         } ?: error("The phone calendar provider is unavailable.")
     }
     private fun checked(policy: CalendarPolicy, source: PhoneCalendarSource, write: Boolean = false) {
         check(canRead() && source.key in policy.selected) { "Calendar is no longer selected." }
-        check(sources().any { it.id==source.id && it.key==source.key && (!write || it.writable) }) { "Calendar account changed or is read-only." }
+        check(sources(setOf(source.key)).any { it.id==source.id && it.key==source.key && (!write || it.writable) }) { "Calendar account changed or is read-only." }
         if (write) check(canWrite() && policy.writes && source.writable) { "Enable calendar writes and Android permission first." }
     }
     private fun row(c: android.database.Cursor, source: PhoneCalendarSource): PhoneCalendarEvent {
@@ -45,11 +54,13 @@ internal class PhoneCalendar(private val context: Context) {
         return PhoneCalendarEvent(values[0].toLong(),source.id,values[2].ifBlank { "Untitled event" },values[3].toLong(),end,values[5]=="1",values[6].ifBlank { "UTC" },values[7].isNotBlank() || values[8].isNotBlank(),CalendarTimes.fingerprint(source.key,*values.toTypedArray()),source.key,values[9])
     }
     fun event(id: Long, source: PhoneCalendarSource): PhoneCalendarEvent? = resolver.query(ContentUris.withAppendedId(events,id),projection,"deleted=0",null,null)?.use { c -> if (c.moveToFirst() && c.getLong(1)==source.id) row(c,source) else null }
-    fun read(policy: CalendarPolicy, from: Long, until: Long): PhoneCalendarSnapshot {
+    fun read(policy: CalendarPolicy, from: Long, until: Long, available: List<PhoneCalendarSource> = sources(policy.selected)): PhoneCalendarSnapshot {
         check(canRead()) { "Calendar read permission is required." }
         require(until > from && until-from <= 35L*86400000)
-        val selected=sources().filter { it.key in policy.selected }.associateBy { it.id }
-        if (selected.isEmpty()) return PhoneCalendarSnapshot(readAt=System.currentTimeMillis())
+        val selected = available.filter { it.key in policy.selected }.associateBy { it.id }
+        val missing = policy.selected - selected.values.map { it.key }.toSet()
+        if (selected.isEmpty()) return if (missing.isEmpty()) PhoneCalendarSnapshot(readAt = System.currentTimeMillis())
+            else PhoneCalendarSnapshot(unavailableSources = missing)
         val uri=CalendarContract.Instances.CONTENT_URI.buildUpon().also { ContentUris.appendId(it,from-86400000); ContentUris.appendId(it,until+86400000) }.build()
         val args=selected.keys.map(Long::toString).toTypedArray()
         val output=mutableListOf<PhoneCalendarEvent>(); var truncated=false
@@ -64,7 +75,7 @@ internal class PhoneCalendar(private val context: Context) {
                 if (interval.second > from && interval.first < until) output.add(value)
             }
         } ?: error("The phone calendar provider did not return events.")
-        return PhoneCalendarSnapshot(output,System.currentTimeMillis(),truncated)
+        return PhoneCalendarSnapshot(output, System.currentTimeMillis(), truncated, unavailableSources = missing)
     }
     /** Stable create marker recovers a provider commit if the local receipt was interrupted. */
     @Synchronized fun create(operation: String, policy: CalendarPolicy, source: PhoneCalendarSource, draft: CalendarDraft, recoverOnly: Boolean=false): PhoneCalendarEvent {

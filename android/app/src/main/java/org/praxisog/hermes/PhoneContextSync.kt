@@ -40,7 +40,7 @@ internal fun phoneContextBody(snapshot: PhoneNotificationSnapshot, policy: Calen
     now: Long, local: Boolean = false): JsonObject {
     val notesEnabled = snapshot.ready && snapshot.access && snapshot.policy.capture &&
         (if (local) config.notificationsLocal else profile in snapshot.policy.serverSharingProfiles)
-    val calendarEnabled = canReadCalendar && (if (local) config.calendarLocal else config.calendarOnline && policy.sharing)
+    val calendarEnabled = canReadCalendar && (calendar.unavailableSources.isEmpty() || calendar.readAt > 0) && (if (local) config.calendarLocal else config.calendarOnline && policy.sharing)
     val eligible = if (!notesEnabled) emptyList() else retainedNotifications(snapshot.records, snapshot.policy, now)
         .filter { it.activityAt >= now-NOTIFICATION_DAY_MS && (!it.ongoing || snapshot.policy.shareOngoing) }
     val groupsWithChildren = eligible.filterNot { it.groupSummary }.mapNotNull { row -> row.groupKey?.let { row.packageName to it } }.toSet()
@@ -54,11 +54,12 @@ internal fun phoneContextBody(snapshot: PhoneNotificationSnapshot, policy: Calen
         snapshot.policy.retentionDays, snapshot.policy.shareOngoing, snapshot.policy.excludedPackages.sorted(),
         policy.selected.sorted(), policy.busyOnly)
     return buildJsonObject {
-        put("policy", policyKey); put("timezone", ZoneId.systemDefault().id)
+        put("policy", if (calendar.unavailableSources.isEmpty()) policyKey else
+            CalendarTimes.fingerprint(policyKey, calendar.unavailableSources.sorted())); put("timezone", ZoneId.systemDefault().id)
         put("notifications_enabled", notesEnabled); put("calendar_enabled", calendarEnabled)
         put("listener_connected", snapshot.connected)
         put("calendar_read_at_ms", if (calendarEnabled) calendar.readAt else 0)
-        put("truncated", snapshot.gap || notes.size > 100 || events.size > 200 || calendar.truncated ||
+        put("truncated", snapshot.gap || notes.size > 100 || events.size > 200 || calendar.truncated || calendar.unavailableSources.isNotEmpty() ||
             notes.take(100).any { it.appName.length > 200 || it.title.length > 300 || it.text.length > 2000 } ||
             (!policy.busyOnly && events.take(200).any { it.title.length > 300 }))
         put("notifications", buildJsonArray { notes.take(100).forEach { row -> add(buildJsonObject {
