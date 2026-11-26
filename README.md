@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull plugin 0.9.19 and Android build 72](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.19-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.19-experimental.1/Bellpull.apk) · [Matching plugin 0.9.19](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.19-experimental.1/bellpull-plugin-0.9.19-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.19-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.19-experimental.1/docs/ROADMAP.md)
-> Coding activity shows Claude tool permission denials and recognizes Codex runs with leading approval or configuration options.
+> **Latest experimental release · [Bellpull plugin 0.9.20 and Android build 72](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.20-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.20-experimental.1/Bellpull.apk) · [Matching plugin 0.9.20](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.20-experimental.1/bellpull-plugin-0.9.20-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.20-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.20-experimental.1/docs/ROADMAP.md)
+> Coding activity and workspace changes are available on stock Hermes 0.23.4.
 
 <div align="center">
 
