@@ -1,3 +1,7 @@
+## Phone snapshots for admitted chats · plugin 0.9.25 experimental
+
+A full stock Hermes 0.23.4 gateway supplies an opted-in phone snapshot when it executes a personal Android chat. Includes signed Android build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.25-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.25-experimental.1/docs/RELEASE-PLUGIN-0.9.25-EXPERIMENTAL.md)
+
 ## Provider switches on stock Hermes 0.23.4 · plugin 0.9.24 experimental
 
 See the fallback model during a run and the model that answered each completed text turn. Includes signed Android build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.24-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.24-experimental.1/docs/RELEASE-PLUGIN-0.9.24-EXPERIMENTAL.md)

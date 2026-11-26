@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull Android 0.20.26 / build 76 and plugin 0.9.24](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.24-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.24-experimental.1/Bellpull.apk) · [Matching plugin 0.9.24](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.24-experimental.1/bellpull-plugin-0.9.24-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.24-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.24-experimental.1/docs/ROADMAP.md)
-> See provider switches during a chat and the model that answered on stock Hermes 0.23.4.
+> **Latest experimental release · [Bellpull Android 0.20.26 / build 76 and plugin 0.9.25](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.25-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.25-experimental.1/Bellpull.apk) · [Matching plugin 0.9.25](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.25-experimental.1/bellpull-plugin-0.9.25-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.25-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.25-experimental.1/docs/ROADMAP.md)
+> Personal Android chats receive their opted-in first-turn phone context on a full stock Hermes 0.23.4 gateway.
 
 <div align="center">
 
