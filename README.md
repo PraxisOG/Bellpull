@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.28 / build 78 and plugin 0.9.26-mobile-preview**
-> Bellpull shows when Hermes cannot confirm a run’s outcome. You can recheck the original run from its chat.
-> [Release notes](docs/RELEASE-0.20.28-EXPERIMENTAL.md).
+> **Latest experimental release · Bellpull plugin 0.9.27-mobile-preview and Android 0.20.28 / build 78**
+> Stock Hermes can recover run notification receipts and retry delivery after a restart.
+> [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md) · [Android release notes](docs/RELEASE-0.20.28-EXPERIMENTAL.md).
 
 <div align="center">
 

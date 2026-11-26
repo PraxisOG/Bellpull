@@ -20,7 +20,7 @@ from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
 from .speech import SpeechProxy
-from . import authority_routes, canvas, native_attachments, live_files
+from . import authority_routes, canvas, native_attachments, live_files, notification_runs
 
 
 # Text sent by Android is JSON-quoted inside the header so multiline instructions,
@@ -75,8 +75,9 @@ def wire(app, adapter):
     except ImportError:
         host = None
         host_ready = False
+    stock_receipts = not host_ready and notification_runs.supported(adapter)
     journal = None
-    if host_ready:
+    if host_ready or stock_receipts:
         from hermes_constants import get_hermes_home
         from .notification_journal import NotificationJournal
         try:
@@ -84,6 +85,7 @@ def wire(app, adapter):
         except (OSError, sqlite3.Error, ValueError):
             logging.getLogger(__name__).exception("Bellpull notification journal unavailable")
     relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"), journal)
+    admissions = notification_runs.AdmissionNotifications(adapter, relay) if stock_receipts and journal is not None else None
     sampler = Sampler()
     speech = SpeechProxy()
     reasoning_ready, stop_streaming = streaming.wire(adapter)
@@ -128,10 +130,14 @@ def wire(app, adapter):
         coding.stop()
         snapshots.close()
         relay.stop()
+        if admissions is not None:
+            admissions.stop()
         speech.stop()
 
     async def drain():
         await coding.close()
+        if admissions is not None:
+            await admissions.close()
         await relay.close()
         await speech.close()
 
@@ -140,6 +146,8 @@ def wire(app, adapter):
         started = True
         if active:
             relay.start()
+            if admissions is not None:
+                admissions.start()
             await speech.start(_app)
             await coding.start(_app)
 
@@ -183,6 +191,8 @@ def wire(app, adapter):
                         coding.registry._bellpull_coding_observers.add(coding)
                 if started:
                     relay.start()
+                    if admissions is not None:
+                        admissions.start()
                     await speech.start(app)
                     await coding.start(app)
                 if closed or ticket != generation:
@@ -297,7 +307,7 @@ def wire(app, adapter):
         return web.json_response(await asyncio.to_thread(store.usage), headers={"Cache-Control": "no-store"})
 
     async def notification_status(request):
-        return await relay.dispatch_status(adapter._run_idempotency_scope(request), host_ready)
+        return await relay.dispatch_status(adapter._run_idempotency_scope(request), host_ready or stock_receipts)
 
     async def notification_history(request):
         return await relay.history(adapter._run_idempotency_scope(request), request)
@@ -391,7 +401,7 @@ def wire(app, adapter):
         ])
     if callable(getattr(adapter, "_run_idempotency_scope", None)):
         routes.append(("GET", "/api/bellpull/notifications/status", notification_status))
-    if host_ready:
+    if host_ready or admissions is not None:
         routes.append(("GET", "/api/bellpull/events", events))
         if journal is not None:
             routes.append(("GET", "/api/bellpull/notifications/history", notification_history))
@@ -405,6 +415,8 @@ def wire(app, adapter):
     # runs. Install it only after the router has accepted our namespace.
     if attachments_ready:
         _, stop_attachments = native_attachments.wire(app, adapter)
+    if admissions is not None:
+        app.middlewares.append(admissions.middleware)
     app.middlewares.append(prompt_limit)
     app.on_startup.append(start)
     if host_ready:

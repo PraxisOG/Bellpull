@@ -132,7 +132,8 @@ jobs:
           -v "$PWD/plugins/bellpull:/opt/hermes/plugins/bellpull:ro"
           --entrypoint python
           nousresearch/hermes-agent:v0.23.4@sha256:3bc37fd8546e90fc41fe0d29511b4052840c281617cbcec6093bfe03d86a4ad9
-          -m unittest -v plugins.bellpull.tests.test_dispatch_status plugins.bellpull.tests.test_persistence_history
+          -m unittest -v plugins.bellpull.tests.test_dispatch_status plugins.bellpull.tests.test_notification_runs
+          plugins.bellpull.tests.test_persistence_history
           plugins.bellpull.tests.test_routine_history.RoutineHistoryTest.test_authority_deferred_history_matches_execution_and_preserves_older_evidence
           plugins.bellpull.tests.test_planning.PlanningHttpTest.test_bot_chat_history_read_uses_gateway_auth_and_keeps_planning_available
       - name: Real adapter, SQLite, artifacts and native runs; fake inference

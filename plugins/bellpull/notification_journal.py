@@ -31,6 +31,11 @@ class NotificationJournal:
                     attempts INTEGER NOT NULL DEFAULT 0, due REAL NOT NULL, lease TEXT,
                     accepted REAL, last_http INTEGER
                 );
+                CREATE TABLE IF NOT EXISTS observed_runs (
+                    home TEXT NOT NULL, scope TEXT NOT NULL, run_id TEXT NOT NULL, due REAL NOT NULL,
+                    PRIMARY KEY (home,scope,run_id)
+                );
+                CREATE INDEX IF NOT EXISTS observed_runs_due ON observed_runs(due);
                 CREATE INDEX IF NOT EXISTS event_cursor ON events(topic,revision);
                 CREATE INDEX IF NOT EXISTS dispatch_pending_topic ON events(topic,stored) WHERE accepted IS NULL;
                 CREATE INDEX IF NOT EXISTS dispatch_accepted_topic ON events(topic,accepted) WHERE accepted IS NOT NULL;
@@ -51,6 +56,28 @@ class NotificationJournal:
     def revision(db):
         db.execute("UPDATE clock SET revision=revision+1 WHERE singleton=1")
         return db.execute("SELECT revision FROM clock WHERE singleton=1").fetchone()[0]
+
+    def observe_run(self, home, scope, run):
+        with self.db() as db:
+            return db.execute("INSERT OR IGNORE INTO observed_runs VALUES(?,?,?,0)", (home, scope, run)).rowcount == 1
+
+    def due_runs(self):
+        with self.db() as db:
+            return [tuple(row) for row in db.execute(
+                "SELECT home,scope,run_id FROM observed_runs WHERE due<=? ORDER BY due LIMIT 32", (time.time(),))]
+
+    def checked_run(self, identity, delay):
+        with self.db() as db:
+            if delay is None:
+                db.execute("DELETE FROM observed_runs WHERE home=? AND scope=? AND run_id=?", identity)
+            else:
+                db.execute("UPDATE observed_runs SET due=? WHERE home=? AND scope=? AND run_id=?",
+                           (time.time() + delay, *identity))
+
+    def next_run_delay(self):
+        with self.db() as db:
+            due = db.execute("SELECT MIN(due) FROM observed_runs").fetchone()[0]
+        return None if due is None else max(0, due - time.time())
 
     def record(self, topic, run, session, status, approval, occurred, now=None):
         now = time.time() if now is None else now

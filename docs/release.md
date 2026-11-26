@@ -1,3 +1,7 @@
+## Stock Hermes run notifications · plugin 0.9.27
+
+Full stock Hermes 0.23.4 gateways can journal completed runs, failures, cancellations and pending approvals for the owning API profile. Android build 78 displays their delivery receipts in Today → Inbox. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.27-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md)
+
 ## Unknown run recovery · Android 0.20.28 experimental
 
 Build 78 shows when Hermes has lost track of a run and lets you recheck its original admission. Includes plugin 0.9.26. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.28-experimental.1) · [Release notes](RELEASE-0.20.28-EXPERIMENTAL.md)

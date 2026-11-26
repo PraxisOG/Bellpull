@@ -218,7 +218,7 @@ context. [Snapshot limits and sharing controls](PHASE-15-ASSISTANT.md)
 An authenticated `GET /api/bellpull/notifications/status` returns a version 1 snapshot. The profile-prefixed route supports the same check. It reads the configured loopback ntfy service’s [health endpoint](https://docs.ntfy.sh/config/#health-checks) with a bounded timeout. It never publishes a test notification. The response contains no topic, credential, event ID, or broker response body.
 
 - `transport.state` can be `healthy`, `unavailable`, `unreachable`, `unconfigured` or `unknown`. An HTTP response can also supply `http_status`. A passing health check describes the relay process.
-- `backlog.state` can be `available`, `unsupported` (the host has no run-status hook) or `unavailable` (receipt storage could not be read). An available journal supplies the number of native run receipts awaiting broker acceptance in the authenticated scope, `pending`. This includes leased/in-flight dispatches until the journal records acceptance.
+- `backlog.state` can be `available`, `unsupported` (the host exposes neither a supported run-status hook nor a supported stock session authority) or `unavailable` (receipt storage could not be read). An available journal supplies the number of native run receipts awaiting broker acceptance in the authenticated scope, `pending`. This includes leased/in-flight dispatches until the journal records acceptance.
 - `oldest_pending_at` is the earliest storage time among pending receipts. `last_accepted_at` is the most recent successful broker acknowledgement for this scope. Times are Unix seconds. Empty sets produce null timestamps. The check uses the full journal independently of history pagination and does not claim or retry a receipt. Phone receipt and display are separate observations.
 
 ## Owner memory status in native chat history
@@ -818,7 +818,9 @@ reconcile status rather than targeting the next request. Isolated tests execute 
 approval gate and HTTP handlers with a harmless fixture agent: accept/deny, stale IDs,
 repeated decisions, concurrent unattended policy, dedupe and opt-in payload conflicts.
 
-Hosts with native run status hooks expose `features.bellpull_notification_history` and
+On stock Hermes 0.23.4, a successful `POST /v1/runs` enrolls the native run in notification recovery. An authenticated status read can also enroll an active run from before the plugin upgrade. The journal retains the run ID, owning scope and served profile while the admission is outstanding. The worker reads the authority’s original admission, current execution generation and pending controls. Opening an old finished chat does not generate a new wake hint. A crash with an unknown outcome stays pending until Hermes records a terminal result. Each observed approval carries its own native prompt ID. Terminal receipt time uses the matching native update time when available and otherwise the observation time. Recovery can run with the phone disconnected.
+
+Hosts with native run status hooks and supported stock gateways with a session authority expose `features.bellpull_notification_history` and
 authenticated `GET /api/bellpull/notifications/history?after=0&limit=50`.
 The cursor is the latest event revision the client has applied. Pages contain up to 100
 current receipts in increasing revision order and return `next_cursor` and `has_more`.

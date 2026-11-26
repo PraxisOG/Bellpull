@@ -82,6 +82,7 @@ class Relay:
             return
         if not self.loop.is_closed():
             self.loop.call_soon_threadsafe(self.wake.set)
+        return True
 
     async def _dispatch(self):
         async with ClientSession(timeout=ClientTimeout(total=5)) as client:
