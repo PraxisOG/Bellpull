@@ -37,7 +37,7 @@ class VoiceService : Service() {
                 routePending = false; routeTimeout?.cancel(); routeTimeout = null
             }
             if (Build.VERSION.SDK_INT >= 31 && started && ownsAudio && !acquiring && runtime.voice?.state != VoiceState.PAUSED && requestedRoute != null &&
-                !routePending && !suspendedInNormalMode() && audio.communicationDevice?.id != requestedRoute?.id)
+                !routePending && !idleInNormalMode() && audio.communicationDevice?.id != requestedRoute?.id)
                 pauseAudio("route_changed", "The communication route changed. Check your route and resume voice.")
         }
     }
@@ -45,7 +45,7 @@ class VoiceService : Service() {
     private val modeChanged by lazy {
         AudioManager.OnModeChangedListener {
             if (started && ownsAudio && !acquiring && runtime.voice?.state != VoiceState.PAUSED &&
-                audio.mode != AudioManager.MODE_IN_COMMUNICATION && !suspendedInNormalMode())
+                audio.mode != AudioManager.MODE_IN_COMMUNICATION && !idleInNormalMode())
                 pauseAudio("mode_changed", "Another app or call changed the audio mode. Resume voice when ready.")
         }
     }
@@ -209,9 +209,9 @@ class VoiceService : Service() {
         }
         if (ownsAudio) {
             if (audio.mode == AudioManager.MODE_IN_COMMUNICATION) return true
-            if (!suspendedInNormalMode()) return false
+            if (!idleInNormalMode()) return false
             // Android can drop communication mode while capture and playback are both idle.
-            // Restore the same route only after our focus listener receives gain.
+            // Reuse the same route before starting audio or recovering from a focus loss.
             return runCatching {
                 audio.mode = AudioManager.MODE_IN_COMMUNICATION
                 selectRoute(requestedRoute)
@@ -229,7 +229,7 @@ class VoiceService : Service() {
                     if (cycle != audioCycle || !ownsAudio || !started) return@setOnAudioFocusChangeListener
                     diagnose("focus:$change")
                     when (change) {
-                        AudioManager.AUDIOFOCUS_GAIN -> if (audio.mode == AudioManager.MODE_IN_COMMUNICATION || suspendedInNormalMode()) runtime.voice?.recoverAudio()
+                        AudioManager.AUDIOFOCUS_GAIN -> if (audio.mode == AudioManager.MODE_IN_COMMUNICATION || idleInNormalMode()) runtime.voice?.recoverAudio()
                             else pauseAudio("focus_gain_mode", "A call changed the audio mode. Resume when ready.")
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> runtime.voice?.suspendForAudio()
                         AudioManager.AUDIOFOCUS_LOSS -> pauseAudio("focus_loss", "Another app needs audio. Resume voice when ready.")
@@ -283,7 +283,7 @@ class VoiceService : Service() {
             "selected=${requestedRoute?.type}:${requestedRoute?.id} actual=${actual?.type}:${actual?.id} " +
             "mode=${audio.mode} owned=$ownsAudio ${runtime.voice?.playbackDiagnostics().orEmpty()}")
     }
-    private fun suspendedInNormalMode() = runtime.voice?.audioSuspended == true && audio.mode == AudioManager.MODE_NORMAL
+    private fun idleInNormalMode() = runtime.voice?.audioIdle == true && audio.mode == AudioManager.MODE_NORMAL
 
     private fun selectRoute(previous: AudioDeviceInfo? = null): Boolean {
         if (Build.VERSION.SDK_INT >= 31) {

@@ -129,12 +129,12 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private var activeActivity = false
     private var audible = false
     private var tentative = false
-    var audioSuspended = false
-        private set
+    private var audioSuspended = false
     private val recentPlayback = ArrayDeque<Pair<Long, String>>()
     private var ownShortPhrases = emptyList<String>()
     private var generation = 0L
     private var micOpen = false
+    val audioIdle: Boolean get() = !micOpen && !speaking
     private var pushHeld = false
     private var pendingAudio: ByteArray? = null
     var canRetryTranscription by mutableStateOf(false); private set
@@ -248,8 +248,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         fun ready(name: String) {
             if (!closed && token == generation) {
                 voiceName = name; readyOutput = true
-                if (!beforeResume()) { pause("Audio is unavailable. Resume after the call or audio interruption finishes.") }
-                else whenReady()
+                if (ensureAudio()) whenReady()
             }
         }
         if (output == null) {
@@ -268,9 +267,15 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         run.connectionLost -> "Connection to Hermes was lost. Its existing run will recover without submitting again. Resume voice after reconnecting."
         else -> null
     }
+    private fun ensureAudio(): Boolean {
+        if (beforeResume()) return true
+        pause("Audio is unavailable. Resume after the call or audio interruption finishes.")
+        return false
+    }
     private fun openMic() {
         if (micOpen || closed || audioSuspended || state == VoiceState.PAUSED || (mode == VoiceMode.PUSH_TO_TALK && !pushHeld)) return
         listeningBlock(conversation.run())?.let { pause(it); return }
+        if (!ensureAudio()) return
         micOpen = capture.start(::frame, ::pause)
         if (mode != VoiceMode.CALL && micOpen && (state == VoiceState.LISTENING || state == VoiceState.WAITING && !submitted)) output?.chime()
     }
@@ -536,6 +541,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
     private fun pump() {
         if (output == null || speaking || tentative || audioSuspended || state == VoiceState.PAUSED ||
             (speech.isEmpty() && activitySpeech.isEmpty()) || closed) return
+        if (!ensureAudio()) return
         activeActivity = speech.isEmpty() && activitySpeech.isNotEmpty()
         val utterance = if (activeActivity) Utterance(activitySpeech.removeFirst()) else speech.removeFirst()
         val text = utterance.text
@@ -657,6 +663,7 @@ internal class VoiceSession(val sessionId: String, val profileId: String, privat
         suspendPlayback(); tentative = false; audioSuspended = false
         // Unsent words always require review after an explicit pause, never a delayed cue callback.
         if (completingTurn) { speech.clear(); activitySpeech.clear(); completingTurn = false }
+        if (pushHeld) holdTurn = false
         pushHeld = false
         interruption?.cancel(); interruption = null; interrupting = false
         closeMic(); currentTranscriber?.close(); transcriptionJob?.cancel(); transcriptionJob = null

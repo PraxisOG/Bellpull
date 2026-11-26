@@ -671,6 +671,27 @@ class VoiceSessionTest {
         assertTrue(target.sent.isEmpty())
     }
 
+    @Test fun idlePushToTalkRechecksAudioBeforeOpeningCapture() {
+        var available = true
+        val session = VoiceSession("chat", "profile", scope, target, VoiceConfiguration(), output, capture,
+            transcriber = { error("No recording should be transcribed") }, beforeResume = { available })
+        try {
+            session.start(VoiceMode.PUSH_TO_TALK)
+            assertEquals(VoiceState.READY, session.state)
+            available = false
+            session.beginPushToTalk()
+            assertEquals(VoiceState.PAUSED, session.state)
+            assertFalse(capture.active)
+            assertFalse(session.holdTurn)
+            available = true
+            session.resume()
+            assertEquals(VoiceState.READY, session.state)
+            assertFalse(capture.active)
+            session.beginPushToTalk()
+            assertTrue(capture.active)
+        } finally { session.close() }
+    }
+
     @Test fun unrelatedRunFinishingDuringFocusLossWaitsForGainToListen() {
         target.value = VoiceRun("other", busy = true)
         voice.start()
