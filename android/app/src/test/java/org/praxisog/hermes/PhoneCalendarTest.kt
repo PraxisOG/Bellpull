@@ -48,6 +48,17 @@ class PhoneCalendarTest {
         }
     }
 
+    @Test fun replacedAccountIsUnavailableEvenWhenTheCalendarIdIsReusedDuringARead() {
+        val replacement = phone.sources().single()
+        val previous = replacement.copy(key = "previous-account")
+        val start = 2_000_000_000_000L
+        phone.create("e".repeat(32), policy(replacement), replacement, CalendarDraft("Replacement event", start, start + 60_000))
+        val read = phone.read(policy(previous), start, start + 60_000, available = listOf(previous))
+        assertEquals(setOf(previous.key), read.unavailableSources)
+        assertEquals(0L, read.readAt)
+        assertTrue(read.events.isEmpty())
+    }
+
     @Test fun createRetryWithStableMarkerVerifiesOneEventAndOneAlert() {
         val source=phone.sources().first(); val policy=policy(source)
         val draft=CalendarDraft("Fixture meeting",2000000000000,2000003600000,alertMinutes=10)

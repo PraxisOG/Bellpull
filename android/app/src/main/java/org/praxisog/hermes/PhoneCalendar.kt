@@ -58,9 +58,8 @@ internal class PhoneCalendar(private val context: Context) {
         check(canRead()) { "Calendar read permission is required." }
         require(until > from && until-from <= 35L*86400000)
         val selected = available.filter { it.key in policy.selected }.associateBy { it.id }
-        val missing = policy.selected - selected.values.map { it.key }.toSet()
-        if (selected.isEmpty()) return if (missing.isEmpty()) PhoneCalendarSnapshot(readAt = System.currentTimeMillis())
-            else PhoneCalendarSnapshot(unavailableSources = missing)
+        if (policy.selected.isEmpty()) return PhoneCalendarSnapshot(readAt = System.currentTimeMillis())
+        if (selected.isEmpty()) return PhoneCalendarSnapshot(unavailableSources = policy.selected)
         val uri=CalendarContract.Instances.CONTENT_URI.buildUpon().also { ContentUris.appendId(it,from-86400000); ContentUris.appendId(it,until+86400000) }.build()
         val args=selected.keys.map(Long::toString).toTypedArray()
         val output=mutableListOf<PhoneCalendarEvent>(); var truncated=false
@@ -75,7 +74,12 @@ internal class PhoneCalendar(private val context: Context) {
                 if (interval.second > from && interval.first < until) output.add(value)
             }
         } ?: error("The phone calendar provider did not return events.")
-        return PhoneCalendarSnapshot(output, System.currentTimeMillis(), truncated, unavailableSources = missing)
+        // CalendarContract reads span several queries. An account can disappear or be replaced between them.
+        val originalKeys = selected.values.map { it.key }.toSet()
+        val readable = sources(policy.selected).map { it.key }.intersect(originalKeys)
+        if (readable.isEmpty()) return PhoneCalendarSnapshot(unavailableSources = policy.selected)
+        return PhoneCalendarSnapshot(output.filter { it.calendarKey in readable }, System.currentTimeMillis(),
+            truncated, unavailableSources = policy.selected - readable)
     }
     /** Stable create marker recovers a provider commit if the local receipt was interrupted. */
     @Synchronized fun create(operation: String, policy: CalendarPolicy, source: PhoneCalendarSource, draft: CalendarDraft, recoverOnly: Boolean=false): PhoneCalendarEvent {
