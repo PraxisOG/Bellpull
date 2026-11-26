@@ -3,7 +3,12 @@ import hashlib
 import json
 from pathlib import Path
 
-import yaml
+try:
+    import hermes_yaml as yaml
+except ModuleNotFoundError as exc:
+    if exc.name != "hermes_yaml":
+        raise
+    import yaml  # Older Hermes releases and the standalone packager.
 
 ROOT = Path(__file__).resolve().parent
 PROTOCOL = 1

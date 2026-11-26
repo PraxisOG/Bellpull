@@ -125,6 +125,14 @@ jobs:
               --entrypoint python "$image" \
               -m unittest discover -s /opt/hermes/plugins/bellpull/tests -p test_rediscovery.py -v
           done
+      - name: Plugin startup and authenticated dispatch status on Hermes 0.23.4
+        run: >-
+          docker run --rm --network none
+          -e HERMES_HOME=/tmp/bellpull-status-tests
+          -v "$PWD/plugins/bellpull:/opt/hermes/plugins/bellpull:ro"
+          --entrypoint python
+          nousresearch/hermes-agent:v0.23.4@sha256:3bc37fd8546e90fc41fe0d29511b4052840c281617cbcec6093bfe03d86a4ad9
+          -m unittest discover -s /opt/hermes/plugins/bellpull/tests -p test_dispatch_status.py -v
       - name: Real adapter, SQLite, artifacts and native runs; fake inference
         run: >-
           docker run --rm --network none
