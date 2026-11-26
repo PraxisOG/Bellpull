@@ -88,7 +88,7 @@ def wire(app, adapter):
     speech = SpeechProxy()
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
-    context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
+    context_ready, stop_context = phone_context.wire(adapter) if json_routes_ready else (False, lambda: None)
     attachments_ready = files_ready and stock_models_ready and not host_ready and native_attachments.supported(adapter)
     stop_attachments = None
     models_ready = host_ready or stock_models_ready
@@ -172,7 +172,7 @@ def wire(app, adapter):
                     return
                 _, stop_streaming = streaming.wire(adapter)
                 _, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
-                _, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
+                _, stop_context = phone_context.wire(adapter) if json_routes_ready else (False, lambda: None)
                 _, stop_attachments = native_attachments.wire(app, adapter) if attachments_ready else (False, lambda: None)
                 snapshots.closed = False
                 relay.closed = False

@@ -16,6 +16,7 @@ import time
 from aiohttp import web
 from .artifacts import ArtifactError
 from .principal import artifact_scope
+from .lineage import compression_ids
 
 DAY = 86_400_000
 BUDGET = 12000
@@ -232,9 +233,44 @@ def wire(adapter):
     create = getattr(adapter, "_create_agent", None)
     try:
         signature = inspect.signature(create)
-        if not {"session_id", "ephemeral_system_prompt"}.issubset(signature.parameters) or not callable(getattr(adapter, "_ensure_session_db", None)):
+        if not {"session_id", "ephemeral_system_prompt"}.issubset(signature.parameters):
             return False, lambda: None
     except (TypeError, ValueError):
+        return False, lambda: None
+
+    errors = (ArtifactError, OSError, sqlite3.Error)
+    if callable(getattr(adapter, "_ensure_session_db", None)):
+        def snapshot(session):
+            database = adapter._ensure_session_db()
+            if database is None:
+                raise ArtifactError("Session database is unavailable.", 503)
+            row = database.get_session(session)
+            if not row or row.get("source") != "api_server":
+                return []
+            root = compression_ids(database, session)[0]
+            return current_store().for_session(root, root == session and not database.get_messages(root, limit=1))
+    elif all(callable(getattr(adapter, key, None)) for key in ("_ensure_store", "_store_beside", "_room_grant_token")):
+        try:
+            from persistence import PersistenceError
+            from persistence.conversation.messages import TranscriptRead
+        except ImportError:
+            return False, lambda: None
+        errors += (PersistenceError,)
+
+        def snapshot(session):
+            database = adapter._store_beside(adapter._ensure_store())
+            if database is None:
+                raise ArtifactError("Session store is unavailable.", 503)
+            row = database.sessions.get(session)
+            if row is None or row.source != "api_server":
+                return []
+            lineage = database.lineage.lineage(session)
+            if not lineage:
+                return []
+            root = lineage[0]
+            fresh = root == session and not database.messages.read_transcript(root, TranscriptRead(limit=1))
+            return current_store().for_session(root, fresh)
+    else:
         return False, lambda: None
     active = True
 
@@ -242,23 +278,14 @@ def wire(adapter):
     def create_agent(*args, **kwargs):
         bound = signature.bind_partial(*args, **kwargs)
         session = bound.arguments.get("session_id")
-        if active and isinstance(session, str) and session:
-            database = adapter._ensure_session_db()
-            # Native profile scope is already entered by the API worker. Never use a global home.
-            row = database.get_session(session)
-            if row and row.get("source") == "api_server":
-                logical = session
-                # Compression continuations retain their original snapshot; forks get their own history.
-                from .lineage import compression_ids
-                logical = compression_ids(database, session)[0]
-                fresh = not database.get_messages(logical, limit=1)
-                try:
-                    tail = prompt(current_store().for_session(logical, fresh))
-                except (ArtifactError, OSError, sqlite3.Error):
-                    # Optional phone context must not take native chat down with it.
-                    tail = "\n\nPhone context is unavailable. Do not infer that notifications or calendar are empty."
-                if tail:
-                    bound.arguments["ephemeral_system_prompt"] = (bound.arguments.get("ephemeral_system_prompt") or "") + tail
+        if active and isinstance(session, str) and session and bound.arguments.get("room_dispatch") is None:
+            # Hermes has entered the selected profile before calling this hook.
+            try:
+                tail = prompt(snapshot(session))
+            except errors:
+                tail = "\n\nPhone context is unavailable. Do not infer that notifications or calendar are empty."
+            if tail:
+                bound.arguments["ephemeral_system_prompt"] = (bound.arguments.get("ephemeral_system_prompt") or "") + tail
         return create(*bound.args, **bound.kwargs)
     adapter._create_agent = create_agent
 
@@ -272,6 +299,9 @@ def wire(adapter):
 
 def routes(adapter):
     async def sync(request):
+        room_token = getattr(adapter, "_room_grant_token", None)
+        if callable(room_token) and room_token(request):
+            raise ArtifactError("Phone context sharing requires profile credentials.", 403)
         body, error = await adapter._read_json_body(request)
         if error is not None:
             return error
@@ -283,6 +313,14 @@ def routes(adapter):
 
 def register(ctx):
     def read(args, **kwargs):
+        try:
+            from gateway.hosted_room_execution_policy import current_room_execution_policy
+        except ModuleNotFoundError as exc:
+            if exc.name != "gateway.hosted_room_execution_policy":
+                raise
+        else:
+            if current_room_execution_policy() is not None:
+                return encoded({"error": "Phone context is unavailable in hosted rooms."})
         try:
             return encoded({"context": current_store().search(args.get("query", "")), "source": "phone cache", "read_only": True})
         except (ArtifactError, OSError, sqlite3.Error) as exc:

@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ from plugins.bellpull.artifacts import ArtifactError
 class PhoneContextTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.env = patch.dict(os.environ, {"HERMES_HOME": str(self.home)})
         self.env.start()
@@ -22,7 +24,7 @@ class PhoneContextTest(unittest.TestCase):
         self.store = ContextStore(self.home)
 
     def tearDown(self):
-        self.env.stop(); self.temp.cleanup()
+        self.env.stop()
 
     def body(self, sequence=1, policy="allow", **changes):
         result = dict(sequence=sequence, policy=policy, timezone="America/Los_Angeles", notifications_enabled=True,
@@ -144,6 +146,45 @@ class PhoneContextTest(unittest.TestCase):
         stop(); self.assertIs(adapter._create_agent, create)
         database.close()
 
+    def test_native_conversation_store_preserves_compression_and_isolates_other_sessions(self):
+        try:
+            from persistence.conversation.messages import NewMessage
+            from persistence.conversation.sessions import NewSession, SessionLineageKind
+            from persistence_assembly import open_persistence, profile_scope
+        except ImportError:
+            self.skipTest("Host uses the legacy session database")
+        database = open_persistence(profile_scope(home=self.home))
+        self.addCleanup(database.close)
+        def create(session_id, ephemeral_system_prompt="", room_dispatch=None):
+            return ephemeral_system_prompt
+        adapter = SimpleNamespace(_create_agent=create, _ensure_store=lambda: database,
+                                  _store_beside=lambda db: db, _room_grant_token=lambda request: "")
+        self.store.update(self.device, self.body())
+        supported, stop = wire(adapter)
+        self.assertTrue(supported)
+        self.addCleanup(stop)
+        database.sessions.create(NewSession("original", "api_server"))
+        first = adapter._create_agent("original")
+        self.assertIn("west gate", first)
+        database.messages.append("original", NewMessage("user", "First turn"))
+        database.sessions.end("original", "compression")
+        database.sessions.create(NewSession("continuation", "api_server", parent_session_id="original"))
+        self.store.update(self.device, self.body(2, notifications=[]))
+        self.assertEqual(first, adapter._create_agent("continuation"))
+        database.sessions.create(NewSession("fork", "api_server", parent_session_id="original",
+                                            lineage_kind=SessionLineageKind.BRANCH))
+        self.assertNotIn("west gate", adapter._create_agent("fork"))
+        for session, source in (("personal", "api_server"), ("room", "bot_room"), ("job", "cron")):
+            database.sessions.create(NewSession(session, source))
+        database.messages.append("personal", NewMessage("assistant", "Existing transcript"))
+        for session in ("personal", "room", "job", "unknown"):
+            self.assertEqual("original prompt", adapter._create_agent(session, "original prompt"))
+        self.assertEqual("original prompt", adapter._create_agent("original", "original prompt", room_dispatch={}))
+        adapter._ensure_store = lambda: None
+        self.assertIn("context is unavailable", adapter._create_agent("original"))
+        stop()
+        self.assertIs(create, adapter._create_agent)
+
     def test_unknown_host_keeps_its_original_method(self):
         adapter = SimpleNamespace(_create_agent=lambda: None)
         original = adapter._create_agent
@@ -161,7 +202,8 @@ class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
         from gateway.run import _profile_runtime_scope
         from plugins.bellpull.http import wire as wire_http
         from unittest.mock import AsyncMock
-        with tempfile.TemporaryDirectory() as temporary:
+        with ExitStack() as cleanup:
+            temporary = cleanup.enter_context(tempfile.TemporaryDirectory())
             homes = {name: Path(temporary, name) for name in ("alpha", "beta")}
             for name, home in homes.items():
                 home.mkdir()
@@ -172,6 +214,16 @@ class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
                     patch("hermes_cli.profiles.get_profile_dir", side_effect=homes.__getitem__):
                 adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": "isolated-context-root"}))
                 adapter.gateway_runner = SimpleNamespace(config=SimpleNamespace(multiplex_profiles=True, multiplex_profile_allowlist=None))
+                uses_persistence = callable(getattr(adapter, "_ensure_store", None))
+                if uses_persistence:
+                    from gateway.session_authorities import SessionAuthorities
+                    from persistence_assembly import open_persistence, profile_scope
+                    authorities = SessionAuthorities(homes["alpha"], multiplexed=True)
+                    for name, home in homes.items():
+                        store = open_persistence(profile_scope(home=home))
+                        cleanup.callback(store.close)
+                        authorities.add(home, SimpleNamespace(persistence=store), name=name)
+                    adapter.gateway_runner.session_authorities = authorities
                 adapter._conversation_history_for_session = AsyncMock(return_value=[])
                 adapter._request_route_conflict_error = lambda **kwargs: None
                 seen, executed = [], []
@@ -194,11 +246,15 @@ class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
                 async with TestClient(TestServer(app)) as client:
                     self.assertEqual(401, (await client.put("/p/alpha"+path, json=body)).status)
                     self.assertEqual(401, (await client.put("/p/alpha"+path, json=body, headers=headers["beta"])).status)
+                    response = await client.get("/p/alpha/api/bellpull/capabilities", headers=headers["alpha"])
+                    self.assertTrue((await response.json())["features"]["bellpull_phone_context"])
                     reply = await client.put("/p/alpha"+path, json=body, headers=headers["alpha"])
                     self.assertEqual(200, reply.status, await reply.text())
                     self.assertEqual("no-store", reply.headers["Cache-Control"])
                     self.assertEqual([], executed)  # Upload never creates a model run.
-                    sessions = await (await client.get("/p/alpha/api/sessions", headers=headers["alpha"])).json()
+                    session_list = await client.get("/p/alpha/api/sessions", headers=headers["alpha"])
+                    self.assertEqual(200, session_list.status, await session_list.text())
+                    sessions = await session_list.json()
                     self.assertEqual([], sessions["data"])
                     self.assertEqual([], ContextStore(homes["beta"]).search(""))
                     async def new_chat(name):
@@ -223,7 +279,12 @@ class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(first, await run("alpha", alpha, "first"))
                     self.assertEqual(1, len(executed))
                     with _profile_runtime_scope(homes["alpha"]):
-                        adapter._ensure_session_db().append_message(alpha, "user", "Earlier message")
+                        if uses_persistence:
+                            from persistence.conversation.messages import NewMessage
+                            store = adapter._store_beside(adapter._ensure_store())
+                            store.messages.append(alpha, NewMessage("user", "Earlier message"))
+                        else:
+                            adapter._ensure_session_db().append_message(alpha, "user", "Earlier message")
                     body.update(sequence=2, notifications=[])
                     self.assertEqual(200, (await client.put("/p/alpha"+path, headers=headers["alpha"], json=body)).status)
                     await run("alpha", alpha, "follow-up")
@@ -236,4 +297,5 @@ class PhoneContextHttpTest(unittest.IsolatedAsyncioTestCase):
                     self.assertNotIn("Synthetic west gate", seen[-1][1] or "")
                     await asyncio.gather(*adapter._active_run_tasks.values(), return_exceptions=True)
                 adapter._run_idempotency_store.close()
-                for database in adapter._session_dbs.values(): database.close()
+                if not uses_persistence:
+                    for database in adapter._session_dbs.values(): database.close()

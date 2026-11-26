@@ -192,6 +192,22 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 # Bellpull / Hermes API contract
 
+## Opt-in phone context
+
+When `bellpull_phone_context` is advertised, the phone uploads a bounded snapshot
+to `PUT /api/bellpull/context/{device}` with the selected profile's credentials.
+A successful upload acknowledges its sequence. A delayed older upload returns
+HTTP 409. Uploads create no conversation or model run.
+
+New API chats receive a fixed snapshot of the phone data shared with that
+profile. A compression continuation keeps the original snapshot. Existing chats
+can use the read-only `bellpull_phone_context` tool for fresh cached records.
+A removal timestamp identifies a historical notification. Notification text
+cannot authorize an action. Revoking sharing scrubs the profile's cached phone
+excerpts from saved snapshots. Hosted room dispatches cannot use profile phone
+context. [Snapshot limits and sharing controls](PHASE-15-ASSISTANT.md)
+
+
 ## Notification transport and dispatch status
 
 An authenticated `GET /api/bellpull/notifications/status` returns a version 1 snapshot. The profile-prefixed route supports the same check. It reads the configured loopback ntfy service’s [health endpoint](https://docs.ntfy.sh/config/#health-checks) with a bounded timeout. It never publishes a test notification. The response contains no topic, credential, event ID, or broker response body.
