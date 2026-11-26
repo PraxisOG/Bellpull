@@ -231,6 +231,11 @@ class CodingStore:
             expired=any(conn.execute("SELECT 1 FROM gaps WHERE session=?",(alias,)).fetchone() for alias in aliases)
             reset=after is None or after > high or after < max(0,low-1)
             placeholders=",".join("?" for _ in ids) or "NULL"
+            # Per-work retention can be intact while the combined chat view omits older rows.
+            window_clipped = len(ids) > 1 and conn.execute(
+                f"SELECT 1 FROM rows WHERE work IN ({placeholders}) LIMIT 1 OFFSET ?",
+                (*ids, MAX_ROWS),
+            ).fetchone() is not None
             if not reset and conn.execute(f"SELECT COUNT(*) FROM events WHERE work IN ({placeholders}) AND seq>?",(*ids,after)).fetchone()[0]>MAX_ROWS:
                 reset=True
             source="rows" if reset else "events"
@@ -241,7 +246,7 @@ class CodingStore:
             public.append({k:v for k,v in work.items() if k not in ("owner_task_id","incarnation","observed_total","workspace","home","awaiting_thread","discard_frame","workspace_baseline","claude_commands")})
         executors = ["opencode", "codex", "claude"] if all_executors else ["opencode"]
         return dict(version=1,session_id=session,session_ids=aliases,cursor=high,reset=reset,executors=executors,
-                    gap=expired or any(w.get("gap") for w in works) or after is not None and reset,
+                    gap=window_clipped or expired or any(w.get("gap") for w in works) or after is not None and reset,
                     works=public,rows=rows,observed_at=time.time())
 
 

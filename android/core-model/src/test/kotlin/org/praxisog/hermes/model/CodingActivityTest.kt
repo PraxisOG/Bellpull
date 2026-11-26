@@ -18,6 +18,23 @@ class CodingActivityTest {
         assertEquals(emptyList<CodingRow>(),snapshot(2,emptyList(),true).merge(first).rows)
         assertTrue(snapshot(2,emptyList(),false).copy(works=emptyList()).merge(first).rows.isEmpty())
     }
+    @Test fun mergingAnOlderServersDeltaMarksOnlyAnActualEviction() {
+        val second = work.copy(id = "b".repeat(32), executor = "claude")
+        val works = listOf(work, second)
+        val initialRows = (1L..300L).map { i ->
+            row(i, "event-$i").copy(workId = if (i > 150) second.id else work.id)
+        }
+        val initial = snapshot(300, initialRows).copy(works = works).validated("root")
+        val replacement = initialRows.last().copy(sequence = 301)
+        val revised = snapshot(301, listOf(replacement), false).copy(works = works).merge(initial)
+        assertFalse(revised.gap)
+        val appended = replacement.copy(key = "new", sequence = 302)
+        val evicted = snapshot(302, listOf(appended), false).copy(works = works).merge(revised)
+        assertTrue(evicted.gap)
+        assertEquals(300, evicted.rows.size)
+        assertEquals(2L, evicted.rows.first().sequence)
+        assertTrue(snapshot(302, emptyList(), false).copy(works = works).merge(evicted).gap)
+    }
     @Test fun malformedOwnershipOrderAndCursorAreRejected() {
         val good=snapshot(2,listOf(row(1),row(2,"other")))
         for (bad in listOf(good.copy(sessionId="foreign"),good.copy(sessionIds=listOf("other")),

@@ -96,6 +96,28 @@ class CodingTest(unittest.TestCase):
         self.store.save(other, [dict(key=str(i), detail="other") for i in range(305)])
         self.assertEqual(["Keep me"],[r["detail"] for r in self.store.snapshot("root",["root"])["rows"]])
 
+    def test_shared_window_reports_only_omitted_rows_from_visible_works(self):
+        def rows(start, stop):
+            return [dict(key=str(i), detail=str(i)) for i in range(start, stop)]
+
+        self.store.save(self.work, rows(0, 150))
+        other = dict(self.work, id="b"*32, executor="codex")
+        self.store.save(other, rows(150, 300))
+        exact = self.store.snapshot("root", ["root"], all_executors=True)
+        self.assertEqual(300, len(exact["rows"]))
+        self.assertFalse(exact["gap"])
+        self.store.save(other, rows(300, 301))
+        full = self.store.snapshot("root", ["root"], all_executors=True)
+        delta = self.store.snapshot("root", ["root"], after=exact["cursor"], all_executors=True)
+        self.assertTrue(full["gap"])
+        self.assertEqual(list(range(1, 301)), [int(r["key"]) for r in full["rows"]])
+        self.assertTrue(delta["gap"])
+        self.assertFalse(delta["reset"])
+        self.assertEqual(["300"], [r["key"] for r in delta["rows"]])
+        legacy = self.store.snapshot("root", ["root"])
+        self.assertFalse(legacy["gap"])
+        self.assertEqual(150, len(legacy["rows"]))
+
     def test_tail_loss_marks_gap_and_step_finish_does_not_complete_process(self):
         self.process.max_output_chars=200
         self.sample("lost"*100+"\n"+line())

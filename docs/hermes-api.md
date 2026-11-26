@@ -336,7 +336,10 @@ json` terminal receipts and simple PTY/TUI/plain-run launches as inert terminal 
 incarnation. CLI text/tool parts arrive when those parts complete. The observer
 polls the process tail without replacing `on_output`; lost tail data sets `gap`.
 Its SQLite journal retains up to 128 works, 300 rows per work and 3,000 events per
-profile. The phone displays a bounded 300-row window and caches a smaller tail.
+profile. The chat response includes at most 300 current rows across the selected
+executors. Both full and incremental reads set `gap` while that combined window
+omits retained rows. Revisions to an existing row count once. The phone also
+marks a gap if its own 300-row window or smaller offline cache drops output.
 Process exit is separate from step finish, parent completion and connection loss.
 Plain CLI permission warnings are inert text. Existing Hermes approvals and Stop
 are the only enabled controls; no OpenCode question/permission/steering API is

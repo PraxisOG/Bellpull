@@ -36,6 +36,8 @@ data class CodingRow(
     val truncated: Boolean = false,
 ) { override fun toString() = "CodingRow(kind=$kind, content=redacted)" }
 
+private const val CODING_WINDOW_ROWS = 300
+
 @Serializable
 data class CodingSnapshot(
     val version: Int,
@@ -59,7 +61,7 @@ data class CodingSnapshot(
         val ids = works.map { it.id }.toSet()
         works.forEach { require(it.id.matches(Regex("[a-f0-9]{32}")) && it.sessionId in sessionIds &&
             it.runId.isNotBlank() && it.processId.isNotBlank() && it.executor.length in 1..64 && (it.executorSessionId?.length ?: 0) <= 256 && it.state in setOf("running", "completed", "failed", "stopped", "lost", "unknown")) }
-        require(rows.size <= 300 && rows.zipWithNext().all { (a,b) -> a.sequence < b.sequence })
+        require(rows.size <= CODING_WINDOW_ROWS && rows.zipWithNext().all { (a,b) -> a.sequence < b.sequence })
         rows.forEach { require(it.workId in ids && it.sequence in 1..cursor && it.key.length <= 1024 &&
             it.detail.length <= 32768 && (it.command?.length ?: 0) <= 32768 && it.label.length <= 512) }
         return this
@@ -70,7 +72,11 @@ data class CodingSnapshot(
         val valid = works.map { it.id }.toSet()
         val merged = linkedMapOf<Pair<String,String>, CodingRow>()
         (previous.rows + rows).filter { it.workId in valid }.forEach { merged[it.workId to it.key] = it }
-        return copy(rows = merged.values.sortedBy { it.sequence }.takeLast(300), reset = true, gap = gap || previous.gap)
+        return copy(
+            rows = merged.values.sortedBy { it.sequence }.takeLast(CODING_WINDOW_ROWS),
+            reset = true,
+            gap = gap || previous.gap || merged.size > CODING_WINDOW_ROWS,
+        )
     }
 }
 
