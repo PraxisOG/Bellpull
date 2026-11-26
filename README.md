@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.13 / build 63 and plugin 0.9.8-mobile-preview**
-> Open **Today → Inbox** to recover missed run notifications and see when the relay accepted them.
-> [Release notes and verification](docs/RELEASE-0.20.13-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.16 / build 66 and plugin 0.9.11-mobile-preview**
+> Open a completed **Memory status** tool call to see owner access and when the provider built the chat snapshot.
+> [Release notes](docs/RELEASE-0.20.16-EXPERIMENTAL.md).
 
 <div align="center">
 
