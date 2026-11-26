@@ -171,10 +171,9 @@ class PlanningStore:
                 if saved is not None:
                     if body["read_at_ms"] < saved["read_at_ms"]:
                         raise ArtifactError("Hermes already has a newer phone calendar read. Refresh the phone calendar.", 409)
-                    if body["read_at_ms"] == saved["read_at_ms"] and body["busy_only"] == saved["busy_only"]:
-                        if events != saved["events"]:
-                            raise ArtifactError("Different calendar events have the same read time. Refresh the phone calendar.", 409)
-                        return saved
+                    if (body["read_at_ms"] == saved["read_at_ms"] and body["busy_only"] == saved["busy_only"]
+                            and events != saved["events"]):
+                        raise ArtifactError("Different calendar events have the same read time. Refresh the phone calendar.", 409)
                 previous=state[1] if state else (saved["busy_only"] if saved else None)
                 if state is None or previous is not None and bool(previous)!=body["busy_only"]: generation+=1
                 c.execute("INSERT INTO calendar_policies VALUES(?,?,?) ON CONFLICT(device) DO UPDATE SET generation=excluded.generation,busy_only=excluded.busy_only",(device,generation,int(body["busy_only"])))

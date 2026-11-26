@@ -251,6 +251,15 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(self.now, restarted.calendar("e"*32, body)["read_at_ms"])
         revoked = restarted.calendar(device, dict(revoke=True))
         self.assertEqual(self.now, restarted.calendar(device, dict(body, generation=revoked["generation"]))["read_at_ms"])
+
+    def test_identical_legacy_read_still_establishes_its_first_policy_generation(self):
+        device = "d"*32
+        legacy = dict(device=device, read_at_ms=self.now, busy_only=True, events=[])
+        with self.store.db() as db:
+            db.execute("INSERT INTO calendars VALUES(?,?)", (device, json.dumps(legacy)))
+        adopted = self.store.calendar(device, dict(legacy, generation=0))
+        self.assertEqual(1, adopted["generation"])
+        self.assertEqual(adopted, self.store.calendar(device, dict(legacy, generation=1)))
     def test_busy_only_policy_change_fences_detailed_upload(self):
         device="d"*32
         body=dict(read_at_ms=self.now,busy_only=False,events=[])
