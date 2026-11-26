@@ -6,6 +6,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import sqlite3
 import time
 
 from aiohttp import web
@@ -69,7 +70,15 @@ def wire(app, adapter):
     except ImportError:
         host = None
         host_ready = False
-    relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"))
+    journal = None
+    if host_ready:
+        from hermes_constants import get_hermes_home
+        from .notification_journal import NotificationJournal
+        try:
+            journal = NotificationJournal(get_hermes_home())
+        except (OSError, sqlite3.Error, ValueError):
+            logging.getLogger(__name__).exception("Bellpull notification journal unavailable")
+    relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"), journal)
     sampler = Sampler()
     speech = SpeechProxy()
     snapshots = Snapshots(adapter)
@@ -123,6 +132,7 @@ def wire(app, adapter):
         nonlocal started
         started = True
         if active:
+            relay.start()
             await speech.start(_app)
             await coding.start(_app)
     app.on_startup.append(start)
@@ -166,6 +176,7 @@ def wire(app, adapter):
                     with coding.registry._lock:
                         coding.registry._bellpull_coding_observers.add(coding)
                 if started:
+                    relay.start()
                     await speech.start(app)
                     await coding.start(app)
                 if closed or ticket != generation:
@@ -246,7 +257,8 @@ def wire(app, adapter):
                 "bellpull_native_model_controls": stock_models_ready,
                 "bellpull_run_attachments": host_ready or attachments_ready,
                 "bellpull_reasoning_streaming": reasoning_ready,
-                "bellpull_notification_events": host_ready and bool(relay.url),
+                "bellpull_notification_history": journal is not None,
+                "bellpull_notification_events": journal is not None and bool(relay.url),
                 "bellpull_snapshot_paging": paging_ready,
                 "bellpull_delegation_delivery": paging_ready,
                 "bellpull_projects": projects_ready,
@@ -276,6 +288,9 @@ def wire(app, adapter):
             await asyncio.to_thread(store.delete, request.match_info["artifact_id"])
             return web.json_response({"deleted": True})
         return web.json_response(await asyncio.to_thread(store.usage), headers={"Cache-Control": "no-store"})
+
+    async def notification_history(request):
+        return await relay.history(adapter._run_idempotency_scope(request), request)
 
     async def events(request):
         return await relay.events(adapter._run_idempotency_scope(request), request)
@@ -364,6 +379,8 @@ def wire(app, adapter):
         ])
     if host_ready:
         routes.append(("GET", "/api/bellpull/events", events))
+        if journal is not None:
+            routes.append(("GET", "/api/bellpull/notifications/history", notification_history))
     existing = {(route.method, route.resource.canonical) for route in app.router.routes()}
     collisions = [prefix + path for method, path, _ in routes for prefix in ("", "/p/{profile}")
                   if (method, prefix + path) in existing]

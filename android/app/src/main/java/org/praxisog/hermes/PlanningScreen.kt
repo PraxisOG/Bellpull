@@ -119,6 +119,9 @@ import kotlinx.coroutines.delay
         else {
             Text(delivery.alertStatus, style=MaterialTheme.typography.bodySmall)
             Text(if (delivery.state.lastSync == 0L) "Not yet synced" else "Last synced ${displayInstant(delivery.state.lastSync)}", style=MaterialTheme.typography.bodySmall)
+            if (tab == "Inbox") delivery.notificationHistoryProblem?.let {
+                Text("Run notification sync pending · $it", color = MaterialTheme.colorScheme.error)
+            }
             delivery.problem?.let { Text("Sync pending: $it", color=MaterialTheme.colorScheme.error) }
             if (delivery.syncing) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (android.os.Build.VERSION.SDK_INT >= 31 && !context.getSystemService(android.app.AlarmManager::class.java).canScheduleExactAlarms()) {
@@ -418,6 +421,13 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
         AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
         text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
             Text(entry.body)
+            entry.runReceipt?.let { receipt ->
+                Text("Occurred ${displayInstant((receipt.occurredAt * 1000).toLong())}")
+                Text(receipt.acceptedAt?.let { "Relay accepted ${displayInstant((it * 1000).toLong())}" }
+                    ?: "Relay delivery pending")
+                Text("Saved on this device ${displayInstant(entry.receiptChangedAt ?: entry.receivedAt)}")
+                SelectionContainer { Text("Run ${receipt.runId}", style = MaterialTheme.typography.bodySmall) }
+            }
             entry.botChatReceipt?.let { receipt ->
                 val source = when (receipt.source) {
                     "owner" -> "Bot Chat owner"

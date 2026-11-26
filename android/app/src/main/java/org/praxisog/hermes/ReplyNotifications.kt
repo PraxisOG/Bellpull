@@ -44,7 +44,7 @@ internal class ReplyNotifications(private val context: Context, private val scop
         cache?.rememberNotified(identity)
     }
     fun read(id: String) { manager.cancel("$profileId:reply:$id", 0) }
-    private fun enabled(): Boolean = BellpullSettings(context).value.notifications && manager.areNotificationsEnabled() &&
+    fun enabled(): Boolean = BellpullSettings(context).value.notifications && manager.areNotificationsEnabled() &&
         (Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
     private fun post(id: String, kind: String, text: String, channel: String) {
         val title = (store.sessions as? UiState.Ready)?.value?.firstOrNull { it.id == id }?.title?.takeIf { it.isNotBlank() } ?: "Bellpull"

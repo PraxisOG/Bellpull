@@ -71,6 +71,7 @@ internal class DurableRuns(
     val statsRecords = mutableStateMapOf<String, RunSubmission>()
     private val jobs = mutableMapOf<String, Job>()
     private val journalWrites = Mutex()
+    private val observationLocks = mutableMapOf<String, Mutex>()
     private val streams = java.util.concurrent.ConcurrentHashMap<String, HermesClient.Streaming>()
     var onHistory: (String, List<Message>) -> Unit = { _, _ -> }
     var onCompleted: (String, Message?) -> Unit = { _, _ -> }
@@ -135,22 +136,35 @@ internal class DurableRuns(
     }
 
     fun observe(runId: String, sessionId: String, readThrough: Int) {
-        val current = states[sessionId]
-        if (current?.submission?.runId == runId) { retry(sessionId); return }
+        if (closed) return
         scope.launch {
-            val status = io { client.runStatus(runId) }
-            if (status !is HermesResult.Ok || status.value.sessionId != sessionId) return@launch
-            val active = states[sessionId]
-            val created = status.value.createdAt ?: return@launch
-            if (active != null && (active.busy || active.submission.createdAt >= created)) return@launch
-            val record = RunSubmission("observed:$runId", sessionId, "", created, -1, setOf(readThrough),
-                runId = runId, status = status.value.status, error = status.value.error,
-                completionOutput = status.value.output, serverCreatedAt = created, completionUsage = status.value.usage,
-                serverCompletedAt = status.value.updatedAt.takeIf { status.value.isTerminal }).withRouteEvidence(status.value)
-            save(record)
-            states[sessionId] = RunPresentation(record, terminalTurn(record, status.value.output.orEmpty()))
-            onChanged(sessionId)
-            track(sessionId, fresh = false)
+            val lock = observationLocks.getOrPut(sessionId) { Mutex() }
+            lock.withLock {
+                if (closed) return@withLock
+                val existing = states[sessionId]?.submission
+                if (existing?.runId == runId) {
+                    if (!existing.historySynced && !existing.trackingDismissed) retry(sessionId)
+                    return@withLock
+                }
+                val status = io { client.runStatus(runId) }
+                if (status !is HermesResult.Ok || status.value.sessionId != sessionId || status.value.runId != runId) return@withLock
+                val created = status.value.createdAt ?: return@withLock
+                val active = states[sessionId]?.submission
+                if (active != null && (!active.terminal || active.createdAt >= created)) return@withLock
+
+                // A terminal watch may still be saving history. Let it finish before assigning
+                // the next run to the same chat's worker. Other chats can continue independently.
+                jobs[sessionId]?.join()
+                if (closed || states[sessionId]?.submission?.requestId != active?.requestId) return@withLock
+                val record = RunSubmission("observed:$runId", sessionId, "", created, -1, setOf(readThrough),
+                    runId = runId, status = status.value.status, error = status.value.error,
+                    completionOutput = status.value.output, serverCreatedAt = created, completionUsage = status.value.usage,
+                    serverCompletedAt = status.value.updatedAt.takeIf { status.value.isTerminal }).withRouteEvidence(status.value)
+                if (!save(record) || closed || states[sessionId]?.submission?.requestId != active?.requestId) return@withLock
+                states[sessionId] = RunPresentation(record, terminalTurn(record, status.value.output.orEmpty()))
+                onChanged(sessionId)
+                track(sessionId, fresh = false)
+            }
         }
     }
 

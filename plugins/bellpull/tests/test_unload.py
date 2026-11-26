@@ -18,7 +18,7 @@ class UnloadTest(unittest.IsolatedAsyncioTestCase):
         broker.router.add_get('/{topic}/json', broker_stream)
         upstream = TestServer(broker)
         await upstream.start_server()
-        relay = Relay(str(upstream.make_url('')).rstrip('/'))
+        relay = Relay(str(upstream.make_url('')).rstrip('/'), journal=None)
         app = web.Application()
         app.router.add_get('/events', lambda request: relay.events('fixture-scope', request))
         client = TestClient(TestServer(app))
