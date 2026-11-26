@@ -419,7 +419,7 @@ class MainActivity : ComponentActivity() {
                                 profiles::removeAll, profiles::rename) { profile ->
                                 IntegrationStatusButton(profile.name, { profiles.savedIntegrationHealth(profile.id) },
                                     { profiles.checkIntegrations(profile.id) },
-                                    runtime.store?.takeIf { runtime.profileId == profile.id }?.lastServedRun)
+                                    runtime.store?.takeIf { runtime.profileId == profile.id })
                             }
                             if (files?.modelsSupported == true) ModelControl(files, null)
                         },

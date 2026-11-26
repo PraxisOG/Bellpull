@@ -30,6 +30,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.praxisog.hermes.model.MemoryStatus
 import org.praxisog.hermes.model.ToolResult
 import java.util.Locale
 
@@ -60,6 +61,9 @@ internal fun ToolResultView(
 ) {
     val interact = LocalTranscriptInteraction.current
     val parsed = remember(rawContent, running) { if (running) null else ToolResult.parse(rawContent) }
+    val memory = remember(toolName, rawContent, running) {
+        if (running) null else MemoryStatus.parse(toolName, rawContent)
+    }
     var expanded by remember(toolName, rawContent, arguments) { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
     val failed = parsed?.let { it.status == "error" || !it.error.isNullOrBlank() || (it.exitCode != null && it.exitCode != 0) } == true
@@ -69,6 +73,7 @@ internal fun ToolResultView(
         parsed?.wasFlaggedAndAllowed == true && failed -> "Flagged · failed"
         parsed?.wasFlaggedAndAllowed == true -> "Flagged · allowed"
         failed -> "Failed"
+        memory != null -> memory.accessLabel
         else -> "Details"
     }
     val container = when {
@@ -102,7 +107,7 @@ internal fun ToolResultView(
         }
     }
     if (expanded) {
-        ToolDataDialog(title, toolName, rawContent, arguments, status, running) { expanded = false }
+        ToolDataDialog(title, toolName, rawContent, arguments, status, running, memory) { expanded = false }
     }
 }
 
@@ -114,6 +119,7 @@ private fun ToolDataDialog(
     arguments: String?,
     status: String,
     running: Boolean,
+    memory: MemoryStatus?,
     onDismiss: () -> Unit,
 ) {
     val clipboard = LocalClipboardManager.current
@@ -130,6 +136,10 @@ private fun ToolDataDialog(
                 HorizontalDivider()
                 SelectionContainer(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        memory?.let {
+                            MemoryCheckDetails(it)
+                            HorizontalDivider()
+                        }
                         arguments?.let {
                             Text("Input", style = MaterialTheme.typography.labelLarge)
                             Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)

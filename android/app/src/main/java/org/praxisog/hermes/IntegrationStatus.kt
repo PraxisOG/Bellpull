@@ -34,8 +34,21 @@ internal fun integrationDescription(check: IntegrationCheck): String {
     return check.httpStatus?.let { "$text (HTTP $it)" } ?: text
 }
 
+internal val MemoryStatus.accessLabel: String
+    get() = if (ownerAvailable) "Owner memory available" else "Owner memory unavailable"
+
 @Composable
-internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHealth?, refresh: suspend () -> IntegrationHealth?, lastServedRun: RunSubmission? = null) {
+internal fun MemoryCheckDetails(status: MemoryStatus) {
+    Text(status.provider?.let { "Memory provider · $it" } ?: "Memory provider not recorded")
+    Text(status.observedAtMillis?.let { "Status checked ${atTime(it)}" } ?: "Check time not recorded")
+    Text(status.contextCreatedAtMillis?.let { "Chat snapshot built ${atTime(it)}" } ?: "Chat snapshot time not recorded")
+    status.visibleRecords?.let { Text("Visible records · $it") }
+    status.unfinishedMessages?.let { Text("Messages awaiting indexing · $it") }
+    status.workerEnabled?.let { Text(if (it) "Background organizer enabled" else "Background organizer paused") }
+}
+
+@Composable
+internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHealth?, refresh: suspend () -> IntegrationHealth?, activeStore: HermesStore? = null) {
     var open by remember { mutableStateOf(false) }
     val health = saved() ?: IntegrationHealth()
     val plugin = health.checks[IntegrationEndpoint.PLUGIN]
@@ -75,7 +88,18 @@ internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHea
                         check.vision?.let { Text(if (it) "Catalog advertises image input." else "Catalog does not advertise image input.") }
                     }
                 }
-                lastServedRun?.let { run ->
+                activeStore?.openSessionId?.let { sessionId ->
+                    val history = (activeStore.history as? UiState.Ready)?.value
+                    val memory = remember(sessionId, history) { history?.let { MemoryStatus.latest(sessionId, it) } }
+                    val title = activeStore.openSession?.title?.takeIf { it.isNotBlank() } ?: sessionId
+                    Text("Last memory check · $title", style = MaterialTheme.typography.titleSmall)
+                    if (memory == null) Text("No completed memory status is available for this chat.")
+                    else {
+                        Text(memory.accessLabel)
+                        MemoryCheckDetails(memory)
+                    }
+                }
+                activeStore?.lastServedRun?.let { run ->
                     Text("Last observed completed run", style = MaterialTheme.typography.titleSmall)
                     run.serverCompletedAt?.let { Text(atTime((it * 1000).toLong()), style = MaterialTheme.typography.bodySmall) }
                     ModelRouteEvidence(run.servedModel, run.modelFallback)

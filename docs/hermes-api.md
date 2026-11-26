@@ -185,6 +185,14 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 # Bellpull / Hermes API contract
 
+## Owner memory status in native chat history
+
+An authenticated session transcript can include a completed `memory_status` tool call. The memory provider reports `access.owner_memory` (`available` or `unavailable`), the visible record count, indexing backlog and background worker state for that call. Those fields describe the authorized scopes of that chat at the time of the check.
+
+When the serving provider is `memory-subsystem`, the Bellpull plugin can add an optional `bellpull_memory` object to its successful status result. Version 1 records the actual provider name and `observed_at` in Unix seconds. If the provider retained a timestamped startup snapshot for that session, `context_created_at` records when it was built. This timestamp is separate from the tool check and from the number of messages awaiting indexing. Missing data stays unknown. The tool result persists with its original native call in the session transcript, including across a restart.
+
+Bellpull reads the metadata from the provider that handled the existing call. Opening status in Android reads the saved result. Neither operation initializes a provider, grants owner access, runs the organizer or reads the contents of another memory scope.
+
 ## Bellpull speech proxy — 0.4.3-integration-preview
 
 ### Experimental streaming input — 0.6.0

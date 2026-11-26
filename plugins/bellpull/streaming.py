@@ -8,6 +8,8 @@ from functools import wraps
 import inspect
 import time
 
+from . import memory_status
+
 
 def wire(adapter):
     create = getattr(adapter, "_create_agent", None)
@@ -126,6 +128,12 @@ def wire(adapter):
         if inject and accepts_reasoning:
             bound.arguments["reasoning_callback"] = reasoning
         agent = create(*bound.args, **bound.kwargs)
+        if active:
+            try:
+                memory_status.observe(agent, lambda: active)
+            except Exception:
+                # Optional metadata must not prevent a native agent from starting.
+                pass
         if inject and not accepts_reasoning and hasattr(agent, "reasoning_callback") and agent.reasoning_callback is None:
             agent.reasoning_callback = reasoning
         fallback = getattr(progress, "_bellpull_fallback", None)
