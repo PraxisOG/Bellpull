@@ -1,3 +1,7 @@
+## Shared Canvas on stock Hermes 0.23.4 · plugin 0.9.21
+
+Android, Desktop and the native Hermes drawing tool can resume the same drawing in an existing or compacted conversation. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.21-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.21-EXPERIMENTAL.md)
+
 ## Coding activity on stock Hermes 0.23.4 · plugin 0.9.20
 
 Android and Desktop can read the original executor’s activity and workspace changes through the current Hermes conversation store. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.20-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.20-EXPERIMENTAL.md)

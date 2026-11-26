@@ -7,6 +7,7 @@ import secrets
 import tempfile
 import unittest
 import uuid
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from aiohttp import web
@@ -15,7 +16,7 @@ from hermes_state import SessionDB
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
 from plugins.bellpull.canvas_store import CanvasStore, CanvasError
-from plugins.bellpull.canvas import capture_call, execute
+from plugins.bellpull.canvas import capture_call, execute, session_reader, store_for
 from plugins.bellpull.http import wire
 
 NODE = {"id": "one", "shape": "rectangle", "label": "A", "x": 0, "y": 0, "width": 180, "height": 100, "color": "rose"}
@@ -24,15 +25,13 @@ ADD = {"type": "add-node", "node": NODE}
 
 class CanvasTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.home = Path(self.temp.name)
+        self.home = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.db = SessionDB(self.home / "state.db")
+        self.addCleanup(self.db.close)
         self.db.create_session("chat", "cli"); self.db.create_session("other", "cli")
-        self.store = CanvasStore(self.home, "a" * 64, self.db)
+        self.sessions = self.enterContext(session_reader(self.home))
+        self.store = CanvasStore(self.home, "a" * 64, self.sessions)
         self.store.mutate("chat", {"action": "create", "canvas_id": "drawing", "operation_id": "create", "name": "Example"})
-
-    def tearDown(self):
-        self.db.close(); self.temp.cleanup()
 
     def body(self, action="edit", **fields):
         return {"action": action, "canvas_id": "drawing", "operation_id": uuid.uuid4().hex,
@@ -42,7 +41,7 @@ class CanvasTests(unittest.TestCase):
         cursor = self.store.snapshot("chat")["cursor"]
         body = self.body(operations=[ADD, {"type": "update-node", "id": "one", "changes": {"x": 250}}])
         self.store.mutate("chat", body, turn="turn", tool_call="call")
-        mobile = CanvasStore(self.home, "a" * 64, self.db)
+        mobile = CanvasStore(self.home, "a" * 64, self.sessions)
         events = mobile.events("chat", cursor)
         self.assertEqual([0, 250], [e["snapshot"]["document"]["content"]["nodes"][0]["x"] for e in events])
         self.assertEqual([1, 2], [e["snapshot"]["document"]["revision"] for e in events])
@@ -80,7 +79,7 @@ class CanvasTests(unittest.TestCase):
         with self.assertRaises(CanvasError): self.store.mutate("other", self.body(operations=[ADD]))
         self.assertEqual(before, self.store.snapshot("chat"))
         self.assertEqual([], self.store.snapshot("other")["documents"])
-        self.assertEqual([], CanvasStore(self.home, "b" * 64, self.db).snapshot("chat")["documents"])
+        self.assertEqual([], CanvasStore(self.home, "b" * 64, self.sessions).snapshot("chat")["documents"])
 
     def test_compaction_preserves_canvas_but_ordinary_fork_does_not(self):
         self.db.end_session("chat", "compression")
@@ -146,6 +145,11 @@ class CanvasTests(unittest.TestCase):
 
 
 class CanvasHttpTests(unittest.IsolatedAsyncioTestCase):
+    async def test_room_credentials_cannot_open_the_profile_canvas_store(self):
+        with self.assertRaises(CanvasError) as error:
+            await store_for(SimpleNamespace(_room_grant_token=lambda request: "room"), object())
+        self.assertEqual(403, error.exception.status)
+
     async def test_native_auth_two_clients_live_updates_and_reconnect(self):
         with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}):
             key = secrets.token_hex(32); headers = {"Authorization": "Bearer " + key}
@@ -154,7 +158,17 @@ class CanvasHttpTests(unittest.IsolatedAsyncioTestCase):
             client = TestClient(TestServer(app)); await client.start_server()
             stream = None
             try:
-                database = await adapter._ensure_session_db_async(); database.create_session("chat", "cli")
+                if callable(getattr(adapter, "_ensure_session_db_async", None)):
+                    database = await adapter._ensure_session_db_async()
+                    database.create_session("chat", "cli")
+                    database.end_session("chat", "compression")
+                    database.create_session("tip", "cli", parent_session_id="chat")
+                else:
+                    from persistence.conversation.sessions import NewSession
+                    database = adapter._store_beside(await adapter._ensure_store_async())
+                    await database.aio.sessions.create(NewSession("chat", "cli"))
+                    await database.aio.sessions.end("chat", "compression")
+                    await database.aio.sessions.create(NewSession("tip", "cli", parent_session_id="chat"))
                 base = "/api/bellpull/sessions/chat/canvas"
                 self.assertEqual(401, (await client.get(base)).status)
                 self.assertEqual(404, (await client.get(base.replace("chat", "missing"), headers=headers)).status)
@@ -175,9 +189,14 @@ class CanvasHttpTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(200, (await client.post(base, headers=headers, json=body)).status)
                 stream.close(); stream = await client.get(base + "/events", headers=headers)
                 self.assertEqual(1, (await event())["snapshot"]["document"]["revision"])
+                from_tip = await (await client.get(base.replace("/chat/", "/tip/"), headers=headers)).json()
+                tool_read = await asyncio.to_thread(execute, {"action": "read", "version": 1}, session_id="tip")
+                self.assertEqual(from_tip, tool_read)
+                self.assertEqual(["chat", "tip"], tool_read["session_ids"])
+                self.assertEqual("drawing", tool_read["document"]["id"])
                 response = await client.post(base, headers=headers, json={**body, "operation_id": "stale"})
                 self.assertEqual(409, response.status)
             finally:
                 if stream: stream.close()
                 stop(); await client.close()
-                for db in adapter._session_dbs.values(): db.close()
+                adapter._close_cached_session_dbs()

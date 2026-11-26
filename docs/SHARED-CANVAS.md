@@ -1,5 +1,7 @@
 # Shared Canvas v1
 
+On stock Hermes 0.23.4, the HTTP panel, event stream and drawing tool use the selected profile’s native compression lineage. Account-level API credentials are required for Canvas HTTP access. Hermes 0.21.5 continues to use the legacy session database.
+
 This branch adds `bellpull_canvas` capability and a native tool of the same name.
 The tool is registered for existing conversations; no new chat is required.
 Desktop and Android consume the same profile-scoped scene and event stream.

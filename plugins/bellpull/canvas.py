@@ -1,5 +1,6 @@
 """Shared Canvas v1: authenticated HTTP/SSE and a native Hermes tool."""
 import asyncio
+from contextlib import closing
 from contextvars import ContextVar
 import hashlib
 import json
@@ -35,10 +36,16 @@ def identify_execution(next_call, tool_name="", args=None, **context):
     finally: _call.reset(token)
 
 
-async def store_for(adapter):
+async def store_for(adapter, request):
     from hermes_constants import get_hermes_home
+    room_grant = getattr(adapter, "_room_grant_token", None)
+    if callable(room_grant) and room_grant(request):
+        raise CanvasError("Account-level API credentials are required for Canvas.", 403)
     home = Path(get_hermes_home())
-    database = await adapter._ensure_session_db_async()
+    if callable(getattr(adapter, "_ensure_session_db_async", None)):
+        database = await adapter._ensure_session_db_async()
+    else:
+        database = adapter._store_beside(await adapter._ensure_store_async())
     if database is None: raise CanvasError("Session database is unavailable.", 503)
     return await asyncio.to_thread(CanvasStore, home, artifact_scope(home), database)
 
@@ -46,7 +53,7 @@ async def store_for(adapter):
 def routes(adapter, active=lambda: True):
     async def dispatch(request):
         try:
-            store = await store_for(adapter)
+            store = await store_for(adapter, request)
             session = request.match_info["session_id"]
             if request.method == "POST":
                 body, error = await adapter._read_json_body(request)
@@ -59,7 +66,7 @@ def routes(adapter, active=lambda: True):
 
     async def events(request):
         try:
-            store = await store_for(adapter); session = request.match_info["session_id"]
+            store = await store_for(adapter, request); session = request.match_info["session_id"]
             snapshot = await asyncio.to_thread(store.snapshot, session)
         except CanvasError as exc:
             return web.json_response({"error": {"message": str(exc)}}, status=exc.status)
@@ -85,30 +92,36 @@ def routes(adapter, active=lambda: True):
     return [("GET", base, dispatch), ("POST", base, dispatch), ("GET", base + "/events", events)]
 
 
+def session_reader(home):
+    try:
+        from persistence_assembly import open_persistence_reader
+    except ImportError:
+        from hermes_state import SessionDB
+        return closing(SessionDB(home / "state.db", read_only=True))
+    return open_persistence_reader(home / "state.db")
+
+
 def execute(args, *, session_id="", **kwargs):
     from hermes_constants import get_hermes_home
-    from hermes_state import SessionDB
     from tools.interrupt import is_interrupted
-    database = None
+    home = Path(get_hermes_home())
     try:
-        home = Path(get_hermes_home()); database = SessionDB(home / "state.db", read_only=True)
-        store = CanvasStore(home, artifact_scope(home), database)
-        if not isinstance(args, dict) or args.get("version") != 1: raise CanvasError("Canvas tool version must be 1.")
-        body = {k: v for k, v in args.items() if k != "version"}
-        if body.get("action") == "read":
-            if set(body) != {"action"}: raise CanvasError("Read uses the current conversation; omit other fields.")
-            return store.snapshot(session_id)
-        identity = _call.get()
-        if not identity or identity["session"] != session_id or not identity["call"] or not identity["turn"] or identity["args"] != json.dumps(args, sort_keys=True):
-            raise CanvasError("Native tool-call identity is unavailable; no drawing was changed.", 503)
-        if "operation_id" in body: raise CanvasError("Operation identity is assigned by Hermes.")
-        body["operation_id"] = hashlib.sha256((identity["turn"] + ":" + identity["call"]).encode()).hexdigest()
-        if body.get("action") == "create": body.setdefault("canvas_id", body["operation_id"][:32])
-        return store.mutate(session_id, body, turn=identity["turn"], tool_call=identity["call"], interrupted=is_interrupted)
+        with session_reader(home) as database:
+            store = CanvasStore(home, artifact_scope(home), database)
+            if not isinstance(args, dict) or args.get("version") != 1: raise CanvasError("Canvas tool version must be 1.")
+            body = {k: v for k, v in args.items() if k != "version"}
+            if body.get("action") == "read":
+                if set(body) != {"action"}: raise CanvasError("Read uses the current conversation; omit other fields.")
+                return store.snapshot(session_id)
+            identity = _call.get()
+            if not identity or identity["session"] != session_id or not identity["call"] or not identity["turn"] or identity["args"] != json.dumps(args, sort_keys=True):
+                raise CanvasError("Native tool-call identity is unavailable; no drawing was changed.", 503)
+            if "operation_id" in body: raise CanvasError("Operation identity is assigned by Hermes.")
+            body["operation_id"] = hashlib.sha256((identity["turn"] + ":" + identity["call"]).encode()).hexdigest()
+            if body.get("action") == "create": body.setdefault("canvas_id", body["operation_id"][:32])
+            return store.mutate(session_id, body, turn=identity["turn"], tool_call=identity["call"], interrupted=is_interrupted)
     except (CanvasError, OSError, ValueError) as exc:
         return {"error": str(exc), "status": getattr(exc, "status", 400), "instructions": "Read the canvas before retrying; never overwrite newer manual edits."}
-    finally:
-        if database is not None: database.close()
 
 
 def register(ctx):

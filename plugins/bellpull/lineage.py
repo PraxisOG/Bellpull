@@ -2,6 +2,19 @@
 import json
 
 
+def session_reads_supported(adapter):
+    if callable(getattr(adapter, "_ensure_session_db_async", None)):
+        return True
+    if not all(callable(getattr(adapter, name, None)) for name in
+               ("_ensure_store_async", "_store_beside", "_room_grant_token")):
+        return False
+    try:
+        from persistence.conversation.lineage import LineageRepository
+    except ImportError:
+        return False
+    return callable(getattr(LineageRepository, "lineage", None))
+
+
 def _continuation(child, parent):
     if not parent or parent.get("end_reason") != "compression" or parent.get("ended_at") is None:
         return False

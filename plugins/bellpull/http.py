@@ -15,6 +15,7 @@ from .version import compatibility
 from . import branches, models_files, model_controls, streaming, projects, planning, offline, titles, phone_context, kanban
 from .artifacts import ArtifactError, MAX_BYTES
 from .notifications import Relay
+from .lineage import session_reads_supported
 from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
@@ -56,7 +57,8 @@ def wire(app, adapter):
     # core source revision. Keep the narrower contract separate from branches.
     auth_ready = all(callable(getattr(adapter, key, None)) for key in ("_expected_api_key", "_check_auth"))
     files_ready = auth_ready and callable(getattr(adapter, "_get_existing_session_or_404", None))
-    planning_ready = auth_ready and callable(getattr(adapter, "_read_json_body", None))
+    json_routes_ready = auth_ready and callable(getattr(adapter, "_read_json_body", None))
+    canvas_ready = json_routes_ready and session_reads_supported(adapter) and canvas.available()
     projects_ready = files_ready and all(callable(getattr(adapter, key, None)) for key in
         ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
     # Read-only snapshots and delegation identities do not depend on legacy
@@ -265,18 +267,18 @@ def wire(app, adapter):
                 "bellpull_snapshot_paging": paging_ready,
                 "bellpull_delegation_delivery": paging_ready,
                 "bellpull_projects": projects_ready,
-                "bellpull_canvas": projects_ready and canvas.available(),
+                "bellpull_canvas": canvas_ready,
                 "bellpull_kanban": files_ready and kanban.supported(),
                 "bellpull_kanban_editing": files_ready and kanban.editing_supported(),
                 "bellpull_conversation_pins": projects_ready,
                 "bellpull_coding_activity": coding_ready and coding.supported,
-                "bellpull_planning": planning_ready,
+                "bellpull_planning": json_routes_ready,
                 "bellpull_phone_context": context_ready,
                 "bellpull_background_folder": projects_ready,
                 "bellpull_offline": offline_ready,
                 "bellpull_voice_titles": titles_ready,
                 "bellpull_speech": True,
-                "bellpull_routines": planning_ready and planning.cron_ready(),
+                "bellpull_routines": json_routes_ready and planning.cron_ready(),
                 "bellpull_artifact_lifecycle": files_ready},
             "note": "" if host_ready or attachments_ready else ("Model controls use native Hermes request options. Chat attachments are unavailable on this host."
                 if models_ready else "Persistent file sharing is plugin-owned. Model controls and chat attachments are unavailable on this host.")},
@@ -357,8 +359,9 @@ def wire(app, adapter):
         routes.extend(coding.routes())
     if projects_ready:
         routes.extend(projects.routes(adapter))
-        if canvas.available(): routes.extend(canvas.routes(adapter, lambda: active))
-    if planning_ready:
+    if canvas_ready:
+        routes.extend(canvas.routes(adapter, lambda: active))
+    if json_routes_ready:
         routes.extend(planning.routes(adapter))
     if context_ready:
         routes.extend(phone_context.routes(adapter))

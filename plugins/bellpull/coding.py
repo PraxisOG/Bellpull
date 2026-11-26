@@ -22,7 +22,7 @@ from aiohttp import web
 from .artifacts import ArtifactError, checked_session
 from .coding_executors import consume_frames
 from .coding_workspace import capture_workspace_base
-from .lineage import compression_ids
+from .lineage import compression_ids, session_reads_supported
 from .principal import artifact_scope
 
 MAX_LINE = 131072
@@ -274,15 +274,7 @@ class Observer:
     def __init__(self, adapter):
         self.adapter=adapter
         self.legacy_sessions = callable(getattr(adapter, "_ensure_session_db_async", None))
-        self.can_read_sessions = self.legacy_sessions
-        if not self.legacy_sessions and all(callable(getattr(adapter, name, None)) for name in
-                                            ("_ensure_store_async", "_store_beside", "_room_grant_token")):
-            try:
-                from persistence.conversation.lineage import LineageRepository
-            except ImportError:
-                pass
-            else:
-                self.can_read_sessions = callable(getattr(LineageRepository, "lineage", None))
+        self.can_read_sessions = session_reads_supported(adapter)
         self.stores={}
         self.partial={}
         self.exit_receipts = {}

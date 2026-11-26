@@ -156,6 +156,11 @@ class CanvasStore:
 
     def chain(self, session):
         checked_session(session)
+        if hasattr(self.database, "lineage"):
+            chain = self.database.lineage.lineage(session)
+            if session not in chain:
+                raise CanvasError("Conversation does not exist in this profile.", 404)
+            return list(chain) if len(chain) <= 1000 else [session]
         if not self.database.get_session(session): raise CanvasError("Conversation does not exist in this profile.", 404)
         return compression_ids(self.database, session)
 
