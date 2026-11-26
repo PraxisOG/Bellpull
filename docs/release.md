@@ -1,3 +1,7 @@
+## Stop a Desktop coding run from Android · 0.20.20 / build 70
+
+Open the task in **Coding activity** on Android and choose **Stop this Hermes run**. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.20-experimental.1) · [Release notes](RELEASE-0.20.20-EXPERIMENTAL.md)
+
 ## Coding task cancellation · 0.20.19 / build 69
 
 Install the matching plugin to see **Stopped** in coding activity after Hermes confirms that it stopped the executor. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.19-experimental.1) · [Release notes](RELEASE-0.20.19-EXPERIMENTAL.md)

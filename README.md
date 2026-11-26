@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.19 / build 69 and plugin 0.9.14-mobile-preview**
-> Coding activity shows **Stopped** when Hermes confirms that it stopped the executor.
-> [Release notes](docs/RELEASE-0.20.19-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.20 / build 70 and plugin 0.9.14-mobile-preview**
+> Open a Desktop-started task in Android coding activity to stop its original Hermes run.
+> [Release notes](docs/RELEASE-0.20.20-EXPERIMENTAL.md).
 
 <div align="center">
 
