@@ -85,7 +85,8 @@ def wire(app, adapter):
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
     context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)
-    attachments_ready, stop_attachments = native_attachments.wire(app, adapter) if files_ready and stock_models_ready and not host_ready else (False, lambda: None)
+    attachments_ready = files_ready and stock_models_ready and not host_ready and native_attachments.supported(adapter)
+    stop_attachments = None
     models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
     housekeeping = {}
@@ -111,10 +112,10 @@ def wire(app, adapter):
                 return web.json_response({"error": {"message": "Bellpull instructions are limited to 2048 characters."}}, status=400)
         return await handler(request)
 
-    app.middlewares.append(prompt_limit)
 
     def deactivate():
-        stop_attachments()
+        if stop_attachments is not None:
+            stop_attachments()
         stop_context()
         stop_models()
         stop_streaming()
@@ -135,7 +136,6 @@ def wire(app, adapter):
             relay.start()
             await speech.start(_app)
             await coding.start(_app)
-    app.on_startup.append(start)
 
     def schedule(callback):
         if loop.is_closed():
@@ -387,6 +387,12 @@ def wire(app, adapter):
     if collisions:
         stop()
         raise RuntimeError("Bellpull routes already installed. Use the clean host image and disable the legacy bellpull_gpu plugin.")
+    # Once armed, the attachment bridge must survive unload for already-admitted
+    # runs. Install it only after the router has accepted our namespace.
+    if attachments_ready:
+        _, stop_attachments = native_attachments.wire(app, adapter)
+    app.middlewares.append(prompt_limit)
+    app.on_startup.append(start)
     if host_ready:
         host.register(adapter, app, host.Hooks("bellpull", prepare, relay.status,
             models_files.request_overrides, close))
