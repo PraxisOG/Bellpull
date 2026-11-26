@@ -317,6 +317,12 @@ scoping. No phone-to-OpenCode connection or new run admission is involved.
   Binary/oversized/symlink/inaccessible previews return visible errors. No writes,
   external diff/textconv/hooks, filesystem search, revert or terminal endpoint.
 
+On Hermes 0.23.4, account-level API credentials can read coding activity and
+workspace changes through the gateway's persistence interface. The selected
+profile's compression lineage determines which session IDs share activity.
+Branches, delegates and resets keep their own histories. The legacy session
+database supplies the same reads on Hermes 0.21.5.
+
 Pass `executors=all` on the coding activity GET to include Hermes-owned
 `codex exec --json` and `claude -p --verbose --output-format stream-json`
 processes. The default projection retains the OpenCode view for older clients.

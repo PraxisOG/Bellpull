@@ -1,3 +1,7 @@
+## Coding activity on stock Hermes 0.23.4 · plugin 0.9.20
+
+Android and Desktop can read the original executor’s activity and workspace changes through the current Hermes conversation store. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.20-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.20-EXPERIMENTAL.md)
+
 ## Coding activity and tool permissions · plugin 0.9.19
 
 Claude Code can finish a turn after a tool was denied. Coding activity shows both outcomes and follows Codex JSON runs with leading approval or configuration options. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.19-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.19-EXPERIMENTAL.md)

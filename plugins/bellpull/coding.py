@@ -273,6 +273,16 @@ class CodingStore:
 class Observer:
     def __init__(self, adapter):
         self.adapter=adapter
+        self.legacy_sessions = callable(getattr(adapter, "_ensure_session_db_async", None))
+        self.can_read_sessions = self.legacy_sessions
+        if not self.legacy_sessions and all(callable(getattr(adapter, name, None)) for name in
+                                            ("_ensure_store_async", "_store_beside", "_room_grant_token")):
+            try:
+                from persistence.conversation.lineage import LineageRepository
+            except ImportError:
+                pass
+            else:
+                self.can_read_sessions = callable(getattr(LineageRepository, "lineage", None))
         self.stores={}
         self.partial={}
         self.exit_receipts = {}
@@ -467,15 +477,32 @@ class Observer:
         else:
             self.partial[identity]=pending
 
+    def require_profile_owner(self, request):
+        room_grant = getattr(self.adapter, "_room_grant_token", None)
+        if callable(room_grant) and room_grant(request):
+            raise ArtifactError("Account-level API credentials are required for coding activity.", 403)
+
+    async def session_aliases(self, session):
+        if self.legacy_sessions:
+            database = await self.adapter._ensure_session_db_async()
+            if database is None:
+                raise ArtifactError("Session database is unavailable.", 503)
+            return await asyncio.to_thread(compression_ids, database, session)
+        store = self.adapter._store_beside(await self.adapter._ensure_store_async())
+        if store is None:
+            raise ArtifactError("Session database is unavailable.", 503)
+        aliases = await store.aio.lineage.lineage(session)
+        return aliases if len(aliases) <= 1000 and session in aliases else [session]
+
     async def snapshot(self, request):
+        self.require_profile_owner(request)
         session=checked_session(request.match_info["session_id"])
         _,error=await self.adapter._get_existing_session_or_404(session)
         if error is not None: return error
         from hermes_constants import get_hermes_home
         home=Path(get_hermes_home())
         store=self.store(home)
-        database=await self.adapter._ensure_session_db_async()
-        aliases=await asyncio.to_thread(compression_ids,database,session)
+        aliases=await self.session_aliases(session)
         raw=request.query.get("after")
         if raw is not None and not re.fullmatch(r"[0-9]{1,18}",raw):
             raise ArtifactError("Invalid activity cursor.",400)
@@ -487,6 +514,7 @@ class Observer:
         return web.json_response(value,headers={"Cache-Control":"no-store"})
 
     async def workspace(self, request):
+        self.require_profile_owner(request)
         from hermes_constants import get_hermes_home
         from .coding_workspace import inspect_workspace
         wid=request.match_info["work_id"]

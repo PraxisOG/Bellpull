@@ -91,6 +91,7 @@ def wire(app, adapter):
     stop_attachments = None
     models_ready = host_ready or stock_models_ready
     coding = Observer(adapter)
+    coding_ready = files_ready and coding.can_read_sessions
     housekeeping = {}
     active = True
     closed = False
@@ -268,7 +269,7 @@ def wire(app, adapter):
                 "bellpull_kanban": files_ready and kanban.supported(),
                 "bellpull_kanban_editing": files_ready and kanban.editing_supported(),
                 "bellpull_conversation_pins": projects_ready,
-                "bellpull_coding_activity": coding.supported,
+                "bellpull_coding_activity": coding_ready and coding.supported,
                 "bellpull_planning": planning_ready,
                 "bellpull_phone_context": context_ready,
                 "bellpull_background_folder": projects_ready,
@@ -352,7 +353,7 @@ def wire(app, adapter):
     routes.extend(speech.routes())
     if files_ready and kanban.supported():
         routes.extend(kanban.routes(adapter))
-    if projects_ready:
+    if coding_ready:
         routes.extend(coding.routes())
     if projects_ready:
         routes.extend(projects.routes(adapter))

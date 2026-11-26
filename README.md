@@ -1,6 +1,6 @@
-> **Latest experimental release · Plugin 0.9.19-mobile-preview and Android 0.20.22 / build 72**
-> Coding activity shows Claude tool permission denials and recognizes Codex runs with leading approval or configuration options.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.19-EXPERIMENTAL.md).
+> **Latest experimental release · Plugin 0.9.20-mobile-preview and Android 0.20.22 / build 72**
+> Coding activity on stock Hermes 0.23.4 shows the original executor and its recorded output.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.20-EXPERIMENTAL.md).
 
 <div align="center">
 
