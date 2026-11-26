@@ -436,9 +436,12 @@ internal class DurableRuns(
             val current = states[sessionId]?.submission ?: return
             val next = current.copy(historyChecks = current.historyChecks + 1,
                 historyNeedsReview = current.historyChecks + 1 >= maxHistoryChecks)
+            // Review releases the composer and permits closing the chat. Persist
+            // the stop-polling decision before making that transition visible.
+            if (!save(next)) return
+            if (states[sessionId]?.submission?.requestId != next.requestId) return
             update(sessionId) { it.copy(submission = next,
                 notice = if (next.historyNeedsReview) historyReviewNotice else it.notice) }
-            save(next)
             if (next.historyNeedsReview) return
             delay(retryMs)
         }
