@@ -225,7 +225,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         coding = CodingActivityWorkspace(scope, client, cache?.let { saved -> object : CodingCache {
             override fun readCoding(id: String) = saved.readCoding(id)
             override fun writeCoding(value: org.praxisog.hermes.model.CodingSnapshot) = saved.writeCoding(value)
-        } }, capabilities.features["bellpull_coding_activity"] == true)
+        } }, capabilities.features["bellpull_coding_activity"] == true,
+            stopSupported = capabilities.features["run_stop"] == true)
         delivery = cache?.let { DeliveryWorkspace(context, profileId.orEmpty(), scope, it, client,
             capabilities.features["bellpull_planning"] == true, capabilities.features["bellpull_notification_history"] == true) { snapshot -> planning?.acceptSnapshot(snapshot) } }
         planning = cache?.let { PlanningWorkspace(scope,client,it,context,capabilities.features["bellpull_planning"]==true, delivery) }
@@ -297,7 +298,8 @@ internal class BellpullRuntime private constructor(context: Context) {
             kanban?.configure(current, result.value.features["bellpull_kanban"] == true)
             phoneContext?.configure(current, result.value.features["bellpull_phone_context"] == true)
             syncOfflineMemory()
-            coding?.configure(result.value.features["bellpull_coding_activity"] == true)
+            coding?.configure(result.value.features["bellpull_coding_activity"] == true,
+                result.value.features["run_stop"] == true)
             planning?.supported = result.value.features["bellpull_planning"]==true
             canvas?.supported = result.value.features["bellpull_canvas"]==true
             delivery?.supported = result.value.features["bellpull_planning"]==true

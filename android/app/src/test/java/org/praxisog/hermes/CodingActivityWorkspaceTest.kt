@@ -100,6 +100,10 @@ class CodingActivityWorkspaceTest {
             workspace.observe("root", true)
             waitUntil { !workspace.disconnected && !workspace.loading }
             workspace.stopObserved(workId)
+            assertFalse(requests.any { "/v1/runs/" in it })
+            workspace.configure(true, true)
+            waitUntil { !workspace.disconnected && !workspace.loading }
+            workspace.stopObserved(workId)
             waitUntil { !workspace.stopInFlight }
             assertTrue(workspace.stopNotice!!.contains("confirm"))
             status = status.copy(sessionId = "root", status = "completed")

@@ -69,7 +69,7 @@ internal fun CodingActivityPanel(snapshot: CodingSnapshot?, loading: Boolean, su
                             work.workspaceLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                             Text(work.note, style = MaterialTheme.typography.bodySmall)
                             if (work.workspaceId != null) TextButton(onClick = { onInspect(work.id) }) { Text("Workspace changes") }
-                            if (observedRuns != null && supported && snapshot?.available == true && work.id in stopTargets) {
+                            if (observedRuns?.stopSupported == true && supported && snapshot?.available == true && work.id in stopTargets) {
                                 TextButton(onClick = { observedRuns.stopObserved(work.id) },
                                     enabled = !disconnected && !loading && !observedRuns.stopInFlight) {
                                     Text("Stop this Hermes run")

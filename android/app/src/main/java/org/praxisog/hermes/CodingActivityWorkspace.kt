@@ -13,8 +13,9 @@ internal interface CodingCache {
 /** Observes coding activity. Only an explicit user action may stop an observed run. */
 internal class CodingActivityWorkspace(private val scope: CoroutineScope, private val client: HermesClient,
     private val cache: CodingCache? = null, supported: Boolean = false,
-    private val pollMs: Long = 1000) {
+    private val pollMs: Long = 1000, stopSupported: Boolean = false) {
     var supported by mutableStateOf(supported); private set
+    var stopSupported by mutableStateOf(stopSupported); private set
     var snapshot by mutableStateOf<CodingSnapshot?>(null); private set
     var sessionId by mutableStateOf<String?>(null); private set
     var loading by mutableStateOf(false); private set
@@ -33,9 +34,10 @@ internal class CodingActivityWorkspace(private val scope: CoroutineScope, privat
     private var stopJob: Job? = null
     private var visible = false
     private var closed = false
-    fun configure(value: Boolean) {
-        if (value == supported) return
+    fun configure(value: Boolean, canStop: Boolean) {
+        if (value == supported && canStop == stopSupported) return
         supported = value
+        stopSupported = canStop
         sessionId?.let { observe(it, visible) }
     }
     fun observe(id: String, active: Boolean) {
@@ -83,7 +85,7 @@ internal class CodingActivityWorkspace(private val scope: CoroutineScope, privat
     fun retry() { snapshot = null; sessionId?.let { observe(it, visible) } }
 
     fun stopObserved(workId: String) {
-        if (closed || !visible || !supported || disconnected || stopInFlight) return
+        if (closed || !visible || !supported || !stopSupported || disconnected || stopInFlight) return
         val current = snapshot?.takeIf { it.available && it.sessionId == sessionId } ?: return
         val work = current.works.firstOrNull { it.id == workId && it.state == "running" } ?: return
         stopTarget = work.id
