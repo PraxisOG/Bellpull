@@ -129,6 +129,22 @@ class DeliveryTest {
         assertTrue(crowded.reconcile(snap, 16000).entries.none { it.id == original.id })
     }
 
+    @Test fun aReplacementOwnerRemainsVisibleAcrossReplayUntilTheOriginalReceiptSettles() {
+        val receipt = BotChatReceipt("bot-chat:(own)", "b".repeat(64), "claimed", "owner", "1".repeat(32))
+        fun page(item: BotChatReceipt) = BotChatHistory(listOf(HistoricalBotChatDelivery("job", "stamp", item)))
+        val first = DeliveryState().rememberHistory(page(receipt.copy(ownerState = "registered")), 100)
+        val changed = first.rememberHistory(page(receipt.copy(ownerState = "replaced")), 200)
+        val stale = changed.rememberHistory(page(receipt.copy(status = "queued", ownerState = "registered")), 300)
+            .rememberHistory(page(receipt), 400)
+        assertEquals(changed, stale)
+        assertEquals("Bot Chat · claimed · owner changed, outcome unconfirmed", stale.entries.single().displayBody)
+        val settled = stale.rememberHistory(page(receipt.copy(status = "settled")), 500)
+        assertEquals("Bot Chat · completed", settled.entries.single().displayBody)
+        assertEquals(settled, settled.rememberHistory(page(receipt.copy(ownerState = "replaced")), 600))
+        val legacy = stale.entries.single().copy(body = "Bot Chat · processing", botChatReceipt = receipt)
+        assertEquals("Bot Chat · claimed, outcome unconfirmed", legacy.displayBody)
+    }
+
     @Test fun transferredDeferredReceiptCanAdvanceThroughNativeOwnerProcessingAndSettlement() {
         val receipt = BotChatReceipt("bot-chat:(own)", "b".repeat(64), "transferred", "deferred")
         val owned = receipt.copy(status = "queued", source = "owner")

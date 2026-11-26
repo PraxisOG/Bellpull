@@ -28,7 +28,9 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
 
 @Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String,
     @SerialName("execution_id") val executionId: String? = null,
-    @SerialName("degraded_notice") val degradedNotice: Boolean = false) {
+    @SerialName("degraded_notice") val degradedNotice: Boolean = false,
+    @SerialName("owner_state") val ownerState: String? = null) {
+    internal val pendingOwner get() = source == "owner" && (status == "queued" || status == "claimed")
     private val evidenceRank get() = when (source) {
         "owner" -> 3
         "deferred" -> 2
@@ -45,9 +47,14 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
     }
 
     fun label(): String {
-        val state = when (status) {
+        val state = if (pendingOwner) when (ownerState) {
+            "replaced" -> "$status · owner changed, outcome unconfirmed"
+            "absent" -> "$status · owner was absent at last check"
+            "registered" -> "$status · owner was registered at last check"
+            else -> if (status == "claimed") "claimed, outcome unconfirmed" else "queued"
+        } else when (status) {
             "queued" -> "queued"
-            "claimed" -> "processing"
+            "claimed" -> "claimed, outcome unconfirmed"
             "settled" -> "completed"
             "failed", "ambiguous", "suppressed", "cancelled" -> status
             "transferred" -> "handed off, completion unconfirmed"

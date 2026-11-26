@@ -2,11 +2,14 @@
 import codecs
 from contextlib import contextmanager
 import errno
+from functools import cached_property
 import hashlib
 import heapq
 import os
+from pathlib import Path
 import re
 import stat
+import time
 
 from .artifacts import ArtifactError
 
@@ -22,12 +25,55 @@ def receipt_status(value):
     return value if isinstance(value, str) and value in known else "unknown"
 
 
-def bot_chat_receipts(job):
+class BotChatOwners:
+    """One lazy, profile-scoped observation for a receipt page or routine listing."""
+
+    def __init__(self, home):
+        self.home = Path(home).resolve()
+
+    @cached_property
+    def snapshot(self):
+        try:
+            from hermes_cli.active_sessions import active_session_registry_snapshot
+            before_read = time.time_ns()
+            return before_read, active_session_registry_snapshot(registry_home=self.home, strict=True)
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+            return None
+
+    def evidence(self, receipt):
+        if receipt.get("status") not in ("queued", "claimed"):
+            return {}
+        owner = receipt.get("owner")
+        if not isinstance(owner, dict) or owner.get("profile_home") != str(self.home):
+            return {}
+        if not all(isinstance(owner.get(k), str) and owner[k] for k in ("session_id", "lease_id", "live_session_id")):
+            return {}
+        if self.snapshot is None:
+            return {}
+        sampled_at, leases = self.snapshot
+        admitted_at = receipt.get("claimed_at") or receipt.get("created_at")
+        # Later rows on the page can have changed since the registry was sampled.
+        if not isinstance(admitted_at, int) or not 0 < admitted_at <= sampled_at:
+            return {}
+        for entry in leases:
+            if entry["lease_id"] == owner["lease_id"]:
+                # A live owner can keep the same lease when its chat is compressed.
+                metadata = entry.get("metadata") or {}
+                if metadata.get("live_session_id") == owner["live_session_id"]:
+                    return {"owner_state": "registered"}
+                return {}
+        if any(entry["session_id"] == owner["session_id"] for entry in leases):
+            return {"owner_state": "replaced"}
+        return {"owner_state": "absent"}
+
+
+def bot_chat_receipts(job, owners=None):
     """Project only producer-referenced receipts. Never enter another target profile."""
     queued = job.get("last_delivery_queued")
     if not isinstance(queued, dict):
         return []
     from hermes_constants import get_hermes_home
+    owners = owners or BotChatOwners(get_hermes_home())
     records = []
     for target, hint in queued.items():
         if not isinstance(target, str) or not target.startswith("bot-chat:") or not isinstance(hint, dict):
@@ -37,12 +83,14 @@ def bot_chat_receipts(job):
             continue
         state = hint.get("status")
         source = "scheduler"
+        evidence = {}
         try:
             from cron.bot_chat_delivery import read_pending
             from tools.bot_live_delivery import read_delivery_result
             live = read_delivery_result(get_hermes_home(), key) if target == "bot-chat:(own)" else None
             if live and live.get("delivery_id") == key:
                 state, source = live.get("status"), "owner"
+                evidence = owners.evidence(live)
             else:
                 pending = read_pending(key)
                 if (pending and pending.get("id") == key and isinstance(pending.get("job"), dict)
@@ -51,7 +99,7 @@ def bot_chat_receipts(job):
         except (ImportError, OSError, ValueError, TypeError):
             pass
         records.append(dict(target=target, id=key, status=receipt_status(state),
-                            source=source))
+                            source=source, **evidence))
     return records
 
 

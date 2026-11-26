@@ -409,7 +409,7 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
     items(visible, key={ it.id }) { entry -> PlanningCard {
         Text(entry.title, style=MaterialTheme.typography.titleSmall)
         Text("${entry.kind} · ${displayInstant(entry.receivedAt)} · ${if (entry.dismissedAt != null) "Dismissed" else if (entry.openedAt == null) "Unread" else "Opened"}", style=MaterialTheme.typography.bodySmall)
-        Text(entry.body.take(500), maxLines=3, overflow=TextOverflow.Ellipsis)
+        Text(entry.displayBody.take(500), maxLines=3, overflow=TextOverflow.Ellipsis)
         FlowRow {
             TextButton(onClick={ mark(entry.id, false); selected=entry }) { Text("Read saved item") }
             if (entry.dismissedAt == null) TextButton(onClick={ mark(entry.id, true) }) { Text("Dismiss inbox item") }
@@ -420,7 +420,7 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
         val entry = entries.find { it.id == selectedEntry.id } ?: selectedEntry
         AlertDialog(onDismissRequest={ selected=null }, title={ Text(entry.title) },
         text={ Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
-            Text(entry.body)
+            Text(entry.displayBody)
             entry.runReceipt?.let { receipt ->
                 Text("Occurred ${displayInstant((receipt.occurredAt * 1000).toLong())}")
                 Text(receipt.acceptedAt?.let { "Relay accepted ${displayInstant((it * 1000).toLong())}" }
