@@ -113,31 +113,51 @@ def selected_answer(home, job, stamp, revision):
     # a large scheduler prompt never enters the redactor or the new Bot Chat turn.
     marker = "\n## Response\n"
     prompt_marker = "\n## Prompt\n"
+    native_answer_format = True
     tail = ""
     start = None
     has_prompt = False
     offset = 0
     while offset is not None:
         page = routine_results.read_result(home, job, stamp, revision, str(offset))
+        if offset == 0:
+            text = page["text"]
+            title = text.partition("\n")[0]
+            if title.startswith("# Cron Job: ") and title.endswith(" (FAILED)"):
+                marker = "\n## Error\n"
+                native_answer_format = False
+            script = re.match(r"^# Cron Job: [^\n]*\n\n\*\*Job ID:\*\* " + re.escape(job) +
+                              r"\n\*\*Run Time:\*\* [^\n]+\n\*\*Mode:\*\* no_agent \(script\)\n", text)
+            if script:
+                body = text[script.end():]
+                if body.startswith("\n---\n\n"):
+                    start = len(text[:script.end()].encode()) + len("\n---\n\n")
+                elif body.startswith("**Status:** script failed\n"):
+                    start = len(text[:script.end()].encode())
+                else:
+                    raise ArtifactError("This script archive has no saved output to process.", 409)
+                native_answer_format = False
+                break
         chunk = tail + page["text"]
         index = chunk.rfind(marker)
         if index >= 0:
             start = offset - len(tail.encode()) + len(chunk[:index + len(marker)].encode())
         has_prompt = has_prompt or prompt_marker in chunk
-        tail = chunk[-(len(marker) - 1):]
+        tail = chunk[-(max(len(marker), len(prompt_marker)) - 1):]
         offset = page["next"]
     if start is None and has_prompt:
         raise ArtifactError("This archive has no saved answer to process.", 409)
     # Redact the entire answer before clipping so patterns spanning pages stay private.
     with StringIO() as retained:
-        if start is not None:
+        if start is not None and native_answer_format:
             retained.write("## Response\n")
         offset = start or 0
         while offset is not None:
             page = routine_results.read_result(home, job, stamp, revision, str(offset))
             retained.write(page["text"])
             offset = page["next"]
-        answer = _archive_answer(retained.getvalue())
+        raw = retained.getvalue()
+        answer = _archive_answer(raw) if native_answer_format else raw.strip()
     if not answer or not answer.strip() or answer.strip() == "(No response generated)":
         raise ArtifactError("This archive has no saved answer to process.", 409)
     return "Summarize this saved routine result for Bot Chat.\n\n" + _clip_to_context_budget(_redact_cron_payload(answer, "reviewed result"))
