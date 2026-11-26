@@ -85,13 +85,13 @@ def bot_chat_receipts(job, owners=None):
         source = "scheduler"
         evidence = {}
         try:
-            from cron.bot_chat_delivery import read_pending
             from tools.bot_live_delivery import read_delivery_result
             live = read_delivery_result(get_hermes_home(), key) if target == "bot-chat:(own)" else None
-            if live and live.get("delivery_id") == key:
+            if live and live.get("delivery_id") == key and live.get("profile_home") == str(owners.home):
                 state, source = live.get("status"), "owner"
                 evidence = owners.evidence(live)
             else:
+                from cron.bot_chat_delivery import read_pending
                 pending = read_pending(key)
                 if (pending and pending.get("id") == key and isinstance(pending.get("job"), dict)
                         and pending["job"].get("id") == job["id"]):

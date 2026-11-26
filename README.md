@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.22 / build 72 and plugin 0.9.16-mobile-preview**
-> In Today’s calendar, you can see when Hermes confirmed the read from your phone.
-> [Release notes](docs/RELEASE-0.20.22-EXPERIMENTAL.md).
+> **Latest experimental release · Plugin 0.9.17-mobile-preview and Android 0.20.22 / build 72**
+> Today and Routines work on stock Hermes 0.23.4. A routine shows when the Bot Chat owner completed delivery.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.17-EXPERIMENTAL.md).
 
 <div align="center">
 

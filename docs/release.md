@@ -1,3 +1,7 @@
+## Planning on stock Hermes 0.23.4 · plugin 0.9.17
+
+Today, Calendar and Routines are available on the current gateway. Routines follows the owner’s receipt after a queued delivery settles. The APK is the signed Android 0.20.22 build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.17-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.17-EXPERIMENTAL.md)
+
 ## Phone calendar confirmation · 0.20.22 / build 72
 
 Today’s calendar shows the phone read that Hermes confirmed. The matching plugin keeps newer reads when an older upload arrives late. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.22-experimental.1) · [Release notes](RELEASE-0.20.22-EXPERIMENTAL.md)

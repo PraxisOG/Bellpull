@@ -1,10 +1,11 @@
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from plugins.bellpull.planning import PlanningStore, routine_action, routines, digest, cron_ready
 from plugins.bellpull.artifacts import ArtifactError
 from aiohttp import web
@@ -333,13 +334,16 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
     async def test_native_auth_plugin_discovery_retry_and_phone_cache(self):
         with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{"HERMES_HOME":home,"BELLPULL_NTFY_URL":""}):
             adapter=APIServerAdapter(PlatformConfig(enabled=True,extra={"key":"fixture-planning-only"}))
-            app=web.Application(); stop=wire(app,adapter)
+            app=web.Application()
+            with patch.object(adapter, "_ensure_session_db_async", None, create=True):
+                stop=wire(app,adapter)
             client=TestClient(TestServer(app)); await client.start_server()
             headers={"Authorization":"Bearer fixture-planning-only"}
             try:
                 self.assertEqual(401,(await client.get("/api/bellpull/planning")).status)
                 capabilities=await (await client.get("/api/bellpull/capabilities",headers=headers)).json()
                 self.assertTrue(capabilities["features"]["bellpull_planning"])
+                self.assertFalse(capabilities["features"]["bellpull_projects"])
                 body=dict(operation_id="a"*32,action="create",title="Only one",due_ms=int(time.time()*1000)+60000)
                 for _ in range(2): self.assertEqual(200,(await client.post("/api/bellpull/planning/reminders",headers=headers,json=body)).status)
                 snapshot=await (await client.get("/api/bellpull/planning",headers=headers)).json()
@@ -426,6 +430,22 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
 
 
 class RoutineOutputTest(unittest.TestCase):
+    def test_current_owner_receipt_without_a_deferred_queue_reader(self):
+        from plugins.bellpull.routine_results import bot_chat_receipts
+        key = "a" * 64
+        job = {"id": "routine", "last_delivery_queued": {
+            "bot-chat:(own)": {"status": "queued", "delivery_id": key}}}
+        native = Mock()
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home}), \
+                patch.dict(sys.modules, {"cron.bot_chat_delivery": None, "tools.bot_live_delivery": native}):
+            actual = {"profile_home": home, "delivery_id": key, "status": "settled"}
+            native.read_delivery_result.return_value = actual
+            receipt, = bot_chat_receipts(job)
+            self.assertEqual(("owner", "settled"), (receipt["source"], receipt["status"]))
+            actual["profile_home"] = str(Path(home) / "other")
+            receipt, = bot_chat_receipts(job)
+            self.assertEqual(("scheduler", "queued"), (receipt["source"], receipt["status"]))
+
     def test_bot_chat_receipt_tracks_native_owner_and_preserves_ambiguous_state(self):
         from plugins.bellpull.routine_results import bot_chat_receipts
         try:
