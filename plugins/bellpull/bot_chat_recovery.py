@@ -109,34 +109,35 @@ def selected_answer(home, job, stamp, revision):
     from cron.scheduler_prompt import _archive_answer
     from cron.scheduler_delivery import _redact_cron_payload
     from cron.scheduler_prompt import _clip_to_context_budget
-    # Discard the previous prompt as soon as the writer's response boundary is
-    # found, including boundaries spanning two UTF-8 pages. The native redactor
-    # needs the complete answer before clipping so secrets spanning pages stay private.
+    # Locate the writer's last response heading by byte position. In particular,
+    # a large scheduler prompt never enters the redactor or the new Bot Chat turn.
     marker = "\n## Response\n"
     prompt_marker = "\n## Prompt\n"
-    saved = StringIO()
     tail = ""
-    has_response = has_prompt = False
+    start = None
+    has_prompt = False
     offset = 0
     while offset is not None:
         page = routine_results.read_result(home, job, stamp, revision, str(offset))
         chunk = tail + page["text"]
-        if prompt_marker in chunk:
-            has_prompt = True
-        if marker in chunk:
-            has_response = True
-            saved.seek(0)
-            saved.truncate()
-            chunk = chunk.rpartition(marker)[2]
-        keep = min(len(chunk), len(marker) - 1) if page["next"] is not None else 0
-        saved.write(chunk[:len(chunk) - keep])
-        tail = chunk[len(chunk) - keep:]
+        index = chunk.rfind(marker)
+        if index >= 0:
+            start = offset - len(tail.encode()) + len(chunk[:index + len(marker)].encode())
+        has_prompt = has_prompt or prompt_marker in chunk
+        tail = chunk[-(len(marker) - 1):]
         offset = page["next"]
-    archive = saved.getvalue()
-    saved.close()
-    if not has_response and has_prompt:
+    if start is None and has_prompt:
         raise ArtifactError("This archive has no saved answer to process.", 409)
-    answer = _archive_answer(("## Response\n" if has_response else "") + archive)
+    # Redact the entire answer before clipping so patterns spanning pages stay private.
+    with StringIO() as retained:
+        if start is not None:
+            retained.write("## Response\n")
+        offset = start or 0
+        while offset is not None:
+            page = routine_results.read_result(home, job, stamp, revision, str(offset))
+            retained.write(page["text"])
+            offset = page["next"]
+        answer = _archive_answer(retained.getvalue())
     if not answer or not answer.strip() or answer.strip() == "(No response generated)":
         raise ArtifactError("This archive has no saved answer to process.", 409)
     return "Summarize this saved routine result for Bot Chat.\n\n" + _clip_to_context_budget(_redact_cron_payload(answer, "reviewed result"))

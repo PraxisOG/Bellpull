@@ -122,6 +122,25 @@ class BotChatRecoveryTest(unittest.TestCase):
             recovery.retry(self.store, dict(request, selection=dict(chosen, revision="e"*64)))
         self.assertEqual(original, queue.read_pending(self.notice))
 
+    def test_archived_prompt_and_split_unicode_heading_stay_out_of_clipped_result(self):
+        from cron import jobs
+        prefix = "# Cron Job: report\n\n## Prompt\n\nprivate instructions " + "é" * 20000
+        # Force the response marker to straddle the native 32 KiB read boundary.
+        prefix += "x" * (2 * routine_results.CHUNK_BYTES - 4 - len(prefix.encode()))
+        with jobs.use_cron_store(self.home):
+            jobs.save_job_output(self.job, prefix + "\n## Response\n" + "start" + "α"*12000 + "end")
+        file, = routine_results.list_results(self.home, job=self.job)["results"]
+        answer = recovery.selected_answer(self.home, self.job, file["stamp"], file["revision"])
+        self.assertNotIn("private instructions", answer)
+        self.assertIn("start", answer)
+        self.assertIn("chars omitted", answer)
+        self.assertTrue(answer.endswith("end"))
+        with jobs.use_cron_store(self.home):
+            jobs.save_job_output("no-answer", "# Cron Job: unfinished\n\n## Prompt\n\nOnly the old instructions.")
+        incomplete, = routine_results.list_results(self.home, job="no-answer")["results"]
+        with self.assertRaises(ArtifactError):
+            recovery.selected_answer(self.home, "no-answer", incomplete["stamp"], incomplete["revision"])
+
     def test_pruned_original_and_child_never_readmit_a_saved_decision(self):
         self.original()
         with patch.object(self.native, "find_canonical_live_owner", return_value=None), self.assertRaises(ArtifactError):
