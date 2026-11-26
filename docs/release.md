@@ -1,3 +1,7 @@
+## Unavailable calendar accounts · Android 0.20.27 experimental
+
+Build 77 reports missing selected accounts and confirms a fresh planning read when they return. Includes server plugin 0.9.26. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.27-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.27-experimental.1/docs/RELEASE-0.20.27-EXPERIMENTAL.md)
+
 ## Coding activity on stock Hermes 0.23.4 · plugin 0.9.26 experimental
 
 Android and Desktop can follow the same Codex or Claude Code process when a phone chat starts it on a stock gateway. Includes signed Android build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.26-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.26-experimental.1/docs/RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md)
