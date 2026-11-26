@@ -219,18 +219,26 @@ def _observe_provider_fallback(agent, emit):
     def observed(*args, **kwargs):
         before = _route_identity(agent)
         result = activate(*args, **kwargs)
-        if result is True and before and getattr(agent, "_provider_fallback_active", None) is True:
-            after = _route_identity(agent)
-            if after and getattr(agent, "_provider_fallback_route", None) == (after["model"], after["provider"]):
-                try:
-                    from agent.models_dev import get_model_capabilities
-                    caps = get_model_capabilities(after["provider"], after["model"], allow_network=False)
-                    vision = getattr(caps, "supports_vision", None)
-                    if isinstance(vision, bool):
-                        after["vision"] = vision
-                except Exception:
-                    pass  # Capability information is optional on older hosts.
+        if result is True and before:
+            after = _fallback_destination(agent, _route_identity(agent))
+            if after:
                 emit({"from": before, "to": after})
         return result
 
     agent._try_activate_fallback = observed
+
+
+def _fallback_destination(agent, route):
+    if (not route or getattr(agent, "_provider_fallback_active", None) is not True
+            or getattr(agent, "_provider_fallback_route", None) != (route["model"], route["provider"])):
+        return None
+    route = dict(route)
+    try:
+        from agent.models_dev import get_model_capabilities
+        caps = get_model_capabilities(route["provider"], route["model"], allow_network=False)
+        vision = getattr(caps, "supports_vision", None)
+        if isinstance(vision, bool):
+            route["vision"] = vision
+    except Exception:
+        pass  # Capability information is optional on older hosts.
+    return route

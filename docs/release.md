@@ -1,3 +1,7 @@
+## Provider switches on stock Hermes 0.23.4 · plugin 0.9.24
+
+An admitted chat run reports a confirmed fallback and its advertised image support. Message info can recover the model that answered after a gateway restart. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.24-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.24-EXPERIMENTAL.md)
+
 ## Opted-in phone context on stock Hermes 0.23.4 · plugin 0.9.23
 
 Phones can sync notification and calendar snapshots to the selected profile. This release includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.23-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.23-EXPERIMENTAL.md)

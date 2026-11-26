@@ -18,6 +18,8 @@ def register(ctx):
     register_planning(ctx)
     from .phone_context import register as register_context
     register_context(ctx)
+    from . import authority_routes
+    authority_routes.register(ctx)
     def factory(app, adapter):
         stop = wire(app, adapter)
         stop.bundle_identity = identity

@@ -20,7 +20,7 @@ from .pagination import Snapshots
 from .telemetry import Sampler
 from .compatibility import source_mode
 from .speech import SpeechProxy
-from . import canvas, native_attachments, live_files
+from . import authority_routes, canvas, native_attachments, live_files
 
 
 # Text sent by Android is JSON-quoted inside the header so multiline instructions,
@@ -103,6 +103,7 @@ def wire(app, adapter):
     loop = asyncio.get_running_loop()
     lifecycle_lock = asyncio.Lock()
     pending = set()
+    stop_routes = authority_routes.wire(adapter, loop, lambda: active and not closed)
 
     @web.middleware
     async def prompt_limit(request, handler):
@@ -217,6 +218,7 @@ def wire(app, adapter):
     async def close():
         nonlocal closed
         closed = True
+        stop_routes()
         stop()
         async with lifecycle_lock:
             await drain()

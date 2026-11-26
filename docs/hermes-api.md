@@ -1579,7 +1579,7 @@ that sheet for a completed run saved by an older client can recover the fields
 with a status read. **Integration status** shows the last observed completed
 run with a reported route and completion time in the active profile.
 
-When stock Hermes switches providers during a durable run, plugin 0.9.5
+When a direct-execution Hermes adapter switches providers during a durable run, plugin 0.9.5
 publishes a `run.model_fallback` event and stores the same data in the run
 status. The optional `bellpull_model_fallback` object has `from` and `to`
 objects with provider and model identifiers. When the host has capability
@@ -1589,6 +1589,15 @@ credentials, provider error text or inference about any submitted image.
 Android accepts the terminal runtime independently on hosts that omit the
 transition. A request alias differing from the answer is insufficient to mark
 a fallback.
+
+On stock Hermes 0.23.4, the session authority executes admitted runs. Plugin
+0.9.24 observes the owning worker's confirmed fallback when it attempts the new
+route. Each switch reaches the original run stream. Polling returns the latest
+transition. A successful final text response with a reported stop and no tool
+call supplies the serving route for a completed run. Clients can read it from
+the authenticated run status even when the native terminal event omits it.
+For keyed submissions, the original run's idempotency record retains this
+evidence across gateway restarts within the host's retention window.
 
 Stock Hermes 0.21.5 omits the confirmed-lock flag between durable run admission
 and agent construction. The plugin forwards an authenticated Bellpull request's
