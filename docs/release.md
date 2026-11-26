@@ -1,3 +1,7 @@
+## Planning on stock Hermes 0.23.4 · plugin 0.9.17
+
+Android build 72 can open Today and show completed Bot Chat deliveries on stock Hermes 0.23.4. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.17-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.17-experimental.1/docs/RELEASE-PLUGIN-0.9.17-EXPERIMENTAL.md)
+
 ## Phone calendar confirmation · 0.20.22 / build 72
 
 Today’s calendar confirms the phone read Hermes accepted, and the matching plugin preserves newer reads after delayed uploads. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.22-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.22-experimental.1/docs/RELEASE-0.20.22-EXPERIMENTAL.md)

@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull 0.20.22](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.22-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.22-experimental.1/Bellpull.apk) · [Matching plugin 0.9.16](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.22-experimental.1/bellpull-plugin-0.9.16-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.22-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.22-experimental.1/docs/ROADMAP.md)
-> Today’s calendar shows which phone read Hermes confirmed. The matching plugin is 0.9.16-mobile-preview.
+> **Latest experimental release · [Bellpull plugin 0.9.17 and Android build 72](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.17-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.17-experimental.1/Bellpull.apk) · [Matching plugin 0.9.17](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.17-experimental.1/bellpull-plugin-0.9.17-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.17-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.17-experimental.1/docs/ROADMAP.md)
+> Today and Routines work on stock Hermes 0.23.4. Routines shows when the Bot Chat owner completes a delivery.
 
 <div align="center">
 
