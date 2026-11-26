@@ -1,3 +1,7 @@
+## Selected models on stock Hermes 0.23.4 · plugin 0.9.22
+
+Desktop can send a message with a selected model. Uploaded files and generated outputs stay linked to their messages. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.22-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.22-experimental.1/docs/RELEASE-PLUGIN-0.9.22-EXPERIMENTAL.md)
+
 ## Shared Canvas on stock Hermes 0.23.4 · plugin 0.9.21
 
 Both clients and the drawing tool can reopen the same canvas after a chat is compacted. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.21-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.21-experimental.1/docs/RELEASE-PLUGIN-0.9.21-EXPERIMENTAL.md)

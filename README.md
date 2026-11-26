@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull plugin 0.9.21 and Android build 72](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.21-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.21-experimental.1/Bellpull.apk) · [Matching plugin 0.9.21](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.21-experimental.1/bellpull-plugin-0.9.21-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.21-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.21-experimental.1/docs/ROADMAP.md)
-> Android, Desktop and the Hermes drawing tool can share Canvas on stock Hermes 0.23.4.
+> **Latest experimental release · [Bellpull plugin 0.9.22 and Android build 72](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.22-experimental.1)**
+> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.22-experimental.1/Bellpull.apk) · [Matching plugin 0.9.22](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.22-experimental.1/bellpull-plugin-0.9.22-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.22-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.22-experimental.1/docs/ROADMAP.md)
+> Desktop can send a message with a selected model on stock Hermes 0.23.4.
 
 <div align="center">
 
