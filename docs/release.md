@@ -1,3 +1,7 @@
+## Local speech playback · Android 0.20.25 experimental
+
+Build 75 lets Qwen finish the spoken answer after a navigation interruption leaves a short final buffer. It includes server plugin 0.9.22-mobile-preview. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.25-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.25-experimental.1/docs/RELEASE-0.20.25-EXPERIMENTAL.md)
+
 ## Voice on the built-in speaker · Android 0.20.24 experimental
 
 Build 74 keeps voice listening on its selected speaker when an unused headset disconnects. The release includes server plugin 0.9.22. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.24-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.24-experimental.1/docs/RELEASE-0.20.24-EXPERIMENTAL.md)
