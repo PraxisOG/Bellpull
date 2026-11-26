@@ -247,16 +247,24 @@ def _wire_admitted(adapter, snapshot, errors):
         return lambda: None
     enabled = True
 
-    def read(admission_id):
+    def read(event):
         authority = active_authority(runner)
         if authority is None:
             return ""
-        row = authority_persistence(authority).admissions.get(admission_id=admission_id)
+        row = authority_persistence(authority).admissions.get(admission_id=event.message_id)
         if row is None or row.status != "started" or row.principal_id != "api":
             return ""
         data = row.payload.get("api_turn_v1") or {}
         if not data.get("run_owner_scope") or data["settings"].get("room_dispatch") is not None:
             return ""
+        live = authority.sessions.get(row.target_session_id)
+        if live is None or live.source is not event.source:
+            return ""
+        with live.event_stream.lock:
+            execution = live.event_stream.execution or {}
+            if (execution.get("admission_id") != event.message_id
+                    or execution.get("execution_generation") != row.generation):
+                return ""
         return prompt(snapshot(row.target_session_id))
 
     @wraps(original)
@@ -267,7 +275,7 @@ def _wire_admitted(adapter, snapshot, errors):
                 or api["settings"].get("room_dispatch") is not None):
             return await original(event)
         try:
-            tail = await asyncio.to_thread(read, admission_id)
+            tail = await asyncio.to_thread(read, event)
         except errors:
             tail = _UNAVAILABLE
         if not tail or not enabled:

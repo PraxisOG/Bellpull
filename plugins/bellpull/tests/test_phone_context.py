@@ -1,4 +1,4 @@
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 import json
 import os
 from pathlib import Path
@@ -214,6 +214,10 @@ class AdmittedContextTest(unittest.IsolatedAsyncioTestCase):
         from unittest.mock import Mock
         from plugins.bellpull.phone_context import _wire_admitted
 
+        source = object()
+        receipt = {"admission_id": "a", "execution_generation": 2}
+        live = SimpleNamespace(source=source, event_stream=SimpleNamespace(lock=nullcontext(), execution=receipt))
+        authority = SimpleNamespace(sessions={"original": live})
         prompts = []
 
         async def handle(event):
@@ -225,12 +229,12 @@ class AdmittedContextTest(unittest.IsolatedAsyncioTestCase):
         adapter = SimpleNamespace(gateway_runner=SimpleNamespace(_handle_message=handle))
         settings = {"ephemeral_system_prompt": "request"}
         original = {"adapter": adapter, "settings": settings}
-        row = SimpleNamespace(principal_id="api", status="started", target_session_id="original",
+        row = SimpleNamespace(generation=2, principal_id="api", status="started", target_session_id="original",
                               payload={"api_turn_v1": {"run_owner_scope": "owner", "settings": settings}})
         store = Mock()
         store.admissions.get.return_value = row
         snapshot = Mock(return_value=["snapshot"])
-        with (patch("gateway.session_authorities.active_authority", return_value=object()),
+        with (patch("gateway.session_authorities.active_authority", return_value=authority),
               patch("gateway.session_persistence.authority_persistence", return_value=store),
               patch("plugins.bellpull.phone_context.prompt", return_value=" snapshot")):
             stop = _wire_admitted(adapter, snapshot, ())
@@ -238,23 +242,26 @@ class AdmittedContextTest(unittest.IsolatedAsyncioTestCase):
             token = api_execution.set(original)
             try:
                 dispatch = adapter.gateway_runner._handle_message
-                self.assertEqual("reply", await dispatch(SimpleNamespace(message_id="a")))
+                self.assertEqual("reply", await dispatch(SimpleNamespace(source=source, message_id="a")))
                 snapshot.assert_called_once_with("original")
                 self.assertEqual("request snapshot", prompts[-1])
+                receipt["admission_id"] = "failure"
                 with self.assertRaisesRegex(RuntimeError, "worker stopped"):
-                    await dispatch(SimpleNamespace(message_id="failure"))
+                    await dispatch(SimpleNamespace(source=source, message_id="failure"))
                 self.assertIs(original, api_execution.get())
                 self.assertEqual({"ephemeral_system_prompt": "request"}, settings)
 
                 snapshot.reset_mock()
+                await dispatch(SimpleNamespace(source=object(), message_id="a"))
+                await dispatch(SimpleNamespace(source=source, message_id="stale"))
                 settings["room_dispatch"] = {}
-                await dispatch(SimpleNamespace(message_id="room"))
+                await dispatch(SimpleNamespace(source=source, message_id="room"))
                 settings.pop("room_dispatch")
                 row.payload["api_turn_v1"]["run_owner_scope"] = None
-                await dispatch(SimpleNamespace(message_id="other"))
+                await dispatch(SimpleNamespace(source=source, message_id="other"))
                 store.admissions.get.return_value = None
-                await dispatch(SimpleNamespace(message_id="missing"))
-                self.assertEqual(["request"] * 3, prompts[-3:])
+                await dispatch(SimpleNamespace(source=source, message_id="missing"))
+                self.assertEqual(["request"] * 5, prompts[-5:])
                 snapshot.assert_not_called()
                 stop()
                 self.assertIs(handle, adapter.gateway_runner._handle_message)
