@@ -1,3 +1,7 @@
+## Coding task cancellation · 0.20.19 / build 69
+
+Install the matching plugin to see **Stopped** in coding activity after Hermes confirms that it stopped the executor. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.19-experimental.1) · [Release notes](RELEASE-0.20.19-EXPERIMENTAL.md)
+
 ## Background answers on stock Hermes · 0.20.18 / build 68
 
 Install the matching plugin on stock Hermes 0.23.4 so saved worker answers appear once when you reopen a chat. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.18-experimental.1) · [Release notes](RELEASE-0.20.18-EXPERIMENTAL.md)

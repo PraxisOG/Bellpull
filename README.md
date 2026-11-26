@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.18 / build 68 and plugin 0.9.13-mobile-preview**
-> Chats on stock Hermes 0.23.4 can show saved background answers and clear the worker’s pending indicator.
-> [Release notes](docs/RELEASE-0.20.18-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.19 / build 69 and plugin 0.9.14-mobile-preview**
+> Coding activity shows **Stopped** when Hermes confirms that it stopped the executor.
+> [Release notes](docs/RELEASE-0.20.19-EXPERIMENTAL.md).
 
 <div align="center">
 
