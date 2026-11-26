@@ -1,3 +1,7 @@
+## Coding activity on stock Hermes 0.23.4 · plugin 0.9.26 experimental
+
+Android and Desktop can follow the same Codex or Claude Code process when a phone chat starts it on a stock gateway. Includes signed Android build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.26-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.26-experimental.1/docs/RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md)
+
 ## Phone snapshots for admitted chats · plugin 0.9.25 experimental
 
 A full stock Hermes 0.23.4 gateway supplies an opted-in phone snapshot when it executes a personal Android chat. Includes signed Android build 76. [Download](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.25-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.25-experimental.1/docs/RELEASE-PLUGIN-0.9.25-EXPERIMENTAL.md)
