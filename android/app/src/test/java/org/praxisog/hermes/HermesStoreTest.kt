@@ -195,7 +195,7 @@ class HermesStoreTest {
         val cache = FakeSnapshots()
         val store = store(cache = cache)
         store.loadSessions()
-        awaitUntil("sessions") { store.sessions is UiState.Ready }
+        awaitUntil("session sync finished") { store.sessions is UiState.Ready && !store.refreshingSessions }
         assertEquals(1, cache.writes)
         assertEquals(null, store.offline)
     }

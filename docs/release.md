@@ -1,6 +1,6 @@
 ## Reminder snooze timing · Android 0.20.29 experimental
 
-Build 79 schedules **Snooze 1h** from the tap in the Reminders tab. Includes server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.29-experimental.1) · [Release notes](RELEASE-0.20.29-EXPERIMENTAL.md)
+Build 79 schedules **Snooze 1h** from the tap and updates posted alerts when a reminder changes. Includes server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.29-experimental.1) · [Release notes](RELEASE-0.20.29-EXPERIMENTAL.md)
 
 ## Stock Hermes run notifications · plugin 0.9.27
 
