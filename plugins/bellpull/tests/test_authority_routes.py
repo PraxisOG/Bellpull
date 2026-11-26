@@ -19,7 +19,7 @@ class AuthorityRouteTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(authority_routes.wire(self.adapter, asyncio.get_running_loop(), lambda: self.active))
         self.execution = {}
         self.agent = SimpleNamespace(model="primary", provider="custom")
-        with patch.object(authority_routes, "_claim", return_value=("r", "a", 1, self.agent)):
+        with patch.object(authority_routes, "admitted_agent", return_value=("r", "a", 1, self.agent)):
             self.event("pre_llm_call")
 
     def event(self, name, turn="original", **fields):

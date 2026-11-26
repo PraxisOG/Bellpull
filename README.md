@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.26 / build 76 and plugin 0.9.25-mobile-preview**
-> Personal Android chats receive their opted-in first-turn phone context on a full stock Hermes 0.23.4 gateway.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.25-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.26 / build 76 and plugin 0.9.26-mobile-preview**
+> Coding activity shows Codex and Claude Code processes started by admitted chats on stock Hermes 0.23.4.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md).
 
 <div align="center">
 

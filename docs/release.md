@@ -1,3 +1,7 @@
+## Coding activity for admitted chats · plugin 0.9.26
+
+Android and Desktop can find coding processes launched by a full stock Hermes 0.23.4 gateway. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.26-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.26-EXPERIMENTAL.md)
+
 ## Phone context for admitted chats · plugin 0.9.25
 
 The full stock Hermes 0.23.4 gateway can supply an opted-in snapshot when it runs a personal Android chat. Includes signed Android build 76. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.25-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.25-EXPERIMENTAL.md)

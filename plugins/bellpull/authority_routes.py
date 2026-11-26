@@ -32,7 +32,8 @@ def register(ctx):
         ctx.register_hook(hook, observe)
 
 
-def _claim(adapter, session_id):
+def admitted_agent(adapter, session_id):
+    """Return the run, admission, generation and worker from one live API claim."""
     from gateway.session_authorities import active_authority
     from gateway.session_persistence import authority_persistence
     authority = active_authority(adapter.gateway_runner)
@@ -108,7 +109,7 @@ def wire(adapter, loop, available):
         state = execution.get(_STATE)
         if hook == "pre_llm_call":
             if state is None:
-                claim = _claim(adapter, session_id)
+                claim = admitted_agent(adapter, session_id)
                 if claim:
                     state = {"claim": claim, "session": session_id, "turn": turn_id,
                              "previous": _route_identity(claim[3])}

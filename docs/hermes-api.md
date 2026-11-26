@@ -1574,6 +1574,14 @@ executor credentials, and maintenance results need evidence from their
 respective services. The checks perform reads and do not start model runs.
 
 
+## Coding activity for an admitted chat
+
+On a full stock Hermes 0.23.4 gateway, plugin 0.9.26 links a coding process
+to the worker and generation that own the original run. The coding journal
+matches the terminal receipt, child process, task, session and command. A native
+parent stop can report cancellation while its background executor is still
+running. The journal reports the child's own state until Hermes records its exit.
+
 ## Model evidence for a durable run
 
 A completed native `GET /v1/runs/{id}` and its `run.completed` event can include

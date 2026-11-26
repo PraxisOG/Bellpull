@@ -135,6 +135,7 @@ class CodingTest(unittest.TestCase):
         row=self.store.snapshot("root",["root"])["rows"][0]
         self.assertEqual("output",row["kind"]); self.assertNotIn("request_id",row)
 
+    @unittest.skipUnless(callable(getattr(SessionDB, "_read_all", None)), "Legacy SessionDB lineage reader")
     def test_compression_generations_share_work_but_forks_and_profiles_do_not(self):
         database=SessionDB(self.home/"state.db")
         try:
@@ -269,6 +270,27 @@ class CodingTest(unittest.TestCase):
         row=self.store.snapshot("root",["root"])["rows"][0]
         self.assertEqual("Permission: bash",row["detail"])
         self.assertEqual("output",row["kind"])
+
+    def test_canonical_tool_receipt_matches_adopted_agent_and_adapter(self):
+        try:
+            from gateway.session_api_turn import api_execution
+        except ImportError:
+            self.skipTest("This host runs directly on the API adapter.")
+        from plugins.bellpull.coding import parent_run
+        old = SimpleNamespace(session_id="chat", _current_turn_id="old")
+        adapter = SimpleNamespace(_active_run_agents={"wrong": old})
+        agent = SimpleNamespace(session_id="chat", _current_turn_id="new")
+        token = api_execution.set({"adapter": adapter})
+        try:
+            with patch("plugins.bellpull.authority_routes.admitted_agent", return_value=("parent", "a", 2, agent)):
+                self.assertEqual("parent", parent_run(adapter, "chat", "new"))
+                self.assertIsNone(parent_run(adapter, "chat", "old"))
+                self.assertIsNone(parent_run(SimpleNamespace(_active_run_agents={"old": old}), "chat", "old"))
+            with patch("plugins.bellpull.authority_routes.admitted_agent", return_value=None):
+                self.assertIsNone(parent_run(adapter, "chat", "old"))
+        finally:
+            api_execution.reset(token)
+        self.assertEqual("wrong", parent_run(adapter, "chat", "old"))
 
     def test_tool_receipt_requires_exact_live_turn_process_and_owner(self):
         process=self.process

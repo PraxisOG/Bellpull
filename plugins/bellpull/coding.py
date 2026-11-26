@@ -43,6 +43,28 @@ def dispatch_tool(**kwargs):
         observer.observe_tool(**kwargs)
 
 
+def parent_run(adapter, session_id, turn_id):
+    """Identify the native run executing this tool hook on either gateway path."""
+    try:
+        from gateway.session_api_turn import api_execution
+        execution = api_execution.get()
+    except ImportError:
+        execution = None
+    if execution is not None:
+        if execution.get("adapter") is not adapter:
+            return None
+        from .authority_routes import admitted_agent
+        claim = admitted_agent(adapter, session_id)
+        if claim:
+            run_id, _, _, agent = claim
+            if getattr(agent, "_current_turn_id", None) == turn_id:
+                return run_id
+        return None
+    matches = [rid for rid, agent in list(getattr(adapter, "_active_run_agents", {}).items())
+               if getattr(agent, "_current_turn_id", None) == turn_id and getattr(agent, "session_id", None) == session_id]
+    return matches[0] if len(matches) == 1 else None
+
+
 def clipped(value, limit=MAX_DETAIL):
     return str(value or "")[:limit]
 
@@ -334,9 +356,9 @@ class Observer:
         args=args if isinstance(args,dict) else {}
         transport=launch_transport(args.get("command"))
         if not transport: return
-        candidates=[rid for rid,agent in list(getattr(self.adapter,"_active_run_agents",{}).items())
-                    if getattr(agent,"_current_turn_id",None)==turn_id and getattr(agent,"session_id",None)==session_id]
-        if len(candidates)!=1: return
+        run_id = parent_run(self.adapter, session_id, turn_id)
+        if run_id is None:
+            return
         try:
             result=json.loads(result) if isinstance(result,str) else result
         except (ValueError,RecursionError): return
@@ -349,12 +371,12 @@ class Observer:
         from hermes_constants import get_hermes_home
         home=Path(get_hermes_home()).resolve()
         store=self.store(home)
-        wid=hashlib.sha256(f"{candidates[0]}\0{tool_call_id}\0{pid}\0{process.started_at}".encode()).hexdigest()[:32]
+        wid=hashlib.sha256(f"{run_id}\0{tool_call_id}\0{pid}\0{process.started_at}".encode()).hexdigest()[:32]
         workspace = str(Path(process.cwd).resolve()) if process.pid_scope == "host" and process.cwd else None
         baseline = capture_workspace_base(workspace) if workspace else None
         with self.lock:
             if any(w["id"]==wid for w in store.works()): return
-            work=dict(id=wid,session_id=session_id,run_id=candidates[0],process_id=pid,open_code_session_id=None,
+            work=dict(id=wid,session_id=session_id,run_id=run_id,process_id=pid,open_code_session_id=None,
                       transport=transport,state="running",workspace_id=wid if workspace else None,workspace_label=workspace,
                       workspace=workspace,owner_task_id=task_id,incarnation=str(process.started_at),observed_total=0,
                       started_at=process.started_at,gap=False,note="CLI reports completed text/tool parts; it has no interactive request feed." if transport=="cli_json" else "Terminal text only; redraws, partial output and prompts are not structured requests.")
