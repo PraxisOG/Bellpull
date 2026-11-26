@@ -29,7 +29,8 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
 @Serializable data class BotChatReceipt(val target: String, val id: String, val status: String, val source: String,
     @SerialName("execution_id") val executionId: String? = null,
     @SerialName("degraded_notice") val degradedNotice: Boolean = false,
-    @SerialName("owner_state") val ownerState: String? = null) {
+    @SerialName("owner_state") val ownerState: String? = null,
+    val originalReceipt: String? = null) {
     internal val pendingOwner get() = source == "owner" && (status == "queued" || status == "claimed")
     private val evidenceRank get() = when (source) {
         "owner" -> 3
@@ -61,7 +62,11 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
             else -> "status unknown"
         }
         val destination = target.removePrefix("bot-chat:").let { if (it == "(own)") "Bot Chat" else "Bot Chat ($it)" }
-        val name = if (degradedNotice) "$destination delivery notice" else destination
+        val name = when {
+            originalReceipt != null -> "$destination retry"
+            degradedNotice -> "$destination delivery notice"
+            else -> destination
+        }
         return if (source == "scheduler") "$name last recorded as $state" else "$name · $state"
     }
 }
@@ -79,6 +84,43 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
             require(row.receipt.executionId?.matches(Regex("[0-9a-f]{32}")) == true)
             require(row.receipt.source in setOf("deferred", "owner"))
         }
+        return this
+    }
+}
+
+data class BotChatReference(val job: String, val execution: String, val root: String)
+
+fun BotChatReceipt.reference(job: String?): BotChatReference? {
+    if (job == null || executionId == null || target != "bot-chat:(own)" || source !in setOf("owner", "deferred")) return null
+    return BotChatReference(job, executionId, originalReceipt ?: id)
+}
+
+@Serializable data class ResultSelection(val stamp: String, val revision: String)
+@Serializable data class BotChatAttempt(val id: String, val parent: String, val root: String, val job: String,
+    @SerialName("execution_id") val execution: String, @SerialName("reviewed_status") val reviewedStatus: String,
+    val status: String, val admission: String, val selection: ResultSelection? = null,
+    @SerialName("owner_state") val ownerState: String? = null) {
+    fun validated(ref: BotChatReference? = null): BotChatAttempt {
+        require(job.length in 1..255 && listOf(id, root, parent).all { it.matches(Regex("[0-9a-f]{64}")) })
+        require(execution.matches(Regex("[0-9a-f]{32}")) && id != parent && id != root)
+        require(ref == null || ref == BotChatReference(job, execution, root))
+        require(admission in setOf("recorded", "unconfirmed", "record_missing") && reviewedStatus in reviewableBotChatStatuses)
+        selection?.let { require(it.revision.matches(Regex("[0-9a-f]{64}")) &&
+            it.stamp.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}"))) }
+        return this
+    }
+    fun receipt() = BotChatReceipt("bot-chat:(own)", id, status, "owner", execution, ownerState = ownerState, originalReceipt = root)
+}
+
+val reviewableBotChatStatuses = setOf("failed", "ambiguous", "cancelled")
+
+@Serializable data class BotChatRecovery(val original: BotChatReceipt, val attempts: List<BotChatAttempt>, val next: String? = null) {
+    fun validated(ref: BotChatReference, before: String?): BotChatRecovery {
+        require(original.id == ref.root && original.executionId == ref.execution && original.target == "bot-chat:(own)")
+        require(original.source in setOf("owner", "deferred", "review"))
+        require(attempts.size <= 25 && attempts.distinctBy { it.id }.size == attempts.size)
+        attempts.forEach { it.validated(ref) }
+        require(next == null || ((next.toLongOrNull() ?: 0) > 0 && next != before))
         return this
     }
 }
@@ -108,9 +150,13 @@ fun RoutineExecution.deliveryLabel(): String = when (deliveryOutcome) {
     @SerialName("routines_available") val routinesAvailable: Boolean = false, @SerialName("observed_at") val observedAt: Double,
     @SerialName("saved_results_available") val savedResultsAvailable: Boolean = false,
     @SerialName("bot_chat_history_available") val botChatHistoryAvailable: Boolean = false,
-    @SerialName("bot_chat_history") val botChatHistory: BotChatHistory? = null) {
+    @SerialName("bot_chat_history") val botChatHistory: BotChatHistory? = null,
+    @SerialName("bot_chat_recovery_available") val botChatRecoveryAvailable: Boolean = false,
+    @SerialName("recent_bot_chat_attempts") val recentBotChatAttempts: List<BotChatAttempt> = emptyList()) {
     fun validated(): PlanningSnapshot {
         botChatHistory?.validated()
+        require(recentBotChatAttempts.size <= 50 && recentBotChatAttempts.distinctBy { it.id }.size == recentBotChatAttempts.size)
+        recentBotChatAttempts.forEach { it.validated() }
         require(version == 1 && reminders.size <= 1000 && routines.size <= 500 && proposals.size <= 100)
         require(reminders.distinctBy { it.id }.size == reminders.size)
         reminders.forEach { require(it.id.matches(Regex("[a-f0-9]{32}")) && it.title.length in 1..400 && it.dueMs > 0 && it.revision > 0 && it.state in setOf("pending","completed","dismissed")) }

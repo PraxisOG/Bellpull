@@ -61,6 +61,16 @@ internal class PlanningWorkspace(private val scope: CoroutineScope, private val 
         if (!closed && result is HermesResult.Ok) delivery?.rememberHistory(result.value)
         return result
     }
+    suspend fun botChatRecovery(ref: BotChatReference, before: String?): HermesResult<BotChatRecovery> {
+        val result = withContext(Dispatchers.IO) { client.botChatRecovery(ref, before) }
+        if (!closed && result is HermesResult.Ok) delivery?.rememberAttempts(result.value.attempts)
+        return result
+    }
+    suspend fun retryBotChat(ref: BotChatReference, parent: String, status: String, selection: ResultSelection?): HermesResult<BotChatAttempt> {
+        val result = withContext(Dispatchers.IO) { client.retryBotChat(ref, parent, status, selection) }
+        if (!closed && result is HermesResult.Ok) delivery?.rememberAttempts(listOf(result.value))
+        return result
+    }
     suspend fun savedResults(before: String?, job: String?) = withContext(Dispatchers.IO) { client.savedRoutineResults(before, job) }
     suspend fun savedResult(file: SavedRoutineResult, offset: Long) = withContext(Dispatchers.IO) {
         client.savedRoutineResult(file, offset)

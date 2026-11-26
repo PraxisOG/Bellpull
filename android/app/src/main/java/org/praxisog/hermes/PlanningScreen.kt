@@ -57,6 +57,7 @@ import kotlinx.coroutines.delay
     var editor by remember { mutableStateOf<String?>(null) }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var editingRoutine by remember { mutableStateOf<Routine?>(null) }
+    var recovery by remember(workspace) { mutableStateOf<BotChatReference?>(null) }
     var showHistory by remember(workspace) { mutableStateOf(false) }
     var showResults by remember(workspace) { mutableStateOf(false) }
     var resultsJob by remember(workspace) { mutableStateOf<String?>(null) }
@@ -148,7 +149,7 @@ import kotlinx.coroutines.delay
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }
             }, openResults = if (workspace.snapshot?.savedResultsAvailable == true) { job ->
                 resultsJob=job; showResults=true
-            } else null, openHistory = if (workspace.snapshot?.botChatHistoryAvailable == true) {
+            } else null, openRecovery = if (workspace.snapshot?.botChatRecoveryAvailable == true) { ref -> recovery = ref } else null, openHistory = if (workspace.snapshot?.botChatHistoryAvailable == true) {
                 { showHistory = true }
             } else null)
             "Reminders" -> {
@@ -218,9 +219,10 @@ import kotlinx.coroutines.delay
         }
         }
     }
-    if (showHistory) BotChatHistoryDialog(workspace, { showHistory = false }, { job ->
+    recovery?.let { ref -> key(workspace, ref) { BotChatRecoveryDialog(workspace, ref) { recovery = null } } }
+    if (showHistory && recovery == null) BotChatHistoryDialog(workspace, { showHistory = false }, { job ->
         showHistory = false; resultsJob = job; showResults = true
-    })
+    }, review = { recovery = it })
     if (showResults) key(workspace, resultsJob) { RoutineResultsDialog(workspace, resultsJob) { showResults=false } }
     editor?.let { kind -> PlanningEditor(kind,editingReminder,editingRoutine,workspace.busy,{ editor=null }) { title,whenText,prompt,operation ->
         workspace.action(if (kind=="Reminder") "reminders" else "routines",buildJsonObject {
@@ -397,7 +399,8 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
 
 
 @Composable internal fun InboxContent(entries: List<InboxEntry>, mark: (String, Boolean) -> Unit, openChat: (InboxEntry) -> Unit,
-    openResults: ((String?) -> Unit)? = null, openHistory: (() -> Unit)? = null) {
+    openResults: ((String?) -> Unit)? = null, openHistory: (() -> Unit)? = null,
+    openRecovery: ((BotChatReference) -> Unit)? = null) {
     var selected by remember { mutableStateOf<InboxEntry?>(null) }
     var showDismissed by remember { mutableStateOf(false) }
     Text("Received on this phone · newest 200 items. Opening or dismissing an inbox item never approves a request or completes a reminder.", style=MaterialTheme.typography.bodySmall)
@@ -435,6 +438,10 @@ internal fun displayInstant(ms: Long)=Instant.ofEpochMilli(ms).atZone(ZoneId.sys
                     "scheduler" -> "Scheduler"
                     else -> "Unknown source"
                 }
+                val ref = receipt.reference(entry.routineId)
+                if (openRecovery != null && ref != null) TextButton(onClick = {
+                    selected = null; openRecovery(ref)
+                }) { Text("Review delivery") }
                 Text("Recorded by $source", style = MaterialTheme.typography.bodySmall)
                 entry.receiptChangedAt?.takeIf { it > 0 }?.let { at ->
                     Text("Status saved ${displayInstant(at)}", style = MaterialTheme.typography.bodySmall)

@@ -1,4 +1,4 @@
-This source builds **0.9.9-mobile-preview**. Bot Chat receipts can show when a replacement owner holds a chat with an outstanding delivery. Hosts with native run-status hooks retain scoped notification dispatch receipts across restarts. Coding activity clients can request Hermes-owned Codex and Claude Code process events with `executors=all`. Its authenticated capabilities
+This source builds **0.9.10-mobile-preview**. A reviewed terminal delivery can create one linked attempt to process its saved result in the same Bot Chat. Bot Chat receipts can show when a replacement owner holds a chat with an outstanding delivery. Hosts with native run-status hooks retain scoped notification dispatch receipts across restarts. Coding activity clients can request Hermes-owned Codex and Claude Code process events with `executors=all`. Its authenticated capabilities
 include the protocol version, running Hermes version, tested host versions and
 plugin source checksum. Packaged installs also report their source commit.
 Optional features are negotiated individually. To package a committed revision,

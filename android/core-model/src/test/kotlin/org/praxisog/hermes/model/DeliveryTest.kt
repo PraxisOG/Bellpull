@@ -8,6 +8,26 @@ class DeliveryTest {
     private val reminder = Reminder("a".repeat(32), "A reminder", 1000, "pending", 1)
     private fun state() = DeliveryState(planning = PlanningSnapshot(1, listOf(reminder), observedAt = 1.0))
     private fun operation(action: String, due: Long? = null) = ReminderOperation("b".repeat(32), reminder.id, 1, action, due)
+    @Test fun reviewedAttemptsKeepTheirOwnOfflineStateAfterReplayAndNativePruning() {
+        val root = "c".repeat(64)
+        val execution = "a".repeat(32)
+        val original = BotChatReceipt("bot-chat:(own)", root, "ambiguous", "deferred", execution, true)
+        val attempt = BotChatAttempt("d".repeat(64), root, root, "saved-job", execution, "ambiguous", "queued", "recorded")
+        val snapshot = PlanningSnapshot(1, emptyList(), observedAt = 1.0,
+            botChatHistory = BotChatHistory(listOf(HistoricalBotChatDelivery("saved-job", "today", original))),
+            botChatRecoveryAvailable = true, recentBotChatAttempts = listOf(attempt))
+        val initial = DeliveryState().reconcile(snapshot, 100)
+        assertEquals(2, initial.entries.size)
+        val read = initial.copy(entries = initial.entries.map { if (it.botChatReceipt?.id == attempt.id) it.copy(openedAt = 101) else it })
+        val settled = read.rememberAttempts(listOf(attempt.copy(status = "settled")), 102)
+        val replay = settled.reconcile(snapshot, 103).rememberAttempts(listOf(attempt.copy(admission = "record_missing", status = "unknown")), 104)
+        val restored = Json.decodeFromString<DeliveryState>(Json.encodeToString(replay))
+        val retry = restored.entries.single { it.botChatReceipt?.id == attempt.id }
+        assertEquals(BotChatReference("saved-job", execution, root), retry.botChatReceipt!!.reference(retry.routineId))
+        assertEquals("settled", retry.botChatReceipt.status)
+        assertEquals(101L, retry.openedAt)
+        assertEquals(original, restored.entries.first { it.botChatReceipt?.id == root }.botChatReceipt)
+    }
     @Test fun missedNoticeUsesOriginalExecutionAndSurvivesCurrentReceiptAndOfflineRestore() {
         val job = "original-job"
         val original = "1".repeat(32)

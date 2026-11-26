@@ -195,6 +195,29 @@ class HermesClient(
         }
     }
 
+    fun botChatRecovery(ref: BotChatReference, before: String?): HermesResult<BotChatRecovery> {
+        val query = "job=" + urlPart(ref.job) + "&execution_id=" + urlPart(ref.execution) + "&receipt=" + urlPart(ref.root)
+        val path = "/api/bellpull/planning/bot-chat-recovery?" + query + (before?.let { "&before=" + urlPart(it) } ?: "")
+        return get(path) { json.decodeFromString<BotChatRecovery>(it).validated(ref, before) }
+    }
+
+    fun retryBotChat(ref: BotChatReference, parent: String, status: String, selection: ResultSelection?): HermesResult<BotChatAttempt> {
+        val decision = buildJsonObject {
+            put("job", ref.job)
+            put("execution_id", ref.execution)
+            put("receipt", ref.root)
+            put("parent", parent)
+            put("reviewed_status", status)
+            put("decision", "retry_saved_result")
+            selection?.let { put("selection", json.encodeToJsonElement(it)) }
+        }
+        return post("/api/bellpull/planning/bot-chat-recovery", decision.toString()) {
+            json.decodeFromString<BotChatAttempt>(it).validated(ref).also { attempt ->
+                require(attempt.parent == parent && attempt.reviewedStatus == status && attempt.selection == selection)
+            }
+        }
+    }
+
     fun savedRoutineResults(before: String? = null, job: String? = null): HermesResult<SavedRoutineResults> {
         val query = listOfNotNull(before?.let { "before=" + urlPart(it) }, job?.let { "job=" + urlPart(it) })
         val path = "/api/bellpull/planning/results" + if (query.isEmpty()) "" else query.joinToString("&", prefix = "?")

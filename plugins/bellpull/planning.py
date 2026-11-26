@@ -15,6 +15,7 @@ import re
 import sqlite3
 import time
 from aiohttp import web
+from . import bot_chat_recovery
 from .artifacts import ArtifactError
 from .principal import artifact_scope
 from . import routine_history, routine_results
@@ -44,6 +45,7 @@ def digest(value):
 
 class PlanningStore:
     def __init__(self,home):
+        self.home = Path(home).resolve()
         self.root=Path(home)/"bellpull-planning"/artifact_scope(home)
         if self.root.is_symlink() or self.root.parent.is_symlink(): raise ArtifactError("Unsafe planning storage.",410)
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -53,6 +55,12 @@ class PlanningStore:
             c.executescript("""
             CREATE TABLE IF NOT EXISTS reminders(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,hash TEXT NOT NULL,result TEXT);
+            CREATE TABLE IF NOT EXISTS bot_chat_attempts(
+                parent TEXT PRIMARY KEY, id TEXT UNIQUE NOT NULL, root TEXT NOT NULL,
+                job TEXT NOT NULL, execution TEXT NOT NULL, reviewed_status TEXT NOT NULL,
+                selection TEXT NOT NULL, owner TEXT NOT NULL, payload_digest TEXT NOT NULL,
+                admitted INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX IF NOT EXISTS bot_chat_attempts_root ON bot_chat_attempts(root);
             CREATE TABLE IF NOT EXISTS calendars(device TEXT PRIMARY KEY,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS calendar_policies(device TEXT PRIMARY KEY,generation INTEGER NOT NULL,busy_only INTEGER);
             CREATE TABLE IF NOT EXISTS proposals(id TEXT PRIMARY KEY,data TEXT NOT NULL);
@@ -342,6 +350,14 @@ def routes(adapter):
         value.update(routines=await asyncio.to_thread(routines) if cron_ready() else [],routines_available=cron_ready(),
                      saved_results_available=True)
         value["bot_chat_history_available"] = routine_history.available()
+        value["bot_chat_recovery_available"] = bot_chat_recovery.available()
+        if value["bot_chat_recovery_available"]:
+            try:
+                attempts = await asyncio.to_thread(bot_chat_recovery.recent, store)
+                if attempts:
+                    value["recent_bot_chat_attempts"] = attempts
+            except (ArtifactError, OSError, ValueError):
+                pass  # The receipt detail reports native read errors independently.
         if value["bot_chat_history_available"]:
             try:
                 value["bot_chat_history"] = await asyncio.to_thread(routine_history.page)
@@ -352,6 +368,18 @@ def routes(adapter):
     async def history(request):
         value = await asyncio.to_thread(routine_history.page, request.query.get("before"))
         return web.json_response(value, headers={"Cache-Control":"no-store"})
+
+    async def recovery(request):
+        if request.method == "GET":
+            result = await asyncio.to_thread(bot_chat_recovery.history, current_store(), dict(request.query))
+        else:
+            body, error = await adapter._read_json_body(request)
+            if error is not None:
+                return error
+            if not isinstance(body, dict):
+                raise ArtifactError("A reviewed delivery is required.", 400)
+            result = await asyncio.to_thread(bot_chat_recovery.retry, current_store(), body)
+        return web.json_response(result, headers={"Cache-Control": "no-store"})
 
     async def results(request):
         from hermes_constants import get_hermes_home
@@ -383,6 +411,8 @@ def routes(adapter):
         return web.json_response(await asyncio.to_thread(current_store().calendar,request.match_info["device"],body))
     return [("GET","/api/bellpull/planning",snapshot),
             ("GET","/api/bellpull/planning/bot-chat-history",history),
+            ("GET","/api/bellpull/planning/bot-chat-recovery",recovery),
+            ("POST","/api/bellpull/planning/bot-chat-recovery",recovery),
             ("GET","/api/bellpull/planning/results",results),("GET","/api/bellpull/planning/result",result),
             ("POST","/api/bellpull/planning/{kind}",mutate),("PUT","/api/bellpull/calendar/{device}",calendar)]
 

@@ -59,7 +59,8 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
         val next = withCachedReceipts().copy(planning = snapshot, lastSync = now, operations = operations.filter { it.status != "acknowledged" })
         val valid = next.reminders().map { occurrence(it) }.toSet()
         val history = snapshot.botChatHistory?.let { next.rememberHistory(it, now, planning?.botChatHistory) } ?: next
-        return snapshot.routines.fold(history.copy(displayed = displayed.intersect(valid))) { state, routine ->
+        val recovered = history.rememberAttempts(snapshot.recentBotChatAttempts, now, planning?.recentBotChatAttempts.orEmpty())
+        return snapshot.routines.fold(recovered.copy(displayed = displayed.intersect(valid))) { state, routine ->
             val previous = planning?.routines?.find { it.id == routine.id }
             state.reconcileRoutine(routine, previous, now).rememberReceipts(routine, previous, now)
         }
@@ -70,6 +71,15 @@ private val RECEIPT_ID = Regex("[0-9a-f]{32,64}")
         val cachedAt = lastSync.takeIf { it > 0 } ?: ((planning?.observedAt ?: 0.0) * 1000).toLong()
         return planning?.routines.orEmpty().fold(copy(receiptHistoryInitialized = true)) { state, routine ->
             state.rememberReceipts(routine, null, cachedAt)
+        }
+    }
+
+    fun rememberAttempts(attempts: List<BotChatAttempt>, now: Long, previous: List<BotChatAttempt> = emptyList()): DeliveryState {
+        val seen = previous.toSet()
+        val names = planning?.routines.orEmpty().associate { it.id to it.name }
+        return attempts.asReversed().fold(this) { state, attempt ->
+            if (attempt.admission == "recorded") state.rememberReceipt(attempt.job, names[attempt.job] ?: attempt.job,
+                attempt.receipt(), now, attempt in seen) else state
         }
     }
 

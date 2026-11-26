@@ -11,7 +11,8 @@ import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.*
 
 @Composable
-internal fun BotChatHistoryDialog(workspace: PlanningWorkspace, dismiss: () -> Unit, results: (String) -> Unit) {
+internal fun BotChatHistoryDialog(workspace: PlanningWorkspace, dismiss: () -> Unit, results: (String) -> Unit,
+    review: (BotChatReference) -> Unit) {
     val cursors = remember(workspace) { mutableStateListOf<String>() }
     val before = cursors.lastOrNull()
     var attempt by remember { mutableIntStateOf(0) }
@@ -42,6 +43,10 @@ internal fun BotChatHistoryDialog(workspace: PlanningWorkspace, dismiss: () -> U
                                     Text("Execution claimed ${row.claimedAt}", style = MaterialTheme.typography.bodySmall)
                                     SelectionContainer { Text("Execution ${row.receipt.executionId}", style = MaterialTheme.typography.bodySmall) }
                                     SelectionContainer { Text("Receipt ${row.receipt.id}", style = MaterialTheme.typography.bodySmall) }
+                                    val ref = row.receipt.reference(row.job)
+                                    if (workspace.snapshot?.botChatRecoveryAvailable == true && ref != null) {
+                                        TextButton(onClick = { review(ref) }) { Text("Review delivery") }
+                                    }
                                     if (workspace.snapshot?.savedResultsAvailable == true) {
                                         TextButton(onClick = { results(row.job) }) { Text("View saved results") }
                                     }

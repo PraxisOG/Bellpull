@@ -189,6 +189,13 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
             }
         } catch (error: Exception) { failed(error) }
     }
+    suspend fun rememberAttempts(attempts: List<BotChatAttempt>) {
+        try {
+            lock.withLock {
+                if (!closed && ready) update { it.rememberAttempts(attempts, System.currentTimeMillis()) }
+            }
+        } catch (error: Exception) { failed(error) }
+    }
     fun mark(id: String, dismiss: Boolean = false) {
         scope.launch { try { lock.withLock { update { value -> value.copy(entries = value.entries.map {
             if (it.id != id) it else if (dismiss) it.copy(dismissedAt = System.currentTimeMillis()) else it.copy(openedAt = System.currentTimeMillis())

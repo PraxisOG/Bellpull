@@ -71,6 +71,35 @@ Hermes' exact-ID receipt reads. It sends only receipt metadata. An incompatible
 ledger or failed read can make history unavailable while the rest of planning
 continues to work.
 
+On hosts advertising `bot_chat_recovery_available`, an authenticated
+`GET /api/bellpull/planning/bot-chat-recovery` accepts `job`, `execution_id`
+and the original `receipt` ID. It reports the original outcome and subsequent
+reviewed attempts, newest first, 25 per page. Pass the returned `next` as
+`before` to read older attempts. Each attempt identifies the job, execution,
+root receipt and parent receipt. Its `admission` is `recorded` when verified
+against the pinned native receipt. An interrupted request with no readable
+native record is `unconfirmed`; a previously confirmed record that was later
+removed is `record_missing`. Neither state authorizes another submission.
+A retained original observation uses `source: "review"` after native pruning.
+The planning snapshot can include the 50 most recent decisions in
+`recent_bot_chat_attempts` for offline receipt updates. Reading history or opening a saved result never admits work.
+
+`POST /api/bellpull/planning/bot-chat-recovery` requires those same fields,
+the selected `parent` delivery ID, its exact `reviewed_status`, and
+`decision: "retry_saved_result"`. Failed, ambiguous and cancelled receipts are
+eligible once the operator reviews the outcome. Each parent has at most one
+child. A repeated submission returns the same native identity, including after
+a lost reply or owner change. The active live Bot Chat owner handles admission.
+Queued or claimed receipts require a terminal resolution first. The old receipt
+and scheduler execution stay intact.
+
+A regular retained delivery supplies its previously prepared result. When the
+only retained envelope is a timeout notice, the caller must explicitly select
+an archived answer from the same job by `stamp` and `revision`. The server
+checks its revision, extracts the answer and applies the native delivery
+redactor before using Hermes’ head-and-tail context limit (8,000 characters on 0.21.5). Oversized answers include the number of omitted characters. A new attempt consumes the saved result. No schedule mutation or
+standalone CLI fallback participates in recovery.
+
 Opening or paging a saved result only reads the profile's existing cron output.
 The scheduler remains responsible for its retention, including removal on
 explicit job deletion.
