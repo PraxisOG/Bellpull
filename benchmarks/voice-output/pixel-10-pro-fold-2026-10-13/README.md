@@ -74,13 +74,23 @@ Four threads improved its longer phrases in this experiment; its tiny Working
 phrase remained slower than its own audio duration on four threads. Native
 normalization/phonemization and eSpeak licensing/dependency handling still need a
 production design. Both candidate model weights are Apache-2.0; neither replaces
-Pocket voice cloning. Fixed sample WAVs are saved with the local build artifacts
-for owner listening; no subjective listening approval is claimed.
+Pocket voice cloning. The samples below preserve the audio generated on the Pixel.
 
 Candidate JNI code is compiled **only** with the device-fixture build property
 and is excluded from the signed personal APK. Production continues to offer
 Android offline speech, Pocket and Qwen. The scheduling repair applies to the
 existing local engines and message Read aloud.
+
+## Listen to the Pixel recordings
+
+Both engines synthesized the same two prompts. The WAVs contain the original 24 kHz mono PCM from the first run with one CPU thread. The times in the table measure graph synthesis from prepared phonemes to the first PCM. The Android benchmark emitted the entire phrase at that point.
+
+| Prompt | Paradee | Inflect Micro v2 |
+| --- | --- | --- |
+| Your answer is ready. | [Listen · 377 ms](samples/paradee-1.wav) | [Listen · 868 ms](samples/inflect-1.wav) |
+| Doctor Chen checked SQLite over USB-C at 3:30 p.m. and counted 42 records. | [Listen · 1,096 ms](samples/paradee-3.wav) | [Listen · 3,973 ms](samples/inflect-3.wav) |
+
+As an intelligibility check, the Tiny, Small and Medium Moonshine recognizers each recovered the short sentence from both engines. On the technical sentence, all three recovered the name, USB-C, the time and the count from both recordings. All three transcribed Paradee’s database name as “SQLite” and Inflect’s as “SQ light” or “SQ Lite.” Listening preference and sustained thermal performance remain open. [Measured runs](candidates.json) · [Model revisions and input tokens](fixtures.json)
 
 ## Reproduce
 
