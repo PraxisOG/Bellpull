@@ -1,6 +1,6 @@
-> **Latest experimental release · Plugin 0.9.21-mobile-preview and Android 0.20.22 / build 72**
-> Android, Desktop and the Hermes drawing tool can share Canvas on stock Hermes 0.23.4.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.21-EXPERIMENTAL.md).
+> **Latest experimental release · Plugin 0.9.22-mobile-preview and Android 0.20.22 / build 72**
+> Desktop can send a message with a selected model on stock Hermes 0.23.4.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.22-EXPERIMENTAL.md).
 
 <div align="center">
 

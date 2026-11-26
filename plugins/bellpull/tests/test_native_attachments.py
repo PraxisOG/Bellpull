@@ -55,9 +55,14 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
                             raise RuntimeError("fixture timed out")
                         self.status_callback("compacted", "Context compaction complete")
                     owner.executed.append(values)
-                    database = owner.adapter._ensure_session_db()
-                    database.append_message(self.session_id, "user", values.get("persist_user_message", values["user_message"]))
-                    database.append_message(self.session_id, "assistant", "Attachment received")
+                    plain = values.get("persist_user_message", values["user_message"])
+                    for role, text in (("user", plain), ("assistant", "Attachment received")):
+                        if callable(getattr(owner.adapter, "_ensure_session_db", None)):
+                            owner.adapter._ensure_session_db().append_message(self.session_id, role, text)
+                        else:
+                            from persistence.conversation.messages import NewMessage
+                            store = owner.adapter._store_beside(owner.adapter._ensure_store())
+                            store.messages.append(self.session_id, NewMessage(role, text))
                     prompt = arguments.get("ephemeral_system_prompt") or ""
                     if "output_directory" in prompt:
                         metadata = json.loads(prompt.split("\n")[-1])
@@ -270,12 +275,34 @@ class NativeAttachmentsTest(unittest.IsolatedAsyncioTestCase):
     async def test_live_desktop_owner_is_not_sent_a_text_only_attachment_turn(self):
         if not hasattr(self.adapter, "_admit_to_live_bot_chat"):
             self.skipTest("This host predates live Bot Chat ownership")
+        response = await self.client.post("/api/sessions", headers=self.headers, json={"title": "Bot Chat"})
+        self.session = (await response.json())["session"]["id"]
         identity = await self.upload()
         with patch("tools.bot_live_delivery.find_canonical_live_owner", return_value={"session_id": self.session}), \
                 patch("tools.bot_live_delivery.deliver_to_live_owner", side_effect=AssertionError("Must not enqueue incomplete input")):
             response = await self.submit(self.payload(identity))
             self.assertEqual(409, response.status, await response.text())
         self.assertEqual([], self.executed)
+
+    async def test_missing_chat_and_unavailable_canonical_owner_do_not_reserve_a_lock(self):
+        body = self.payload("unused")
+        body["bellpull"]["artifact_ids"] = []
+        body["session_id"] = "missing"
+        response = await self.submit(body)
+        self.assertEqual(404, response.status, await response.text())
+        if not callable(getattr(self.adapter, "_ensure_store", None)):
+            return
+        response = await self.client.post("/api/sessions", headers=self.headers, json={"title": "Bot Chat"})
+        body["session_id"] = (await response.json())["session"]["id"]
+        with patch("tools.bot_live_delivery.find_canonical_live_owner", side_effect=ValueError("offline")):
+            response = await self.submit(body)
+            self.assertEqual(409, response.status, await response.text())
+            self.assertEqual([], self.created)
+            body["session_id"] = self.session
+            response = await self.submit(body)
+            self.assertEqual(202, response.status, await response.text())
+            run_id = (await response.json())["run_id"]
+            self.assertEqual("completed", (await self.settle(run_id))["status"])
 
     async def test_svg_is_a_document_for_text_models_without_silent_vision_delegation(self):
         identity = await self.upload(mime="image/svg+xml", data=b'<svg xmlns="http://www.w3.org/2000/svg"/>')

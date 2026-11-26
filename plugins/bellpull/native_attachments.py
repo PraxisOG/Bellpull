@@ -17,12 +17,74 @@ from . import models_files
 from .artifacts import ArtifactError, checked_session
 
 
+class RunHistory:
+    """Read the conversation selected by Hermes for this admission and its output receipts."""
+
+    def __init__(self, adapter):
+        self.adapter = adapter
+        legacy = getattr(adapter, "_ensure_session_db", None)
+        self.legacy = callable(legacy)
+        self.store = legacy() if self.legacy else adapter._store_beside(adapter._ensure_store())
+        if self.store is None:
+            raise ArtifactError("Session database is unavailable.", 503)
+
+    def exists(self, session):
+        if self.legacy:
+            return bool(self.store.get_session(session))
+        return self.store.sessions.get(session) is not None
+
+    def live_owner(self, session):
+        if not callable(getattr(self.adapter, "_admit_to_live_bot_chat", None)):
+            return False
+        from tools.bot_live_delivery import find_canonical_live_owner
+        if self.legacy:
+            owner = find_canonical_live_owner(Path(self.store.db_path).parent)
+            return owner is not None and self.store.get_compression_tip(session) == owner["session_id"]
+
+        # An authority owns its Bot Chat even when no Desktop window is attached.
+        # Its text-only mailbox cannot preserve a selected model or file context.
+        tip = self.store.lineage.tip(session)
+        canonical = self.store.sessions.get_by_title("Bot Chat")
+        if canonical is None or self.store.lineage.tip(canonical.session_id) != tip:
+            return False
+        if getattr(self.adapter.gateway_runner, "session_authority", None) is not None:
+            return True
+        try:
+            owner = find_canonical_live_owner(self.store.scope.profile_dir)
+        except ValueError:
+            # An unreachable authority cannot confirm who owns this Bot Chat.
+            raise ArtifactError("The Bot Chat owner is unavailable to confirm this handoff.", 409) from None
+        return owner is not None and tip == owner["session_id"]
+
+    def last_message_id(self, session):
+        if self.legacy:
+            rows = self.store.get_messages(session, limit=1, latest=True)
+            return rows[-1]["id"] if rows else 0
+        from persistence.conversation.messages import TranscriptRead
+        rows = self.store.messages.read_transcript(session, TranscriptRead(limit=1, latest=True))
+        return rows[-1].as_wire_row()["id"] if rows else 0
+
+    def new_messages(self, session, baseline):
+        if self.legacy:
+            tip = self.store.resolve_resume_session_id(session)
+            return [row for row in self.store.get_messages(tip) if row["id"] > baseline]
+        from persistence.conversation.messages import TranscriptRead
+        tip = self.store.lineage.resolve_resume_target(session)
+        rows = self.store.messages.read_transcript(tip, TranscriptRead(after_id=baseline))
+        return [row.as_wire_row() for row in rows]
+
+
 def supported(adapter):
     if getattr(adapter, "_bellpull_native_attachments", None) is not None:
         return True
     if not callable(getattr(adapter, "_runtime_lock_error", None)) or not callable(getattr(adapter, "_session_runtime_request_from_body", None)):
         return False
     try:
+        if not callable(getattr(adapter, "_ensure_session_db", None)):
+            if not all(callable(getattr(adapter, name, None)) for name in ("_ensure_store", "_store_beside", "_room_grant_token")):
+                return False
+            from persistence.conversation.messages import TranscriptRead
+            TranscriptRead(after_id=0)
         from run_agent import AIAgent
         required = {"session_id", "ephemeral_system_prompt", "requested_model", "requested_provider", "model_options", "route", "confirmed_runtime_lock"}
         store = adapter._run_idempotency_store
@@ -49,16 +111,6 @@ def wire(app, adapter):
     context = ContextVar("bellpull_attachment_request", default=None)
     reserve_signature = inspect.signature(reserve)
 
-    def live_owner(session):
-        # Stock Hermes must remain the sole writer of a leased Bot Chat. Its
-        # desktop mailbox currently accepts text only, without attachment context.
-        if not hasattr(adapter, "_admit_to_live_bot_chat"):
-            return False
-        from tools.bot_live_delivery import find_canonical_live_owner
-        database = adapter._ensure_session_db()
-        owner = find_canonical_live_owner(Path(database.db_path).parent)
-        return owner is not None and database.get_compression_tip(session) == owner["session_id"]
-
     def prepare(entry):
         if not state["active"]:
             raise ArtifactError("Bellpull is reloading. Retry this same message after reconnecting.", 503)
@@ -74,13 +126,14 @@ def wire(app, adapter):
             raise ArtifactError("This Bellpull request needs a text message and an existing conversation.")
         if any(body.get(key) for key in ("hosted_room_dispatch", "_room_execution_policy", "previous_response_id", "conversation_history")):
             raise ArtifactError("This Bellpull request requires a direct conversation.")
-        database = adapter._ensure_session_db()
-        if not database.get_session(session):
+        history = RunHistory(adapter)
+        if not history.exists(session):
             raise ArtifactError("Conversation not found.", 404)
-        if live_owner(session):
+        if history.live_owner(session):
             if not entry["files"]:
                 raise ArtifactError("The active Bot Chat owner cannot confirm the selected model for this turn.", 409)
             raise ArtifactError("This Bot Chat is open on desktop. Close it there before sending attachments, or choose another conversation.", 409)
+        entry["history"] = history
         entry["session"] = session
         if not entry["files"]:
             return
@@ -118,7 +171,8 @@ def wire(app, adapter):
             return create(*args, **kwargs)
         if not state["active"] or not entry.get("session") or not entry.get("run_id"):
             raise ArtifactError("Bellpull run admission was interrupted. Review the failed run before retrying.", 503)
-        if live_owner(entry["session"]):
+        history = entry["history"]
+        if history.live_owner(entry["session"]):
             raise ArtifactError("The active Bot Chat owner cannot accept this model or attachment handoff.", 409)
         bound = signature.bind_partial(*args, **kwargs)
         if entry["locked"]:
@@ -133,9 +187,7 @@ def wire(app, adapter):
         bound.arguments["ephemeral_system_prompt"] = (bound.arguments.get("ephemeral_system_prompt") or "") + "\n\n" + prepared["instructions"]
         agent = create(*bound.args, **bound.kwargs)
         original_run = agent.run_conversation
-        database = adapter._ensure_session_db()
-        previous = database.get_messages(actual_session, limit=1, latest=True)
-        baseline = previous[-1]["id"] if previous else 0
+        baseline = history.last_message_id(actual_session)
 
         def execute(*run_args, **run_kwargs):
             artifact_store, folder = prepared["store"], prepared["output_folder"]
@@ -152,8 +204,7 @@ def wire(app, adapter):
             finally:
                 try:
                     artifact_store.collect_outputs(entry["session"], run_id, folder=folder)
-                    tip = database.resolve_resume_session_id(actual_session)
-                    recent = [row for row in database.get_messages(tip) if row["id"] > baseline]
+                    recent = history.new_messages(actual_session, baseline)
                     for source, role, text in (("upload", "user", prepared["persist_text"]),
                             ("agent", "assistant", result.get("final_response") if isinstance(result, dict) else None)):
                         candidates = [row for row in recent if row["role"] == role and row.get("content") == text]
@@ -197,6 +248,9 @@ def wire(app, adapter):
             return rejection
         if not adapter._expected_api_key():
             return models_files.error(ArtifactError("API authentication required.", 401))
+        room_grant = getattr(adapter, "_room_grant_token", None)
+        if callable(room_grant) and room_grant(request):
+            return models_files.error(ArtifactError("Bellpull attachment and model controls require profile access.", 403))
         if not request.headers.get("Idempotency-Key", "").strip():
             return models_files.error(ArtifactError("Bellpull model locks and attachments require an Idempotency-Key."))
         token = context.set({"request": request, "body": body, "files": files, "locked": locked})
