@@ -96,6 +96,20 @@ class BotChatRecoveryTest(unittest.TestCase):
             recovery.retry(self.store, self.request())
         self.assertEqual([], recovery.history(self.store, self.request())["attempts"])
 
+    def test_retry_requires_the_original_chat_even_when_another_chat_owns_the_title(self):
+        original = self.original()
+        other = dict(self.owner, session_id="replacement-chat")
+        with patch.object(self.native, "find_canonical_live_owner", return_value=other):
+            with self.assertRaises(ArtifactError) as problem:
+                recovery.retry(self.store, self.request())
+            self.assertEqual(409, problem.exception.status)
+        self.assertFalse(recovery.history(self.store, self.request())["attempts"])
+        self.assertEqual(original, self.native.read_delivery_result(self.home, self.root))
+        replacement_owner = dict(self.owner, lease_id="new-lease", live_session_id="new-worker")
+        with patch.object(self.native, "find_canonical_live_owner", return_value=replacement_owner):
+            child = recovery.retry(self.store, self.request())
+        self.assertEqual(replacement_owner, self.native.read_delivery_result(self.home, child["id"])["owner"])
+
     def test_legacy_notice_uses_only_the_reviewed_answer_at_the_selected_revision(self):
         from cron import bot_chat_delivery as queue, jobs
         queue.defer(self.notice, dict(id=self.job, execution_id=self.execution), "Timeout notice", None, self.home, degraded=True)

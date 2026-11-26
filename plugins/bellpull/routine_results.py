@@ -91,10 +91,12 @@ def bot_chat_receipts(job, owners=None):
                 state, source = live.get("status"), "owner"
                 evidence = owners.evidence(live)
             else:
-                from cron.bot_chat_delivery import read_pending
-                pending = read_pending(key)
+                from . import deferred_receipts
+                read = deferred_receipts.reader()
+                pending = read(owners.home, key) if read else None
                 if (pending and pending.get("id") == key and isinstance(pending.get("job"), dict)
-                        and pending["job"].get("id") == job["id"]):
+                        and pending["job"].get("id") == job["id"]
+                        and (target != "bot-chat:(own)" or pending.get("home") == str(owners.home))):
                     state, source = pending.get("status"), "deferred"
         except (ImportError, OSError, ValueError, TypeError):
             pass

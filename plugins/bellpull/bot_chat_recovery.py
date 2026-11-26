@@ -15,6 +15,9 @@ PAGE = 25
 
 def available():
     try:
+        # This lane pins one exact chat. The newer authority may move a
+        # title holder aside and admit into a replacement during delivery.
+        from cron.bot_chat_delivery import read_pending
         from cron.executions import get_execution
         from cron.scheduler_prompt import _archive_answer, _clip_to_context_budget
         from cron.scheduler_delivery import _redact_cron_payload
@@ -22,7 +25,8 @@ def available():
     except ImportError:
         return False
     return routine_history.available() and all(callable(f) for f in (
-        get_execution, _archive_answer, _clip_to_context_budget, _redact_cron_payload, find_canonical_live_owner, deliver_to_live_owner))
+        get_execution, read_pending, _archive_answer, _clip_to_context_budget, _redact_cron_payload,
+        find_canonical_live_owner, deliver_to_live_owner))
 
 
 def root_receipt(store, params):
@@ -163,14 +167,13 @@ def selected_answer(home, job, stamp, revision):
     return "Summarize this saved routine result for Bot Chat.\n\n" + _clip_to_context_budget(_redact_cron_payload(answer, "reviewed result"))
 
 
-def source_message(home, job, execution, parent, notice, selection):
+def source_message(home, job, execution, parent, notice, selection, live):
     if selection is not None:
         if not notice:
             raise ArtifactError("This delivery already identifies its source result.", 400)
         return selected_answer(home, job, selection["stamp"], selection["revision"]), "result"
     if notice:
         raise ArtifactError("Select the retained routine answer to process.", 409)
-    live = native_attempt(home, parent)
     if live:
         return live["message"], live.get("notification_category", "result")
     from cron.bot_chat_delivery import read_pending
@@ -223,10 +226,19 @@ def retry(store, params):
                 status = attempt_view(home, prior, owners)["status"]
             if status != reviewed:
                 raise ArtifactError("The previous delivery is unresolved or its status changed. Refresh and review it.", 409)
-            message, category = source_message(home, job, execution, parent, notice, selection)
+            original = native_attempt(home, parent)
+            if (original is None and (parent != root["id"] or root["source"] == "owner")
+                    or original is not None and original.get("status") != reviewed):
+                raise ArtifactError("The previous delivery changed. Refresh and review it.", 409)
+            message, category = source_message(home, job, execution, parent, notice, selection, original)
             owner = find_canonical_live_owner(home)
             if not owner:
                 raise ArtifactError("Open the owning Bot Chat before retrying this result.", 409)
+            if original:
+                pin = original.get("owner")
+                if (not isinstance(pin, dict) or not isinstance(pin.get("session_id"), str) or not pin["session_id"]
+                        or pin.get("profile_home") != str(home) or owner.get("session_id") != pin["session_id"]):
+                    raise ArtifactError("Open the original Bot Chat before retrying this result.", 409)
             db.execute("INSERT INTO bot_chat_attempts(parent,id,root,job,execution,reviewed_status,selection,owner,payload_digest) "
                        "VALUES(?,?,?,?,?,?,?,?,?)", (parent, rid, root["id"], job, execution, reviewed, choice,
                                                    json.dumps(owner), fingerprint(category, message)))

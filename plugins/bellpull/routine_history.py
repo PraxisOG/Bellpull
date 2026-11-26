@@ -8,6 +8,7 @@ import re
 import sqlite3
 
 from .artifacts import ArtifactError
+from . import deferred_receipts
 from .routine_results import BotChatOwners, receipt_status, valid_job
 
 PAGE_SIZE = 50
@@ -17,11 +18,10 @@ EXECUTION_ID = re.compile(r"[0-9a-f]{32}")
 def available():
     try:
         from cron.executions import list_executions
-        from cron.bot_chat_delivery import read_pending
         from tools.bot_live_delivery import read_delivery_result
     except ImportError:
         return False
-    return all(callable(reader) for reader in (list_executions, read_pending, read_delivery_result))
+    return all(callable(reader) for reader in (list_executions, deferred_receipts.reader(), read_delivery_result))
 
 
 def execution_page(home, before):
@@ -52,7 +52,6 @@ def execution_page(home, before):
 
 
 def observed(home, key, job, execution, notice, owners):
-    from cron.bot_chat_delivery import read_pending
     from tools.bot_live_delivery import read_delivery_result
     evidence = {}
     live = read_delivery_result(home, key)
@@ -60,12 +59,21 @@ def observed(home, key, job, execution, notice, owners):
         status, source = live.get("status"), "owner"
         evidence = owners.evidence(live)
     else:
-        pending = read_pending(key)
+        read = deferred_receipts.reader()
+        pending = read(home, key) if read else None
         if not isinstance(pending, dict) or pending.get("id") != key or pending.get("home") != str(home):
             return None
         producer = pending.get("job")
-        if (not isinstance(producer, dict) or producer.get("id") != job or producer.get("execution_id") != execution
-                or (pending.get("degraded") is True) != notice):
+        if not isinstance(producer, dict) or producer.get("id") != job or (pending.get("degraded") is True) != notice:
+            return None
+        if "execution_id" in producer:
+            if producer["execution_id"] != execution:
+                return None
+        # The current writer stores only the job id and name. Its exact primary
+        # delivery key still binds the source profile, target, job and execution.
+        elif (read is not deferred_receipts.read_retained or notice or "profile" in pending
+              or type(pending.get("for_failure")) is not bool or type(pending.get("sequence")) is not int
+              or not isinstance(pending.get("content"), str) or key != delivery_keys(home, job, execution)[0]):
             return None
         status, source = pending.get("status"), "deferred"
     return dict(id=key, target="bot-chat:(own)", status=receipt_status(status), source=source,

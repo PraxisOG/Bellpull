@@ -1,3 +1,7 @@
+## Routine delivery history · plugin 0.9.18
+
+Today shows historical Bot Chat receipts on stock Hermes 0.23.4. On 0.21.5, a reviewed retry checks the original chat before sending its saved result. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.18-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.18-EXPERIMENTAL.md)
+
 ## Planning on stock Hermes 0.23.4 · plugin 0.9.17
 
 Today, Calendar and Routines are available on the current gateway. Routines follows the owner’s receipt after a queued delivery settles. The APK is the signed Android 0.20.22 build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.17-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.17-EXPERIMENTAL.md)

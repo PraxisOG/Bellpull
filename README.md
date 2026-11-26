@@ -1,6 +1,6 @@
-> **Latest experimental release · Plugin 0.9.17-mobile-preview and Android 0.20.22 / build 72**
-> Today and Routines work on stock Hermes 0.23.4. A routine shows when the Bot Chat owner completed delivery.
-> [Release notes](docs/RELEASE-PLUGIN-0.9.17-EXPERIMENTAL.md).
+> **Latest experimental release · Plugin 0.9.18-mobile-preview and Android 0.20.22 / build 72**
+> Routine delivery history works on Hermes 0.23.4. A reviewed retry on the 0.21.5 mailbox checks the original chat.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.18-EXPERIMENTAL.md).
 
 <div align="center">
 

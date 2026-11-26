@@ -10,6 +10,11 @@ from unittest.mock import patch
 from plugins.bellpull import routine_history
 from plugins.bellpull.artifacts import ArtifactError
 
+try:
+    from cron.bot_chat_delivery import read_pending as lease_mailbox_read
+except ImportError:
+    lease_mailbox_read = None
+
 
 class RoutineHistoryTest(unittest.TestCase):
     def setUp(self):
@@ -31,6 +36,7 @@ class RoutineHistoryTest(unittest.TestCase):
         ], separators=(",", ":")).encode()).hexdigest()
         return event["id"], key
 
+    @unittest.skipUnless(lease_mailbox_read, "Requires the Hermes lease mailbox")
     def test_tied_claims_keep_owner_and_timeout_notice_on_separate_pages(self):
         from cron.bot_chat_delivery import defer, read_pending
         from tools.bot_live_delivery import deliver_to_live_owner, read_delivery_result
@@ -61,6 +67,7 @@ class RoutineHistoryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as other, patch.dict(os.environ, {"HERMES_HOME":other}):
             self.assertFalse(routine_history.page()["deliveries"])
 
+    @unittest.skipUnless(lease_mailbox_read, "Requires the Hermes lease mailbox")
     def test_owner_registry_evidence_preserves_original_claim_across_a_restart(self):
         from hermes_cli import active_sessions
         from tools import bot_live_delivery as mailbox
@@ -111,6 +118,7 @@ class RoutineHistoryTest(unittest.TestCase):
             self.assertEqual({}, owners.evidence(new))
             lookup.assert_called_once()
 
+    @unittest.skipUnless(lease_mailbox_read, "Requires the Hermes lease mailbox")
     def test_unrelated_records_and_bad_read_do_not_hide_valid_history(self):
         from cron.bot_chat_delivery import defer
         exe, key = self.event("match")
@@ -125,3 +133,37 @@ class RoutineHistoryTest(unittest.TestCase):
         with self.assertRaises(ArtifactError) as problem:
             routine_history.page("invalid")
         self.assertEqual(400, problem.exception.status)
+
+    @unittest.skipIf(lease_mailbox_read, "Requires the Hermes authority's deferred writer")
+    def test_authority_deferred_history_matches_execution_and_preserves_older_evidence(self):
+        from cron.bot_chat_legacy import defer
+        from plugins.bellpull import bot_chat_recovery
+        from plugins.bellpull.routine_results import bot_chat_receipts
+
+        exe, key = self.event("parked")
+        _, notice = routine_history.delivery_keys(self.home, "parked", exe)
+        defer(key, {"id": "parked", "name": "Fixture"}, "Saved answer", self.home, for_failure=False)
+        folder = self.home / "cron" / "bot_chat_pending"
+        primary = folder / (key + ".json")
+        old_notice = folder / (notice + ".json")
+        old_notice.write_text(json.dumps(dict(id=notice, status="ambiguous", job=dict(id="parked", execution_id=exe),
+            degraded=True, profile=None, home=str(self.home), content="Retained timeout notice", sequence=1)))
+        originals = (primary.read_bytes(), old_notice.read_bytes())
+        page = routine_history.page()
+        self.assertEqual([(key, "queued"), (notice, "ambiguous")],
+                         [(row["receipt"]["id"], row["receipt"]["status"]) for row in page["deliveries"]])
+        self.assertNotIn("Saved answer", json.dumps(page))
+        self.assertFalse(bot_chat_recovery.available())
+        latest, = bot_chat_receipts(dict(id="parked", last_delivery_queued={"bot-chat:(own)": {"delivery_id": key}}))
+        self.assertEqual(("deferred", "queued"), (latest["source"], latest["status"]))
+        self.assertEqual(originals, (primary.read_bytes(), old_notice.read_bytes()))
+        for change in ({"home": str(self.home / "other")}, {"job": {"id": "other"}},
+                       {"job": {"id": "parked", "execution_id": "a" * 32}},
+                       {"profile": None}, {"degraded": True}):
+            primary.write_text(json.dumps(dict(json.loads(originals[0]), **change)))
+            remaining, = routine_history.page()["deliveries"]
+            self.assertEqual(notice, remaining["receipt"]["id"])
+        primary.unlink()
+        primary.symlink_to(old_notice)
+        self.assertEqual(1, routine_history.page()["unreadable"])
+        self.assertEqual(originals[1], old_notice.read_bytes())
