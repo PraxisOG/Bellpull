@@ -1,3 +1,7 @@
+## Background answers on stock Hermes · 0.20.18 / build 68
+
+Install the matching plugin on stock Hermes 0.23.4 so saved worker answers appear once when you reopen a chat. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.18-experimental.1) · [Release notes](RELEASE-0.20.18-EXPERIMENTAL.md)
+
 ## Notification dispatch status · 0.20.17 / build 67
 
 Open **Settings → Servers → Integration status** to see the notification relay’s health, pending dispatches and last broker acknowledgement for the selected profile. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.17-experimental.1) · [Release notes](RELEASE-0.20.17-EXPERIMENTAL.md)
