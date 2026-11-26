@@ -7,14 +7,14 @@ import org.praxisog.hermes.core.HermesClient
 import org.praxisog.hermes.model.*
 
 class IssueRepairsTest {
-    @Test fun historyPublicationAndLaterStatusCannotShowTheSavedReplyTwice() {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    @Test fun historyPublicationAndLaterStatusCannotShowTheSavedReplyTwice() = runBlocking {
         val client = HermesClient("http://fixture.invalid", { "fixture" })
         val journal = object : RunJournal {
             override fun readRuns() = emptyList<RunSubmission>()
             override fun writeRun(value: RunSubmission) = true
         }
-        val store = HermesStore(scope, client, durableRetention = 86400, journal = journal)
+        // Publish the two history snapshots on the same event loop as the store.
+        val store = HermesStore(this, client, durableRetention = 86400, journal = journal)
         try {
             store.openSession("one")
             val runs = store.runs!!
@@ -36,7 +36,7 @@ class IssueRepairsTest {
             runs.onChanged("one")
             assertEquals(TurnState.Idle, store.turn)
             assertNull(store.pendingUserText)
-        } finally { store.close(); scope.cancel(); client.close() }
+        } finally { store.close(); coroutineContext.cancelChildren(); client.close() }
     }
 
     @Test fun nativeLoadFailureHasCooldownButLoadedEngineAndExplicitRetryAreImmediate() {
