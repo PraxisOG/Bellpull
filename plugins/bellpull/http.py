@@ -60,8 +60,10 @@ def wire(app, adapter):
         ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
     # Read-only snapshots and delegation identities do not depend on legacy
     # fork/run patches. Stock Hermes supplies the same authenticated read contract.
-    paging_ready = projects_ready and all(callable(getattr(adapter, key, None)) for key in
-        ("_run_idempotency_scope", "_message_response"))
+    snapshots = Snapshots(adapter)
+    paging_ready = files_ready and (projects_ready or snapshots.uses_persistence) and all(
+        callable(getattr(adapter, key, None)) for key in
+        ("_run_idempotency_scope", "_session_response", "_message_response"))
     offline_ready = projects_ready and offline.supported()
     titles_ready = projects_ready and titles.supported()
     try:
@@ -81,7 +83,6 @@ def wire(app, adapter):
     relay = Relay(os.environ.get("BELLPULL_NTFY_URL", "http://127.0.0.1:2586"), journal)
     sampler = Sampler()
     speech = SpeechProxy()
-    snapshots = Snapshots(adapter)
     reasoning_ready, stop_streaming = streaming.wire(adapter)
     stock_models_ready, stop_models = model_controls.wire(adapter) if not host_ready else (False, lambda: None)
     context_ready, stop_context = phone_context.wire(adapter) if projects_ready else (False, lambda: None)

@@ -1453,6 +1453,17 @@ The underlying row remains a `user` bookkeeping row. The client presents it as a
 separate **Background result**, without writing another transcript or sending a
 prompt. Hidden rows remain hidden.
 
+On stock Hermes 0.23.4, snapshots read the selected profile’s persistence
+store. Session listing uses the native visibility and source filters, and
+transcripts use the active view of the compression lineage. A snapshot keeps
+the native message IDs and the delegation identity across pages. Room-scoped
+grants cannot request account-wide history snapshots.
+
+A completion can reach Android only after Hermes saves it. On stock 0.23.4,
+a native transcript lease held across eight delivery attempts can leave the
+worker’s ledger record marked dropped with no completion row. The client
+continues to show that work as pending. [Delivery tracker](https://github.com/PraxisOG/Bellpull/issues/51)
+
 For a grouped dispatch, Hermes lists the independently completing IDs in
 `units[].delegation_id`. The top-level ID can identify the group or repeat its
 first unit. Bellpull watches the listed units, counts each completion once and

@@ -31,12 +31,72 @@ def message_response(adapter, row):
     return result
 
 
+def persistence_history_supported(adapter):
+    """Check the read contract independently of the project's session-write APIs."""
+    if not all(callable(getattr(adapter, name, None)) for name in
+               ("_ensure_store_async", "_store_beside", "_room_grant_token")):
+        return False
+    try:
+        from gateway.platforms.api_server import _session_row
+        from persistence.conversation.messages import TranscriptRead, TranscriptView
+        from persistence.conversation.sessions import SessionOrder, SessionQuery, SessionWindow
+    except ImportError:
+        return False
+    return all(callable(item) for item in (_session_row, TranscriptRead, SessionQuery, SessionWindow)) and (
+        hasattr(TranscriptView, "ACTIVE") and hasattr(SessionOrder, "LAST_ACTIVE"))
+
+
+async def legacy_snapshot(adapter, kind, session, source):
+    database = await adapter._ensure_session_db_async()
+    if database is None:
+        raise ArtifactError("Session database is unavailable.", 503)
+    if kind == "sessions":
+        rows = await asyncio.to_thread(database.list_sessions_rich, source=source, limit=100001,
+            include_children=False, order_by_last_active=True, include_pinned=False)
+        return None, [adapter._session_response(row) for row in rows]
+
+    def transcript():
+        for _ in range(3):
+            tip = database.resolve_resume_session_id(session)
+            records = database.get_messages(tip, limit=100001)
+            if database.resolve_resume_session_id(session) == tip:
+                return tip, records
+        raise ArtifactError("Conversation was compressed while loading. Refresh to retry.", 409)
+    tip, rows = await asyncio.to_thread(transcript)
+    return tip, [message_response(adapter, row) for row in rows]
+
+
+async def persistence_snapshot(adapter, kind, session, source):
+    from gateway.platforms.api_server import _session_row
+    from persistence.conversation.messages import TranscriptRead, TranscriptView
+    from persistence.conversation.sessions import SessionOrder, SessionQuery, SessionWindow
+
+    store = adapter._store_beside(await adapter._ensure_store_async())
+    if store is None:
+        raise ArtifactError("Session database is unavailable.", 503)
+    if kind == "sessions":
+        query = SessionQuery(sources=(source,) if source else None, include_children=False,
+                             order=SessionOrder.LAST_ACTIVE, include_pinned=False)
+        entries = await store.aio.sessions.list_sessions(query, SessionWindow(limit=100001))
+        return None, [adapter._session_response(_session_row(entry.session, entry)) for entry in entries]
+
+    read = TranscriptRead(view=TranscriptView.ACTIVE, limit=100001, latest=False, include_lineage=True)
+    for _ in range(3):
+        tip = await store.aio.lineage.resolve_resume_target(session)
+        rows = await store.aio.messages.read_transcript(tip, read)
+        if await store.aio.lineage.resolve_resume_target(session) == tip:
+            return tip, [message_response(adapter, row.as_wire_row()) for row in rows]
+    raise ArtifactError("Conversation was compressed while loading. Refresh to retry.", 409)
+
+
 class Snapshots:
     TTL = 600
     MAX_BYTES = 32 * 1024 * 1024
 
     def __init__(self, adapter):
         self.adapter = adapter
+        self.uses_persistence = (not callable(getattr(adapter, "_ensure_session_db_async", None))
+                                 and persistence_history_supported(adapter))
         self.values = OrderedDict()
         self.bytes = 0
         self.closed = False
@@ -56,6 +116,8 @@ class Snapshots:
     async def page(self, request, kind):
         if self.closed:
             raise ArtifactError("Bellpull was unloaded; restart the gateway.", 503)
+        if self.uses_persistence and self.adapter._room_grant_token(request):
+            raise ArtifactError("Account-level API credentials are required for history snapshots.", 403)
         self._expire()
         scope = self.adapter._run_idempotency_scope(request)
         source = request.query.get("source") or None
@@ -84,27 +146,14 @@ class Snapshots:
             if offset < 0 or offset > len(payload):
                 raise ArtifactError("Invalid page cursor.")
         else:
-            database = await self.adapter._ensure_session_db_async()
-            if database is None:
-                raise ArtifactError("Session database is unavailable.", 503)
-            if kind == "sessions":
-                rows = await asyncio.to_thread(database.list_sessions_rich, source=source, limit=100001,
-                    include_children=False, order_by_last_active=True, include_pinned=False)
-                payload = [self.adapter._session_response(row) for row in rows]
-                resolved = None
-            else:
+            if kind == "messages":
                 _, rejection = await self.adapter._get_existing_session_or_404(session)
                 if rejection is not None:
                     return rejection
-                def transcript():
-                    for _ in range(3):
-                        tip = database.resolve_resume_session_id(session)
-                        records = database.get_messages(tip, limit=100001)
-                        if database.resolve_resume_session_id(session) == tip:
-                            return tip, records
-                    raise ArtifactError("Conversation was compressed while loading. Refresh to retry.", 409)
-                resolved, rows = await asyncio.to_thread(transcript)
-                payload = [message_response(self.adapter, row) for row in rows]
+            if self.uses_persistence:
+                resolved, payload = await persistence_snapshot(self.adapter, kind, session, source)
+            else:
+                resolved, payload = await legacy_snapshot(self.adapter, kind, session, source)
             size = len(json.dumps(payload).encode())
             if size > self.MAX_BYTES or len(payload) > 100000:
                 raise ArtifactError("This history exceeds the bounded snapshot limit.", 413)
