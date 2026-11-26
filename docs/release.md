@@ -1,3 +1,7 @@
+## Shared Canvas on stock Hermes 0.23.4 · plugin 0.9.21
+
+Both clients and the drawing tool can reopen the same canvas after a chat is compacted. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.21-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.21-experimental.1/docs/RELEASE-PLUGIN-0.9.21-EXPERIMENTAL.md)
+
 ## Coding activity on stock Hermes 0.23.4 · plugin 0.9.20
 
 Android and Desktop can read the original executor’s activity and workspace changes through the current Hermes conversation store. The release includes signed Android build 72. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.20-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.20-experimental.1/docs/RELEASE-PLUGIN-0.9.20-EXPERIMENTAL.md)
