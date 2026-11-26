@@ -167,7 +167,7 @@ import kotlinx.coroutines.delay
                         FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                             if (reminder.state=="pending") {
                                 TextButton(onClick={ workspace.reminder(reminder,"complete") },enabled=!workspace.busy && !pending) { Text("Complete") }
-                                TextButton(onClick={ workspace.reminder(reminder,"snooze",now+3600000) },enabled=!workspace.busy && !pending) { Text("Snooze 1h") }
+                                TextButton(onClick={ workspace.reminder(reminder, "snooze", clock() + 3_600_000L) },enabled=!workspace.busy && !pending) { Text("Snooze 1h") }
                                 TextButton(onClick={ workspace.reminder(reminder,"dismiss") },enabled=!workspace.busy && !pending) { Text("Dismiss") }
                             } else TextButton(onClick={ workspace.reminder(reminder,"reopen") },enabled=!workspace.busy && !pending) { Text("Reopen") }
                             TextButton(onClick={ editingReminder=reminder; editor="Reminder" },enabled=!workspace.busy && !pending) { Text("Edit") }

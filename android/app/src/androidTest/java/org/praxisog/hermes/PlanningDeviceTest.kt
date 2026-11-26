@@ -119,8 +119,14 @@ class PlanningDeviceTest {
                 ui.tapText("Save")
                 ui.awaitMain("Reminder creation failed") { runtime.planning?.snapshot?.reminders?.any { it.title == "Phone fixture reminder" } == true }
                 ui.await("Overdue group missing") { ui.text("Needs attention") != null }
+                val earliestDue = System.currentTimeMillis() + 3_600_000L
                 ui.tapText("Snooze 1h")
-                ui.awaitMain("Snooze changed completion incorrectly") { runtime.planning?.snapshot?.reminders?.any { it.title == "Phone fixture reminder" && it.state == "pending" && it.dueMs > System.currentTimeMillis() } == true }
+                ui.awaitMain("Snooze must schedule one hour from the tap") {
+                    runtime.planning?.snapshot?.reminders?.any {
+                        it.title == "Phone fixture reminder" && it.state == "pending" &&
+                            it.dueMs in earliestDue..(System.currentTimeMillis() + 3_600_000L)
+                    } == true
+                }
                 ui.tapText("Complete")
                 ui.awaitMain("Reminder completion failed") { runtime.planning?.snapshot?.reminders?.any { it.title == "Phone fixture reminder" && it.state == "completed" } == true }
                 ui.tapText("Reopen")

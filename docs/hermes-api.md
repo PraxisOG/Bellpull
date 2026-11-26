@@ -185,10 +185,13 @@ No new inbound phone token/automatic device bridge is implemented in this slice.
 
 Planning SQLite lives under each profile's `bellpull-planning/`; phone policy,
 metadata cache, revocation intent and operation receipts use the existing encrypted
-per-connection cache. Reminders have no background/offline alert transport yet.
+per-connection cache. Once Android syncs a reminder, it schedules an alarm for
+the active profile. With notifications enabled, cached reminders can alert offline
+and reschedule after reboot and unlock. Android may delay alerts without precise
+alarm access. New or changed server reminders reach the phone on its next sync.
 Calendar apps own appointment alerts. There is no automatic context injection;
 Hermes explicitly retrieves the bounded tool summary. Full routine result bodies,
-advanced delivery editing, automatic phone writes and Phase 10 delivery are deferred.
+advanced delivery editing and automatic phone writes are outside this planning API.
 
 # Bellpull / Hermes API contract
 

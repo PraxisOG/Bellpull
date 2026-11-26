@@ -1,6 +1,6 @@
-> **Latest experimental release · Bellpull plugin 0.9.27-mobile-preview and Android 0.20.28 / build 78**
-> Stock Hermes can recover run notification receipts and retry delivery after a restart.
-> [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md) · [Android release notes](docs/RELEASE-0.20.28-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.29 / build 79 and Bellpull plugin 0.9.27-mobile-preview**
+> Snoozing a reminder schedules it for one hour after the tap, including offline.
+> [Android release notes](docs/RELEASE-0.20.29-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
 
 <div align="center">
 

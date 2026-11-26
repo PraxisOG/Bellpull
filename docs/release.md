@@ -1,3 +1,7 @@
+## Reminder snooze timing · Android 0.20.29 experimental
+
+Build 79 schedules **Snooze 1h** from the tap in the Reminders tab. Includes server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.29-experimental.1) · [Release notes](RELEASE-0.20.29-EXPERIMENTAL.md)
+
 ## Stock Hermes run notifications · plugin 0.9.27
 
 Full stock Hermes 0.23.4 gateways can journal completed runs, failures, cancellations and pending approvals for the owning API profile. Android build 78 displays their delivery receipts in Today → Inbox. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.27-experimental.1) · [Release notes](RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md)
