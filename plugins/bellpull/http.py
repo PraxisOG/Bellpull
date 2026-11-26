@@ -289,6 +289,9 @@ def wire(app, adapter):
             return web.json_response({"deleted": True})
         return web.json_response(await asyncio.to_thread(store.usage), headers={"Cache-Control": "no-store"})
 
+    async def notification_status(request):
+        return await relay.dispatch_status(adapter._run_idempotency_scope(request), host_ready)
+
     async def notification_history(request):
         return await relay.history(adapter._run_idempotency_scope(request), request)
 
@@ -377,6 +380,8 @@ def wire(app, adapter):
             ("GET", "/api/bellpull/sessions", partial(snapshots.page, kind="sessions")),
             ("GET", "/api/bellpull/sessions/{session_id}/messages", partial(snapshots.page, kind="messages")),
         ])
+    if callable(getattr(adapter, "_run_idempotency_scope", None)):
+        routes.append(("GET", "/api/bellpull/notifications/status", notification_status))
     if host_ready:
         routes.append(("GET", "/api/bellpull/events", events))
         if journal is not None:

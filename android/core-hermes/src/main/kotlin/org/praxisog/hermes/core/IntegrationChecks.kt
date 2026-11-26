@@ -40,6 +40,16 @@ internal fun integrationCheck(endpoint: IntegrationEndpoint, started: Long, resu
             if (doc.field("version")?.intOrNull != 1 || flags == null) check(INCOMPATIBLE)
             else check(READY).copy(relayAvailable = flags.field("bellpull_notification_events")?.booleanOrNull)
         }
+        IntegrationEndpoint.NOTIFICATION_DISPATCH -> {
+            if (doc.field("version")?.intOrNull != 1) return check(INCOMPATIBLE)
+            val observation = notificationDispatch(doc)
+            val condition = when {
+                observation.transport == RelayHealth.UNKNOWN -> UNKNOWN
+                observation.transport != RelayHealth.HEALTHY || observation.backlog != ReceiptAvailability.AVAILABLE -> DEGRADED
+                else -> READY
+            }
+            check(condition).copy(notificationDispatch = observation)
+        }
         IntegrationEndpoint.MODEL_ROUTE -> {
             val models = doc["models"] as? JsonArray
             val route = doc.obj("default")
@@ -80,4 +90,33 @@ internal fun integrationCheck(endpoint: IntegrationEndpoint, started: Long, resu
                 runtimeUpdatedAt = updated)
         }
     }
+}
+
+private fun notificationDispatch(doc: JsonObject): NotificationDispatch {
+    val relay = doc["transport"] as? JsonObject
+    val journal = doc["backlog"] as? JsonObject
+    val transport = when ((relay?.get("state") as? JsonPrimitive)?.contentOrNull) {
+        "healthy" -> RelayHealth.HEALTHY
+        "unconfigured" -> RelayHealth.UNCONFIGURED
+        "unavailable" -> RelayHealth.UNAVAILABLE
+        "unreachable" -> RelayHealth.UNREACHABLE
+        else -> RelayHealth.UNKNOWN
+    }
+    fun number(key: String) = (journal?.get(key) as? JsonPrimitive)?.takeUnless { it.isString }
+    fun millis(key: String) = number(key)?.doubleOrNull?.takeIf { it > 0 && it < 253402300800.0 }?.let { (it * 1000).toLong() }
+    val pending = number("pending")?.longOrNull?.takeIf { it >= 0 }
+    val oldest = millis("oldest_pending_at")
+    val accepted = millis("last_accepted_at")
+    val complete = pending != null &&
+        (if (pending == 0L) journal?.get("oldest_pending_at") == JsonNull else oldest != null) &&
+        (journal?.get("last_accepted_at") == JsonNull || accepted != null)
+    val backlog = when ((journal?.get("state") as? JsonPrimitive)?.contentOrNull) {
+        "available" -> if (complete) ReceiptAvailability.AVAILABLE else ReceiptAvailability.UNKNOWN
+        "unavailable" -> ReceiptAvailability.UNAVAILABLE
+        "unsupported" -> ReceiptAvailability.UNSUPPORTED
+        else -> ReceiptAvailability.UNKNOWN
+    }
+    val code = (relay?.get("http_status") as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull?.takeIf { it in 100..599 }
+    if (backlog != ReceiptAvailability.AVAILABLE) return NotificationDispatch(transport, backlog, code)
+    return NotificationDispatch(transport, backlog, code, pending, oldest, accepted)
 }

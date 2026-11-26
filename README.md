@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.16 / build 66 and plugin 0.9.11-mobile-preview**
-> Open a completed **Memory status** tool call to see owner access and when the provider built the chat snapshot.
-> [Release notes](docs/RELEASE-0.20.16-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.17 / build 67 and plugin 0.9.12-mobile-preview**
+> Open **Settings → Servers → Integration status** to check the notification relay and its dispatch backlog.
+> [Release notes](docs/RELEASE-0.20.17-EXPERIMENTAL.md).
 
 <div align="center">
 

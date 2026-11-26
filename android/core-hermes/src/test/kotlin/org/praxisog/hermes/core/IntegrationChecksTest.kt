@@ -24,6 +24,7 @@ class IntegrationChecksTest {
                 "/api/bellpull/capabilities" -> pluginCode to if (pluginCode == 200) """{"version":1,"features":{"bellpull_notification_events":true}}""" else """{"error":{"code":"bellpull_restart_required","message":"private operator log"}}"""
                 "/health/detailed" -> 200 to """{"updated_at":"2026-01-01T01:00:00Z","readiness":{"status":"degraded","checks":{"model":{"status":"ok"},"background_queues":{"active_api_runs":2,"active_delegations":4,"process_completions":0}}},"exit_reason":"private text"}"""
                 "/api/bellpull/models" -> 200 to """{"version":1,"default":{"provider":"lab","model":"text-v2","model_options":{"secret":"private value"}},"models":[{"provider":"lab","model":"text-v2","configured":true,"vision":false}]}"""
+                "/api/bellpull/notifications/status" -> 200 to """{"version":1,"transport":{"state":"unavailable","http_status":503},"backlog":{"state":"available","pending":2,"oldest_pending_at":101,"last_accepted_at":90.125},"secret":"private data"}"""
                 else -> error("Unexpected probe")
             }
             Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(status).message("fixture")
@@ -40,7 +41,7 @@ class IntegrationChecksTest {
             gatewayCode = 401
             pluginCode = 200
             val results = client.checkIntegrations().associateBy { it.endpoint }
-            assertEquals(6, calls.size)
+            assertEquals(7, calls.size)
             assertEquals(IntegrationCondition.DENIED, results[IntegrationEndpoint.GATEWAY]?.condition)
             assertEquals(true, results[IntegrationEndpoint.PLUGIN]?.relayAvailable)
             val runtime = results.getValue(IntegrationEndpoint.READINESS)
@@ -49,6 +50,10 @@ class IntegrationChecksTest {
             assertEquals(4, runtime.activeDelegations)
             assertEquals(true, runtime.modelConfigured)
             assertNotNull(runtime.runtimeUpdatedAt)
+            val delivery = results.getValue(IntegrationEndpoint.NOTIFICATION_DISPATCH)
+            assertEquals(IntegrationCondition.DEGRADED, delivery.condition)
+            assertEquals(NotificationDispatch(RelayHealth.UNAVAILABLE, ReceiptAvailability.AVAILABLE, 503, 2, 101000, 90125),
+                delivery.notificationDispatch)
             val route = results.getValue(IntegrationEndpoint.MODEL_ROUTE)
             assertEquals("text-v2", route.model)
             assertEquals("lab", route.provider)
@@ -56,8 +61,26 @@ class IntegrationChecksTest {
             assertFalse((results.toString() + evidence.toString()).contains("private"))
             pluginCode = 429
             assertEquals(IntegrationCondition.RATE_LIMITED, client.checkIntegrations().single { it.endpoint == IntegrationEndpoint.PLUGIN }.condition)
-            assertEquals(10, calls.size)
+            assertEquals(12, calls.size)
         } finally { client.close() }
+    }
+
+    @Test fun notificationTransportAndJournalAreIndependent() {
+        fun check(relay: String, backlog: String) = integrationCheck(IntegrationEndpoint.NOTIFICATION_DISPATCH, 20,
+            HermesResult.Ok(Json.parseToJsonElement("""{"version":1,"transport":{"state":"$relay"},"backlog":$backlog}""").jsonObject))
+        val empty = """{"state":"available","pending":0,"oldest_pending_at":null,"last_accepted_at":null}"""
+        assertEquals(IntegrationCondition.READY, check("healthy", empty).condition)
+        assertEquals(0L, check("unconfigured", empty).notificationDispatch?.pending)
+        assertEquals(IntegrationCondition.UNKNOWN, check("unknown", empty).condition)
+        for (state in listOf("unsupported", "unavailable")) {
+            val missing = check("healthy", """{"state":"$state","pending":0}""")
+            assertEquals(IntegrationCondition.DEGRADED, missing.condition)
+            assertNull(missing.notificationDispatch?.pending)
+        }
+        for (malformed in listOf(empty.replace("0,", "-1,"), empty.replace("0,", "1,"),
+            empty.replace("last_accepted_at", "unrecognized"))) {
+            assertEquals(ReceiptAvailability.UNKNOWN, check("healthy", malformed).notificationDispatch?.backlog)
+        }
     }
 
     @Test fun recentFailureSurvivesALateOlderSuccessAndRestart() {

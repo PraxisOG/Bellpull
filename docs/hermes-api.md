@@ -185,6 +185,14 @@ advanced delivery editing, automatic phone writes and Phase 10 delivery are defe
 
 # Bellpull / Hermes API contract
 
+## Notification transport and dispatch status
+
+An authenticated `GET /api/bellpull/notifications/status` returns a version 1 snapshot. The profile-prefixed route supports the same check. It reads the configured loopback ntfy service’s [health endpoint](https://docs.ntfy.sh/config/#health-checks) with a bounded timeout. It never publishes a test notification. The response contains no topic, credential, event ID, or broker response body.
+
+- `transport.state` can be `healthy`, `unavailable`, `unreachable`, `unconfigured` or `unknown`. An HTTP response can also supply `http_status`. A passing health check describes the relay process.
+- `backlog.state` can be `available`, `unsupported` (the host has no run-status hook) or `unavailable` (receipt storage could not be read). An available journal supplies the number of native run receipts awaiting broker acceptance in the authenticated scope, `pending`. This includes leased/in-flight dispatches until the journal records acceptance.
+- `oldest_pending_at` is the earliest storage time among pending receipts. `last_accepted_at` is the most recent successful broker acknowledgement for this scope. Times are Unix seconds. Empty sets produce null timestamps. The check uses the full journal independently of history pagination and does not claim or retry a receipt. Phone receipt and display are separate observations.
+
 ## Owner memory status in native chat history
 
 An authenticated session transcript can include a completed `memory_status` tool call. The memory provider reports `access.owner_memory` (`available` or `unavailable`), the visible record count, indexing backlog and background worker state for that call. Those fields describe the authorized scopes of that chat at the time of the check.

@@ -1,3 +1,7 @@
+## Notification dispatch status · 0.20.17 / build 67
+
+Open **Settings → Servers → Integration status** to see the notification relay’s health, pending dispatches and last broker acknowledgement for the selected profile. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.17-experimental.1) · [Release notes](RELEASE-0.20.17-EXPERIMENTAL.md)
+
 ## Owner memory status · 0.20.16 / build 66
 
 Open a completed **Memory status** tool call to see the owner-access decision, counts, and any provider and timestamp information Hermes recorded for that chat. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.16-experimental.1) · [Release notes](RELEASE-0.20.16-EXPERIMENTAL.md)

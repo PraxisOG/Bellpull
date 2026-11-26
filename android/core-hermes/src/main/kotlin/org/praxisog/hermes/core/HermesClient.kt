@@ -444,6 +444,7 @@ class HermesClient(
             IntegrationEndpoint.PLUGIN -> "/api/bellpull/capabilities"
             IntegrationEndpoint.READINESS -> "/health/detailed"
             IntegrationEndpoint.MODEL_ROUTE -> "/api/bellpull/models"
+            IntegrationEndpoint.NOTIFICATION_DISPATCH -> "/api/bellpull/notifications/status"
         }
         val started = System.currentTimeMillis()
         val result = execute(authed(path).get().build(), null, probe = probe) { body ->

@@ -71,6 +71,22 @@ class NotificationJournalTest(unittest.TestCase):
             self.assertNotEqual(journal_id, reset["journal_id"])
             self.assertEqual(["new"], [event["run_id"] for event in reset["events"]])
 
+    def test_backlog_counts_every_scoped_receipt_without_claiming_it(self):
+        with tempfile.TemporaryDirectory() as home:
+            journal = NotificationJournal(home)
+            journal.record("other", "run", "chat", "completed", "", 40, now=40)
+            journal.finish(journal.claim(now=50), 200, now=60)
+            for n in range(3):
+                journal.record("owner", str(n), "chat", "completed", "", 1, now=100+n)
+            self.assertTrue(journal.history("owner", 0, 1)["has_more"])
+            before = journal.history("owner", 0, 100)
+            self.assertEqual({"pending": 3, "oldest_pending_at": 100, "last_accepted_at": None}, journal.backlog("owner"))
+            self.assertEqual(before, journal.history("owner", 0, 100))
+            journal.finish(journal.claim(now=110), 200, now=111)
+            self.assertEqual({"pending": 2, "oldest_pending_at": 101, "last_accepted_at": 111},
+                             NotificationJournal(home).backlog("owner"))
+            self.assertEqual({"pending": 0, "oldest_pending_at": None, "last_accepted_at": 60}, journal.backlog("other"))
+
     def test_cursor_pages_approvals_and_excludes_other_scopes(self):
         with tempfile.TemporaryDirectory() as home:
             journal = NotificationJournal(home)
@@ -87,6 +103,34 @@ class NotificationJournalTest(unittest.TestCase):
 
 
 class RelayRecoveryTest(unittest.IsolatedAsyncioTestCase):
+    async def test_relay_health_is_a_read_only_probe_and_bounds_unrecognized_responses(self):
+        response = web.json_response({"healthy": True})
+        seen = []
+        async def health(request):
+            seen.append((request.method, request.path, request.headers.get("Authorization")))
+            return response
+        broker = web.Application()
+        broker.router.add_get("/v1/health", health)
+        async with TestServer(broker) as server:
+            relay = Relay(str(server.make_url("")).rstrip("/"), None)
+            self.assertEqual({"state":"healthy", "http_status":200}, await relay._health())
+            response = web.json_response({"healthy": False})
+            self.assertEqual("unavailable", (await relay._health())["state"])
+            response = web.Response(status=503)
+            self.assertEqual({"state":"unavailable", "http_status":503}, await relay._health())
+            response = web.Response(status=302, headers={"Location": "/should-never-request"})
+            self.assertEqual(302, (await relay._health())["http_status"])
+            for body in ("bad", " " * 4096 + '{"healthy":true}', '{"healthy":1}'):
+                response = web.Response(text=body)
+                self.assertEqual("unknown", (await relay._health())["state"])
+            self.assertEqual([("GET", "/v1/health", None)] * 7, seen)
+        self.assertEqual("unreachable", (await relay._health())["state"])
+        off = Relay("", None)
+        body = json.loads((await off.dispatch_status("owner", False)).body)
+        self.assertEqual({"state":"unconfigured"}, body["transport"])
+        self.assertEqual({"state":"unsupported"}, body["backlog"])
+        self.assertEqual({"state":"unavailable"}, json.loads((await off.dispatch_status("owner", True)).body)["backlog"])
+
     async def test_restart_retries_stored_receipt_and_enriches_only_the_matching_scope(self):
         attempted = []
         accepted = asyncio.Event()

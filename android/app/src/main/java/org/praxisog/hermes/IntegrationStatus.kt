@@ -69,10 +69,12 @@ internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHea
                         IntegrationEndpoint.PLUGIN -> "Bellpull plugin"
                         IntegrationEndpoint.READINESS -> "Gateway readiness"
                         IntegrationEndpoint.MODEL_ROUTE -> "Model provider route"
+                        IntegrationEndpoint.NOTIFICATION_DISPATCH -> "Run notification dispatch"
                     }, style = MaterialTheme.typography.titleSmall)
                     if (check == null) Text("Not checked yet.")
                     else {
-                        Text(integrationDescription(check))
+                        val dispatch = check.notificationDispatch
+                        if (dispatch == null) Text(integrationDescription(check)) else NotificationDispatchDetails(dispatch)
                         Text("Checked ${atTime(check.checkedAt)}", style = MaterialTheme.typography.bodySmall)
                         if (check.condition != IntegrationCondition.READY) check.lastReadyAt?.let {
                             Text("Last available ${atTime(it)}", style = MaterialTheme.typography.bodySmall)
@@ -119,5 +121,27 @@ internal fun IntegrationStatusButton(server: String, saved: () -> IntegrationHea
                 finally { checking = false }
             }
         }) { Text("Check now") } }, confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } })
+    }
+}
+
+@Composable
+private fun NotificationDispatchDetails(dispatch: NotificationDispatch) {
+    val relay = when (dispatch.transport) {
+        RelayHealth.HEALTHY -> "Relay health check passed"
+        RelayHealth.UNCONFIGURED -> "No notification relay configured"
+        RelayHealth.UNAVAILABLE -> "Relay health check failed. Check the ntfy service."
+        RelayHealth.UNREACHABLE -> "Gateway could not reach the relay. Check its address and service."
+        RelayHealth.UNKNOWN -> "Relay health unknown"
+    }
+    Text(dispatch.relayHttpStatus?.let { "$relay (HTTP $it)" } ?: relay)
+    when (dispatch.backlog) {
+        ReceiptAvailability.AVAILABLE -> {
+            Text("Awaiting relay acceptance · ${dispatch.pending}")
+            dispatch.oldestPendingAt?.let { Text("Oldest pending receipt ${atTime(it)}") }
+            Text(dispatch.lastAcceptedAt?.let { "Last relay acceptance ${atTime(it)}" } ?: "No relay acceptance recorded")
+        }
+        ReceiptAvailability.UNSUPPORTED -> Text("This host does not record run notification receipts.")
+        ReceiptAvailability.UNAVAILABLE -> Text("Receipt storage unavailable. Check the gateway’s notification journal.")
+        ReceiptAvailability.UNKNOWN -> Text("Notification backlog unknown")
     }
 }

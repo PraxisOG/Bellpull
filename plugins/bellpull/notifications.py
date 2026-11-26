@@ -111,6 +111,43 @@ class Relay:
                 except asyncio.TimeoutError:
                     pass
 
+    async def _health(self):
+        if not self.url:
+            return {"state": "unconfigured"}
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=2)) as client:
+                async with client.get(f"{self.url}/v1/health", allow_redirects=False) as response:
+                    code = response.status
+                    if code != 200:
+                        return {"state": "unknown" if code in (404, 405) else "unavailable", "http_status": code}
+                    body = bytearray()
+                    async for chunk in response.content.iter_chunked(4096):
+                        body.extend(chunk)
+                        if len(body) > 4096:
+                            return {"state": "unknown", "http_status": code}
+                    doc = json.loads(body)
+                    healthy = doc.get("healthy") if isinstance(doc, dict) else None
+                    if not isinstance(healthy, bool):
+                        return {"state": "unknown", "http_status": code}
+                    return {"state": "healthy" if healthy else "unavailable", "http_status": code}
+        except (ValueError, RecursionError):
+            return {"state": "unknown", "http_status": 200}
+        except (ClientError, asyncio.TimeoutError):
+            return {"state": "unreachable"}
+
+    async def dispatch_status(self, scope, host_ready):
+        transport = await self._health()
+        if self.journal is None:
+            backlog = {"state": "unavailable" if host_ready else "unsupported"}
+        else:
+            try:
+                counts = await asyncio.to_thread(self.journal.backlog, topic(scope))
+                backlog = {"state": "available", **counts}
+            except (OSError, sqlite3.Error):
+                backlog = {"state": "unavailable"}
+        return web.json_response({"version": 1, "transport": transport, "backlog": backlog},
+                                 headers={"Cache-Control": "no-store"})
+
     async def history(self, scope, request):
         after = request.query.get("after", "0")
         limit = request.query.get("limit", "50")

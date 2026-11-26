@@ -2,11 +2,23 @@ package org.praxisog.hermes.model
 
 import kotlinx.serialization.Serializable
 
-enum class IntegrationEndpoint { GATEWAY, PLUGIN, READINESS, MODEL_ROUTE }
+enum class IntegrationEndpoint { GATEWAY, PLUGIN, READINESS, MODEL_ROUTE, NOTIFICATION_DISPATCH }
 
 enum class IntegrationCondition {
     READY, DEGRADED, DENIED, MISSING, RESTART_REQUIRED, PROVIDER_UNAVAILABLE, UNAVAILABLE, UNREACHABLE, INCOMPATIBLE, RATE_LIMITED, UNKNOWN
 }
+
+enum class RelayHealth { HEALTHY, UNCONFIGURED, UNREACHABLE, UNAVAILABLE, UNKNOWN }
+enum class ReceiptAvailability { AVAILABLE, UNAVAILABLE, UNSUPPORTED, UNKNOWN }
+
+@Serializable data class NotificationDispatch(
+    val transport: RelayHealth,
+    val backlog: ReceiptAvailability,
+    val relayHttpStatus: Int? = null,
+    val pending: Long? = null,
+    val oldestPendingAt: Long? = null,
+    val lastAcceptedAt: Long? = null,
+)
 
 /** Only typed evidence may enter the profile cache. HTTP bodies can contain private host details. */
 @Serializable data class IntegrationCheck(
@@ -16,6 +28,7 @@ enum class IntegrationCondition {
     val activeRuns: Int? = null, val processCompletions: Int? = null, val activeDelegations: Int? = null,
     val runtimeUpdatedAt: Long? = null,
     val provider: String? = null, val model: String? = null, val vision: Boolean? = null,
+    val notificationDispatch: NotificationDispatch? = null,
 )
 
 @Serializable data class IntegrationHealth(val checks: Map<IntegrationEndpoint, IntegrationCheck> = emptyMap()) {

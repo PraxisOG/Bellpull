@@ -32,6 +32,8 @@ class NotificationJournal:
                     accepted REAL, last_http INTEGER
                 );
                 CREATE INDEX IF NOT EXISTS event_cursor ON events(topic,revision);
+                CREATE INDEX IF NOT EXISTS dispatch_pending_topic ON events(topic,stored) WHERE accepted IS NULL;
+                CREATE INDEX IF NOT EXISTS dispatch_accepted_topic ON events(topic,accepted) WHERE accepted IS NOT NULL;
                 CREATE INDEX IF NOT EXISTS dispatch_due ON events(due) WHERE accepted IS NULL;
             """)
 
@@ -145,6 +147,17 @@ class NotificationJournal:
                 "SELECT * FROM events WHERE topic=? AND event_id=?", (topic, event_id)
             ).fetchone()
             return self.public(row) if row else None
+
+    def backlog(self, topic):
+        # One SQLite snapshot includes the entire topic, independent of a client's history cursor.
+        with self.db() as db:
+            row = db.execute(
+                """SELECT COUNT(*) AS pending, MIN(stored) AS oldest_pending_at,
+                    (SELECT MAX(accepted) FROM events WHERE topic=? AND accepted IS NOT NULL) AS last_accepted_at
+                    FROM events WHERE topic=? AND accepted IS NULL""",
+                (topic, topic),
+            ).fetchone()
+        return dict(row)
 
     def history(self, topic, after, limit, journal_id=None):
         with self.db() as db:

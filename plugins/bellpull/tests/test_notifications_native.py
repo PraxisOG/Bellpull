@@ -29,11 +29,17 @@ class NativeNotificationTest(unittest.IsolatedAsyncioTestCase):
             hints.append(await request.json())
             return web.Response(status=200 if online else 503)
 
+        async def health(request):
+            self.assertNotIn("Authorization", request.headers)
+            return web.json_response({"healthy": online}, status=200 if online else 503)
+
         broker = web.Application()
+        broker.router.add_get("/v1/health", health)
         broker.router.add_post("/{topic}", publish)
         key = secrets.token_hex(32)
         origin = "http://127.0.0.1:18689"
         history = origin + "/api/bellpull/notifications/history"
+        dispatch = origin + "/api/bellpull/notifications/status"
 
         def gateway():
             manager.discover_and_load()
@@ -92,6 +98,13 @@ class NativeNotificationTest(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(202, response.status, await response.text())
                         run = (await response.json())["run_id"]
                         first = await receipt(client, 0, 503)
+                        self.assertEqual(401, (await client.get(dispatch, headers={"Authorization": ""})).status)
+                        checked = await client.get(dispatch)
+                        self.assertEqual("no-store", checked.headers["Cache-Control"])
+                        observed = await checked.json()
+                        self.assertEqual({"state": "unavailable", "http_status": 503}, observed["transport"])
+                        self.assertEqual({"state": "available", "pending": 1,
+                                          "oldest_pending_at": first["stored_at"], "last_accepted_at": None}, observed["backlog"])
                     await service.disconnect()
                     manager.unload()
                     online = True
@@ -104,6 +117,10 @@ class NativeNotificationTest(unittest.IsolatedAsyncioTestCase):
                             (first["event_id"], session, run),
                             (final["event_id"], final["session_id"], final["run_id"]),
                         )
+                        observed = await (await client.get(dispatch)).json()
+                        self.assertEqual({"state": "healthy", "http_status": 200}, observed["transport"])
+                        self.assertEqual({"state": "available", "pending": 0,
+                                          "oldest_pending_at": None, "last_accepted_at": final["accepted_at"]}, observed["backlog"])
                         again = await (await client.get(history, params={"after": final["revision"]})).json()
                         self.assertEqual([], again["events"])
                     self.assertEqual(1, len(admissions))
