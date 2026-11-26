@@ -1,3 +1,7 @@
+## Voice on the built-in speaker · Android 0.20.24 experimental
+
+Build 74 keeps voice listening on its selected speaker when an unused headset disconnects. The release includes server plugin 0.9.22. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.24-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.24-experimental.1/docs/RELEASE-0.20.24-EXPERIMENTAL.md)
+
 ## Voice audio focus · Android 0.20.23 experimental
 
 Build 73 keeps capture closed during navigation and recovers the original communication route when focus returns. The release includes server plugin 0.9.22. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.23-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.23-experimental.1/docs/RELEASE-0.20.23-EXPERIMENTAL.md)
