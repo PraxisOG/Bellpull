@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.23 / build 73 and plugin 0.9.22-mobile-preview**
-> Voice keeps the microphone closed during a navigation prompt, including when you change voice modes.
-> [Release notes](docs/RELEASE-0.20.23-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.26 / build 76 and plugin 0.9.23-mobile-preview**
+> New chats can receive opted-in phone notifications and calendar context on stock Hermes 0.23.4.
+> [Release notes](docs/RELEASE-PLUGIN-0.9.23-EXPERIMENTAL.md).
 
 <div align="center">
 
