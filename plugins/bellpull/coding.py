@@ -250,6 +250,7 @@ class Observer:
         self.adapter=adapter
         self.stores={}
         self.partial={}
+        self.exit_receipts = {}
         self.lock=threading.RLock()
         self.active=True
         self.task=None
@@ -341,14 +342,48 @@ class Observer:
     def tick(self):
         if not self.registry: return
         with self.lock:
+            retained = {}
             for store in list(self.stores.values()):
                 for work in store.works():
+                    if work["state"] in ("completed", "failed"):
+                        process = self.exit_receipt(store, work, retained)
+                        if self.matches_process(work, process):
+                            with process._lock:
+                                if not process.exited or process.completion_reason != "killed":
+                                    continue
+                                work.update(state="stopped", exit_code=process.exit_code)
+                            store.save(work)
+                        continue
                     if work["state"] not in ("running","unknown"): continue
                     process=self.registry.get(work["process_id"])
-                    if process is None or process.id != work["process_id"] or str(process.started_at)!=work["incarnation"] or process.owner_task_id!=work["owner_task_id"]:
+                    if not self.matches_process(work, process):
                         work.update(state="lost",gap=True,note="The recorded child is unavailable. Its completion is unverified.")
                         store.save(work); continue
                     self.sample(store,work,process)
+            self.exit_receipts = retained
+
+    def exit_receipt(self, store, work, retained):
+        # Hermes can update the receipt from exited to killed after the reader
+        # reports EOF. Follow that receipt without retaining the process or its output.
+        key = (store.path, work["id"])
+        if key not in self.exit_receipts:
+            process = self.registry.get(work["process_id"])
+            retained[key] = weakref.ref(process) if process is not None else None
+            return process
+        ref = self.exit_receipts[key]
+        if ref is not None and (process := ref()) is not None:
+            retained[key] = ref
+            return process
+        retained[key] = None
+        # Look up the final durable receipt once when the live object disappears.
+        return self.registry.get(work["process_id"]) if ref is not None else None
+
+    @staticmethod
+    def matches_process(work, process):
+        return (process is not None and process.id == work["process_id"]
+                and str(getattr(process, "started_at", None)) == work["incarnation"]
+                and getattr(process, "owner_task_id", None) == work["owner_task_id"]
+                and getattr(process, "parent_session_id", None) == work["session_id"])
 
     def sample(self, store, work, process):
         with process._lock:

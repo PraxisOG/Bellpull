@@ -137,6 +137,77 @@ class CodingTest(unittest.TestCase):
         self.assertEqual("lost",restored.works()[0]["state"])
         self.observer.registry=None
 
+    def test_native_stop_can_finalize_after_the_exit_was_saved(self):
+        self.process.id = self.work["process_id"]
+        self.process.started_at = float(self.work["incarnation"])
+        self.process.parent_session_id = self.work["session_id"]
+        self.process.owner_task_id = self.work["owner_task_id"]
+        self.process.exited = True
+        self.process.exit_code = -15
+        self.process.completion_reason = "exited"
+        self.sample(line("Last output"))
+        historical = self.store.snapshot("root", ["root"])
+        self.assertEqual("failed", historical["works"][0]["state"])
+
+        # Open the saved journal as a fresh observer would after a plugin update.
+        self.observer.store(self.home)
+        registry = Mock()
+        registry.get.return_value = self.process
+        with patch.object(self.observer, "registry", registry):
+            self.observer.tick()
+            self.observer.tick()
+            self.assertEqual("failed", self.store.works()[0]["state"])
+            self.process.completion_reason = "killed"
+            self.observer.tick()
+            self.observer.tick()
+        registry.get.assert_called_once_with(self.work["process_id"])
+        final = CodingStore(self.home).snapshot("root", ["root"], after=historical["cursor"])
+        self.assertEqual(("stopped", -15), (final["works"][0]["state"], final["works"][0]["exit_code"]))
+        self.assertEqual(historical["cursor"], final["cursor"])
+        self.assertEqual([], final["rows"])
+
+    def test_evicted_live_process_uses_its_final_durable_stop_receipt(self):
+        self.process.id = self.work["process_id"]
+        self.process.started_at = float(self.work["incarnation"])
+        self.process.parent_session_id = self.work["session_id"]
+        self.process.owner_task_id = self.work["owner_task_id"]
+        self.process.exited = True
+        self.process.exit_code = 0
+        self.process.completion_reason = "exited"
+        self.sample("")
+        self.observer.store(self.home)
+        durable = ProcessFixture()
+        durable.__dict__.update(self.process.__dict__)
+        durable.completion_reason = "killed"
+        durable.exit_code = -15
+        with patch.object(self.observer, "registry") as registry:
+            registry.get.return_value = self.process
+            self.observer.tick()
+            self.assertEqual("completed", self.store.works()[0]["state"])
+            registry.get.return_value = durable
+            del self.process
+            self.observer.tick()
+            self.observer.tick()
+            self.assertEqual(2, registry.get.call_count)
+        self.assertEqual("stopped", self.store.works()[0]["state"])
+
+    def test_unavailable_or_reused_process_preserves_a_verified_exit(self):
+        self.process.exited = True
+        self.process.exit_code = 0
+        self.sample("")
+        self.observer.store(self.home)
+        self.process.completion_reason = "killed"
+        self.process.id = self.work["process_id"]
+        self.process.owner_task_id = self.work["owner_task_id"]
+        self.process.parent_session_id = self.work["session_id"]
+        self.process.started_at = 456.0
+        for native in (None, self.process):
+            self.observer.exit_receipts.clear()
+            with patch.object(self.observer, "registry") as registry:
+                registry.get.return_value = native
+                self.observer.tick()
+                self.assertEqual("completed", self.store.works()[0]["state"])
+
     def test_only_exact_simple_json_launches_are_candidates(self):
         self.assertTrue(cli_invocation('opencode run --format json "Update app"'))
         self.assertTrue(cli_invocation('/opt/bin/opencode run --format=json "Fix it"'))
