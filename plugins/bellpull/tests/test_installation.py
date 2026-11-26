@@ -22,11 +22,18 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
         async def existing(request):
             return web.json_response({})
         app.router.add_get("/api/bellpull/capabilities", existing)
+        startup, middlewares = list(app.on_startup), list(app.middlewares)
+        store = adapter._run_idempotency_store
+        lookup, reserve = store.lookup, store.reserve
         try:
             with self.assertRaises(RuntimeError):
                 wire(app, adapter)
             self.assertEqual(create, adapter._create_agent)
             self.assertEqual(progress, adapter._make_run_event_callback)
+            self.assertEqual((lookup, reserve), (store.lookup, store.reserve))
+            self.assertFalse(hasattr(adapter, "_bellpull_native_attachments"))
+            self.assertEqual(startup, list(app.on_startup))
+            self.assertEqual(middlewares, list(app.middlewares))
         finally:
             adapter._run_idempotency_store.close()
 

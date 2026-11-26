@@ -141,6 +141,24 @@ class BotChatRecoveryTest(unittest.TestCase):
         with self.assertRaises(ArtifactError):
             recovery.selected_answer(self.home, "no-answer", incomplete["stamp"], incomplete["revision"])
 
+    def test_script_headings_and_failure_diagnostics_are_saved_output(self):
+        from cron import jobs
+        from cron.scheduler import _job_doc_header, _run_doc_header
+        from cron.scheduler_diagnostics import format_run_error
+        with jobs.use_cron_store(self.home):
+            header = _job_doc_header("A report", self.job, "2000-01-01 00:00:00", "no_agent (script)")
+            output = "meter reading\n## Prompt\nusage section\n## Response\nexample section"
+            jobs.save_job_output(self.job, header + "\n---\n\n" + output + "\n")
+            failed = _run_doc_header({}, "A report (FAILED)", "failed", "original task\n## Response\nprivate instructions")
+            jobs.save_job_output("failed", failed + format_run_error(RuntimeError("Meter disconnected")))
+        def read(job):
+            file, = routine_results.list_results(self.home, job=job)["results"]
+            return recovery.selected_answer(self.home, job, file["stamp"], file["revision"])
+        self.assertIn(output, read(self.job))
+        diagnostic = read("failed")
+        self.assertIn("Meter disconnected", diagnostic)
+        self.assertNotIn("private instructions", diagnostic)
+
     def test_pruned_original_and_child_never_readmit_a_saved_decision(self):
         self.original()
         with patch.object(self.native, "find_canonical_live_owner", return_value=None), self.assertRaises(ArtifactError):

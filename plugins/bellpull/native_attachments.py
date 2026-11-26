@@ -17,26 +17,34 @@ from . import models_files
 from .artifacts import ArtifactError, checked_session
 
 
+def supported(adapter):
+    if getattr(adapter, "_bellpull_native_attachments", None) is not None:
+        return True
+    if not callable(getattr(adapter, "_runtime_lock_error", None)) or not callable(getattr(adapter, "_session_runtime_request_from_body", None)):
+        return False
+    try:
+        from run_agent import AIAgent
+        required = {"session_id", "ephemeral_system_prompt", "requested_model", "requested_provider", "model_options", "route", "confirmed_runtime_lock"}
+        store = adapter._run_idempotency_store
+        return (required.issubset(inspect.signature(adapter._create_agent).parameters)
+                and "persist_user_message" in inspect.signature(AIAgent.run_conversation).parameters
+                and callable(store.lookup)
+                and {"scope", "key", "fingerprint", "run_id"}.issubset(inspect.signature(store.reserve).parameters))
+    except (AttributeError, ImportError, TypeError, ValueError):
+        return False
+
+
 def wire(app, adapter):
     existing = getattr(adapter, "_bellpull_native_attachments", None)
     if existing is not None:
         existing[0]["active"] = True
         return True, existing[1]
-    create = getattr(adapter, "_create_agent", None)
-    if not callable(getattr(adapter, "_runtime_lock_error", None)) or not callable(getattr(adapter, "_session_runtime_request_from_body", None)):
+    if not supported(adapter):
         return False, lambda: None
-    store = getattr(adapter, "_run_idempotency_store", None)
-    try:
-        from run_agent import AIAgent
-        signature = inspect.signature(create)
-        required = {"session_id", "ephemeral_system_prompt", "requested_model", "requested_provider", "model_options", "route", "confirmed_runtime_lock"}
-        if not required.issubset(signature.parameters) or "persist_user_message" not in inspect.signature(AIAgent.run_conversation).parameters:
-            return False, lambda: None
-        lookup, reserve = store.lookup, store.reserve
-        if not {"scope", "key", "fingerprint", "run_id"}.issubset(inspect.signature(reserve).parameters):
-            return False, lambda: None
-    except (AttributeError, ImportError, TypeError, ValueError):
-        return False, lambda: None
+    create = adapter._create_agent
+    signature = inspect.signature(create)
+    store = adapter._run_idempotency_store
+    lookup, reserve = store.lookup, store.reserve
     state = {"active": True}
     context = ContextVar("bellpull_attachment_request", default=None)
     reserve_signature = inspect.signature(reserve)
