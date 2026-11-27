@@ -1,3 +1,7 @@
+## Background worker answers · Android 0.20.33 experimental
+
+Android shows and reads the answer from a recognized single-worker report in its original chat. Includes signed build 83 and server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.33-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.33-experimental.1/docs/RELEASE-0.20.33-EXPERIMENTAL.md)
+
 ## Shared Canvas property drafts · Android 0.20.32 experimental
 
 Android keeps an unsaved object property when another client changes it. Review the saved value, keep it, or apply your edit. Includes signed Android build 82 and server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.32-experimental.1) · [Release notes](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.32-experimental.1/docs/RELEASE-0.20.32-EXPERIMENTAL.md)
