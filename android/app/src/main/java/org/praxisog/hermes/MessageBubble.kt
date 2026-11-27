@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.praxisog.hermes.model.Message
+import org.praxisog.hermes.model.isDelegationDelivery
 
 internal val ResponseBubbleShape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
 internal val LocalInResponseBubble = staticCompositionLocalOf { false }
@@ -55,7 +56,7 @@ internal fun MessageBubble(message: Message, dense: Boolean, onSelectText: (Mess
                 .drawWithCache {
                     val path = Path().apply { addOutline(ResponseBubbleShape.createOutline(size, layoutDirection, this@drawWithCache)) }
                     onDrawWithContent { clipPath(path) { this@onDrawWithContent.drawContent() } }
-                }.semantics { contentDescription = "Hermes response" }) {
+                }.semantics { contentDescription = if (message.isDelegationDelivery) "Background result" else "Hermes response" }) {
                 CompositionLocalProvider(LocalInResponseBubble provides true,
                     LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
                     if (content != null) content()

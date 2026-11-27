@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.32 / build 82 and Bellpull plugin 0.9.27-mobile-preview**
-> Shared Canvas keeps local property drafts when another client edits the same object.
-> [Android release notes](docs/RELEASE-0.20.32-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.33 / build 83 and Bellpull plugin 0.9.27-mobile-preview**
+> Chat displays the answer from a background worker and uses it for read-aloud.
+> [Android release notes](docs/RELEASE-0.20.33-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
 
 <div align="center">
 

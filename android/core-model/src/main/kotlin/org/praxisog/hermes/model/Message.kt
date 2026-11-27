@@ -40,7 +40,23 @@ fun displayMessages(messages: List<Message>): List<Message> {
     return messages.filter { message ->
         message.displayKind != "hidden" && (!message.isDelegationDelivery || deliveries.add(
             message.delegationId?.let { "$it:${message.delegationNotice.orEmpty()}" } ?: "row:${message.id}"))
-    }.map { if (it.isDelegationDelivery) it.copy(role = "assistant") else it }
+    }.map { if (it.isDelegationDelivery) it.copy(role = "assistant", content = it.workerResultText()) else it }
+}
+
+// Hermes stores this single-worker report as context for the next model turn.
+// Only shorten the known envelope. Keep diagnostics and unfamiliar reports in full.
+private val resultBoundary = Regex("""(?m)^Status: [^\r\n]+\n--- RESULT ---\n""")
+private val workerStatus = Regex("""Status: [\w-]+(?:   API calls: \d+)?   Duration: (?:\d+(?:\.\d+)?|\?)s(?: \[TRUNCATED: hit max_iterations — work may be incomplete\])?""")
+
+private fun Message.workerResultText(): String? {
+    val report = content ?: return null
+    if (role != "user" || delegationId.isNullOrBlank() || !delegationNotice.isNullOrBlank() ||
+        !report.startsWith("[ASYNC DELEGATION COMPLETE — $delegationId]\nA background subagent you dispatched earlier has finished.")) return report
+    val boundary = resultBoundary.findAll(report).singleOrNull() ?: return report
+    if (!workerStatus.matches(boundary.value.substringBefore('\n'))) return report
+    val preamble = report.substring(0, boundary.range.first).trimEnd('\n')
+    if (!preamble.substringAfterLast('\n').startsWith("Role: ") || !preamble.contains("\nOriginal goal: ")) return report
+    return report.substring(boundary.range.last + 1).takeIf { it.isNotBlank() } ?: report
 }
 
 @Serializable
