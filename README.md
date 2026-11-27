@@ -1,6 +1,6 @@
-> **Latest experimental release · [Android 0.20.33 / build 83 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.33-experimental.1)**
-> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.33-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.33-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.33-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.33-experimental.1/docs/ROADMAP.md)
-> Chat displays the answer from a background worker and uses it for read-aloud.
+> **Latest experimental release · [Android 0.20.34 / build 84 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.34-experimental.1)**
+> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.34-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.34-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.34-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.34-experimental.1/docs/ROADMAP.md)
+> The Inbox updates an ambiguous Bot Chat delivery when Hermes confirms its outcome.
 
 <div align="center">
 
