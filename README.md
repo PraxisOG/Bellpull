@@ -1,6 +1,6 @@
-> **Latest experimental release · [Android 0.20.31 / build 81 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.31-experimental.1)**
-> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.31-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.31-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.31-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.31-experimental.1/docs/ROADMAP.md)
-> Bellpull Dictation reserves room for its controls on the first keyboard layout with three-button navigation.
+> **Latest experimental release · [Android 0.20.32 / build 82 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.32-experimental.1)**
+> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.32-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.32-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.32-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.32-experimental.1/docs/ROADMAP.md)
+> Shared Canvas keeps local property drafts when another client edits the same object.
 
 <div align="center">
 
