@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -239,17 +240,40 @@ internal fun CanvasScreen(workspace: CanvasWorkspace, modifier: Modifier = Modif
 @Composable
 private fun CanvasProperties(doc: CanvasDocument, selected: List<String>, editable: Boolean, workspace: CanvasWorkspace) {
     val node = doc.content.nodes.find { it.id == selected.firstOrNull() } ?: return
-    var label by remember(node.id, node.label) { mutableStateOf(node.label) }
-    var width by remember(node.id, node.width) { mutableStateOf(node.width.toInt().toString()) }
-    var height by remember(node.id, node.height) { mutableStateOf(node.height.toInt().toString()) }
+    var edits by remember(doc.id, node.id) { mutableStateOf(CanvasPropertyEdits()) }
+    LaunchedEffect(node.id, node.label, node.width, node.height) { edits = edits.reconcile(node) }
+    val conflicts = edits.conflicts(node)
+    val changes = edits.changes(node)
+    fun save() {
+        if (changes.isNullOrEmpty()) return
+        val submitted = edits
+        val update = operation("update-node") { put("id", node.id); put("changes", changes) }
+        workspace.edit(listOf(update), doc.revision) { confirmed ->
+            if (confirmed && edits == submitted) edits = CanvasPropertyEdits()
+        }
+    }
     Column(Modifier.padding(horizontal = 8.dp)) {
-        OutlinedTextField(label, { label = it.take(500) }, label = { Text("Object text") }, maxLines = 2, modifier = Modifier.fillMaxWidth(), enabled = editable)
+        OutlinedTextField(edits.text(CanvasProperty.LABEL, node), { edits = edits.change(CanvasProperty.LABEL, node, it.take(500)) },
+            label = { Text("Object text") }, maxLines = 2, modifier = Modifier.fillMaxWidth(), enabled = editable)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(width, { width = it }, label = { Text("Width") }, modifier = Modifier.weight(1f), singleLine = true, enabled = editable)
-            OutlinedTextField(height, { height = it }, label = { Text("Height") }, modifier = Modifier.weight(1f), singleLine = true, enabled = editable)
-            TextButton(enabled = editable && width.toDoubleOrNull()?.let { it in 40.0..2000.0 } == true && height.toDoubleOrNull()?.let { it in 40.0..2000.0 } == true, onClick = {
-                workspace.edit(listOf(operation("update-node") { put("id", node.id); put("changes", buildJsonObject { put("label", label); put("width", width.toDouble()); put("height", height.toDouble()) }) }))
-            }) { Text("Save") }
+            for (property in listOf(CanvasProperty.WIDTH, CanvasProperty.HEIGHT)) {
+                OutlinedTextField(edits.text(property, node), { edits = edits.change(property, node, it) },
+                    label = { Text(property.title) }, modifier = Modifier.weight(1f), singleLine = true, enabled = editable)
+            }
+            if (conflicts.isEmpty()) {
+                TextButton(enabled = editable && !changes.isNullOrEmpty(), onClick = ::save) { Text("Save") }
+            }
+        }
+        if (conflicts.isNotEmpty()) {
+            Column(Modifier.heightIn(max = 96.dp).verticalScroll(rememberScrollState())) {
+                for (property in conflicts) {
+                    Text("${property.title} changed to “${property.saved(node)}”.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Row {
+                TextButton(enabled = editable, onClick = { edits = edits.discard(conflicts) }) { Text(if (conflicts.size == 1) "Keep saved value" else "Keep saved values") }
+                TextButton(enabled = editable && !changes.isNullOrEmpty(), onClick = ::save) { Text("Apply my edits") }
+            }
         }
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             listOf("sand", "rose", "sage", "blue", "white").forEach { color -> TextButton(enabled = editable, onClick = {
