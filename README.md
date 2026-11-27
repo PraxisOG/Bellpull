@@ -1,6 +1,6 @@
-> **Latest experimental release · [Bellpull plugin 0.9.27 and Android 0.20.28 / build 78](https://github.com/PraxisOG/Bellpull/releases/tag/plugin-v0.9.27-experimental.1)**
-> [Download the APK](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.27-experimental.1/Bellpull.apk) · [Download plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/download/plugin-v0.9.27-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.27-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/plugin-v0.9.27-experimental.1/docs/ROADMAP.md)
-> Stock Hermes can recover run notification receipts and retry relay delivery after a restart.
+> **Latest experimental release · [Android 0.20.29 / build 79 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.29-experimental.1)**
+> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.29-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.29-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.29-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.29-experimental.1/docs/ROADMAP.md)
+> Snooze uses the time of the tap, including offline. Posted alerts update when their reminders change.
 
 <div align="center">
 
