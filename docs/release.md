@@ -1,3 +1,7 @@
+## Dictation keyboard controls · Android 0.20.31 experimental
+
+Build 81 keeps **Dictate** and **Switch keyboard** visible when Android first opens the input method above the navigation bar. Includes server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.31-experimental.1) · [Release notes](RELEASE-0.20.31-EXPERIMENTAL.md)
+
 ## Remote reminder alerts · Android 0.20.30 experimental
 
 Build 80 fixes a skipped background poll and keeps earlier reminders in the active notification when another comes due. Includes server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.30-experimental.1) · [Release notes](RELEASE-0.20.30-EXPERIMENTAL.md)

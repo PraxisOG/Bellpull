@@ -32,7 +32,10 @@ import org.junit.Test
 /** Enable the fixture IME and install the local model on the disposable emulator first. */
 class DictationImeDeviceTest {
     private val ui = DeviceFixtureUi
-    private fun key(label: String) = ui.find(AccessibilityWindowInfo.TYPE_INPUT_METHOD) { it.text?.toString().equals(label, ignoreCase = true) }
+    private fun key(label: String) = ui.find(AccessibilityWindowInfo.TYPE_INPUT_METHOD) { node ->
+        node.text?.toString().equals(label, ignoreCase = true) && node.isVisibleToUser &&
+            !Rect().also(node::getBoundsInScreen).isEmpty
+    }
 
     private var priorIme: String? = null
 
@@ -82,7 +85,9 @@ class DictationImeDeviceTest {
             ui.awaitMain("Fixture editor never gained focus") { words.hasWindowFocus() }
             ui.tap(checkNotNull(ui.find { it.isEditable && it.text.toString().startsWith("Before") }))
             scene.onActivity { words.windowInsetsController?.show(android.view.WindowInsets.Type.ime()) }
-            ui.await("Dictation keyboard missing") { key("Dictate")?.isEnabled == true }
+            ui.await("Dictation controls must be visible and tappable") {
+                key("Dictate")?.isEnabled == true && key("Switch keyboard")?.isEnabled == true
+            }
             ui.tap(checkNotNull(key("Dictate")))
             ui.await("Microphone did not start") { key("Insert dictation") != null }
             scene.onActivity { password.requestFocus() }

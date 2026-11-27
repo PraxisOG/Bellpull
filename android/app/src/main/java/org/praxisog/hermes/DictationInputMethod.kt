@@ -7,10 +7,12 @@ import android.provider.Settings
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
 import android.text.InputType
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
@@ -58,7 +60,13 @@ class DictationInputMethod : InputMethodService() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val pad = (8 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
+            // A newly shown IME can be measured before its first inset dispatch.
+            // Reserve the navigation area on that first measurement as well.
+            val initialBars = if (Build.VERSION.SDK_INT >= 30) {
+                window.window?.windowManager?.currentWindowMetrics?.windowInsets
+                    ?.getInsets(WindowInsets.Type.navigationBars())
+            } else null
+            setPadding(pad + (initialBars?.left ?: 0), pad, pad + (initialBars?.right ?: 0), pad + (initialBars?.bottom ?: 0))
             val background = TypedValue()
             if (theme.resolveAttribute(android.R.attr.colorBackground, background, true)) {
                 if (background.resourceId != 0) setBackgroundResource(background.resourceId)

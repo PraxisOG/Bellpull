@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.30 / build 80 and Bellpull plugin 0.9.27-mobile-preview**
-> The background listener checks for remote reminders on each healthy poll. Reminders that come due separately share one alert until you clear it.
-> [Android release notes](docs/RELEASE-0.20.30-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.31 / build 81 and Bellpull plugin 0.9.27-mobile-preview**
+> Bellpull Dictation reserves room for its controls the first time the keyboard opens with three-button navigation.
+> [Android release notes](docs/RELEASE-0.20.31-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
 
 <div align="center">
 
