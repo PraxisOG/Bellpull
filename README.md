@@ -1,6 +1,6 @@
-> **Latest experimental release · [Android 0.20.29 / build 79 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.29-experimental.1)**
-> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.29-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.29-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.29-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.29-experimental.1/docs/ROADMAP.md)
-> Snooze uses the time of the tap, including offline. Posted alerts update when their reminders change.
+> **Latest experimental release · [Android 0.20.30 / build 80 and Bellpull plugin 0.9.27](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.30-experimental.1)**
+> [Signed Android APK](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.30-experimental.1/Bellpull.apk) · [Server plugin bundle](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.30-experimental.1/bellpull-plugin-0.9.27-mobile-preview.tar.gz) · [Release source and build instructions](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.30-experimental.1/docs/BUILDING.md) · [Phase roadmap](https://github.com/PraxisOG/Bellpull/blob/android-v0.20.30-experimental.1/docs/ROADMAP.md)
+> The background listener checks for remote reminders on each healthy poll. Earlier reminders stay in the active alert when another comes due.
 
 <div align="center">
 
