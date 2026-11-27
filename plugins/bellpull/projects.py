@@ -11,6 +11,7 @@ import time
 from aiohttp import web
 from .artifacts import ArtifactError, checked_session
 from .lineage import compression_ids
+from .session_store import ProfileSessions, for_adapter
 
 ICONS = {"folder", "code", "home", "craft", "book", "star"}
 
@@ -157,7 +158,8 @@ class ProjectStore:
     def reconcile_branches(self):
         # Repair a crash after native fork commit, before membership inheritance.
         # An explicit Unfiled row counts as already handled and is never overwritten.
-        rows = self.database._read_all("SELECT * FROM sessions WHERE parent_session_id IS NOT NULL ORDER BY started_at, id LIMIT 10001")
+        rows = (self.database.branch_rows() if isinstance(self.database, ProfileSessions) else
+                self.database._read_all("SELECT * FROM sessions WHERE parent_session_id IS NOT NULL ORDER BY started_at, id LIMIT 10001"))
         if len(rows) > 10000:
             raise ProjectError("Too many branch records to reconcile safely.", 413)
         with self.db() as conn:
@@ -280,7 +282,7 @@ async def store_for(adapter):
     from hermes_constants import get_hermes_home
     from .principal import artifact_scope
     home = Path(get_hermes_home())
-    database = await adapter._ensure_session_db_async()
+    database = await for_adapter(adapter)
     if database is None:
         raise ProjectError("Hermes session database is unavailable.", 503)
     return await asyncio.to_thread(ProjectStore, home, artifact_scope(home), database)

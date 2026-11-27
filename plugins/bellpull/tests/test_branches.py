@@ -5,11 +5,12 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
+from plugins.bellpull.tests import host_storage
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
-from gateway.platforms.api_server import APIServerAdapter, _STATIC_FEATURE_FLAGS
+from gateway.platforms.api_server import _STATIC_FEATURE_FLAGS
 from hermes_state import SessionDB
 from plugins.bellpull import register
 from hermes_cli.plugins import PluginContext, PluginManifest, PluginManager
@@ -31,9 +32,8 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
         self.db.append_message("source", "assistant", "Later answer — exclude me")
         self.before = self.db.get_session("source")
         self.before_messages = self.db.get_messages("source")
-        self.adapter = APIServerAdapter.__new__(APIServerAdapter)
-        self.adapter._api_key = "disposable-test-key"
-        self.adapter._ensure_session_db_async = AsyncMock(return_value=self.db)
+        self.adapter = host_storage.adapter_for(self, self.temp.name, "disposable-test-key")
+        self.access = host_storage.storage(self, self.temp.name, self.db)
         app = web.Application()
         app.router.add_post("/api/sessions/{session_id}/fork", self.adapter._handle_fork_session)
         manager = PluginManager()
@@ -46,7 +46,6 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.client.close()
         self.db.close()
-        self.temp.cleanup()
         self.home_patch.stop()
 
     async def test_branch_inherits_project_and_can_be_unfiled_independently(self):
@@ -133,7 +132,7 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(config["browser_model_lock"]["confirmed"])
         self.assertEqual(["First question", "First answer 👋"],
                          [m["content"] for m in self.db.get_messages("branch")])
-        self.assertEqual("source", self.db.resolve_resume_session_id("source"))
+        self.assertEqual("source", (self.access.store.lineage.resolve_resume_target("source") if host_storage.open_persistence else self.db.resolve_resume_session_id("source")))
         self.assertEqual({"source", "branch"},
                          {s["id"] for s in self.db.list_sessions_rich(source="api_server", include_children=False)})
         self.db.append_message("branch", "user", "Only in branch")
@@ -172,12 +171,10 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
         self.assert_source_unchanged()
 
     async def test_copy_failure_rolls_back_session_and_messages(self):
-        insert = self.db._insert_message_rows
-        def fail_after_insert(*args):
-            insert(*args)
-            raise RuntimeError("Injected copy failure")
-        with patch.object(self.db, "_insert_message_rows", side_effect=fail_after_insert):
-            response = await self.fork(self.answer)
+        import sqlite3
+        with sqlite3.connect(Path(self.temp.name) / "state.db") as connection:
+            connection.execute("CREATE TRIGGER fail_copy BEFORE INSERT ON messages WHEN NEW.session_id='branch' BEGIN SELECT RAISE(ABORT, 'injected copy failure'); END")
+        response = await self.fork(self.answer)
         self.assertEqual(500, response.status)
         self.assertIsNone(self.db.get_session("branch"))
         self.assertEqual([], self.db.get_messages("branch"))
@@ -218,7 +215,7 @@ class SelectedReplyForkTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(201, response.status, await response.text())
         self.assertEqual(["Current question", "Current answer"],
                          [m["content"] for m in self.db.get_messages("branch")])
-        self.assertEqual("tip", self.db.resolve_resume_session_id("source"))
+        self.assertEqual("tip", (self.access.store.lineage.resolve_resume_target("source") if host_storage.open_persistence else self.db.resolve_resume_session_id("source")))
         self.assertEqual("compression", self.db.get_session("source")["end_reason"])
 
     async def test_authentication_is_required(self):

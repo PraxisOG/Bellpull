@@ -59,15 +59,17 @@ def wire(app, adapter):
     files_ready = auth_ready and callable(getattr(adapter, "_get_existing_session_or_404", None))
     json_routes_ready = auth_ready and callable(getattr(adapter, "_read_json_body", None))
     canvas_ready = json_routes_ready and session_reads_supported(adapter) and canvas.available()
-    projects_ready = files_ready and all(callable(getattr(adapter, key, None)) for key in
-        ("_ensure_session_db_async", "_read_json_body", "_handle_create_session", "_session_response"))
+    from .session_store import uses_persistence
+    current_store = uses_persistence(adapter)
+    projects_ready = files_ready and (current_store or callable(getattr(adapter, "_ensure_session_db_async", None))) and all(callable(getattr(adapter, key, None)) for key in
+        ("_read_json_body", "_handle_create_session", "_session_response"))
     # Read-only snapshots and delegation identities do not depend on legacy
     # fork/run patches. Stock Hermes supplies the same authenticated read contract.
     snapshots = Snapshots(adapter)
     paging_ready = files_ready and (projects_ready or snapshots.uses_persistence) and all(
         callable(getattr(adapter, key, None)) for key in
         ("_run_idempotency_scope", "_session_response", "_message_response"))
-    offline_ready = projects_ready and offline.supported()
+    offline_ready = projects_ready and (current_store or offline.supported())
     titles_ready = projects_ready and titles.supported()
     try:
         from gateway.platforms import api_server_extensions as host
@@ -116,6 +118,9 @@ def wire(app, adapter):
                 body = await request.json()
             except (ValueError, UnicodeError):
                 return await handler(request)
+            if (isinstance(body, dict) and request.path.endswith("/v1/runs") and
+                    "interactive_approvals" in body and not isinstance(body["interactive_approvals"], bool)):
+                return web.json_response({"error": {"message": "interactive_approvals must be a boolean."}}, status=400)
             if isinstance(body, dict) and oversized_instruction(body.get("input", body.get("message"))):
                 return web.json_response({"error": {"message": "Bellpull instructions are limited to 2048 characters."}}, status=400)
         return await handler(request)
@@ -250,6 +255,10 @@ def wire(app, adapter):
             rejection = adapter._check_auth(request)
             if rejection is not None:
                 return rejection
+            if (current_store and adapter._room_grant_token(request) and
+                    ("/api/bellpull/projects" in request.path or "/api/bellpull/offline/" in request.path
+                     or request.path.endswith(("/voice-title", "/fork-at-message", "/fork-before-message")))):
+                return web.json_response({"error": {"message": "Account-level API credentials are required."}}, status=403)
             try:
                 if "/api/bellpull/artifacts" in request.path:
                     store = models_files.store_for(adapter, request)
@@ -267,7 +276,7 @@ def wire(app, adapter):
     async def capabilities(request):
         return web.json_response({"version": public_build["protocol_version"], **public_build, "hermes_version": __version__,
             "host_api_version": host.API_VERSION if host_ready else None,
-            "features": {"session_fork_at_message": compatible, "session_fork_before_message": compatible,
+            "features": {"session_fork_at_message": compatible or current_store, "session_fork_before_message": compatible or current_store,
                 "bellpull_persistent_artifacts": files_ready, "bellpull_model_controls": host_ready,
                 "bellpull_live_files": files_ready,
                 "bellpull_file_paths": files_ready and bool(await asyncio.to_thread(live_files.shared_paths.roots)),
@@ -389,7 +398,7 @@ def wire(app, adapter):
         routes.extend(offline.routes(adapter))
     if titles_ready:
         routes.extend(titles.routes(adapter))
-    if compatible:
+    if compatible or current_store:
         routes.extend([
             ("POST", "/api/sessions/{session_id}/fork-at-message", partial(branches._handle_fork_at_message, adapter)),
             ("POST", "/api/sessions/{session_id}/fork-before-message", partial(branches._handle_fork_before_message, adapter)),
@@ -428,9 +437,56 @@ def wire(app, adapter):
         async def cleanup(_app):
             await close()
         app.on_cleanup.append(cleanup)
+    profile_routes = {}
     for method, path, handler in routes:
         for prefix in ("", "/p/{profile}"):
-            app.router.add_route(method, prefix + path, authenticated(handler))
+            route = app.router.add_route(method, prefix + path, authenticated(handler))
+            if prefix:
+                profile_routes.setdefault(method, []).append(route.resource)
+
+    if current_store:
+        # Hermes installs its shared-ingress wildcard before plugin resources.
+        # Its profile middleware has already resolved and entered the named home.
+        # Dispatch only when that exact wildcard shadowed a route we registered.
+        @web.middleware
+        async def profile_routes_middleware(request, handler):
+            resource = request.match_info.route.resource
+            if (resource is not None and resource.canonical == "/p/{profile}/{tail}" and
+                    request.match_info.get("profile")):
+                for candidate in profile_routes.get(request.method, ()):
+                    match, _ = await candidate.resolve(request)
+                    if match is not None and match.get("profile") == request.match_info["profile"]:
+                        original = dict(request.match_info)
+                        request.match_info.update(match)
+                        try:
+                            return await match.handler(request)
+                        finally:
+                            request.match_info.clear()
+                            request.match_info.update(original)
+            return await handler(request)
+
+        app.middlewares.append(profile_routes_middleware)
+    if current_store and files_ready:
+        from gateway.platforms.api_server import body_limit_middleware
+        if body_limit_middleware in app.middlewares:
+            upload_resources = {"/api/bellpull/artifacts/{artifact_id}", "/p/{profile}/api/bellpull/artifacts/{artifact_id}"}
+
+            @web.middleware
+            async def sized_body(request, handler):
+                resource = request.match_info.route.resource
+                matched_upload = resource is not None and resource.canonical in upload_resources
+                if (request.method == "PUT" and resource is not None and
+                        resource.canonical == "/p/{profile}/{tail}"):
+                    matched_upload = bool(re.fullmatch(
+                        r"api/bellpull/artifacts/[a-fA-F0-9]{32}", request.match_info.get("tail", "")))
+                if request.method == "PUT" and matched_upload:
+                    if request.content_length is not None and request.content_length > MAX_BYTES:
+                        return web.json_response({"error": {"message": "File exceeds the 25 MiB upload limit."}}, status=413)
+                    # The authenticated upload handler also enforces MAX_BYTES while streaming.
+                    return await handler(request)
+                return await body_limit_middleware(request, handler)
+
+            app.middlewares[app.middlewares.index(body_limit_middleware)] = sized_body
     stop.coding = coding
     stop.resume = resume
     return stop

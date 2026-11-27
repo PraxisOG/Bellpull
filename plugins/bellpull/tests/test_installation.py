@@ -56,7 +56,8 @@ class InstallationTest(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(features["bellpull_artifact_lifecycle"])
                     self.assertFalse(features["bellpull_model_controls"])
                     self.assertEqual(native_supported, features["bellpull_run_attachments"])
-                    self.assertFalse(features["session_fork_at_message"])
+                    from plugins.bellpull.session_store import uses_persistence
+                    self.assertEqual(uses_persistence(adapter), features["session_fork_at_message"])
                     self.assertTrue(features["bellpull_snapshot_paging"])
                     self.assertTrue(features["bellpull_delegation_delivery"])
                     self.assertEqual(200, (await client.get("/api/bellpull/sessions", headers={"Authorization": "Bearer unsupported-fixture-key"})).status)

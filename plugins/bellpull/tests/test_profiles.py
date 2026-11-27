@@ -13,9 +13,11 @@ from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter, body_limit_middleware
 from gateway.run import _profile_runtime_scope
 from plugins.bellpull.http import wire
+from plugins.bellpull.tests.host_storage import open_persistence
 
 
 class ProfileTest(unittest.IsolatedAsyncioTestCase):
+    @unittest.skipIf(open_persistence, "v0.23 reserves per-profile stores in a running gateway; exercised by test_gateway_023")
     async def test_native_profile_scopes_isolate_artifacts_branches_runs_and_approvals(self):
         with tempfile.TemporaryDirectory() as temporary:
             homes = {name: Path(temporary, name) for name in ("alpha", "beta")}

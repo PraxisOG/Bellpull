@@ -1,4 +1,5 @@
 """Stock adapter discovery, persistent outputs and unchanged core sources."""
+from contextlib import ExitStack
 import base64
 import asyncio
 import hashlib
@@ -110,7 +111,7 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
         sources = [core / "gateway/platforms/api_server.py", core / "gateway/platforms/api_server_runs.py", core / "tools/approval_context.py"]
         before = [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources]
         with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ,
-                {"HERMES_HOME": temporary, "BELLPULL_NTFY_URL": ""}):
+                {"HERMES_HOME": temporary, "BELLPULL_NTFY_URL": ""}), ExitStack() as fixtures:
             Path(temporary, "config.yaml").write_text("plugins:\n  enabled:\n    - bellpull\n")
             manager = get_plugin_manager()
             manager.discover_and_load()
@@ -129,7 +130,8 @@ class PortableTest(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(features["bellpull_artifact_lifecycle"])
                     session = await client.post(origin + "/api/sessions", headers=headers, json={})
                     session_id = (await session.json())["session"]["id"]
-                    database = await adapter._ensure_session_db_async()
+                    from hermes_state import SessionDB
+                    database = fixtures.enter_context(SessionDB(Path(temporary) / "state.db"))
                     if features.get("bellpull_voice_titles"):
                         title_url = origin + f"/api/bellpull/sessions/{session_id}/voice-title"
                         self.assertEqual(401, (await client.post(title_url, json={"title": "Unauthorized"})).status)

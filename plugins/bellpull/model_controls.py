@@ -42,6 +42,26 @@ def wire(adapter):
     @wraps(create)
     def create_agent(*args, **kwargs):
         bound = signature.bind_partial(*args, **kwargs)
+        # A standalone v0.23 adapter may construct a plain /v1/runs turn
+        # without loading the saved session lock. A full gateway already
+        # froze its routing decision when it admitted the run.
+        if (active and getattr(adapter, "gateway_runner", None) is None
+                and callable(getattr(adapter, "_store_beside", None))
+                and bound.arguments.get("session_id") and not any(bound.arguments.get(k)
+                    for k in ("requested_model", "requested_provider", "route", "confirmed_runtime_lock",
+                              "session_model", "room_dispatch", "room_execution_policy"))):
+            store = adapter._store_beside(adapter._ensure_store())
+            if store is None:
+                raise RuntimeError("Hermes session model selection is unavailable.")
+            row = store.sessions.get(bound.arguments["session_id"])
+            if row is not None:
+                lock = adapter._runtime_request_from_persisted_session_lock(row.as_session_row(), {})
+                if lock is not None:
+                    if adapter._runtime_lock_error(lock) is not None:
+                        raise ValueError("The saved session model selection cannot be resolved.")
+                    bound.arguments.update(requested_model=lock["requested"]["model"],
+                        requested_provider=lock["requested"]["provider"], route=lock["route"],
+                        model_options=lock["model_options"], confirmed_runtime_lock=True)
         options = bound.arguments.get("model_options")
         route = bound.arguments.get("route")
         route = route if isinstance(route, dict) else {}

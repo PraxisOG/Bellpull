@@ -11,6 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
 from plugins.bellpull import register
+from plugins.bellpull.tests.host_storage import open_persistence
 from plugins.bellpull.notifications import topic
 from hermes_cli.plugins import PluginContext, PluginManifest, PluginManager
 from tools.approval import request_tool_approval
@@ -95,6 +96,7 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
         self.fail(str(value))
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_real_gate_accepts_once_and_rejects_replay(self):
         status, accepted = await self.submit('accept-' + str(id(self)))
         self.assertEqual(202, status, accepted)
@@ -140,6 +142,7 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(e["event_id"] in accepted for e in events))
         self.assertTrue(all(set(hint) == {"event_id"} for _, hint in self.published))
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_unattended_run_stays_denied_beside_interactive_run(self):
         _, first = await self.submit('interactive-' + str(id(self)))
         waiting = await self.status(first['run_id'], 'waiting_for_approval')
@@ -164,11 +167,13 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
         self.assertEqual('idempotency_key_conflict', conflict['error']['code'])
         await self.status(first['run_id'], 'completed')
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_notification_proxy_requires_auth_before_broker_access(self):
         response = await self.client.get('/api/bellpull/events')
         self.assertEqual(401, response.status)
         self.assertEqual([], self.published)
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_notification_subscription_uses_valid_topic_and_filters_hint(self):
         response = await self.client.get('/api/bellpull/events', headers=self.headers)
         self.assertEqual(200, response.status)
@@ -217,6 +222,7 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(400, status)
         self.assertEqual([], self.executions)
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_parallel_approvals_cannot_resolve_another_runs_request(self):
         _, first = await self.submit('parallel-a-' + str(id(self)))
         _, second = await self.submit('parallel-b-' + str(id(self)))
@@ -233,6 +239,7 @@ class Phase2Test(unittest.IsolatedAsyncioTestCase):
             await self.status(run['run_id'], 'completed')
         self.assertEqual([], self.executions)
 
+    @unittest.skipIf(open_persistence, "v0.23 approvals and notifications run on the profile authority; exercised by test_gateway_023")
     async def test_timeout_denies_and_resets_worker_approval_context(self):
         from concurrent.futures import ThreadPoolExecutor
         from tools import approval_context

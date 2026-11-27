@@ -2,7 +2,9 @@
 import asyncio
 import base64
 import json
+from functools import wraps
 import os
+import inspect
 from pathlib import Path
 import sys
 import unittest
@@ -41,10 +43,17 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
                 if prompt:
                     metadata = json.loads(prompt.split("\n")[-1])
                     Path(metadata["output_directory"], "report.txt").write_text("Synthetic generated report")
-                return {"final_response": "Fixture complete"}
-        def create(**kwargs):
+                return {"final_response": "Fixture complete", "completed": True}
+        signature = inspect.signature(self.adapter._create_agent)
+        @wraps(self.adapter._create_agent)
+        def create(*args, **kwargs):
+            kwargs = signature.bind_partial(*args, **kwargs).arguments
             self.created.append(kwargs)
-            return Agent()
+            agent = Agent()
+            agent.session_id = kwargs.get("session_id")
+            agent.model = kwargs.get("requested_model")
+            agent.provider = kwargs.get("requested_provider")
+            return agent
         self.adapter._create_agent = create
         app = web.Application(middlewares=[body_limit_middleware])
         for method, path, handler in self.adapter._http_route_table():
@@ -122,6 +131,7 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(201, response.status, await response.text())
         payload = {"session_id": self.session, "input": "Look at the attachment", "bellpull": {
             "version": 1, "selection": CATALOG["default"], "artifact_ids": [identity]}}
+        payload.update(CATALOG["default"], require_model_lock=True)
         headers = {**self.headers, "Idempotency-Key": "phase3-" + self.session}
         response = await self.client.post("/v1/runs", headers=headers, json=payload)
         self.assertEqual(202, response.status, await response.text())
@@ -181,7 +191,8 @@ class HttpTest(unittest.IsolatedAsyncioTestCase):
         choice = dict(CATALOG["default"], model="fixture-text")
         payload = {"session_id": self.session, "input": "Look", "bellpull": {
             "version": 1, "selection": choice, "artifact_ids": [identity]}}
-        response = await self.client.post("/v1/runs", headers=self.headers, json=payload)
+        payload.update(choice, require_model_lock=True)
+        response = await self.client.post("/v1/runs", headers={**self.headers, "Idempotency-Key": "vision-" + self.session}, json=payload)
         self.assertEqual(409, response.status, await response.text())
         choice["model_options"] = {"reasoning": {"enabled": False}}
         response = await self.client.put(f"/api/bellpull/sessions/{self.session}/model", headers=self.headers, json=choice)

@@ -136,13 +136,10 @@ class ArtifactStore:
         if session_id not in cache:
             cache[session_id] = [session_id]
             if (self.home / "state.db").is_file():
-                from hermes_state import SessionDB
+                from .session_store import reader
                 from .lineage import compression_ids
-                database = SessionDB(self.home / "state.db", read_only=True)
-                try:
+                with reader(self.home) as database:
                     cache[session_id] = compression_ids(database, session_id)
-                finally:
-                    database.close()
         return cache[session_id]
 
     def _public(self, row, lineages=None):

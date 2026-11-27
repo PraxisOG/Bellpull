@@ -335,7 +335,8 @@ class PlanningHttpTest(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{"HERMES_HOME":home,"BELLPULL_NTFY_URL":""}):
             adapter=APIServerAdapter(PlatformConfig(enabled=True,extra={"key":"fixture-planning-only"}))
             app=web.Application()
-            with patch.object(adapter, "_ensure_session_db_async", None, create=True):
+            with (patch.object(adapter, "_ensure_session_db_async", None, create=True),
+                  patch.object(adapter, "_ensure_store_async", None, create=True)):
                 stop=wire(app,adapter)
             client=TestClient(TestServer(app)); await client.start_server()
             headers={"Authorization":"Bearer fixture-planning-only"}

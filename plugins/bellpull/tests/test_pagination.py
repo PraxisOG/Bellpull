@@ -3,10 +3,9 @@ import asyncio
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import AsyncMock
+from plugins.bellpull.tests import host_storage
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
-from gateway.platforms.api_server import APIServerAdapter
 from hermes_state import SessionDB
 from plugins.bellpull.http import wire
 
@@ -14,10 +13,9 @@ from plugins.bellpull.http import wire
 class PagingTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.db = SessionDB(Path(self.temp.name) / "state.db")
-        self.adapter = APIServerAdapter.__new__(APIServerAdapter)
-        self.adapter._api_key = "paging-fixture"
-        self.adapter._ensure_session_db_async = AsyncMock(return_value=self.db)
+        self.adapter = host_storage.adapter_for(self, self.temp.name, "paging-fixture")
         self.headers = {"Authorization": "Bearer paging-fixture"}
         app = web.Application()
         wire(app, self.adapter)
@@ -27,7 +25,6 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.client.close()
         self.db.close()
-        self.temp.cleanup()
 
     async def test_snapshot_keeps_450_rows_exactly_once_during_new_activity(self):
         for n in range(450):
@@ -61,7 +58,7 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_compressed_conversation_snapshot_resolves_saved_tip(self):
         self.db.create_session("original", "api_server")
-        self.db.append_message("original", "user", "Old")
+        original = self.db.append_message("original", "user", "Old")
         self.db.end_session("original", "compression")
         self.db.create_session("tip", "api_server", parent_session_id="original")
         expected = self.db.append_message("tip", "assistant", "Summary")
@@ -69,7 +66,9 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(200, response.status, await response.text())
         value = await response.json()
         self.assertEqual("tip", value["session_id"])
-        self.assertEqual([expected], [row["id"] for row in value["data"]])
+        # The native v0.23 history API includes active ancestor messages.
+        ids = [original, expected] if host_storage.open_persistence else [expected]
+        self.assertEqual(ids, [row["id"] for row in value["data"]])
 
     async def test_cursors_are_authenticated_scoped_and_explicitly_expire(self):
         for n in range(3):
@@ -92,7 +91,7 @@ class PagingTest(unittest.IsolatedAsyncioTestCase):
         self.db.create_session("chat", "api_server")
         prompt = self.db.append_message("chat", "user", "Original admitted prompt")
         self.db.append_message("chat", "assistant", "Intermediate tool work")
-        self.db.archive_and_compact("chat", [{"role": "assistant", "content": "Context summary"}])
+        host_storage.compact(self.db, self.temp.name, "chat", [{"role": "assistant", "content": "Context summary"}])
         path = "/api/bellpull/sessions/chat/messages"
         before = await (await self.client.get(path, headers=self.headers)).json()
         self.assertNotIn(prompt, [row["id"] for row in before["data"]])

@@ -294,5 +294,5 @@ class KanbanHttpTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue((await hierarchy.json())["complete"])
             finally:
                 await client.close()
-                for database in adapter._session_dbs.values(): database.close()
+                adapter._close_cached_session_dbs()
                 adapter._run_idempotency_store.close()

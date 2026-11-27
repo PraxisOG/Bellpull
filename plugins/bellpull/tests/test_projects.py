@@ -1,6 +1,7 @@
 """Real SQLite/SessionDB folder persistence and native authenticated HTTP behavior."""
 import json
 import os
+from contextlib import ExitStack
 from pathlib import Path
 import secrets
 import tempfile
@@ -14,6 +15,7 @@ from hermes_state import SessionDB
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
 from plugins.bellpull.http import wire
+from plugins.bellpull.tests import host_storage
 from plugins.bellpull.projects import ProjectStore, ProjectError
 
 
@@ -24,11 +26,13 @@ class ProjectTests(unittest.TestCase):
         self.native = SessionDB(self.home / "state.db")
         self.native.create_session("root", "cli")
         self.native.append_message("root", "user", "Keep my history")
-        self.store = ProjectStore(self.home, "a" * 64, self.native)
+        self.access = host_storage.storage(self, self.home, self.native)
+        self.store = ProjectStore(self.home, "a" * 64, self.access)
         self.one, self.two = "1" * 32, "2" * 32
 
     def tearDown(self):
         self.native.close()
+        self.doCleanups()
         self.temp.cleanup()
 
     def change(self, operation, **fields):
@@ -53,7 +57,7 @@ class ProjectTests(unittest.TestCase):
         self.create()
         self.change("update", project_id=self.one, name="Halloween", description="Ready by October 31",
                     color=None, icon="star", archived=False)
-        reopened = ProjectStore(self.home, "a" * 64, self.native).snapshot()
+        reopened = ProjectStore(self.home, "a" * 64, self.access).snapshot()
         self.assertEqual("Halloween", reopened["projects"][0]["name"])
         self.assertEqual("Ready by October 31", reopened["projects"][0]["description"])
         self.assertIsNone(reopened["projects"][0]["color"])
@@ -98,10 +102,10 @@ class ProjectTests(unittest.TestCase):
         self.assertTrue(self.member("root")["pinned"])
         self.change("move", session_id="root", project_id=self.one)
         self.change("delete", project_id=self.one)
-        reopened = ProjectStore(self.home, "a" * 64, self.native).snapshot()
+        reopened = ProjectStore(self.home, "a" * 64, self.access).snapshot()
         self.assertTrue(reopened["memberships"][0]["pinned"])
         self.assertIsNone(reopened["memberships"][0]["project_id"])
-        self.assertEqual([], ProjectStore(self.home, "b" * 64, self.native).snapshot()["memberships"])
+        self.assertEqual([], ProjectStore(self.home, "b" * 64, self.access).snapshot()["memberships"])
         self.change("pin", session_id="root", pinned=False)
         self.assertFalse(self.member("root")["pinned"])
         self.assertEqual("Keep my history", self.native.get_messages("root")[0]["content"])
@@ -157,13 +161,13 @@ class ProjectTests(unittest.TestCase):
                               ("reset", {"_reset_from": "root"})):
             self.native.create_session(child, "cli", parent_session_id="root", model_config=config)
         self.assertEqual(["root"], [row["session_id"] for row in self.store.snapshot()["memberships"]])
-        self.assertEqual([], ProjectStore(self.home, "b" * 64, self.native).snapshot()["projects"])
+        self.assertEqual([], ProjectStore(self.home, "b" * 64, self.access).snapshot()["projects"])
         other = self.home / "work"
         other.mkdir()
         db = SessionDB(other / "state.db")
         try:
             db.create_session("root", "cli")
-            self.assertEqual([], ProjectStore(other, "a" * 64, db).snapshot()["memberships"])
+            self.assertEqual([], ProjectStore(other, "a" * 64, host_storage.storage(self, other, db)).snapshot()["memberships"])
         finally:
             db.close()
 
@@ -186,7 +190,8 @@ class ProjectTests(unittest.TestCase):
         body = {"id": "new_chat", "expected_revision": self.store.snapshot()["revision"], "title": "New chat"}
         self.store.reserve_creation(self.one, body)
         self.assertEqual([], self.store.snapshot()["memberships"])
-        self.store = ProjectStore(self.home, "a" * 64, self.native)
+        self.access = host_storage.storage(self, self.home, self.native)
+        self.store = ProjectStore(self.home, "a" * 64, self.access)
         self.store.reserve_creation(self.one, body)
         self.native.create_session("new_chat", "api_server")
         self.store.reserve_creation(self.one, body)
@@ -222,7 +227,7 @@ class ProjectTests(unittest.TestCase):
 
 class ProjectHttpTests(unittest.IsolatedAsyncioTestCase):
     async def test_primary_workflow_survives_adapter_restart_compaction_and_continuation(self):
-        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}):
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}), ExitStack() as fixtures:
             key = secrets.token_hex(32)
             headers = {"Authorization": "Bearer " + key}
             project_id = "c" * 32
@@ -236,13 +241,13 @@ class ProjectHttpTests(unittest.IsolatedAsyncioTestCase):
                 return adapter, client
             async def close_adapter(adapter, client):
                 await client.close()
-                for database in adapter._session_dbs.values(): database.close()
+                adapter._close_cached_session_dbs()
                 run_store = getattr(adapter, "_run_idempotency_store", None)
                 if run_store is not None: run_store.close()
             adapter, client = await open_adapter()
             path = "/api/bellpull/projects"
             try:
-                database = await adapter._ensure_session_db_async()
+                database = fixtures.enter_context(SessionDB(Path(home) / "state.db"))
                 for session in ("root", "second"):
                     database.create_session(session, "cli")
                     database.append_message(session, "user", "Archived prompt")
@@ -272,7 +277,7 @@ class ProjectHttpTests(unittest.IsolatedAsyncioTestCase):
                     response = await client.post("/api/sessions/root/fork", headers=headers, json={"id": "branch"})
                 self.assertEqual(201, response.status, await response.text())
                 # Both in-place compaction and continuation identity changes are real DB operations.
-                database.archive_and_compact("second", [{"role": "assistant", "content": "Summary"}])
+                host_storage.compact(database, home, "second", [{"role": "assistant", "content": "Summary"}])
                 database.end_session("second", "compression")
                 database.create_session("tip", "cli", parent_session_id="second")
                 database.append_message("tip", "assistant", "Final answer")
@@ -295,7 +300,7 @@ class ProjectHttpTests(unittest.IsolatedAsyncioTestCase):
                 await close_adapter(adapter, client)
 
     async def test_native_auth_creation_retry_and_project_snapshot(self):
-        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}):
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HERMES_HOME": home, "BELLPULL_NTFY_URL": ""}), ExitStack() as fixtures:
             key = secrets.token_hex(32)
             headers = {"Authorization": "Bearer " + key}
             adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": key}))
@@ -328,7 +333,6 @@ class ProjectHttpTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual("no-store", response.headers["Cache-Control"])
                     snapshot = await response.json()
                     self.assertEqual(project_id, snapshot["memberships"][0]["project_id"])
-                    self.assertEqual("Planning", adapter._ensure_session_db().get_session("new_chat")["title"])
+                    self.assertEqual("Planning", fixtures.enter_context(SessionDB(Path(home) / "state.db")).get_session("new_chat")["title"])
             finally:
-                for database in adapter._session_dbs.values():
-                    database.close()
+                adapter._close_cached_session_dbs()

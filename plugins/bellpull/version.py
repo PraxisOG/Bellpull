@@ -12,7 +12,7 @@ except ModuleNotFoundError as exc:
 
 ROOT = Path(__file__).resolve().parent
 PROTOCOL = 1
-TESTED_HERMES = ("0.21.1", "0.21.5")
+TESTED_HERMES = ("0.21.1", "0.21.5", "0.23.4")
 VERSION = yaml.safe_load((ROOT / "plugin.yaml").read_text())["version"]
 
 

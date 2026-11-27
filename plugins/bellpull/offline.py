@@ -11,6 +11,7 @@ import json
 import re
 import time
 from aiohttp import web
+from .session_store import ProfileSessions, for_adapter
 
 
 def supported():
@@ -74,6 +75,36 @@ def handoff(db, body):
     fingerprint = hashlib.sha256(canonical.encode()).hexdigest()
     session_id = "bellpull_offline_" + operation
 
+    now = time.time()
+    context = ("Offline conversation imported from Bellpull. The following messages were written on the phone. "
+               "Local tool results are historical reference only; no actions have been queued. "
+               "Ask before repeating an action. " +
+               ("Original conversation ID: " + source_id + ". " if source_id else "") +
+               ("\nOffline continuation note (reference):\n" + brief if brief else ""))
+    rows = [{"role": "user", "content": context, "timestamp": now}] + [
+        {**message, "timestamp": now} for message in messages]
+
+    if isinstance(db, ProfileSessions):
+        from persistence.conversation.sessions import sanitize_title
+        existing = db.get_session(session_id)
+        if existing is None:
+            if source_id and not db.get_session(source_id):
+                raise OfflineError("Source conversation no longer exists", 404)
+            config = {"_bellpull_offline_fingerprint": fingerprint}
+            if source_id:
+                config["_branched_from"] = source_id
+            record = {"id": session_id, "source": "api", "started_at": now,
+                      "title": sanitize_title(title[:140] + " — offline " + operation[-8:]),
+                      "parent_session_id": source_id, "model_config": config, "messages": rows}
+            result = db.store.maintenance.import_sessions([record])
+            if not result.ok:
+                raise OfflineError("Hermes refused the offline transcript", 409)
+            if result.imported:
+                return {"session_id": session_id, "operation_id": operation, "created": True}
+        if db.store.sessions.get_model_config_value(session_id, "_bellpull_offline_fingerprint") != fingerprint:
+            raise OfflineError("Operation already used for different content", 409)
+        return {"session_id": session_id, "operation_id": operation, "created": False}
+
     def atomic(conn):
         columns = {r[1] for r in conn.execute("PRAGMA table_info(sessions)")}
         if not {"id", "source", "title", "started_at", "parent_session_id", "model_config", "profile_name", "message_count", "tool_call_count"} <= columns:
@@ -90,18 +121,10 @@ def handoff(db, body):
         config = {"_bellpull_offline_fingerprint": fingerprint}
         if source_id:
             config["_branched_from"] = source_id
-        now = time.time()
         conn.execute("INSERT INTO sessions (id, source, title, started_at, parent_session_id, model_config, profile_name) "
                      "VALUES (?, 'api', ?, ?, ?, ?, ?)",
                      (session_id, db.sanitize_title(title[:140] + " — offline " + operation[-8:]), now,
                       source_id, json.dumps(config), db._own_profile_name()))
-        context = ("Offline conversation imported from Bellpull. The following messages were written on the phone. "
-                   "Local tool results are historical reference only; no actions have been queued. "
-                   "Ask before repeating an action. " +
-                   ("Original conversation ID: " + source_id + ". " if source_id else "") +
-                   ("\nOffline continuation note (reference):\n" + brief if brief else ""))
-        rows = [{"role": "user", "content": context, "timestamp": now}] + [
-            {**message, "timestamp": now} for message in messages]
         count, tools = db._insert_message_rows(conn, session_id, rows)
         conn.execute("UPDATE sessions SET message_count = ?, tool_call_count = ? WHERE id = ?",
                      (count, tools, session_id))
@@ -117,7 +140,7 @@ def routes(adapter):
         body, error = await adapter._read_json_body(request)
         if error is not None:
             return error
-        db = await adapter._ensure_session_db_async()
+        db = await for_adapter(adapter)
         try:
             return web.json_response(await asyncio.to_thread(handoff, db, body), headers={"Cache-Control": "no-store"})
         except OfflineError as exc:

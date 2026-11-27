@@ -54,7 +54,9 @@ def compression_ids(database, session_id):
             break
         # Older Hermes rejects any inherited fork marker, even when it points
         # elsewhere. Bind markers to the actual parent, as current Hermes does.
-        rows = database._read_all("SELECT * FROM sessions WHERE parent_session_id = ? LIMIT 1001", (current["id"],))
+        from .session_store import ProfileSessions
+        rows = (database.children(current["id"]) if isinstance(database, ProfileSessions) else
+                database._read_all("SELECT * FROM sessions WHERE parent_session_id = ? LIMIT 1001", (current["id"],)))
         children = [dict(row) for row in rows if _continuation(dict(row), current)]
         if len(rows) > 1000 or len(children) > 1:
             return [session_id] # Ambiguous ancestry must never confer membership.
