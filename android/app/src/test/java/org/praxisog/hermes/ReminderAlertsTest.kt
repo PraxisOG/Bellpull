@@ -64,7 +64,7 @@ class ReminderAlertsTest {
         } finally { alerts.cancel(); cache.clear(); cache.close() }
     }
 
-    @Test fun anActiveGroupShrinksAndUpdatesItsTitleWithoutRepostingAfterDismissal() {
+    @Test fun anActiveGroupAddsNewArrivalsAndShrinksWithoutRepostingAfterDismissal() {
         val context = RuntimeEnvironment.getApplication() as Context
         BellpullSettings(context).let { it.update(it.value.copy(notifications = true)) }
         val cache = SessionCache(context, "group-test", context.getSharedPreferences("group-test", Context.MODE_PRIVATE))
@@ -78,6 +78,8 @@ class ReminderAlertsTest {
         }
         fun text() = manager.activeNotifications.single().notification.extras.getCharSequence(Notification.EXTRA_TEXT)
         try {
+            sync(a)
+            assertEquals("First", text())
             sync(a, b)
             assertTrue(text().toString().startsWith("2 reminders"))
             sync(a.copy(state = "completed", revision = 2), b.copy(title = "Renamed", revision = 2))

@@ -71,6 +71,43 @@ class DeliveryWorkspaceTest {
             assertEquals(1, cache.readDelivery().entries.size)
         } finally { workspace.close(); scope.cancel(); client.close(); cache.clear(); cache.close() }
     }
+    @Test fun healthyServicePollChecksForRemoteChangesWhileWakeHintsAndFailedPollsAreThrottled() {
+        val context = RuntimeEnvironment.getApplication() as Context
+        val prefs = context.getSharedPreferences("service-poll", Context.MODE_PRIVATE)
+        val cache = SessionCache(context, "poll", prefs)
+        val count = java.util.concurrent.atomic.AtomicInteger()
+        val online = java.util.concurrent.atomic.AtomicBoolean(true)
+        val http = HermesClient.defaultHttpClient().newBuilder().addInterceptor { chain ->
+            val request = chain.request()
+            check(request.method == "GET" && request.url.encodedPath == "/api/bellpull/planning")
+            count.incrementAndGet()
+            if (!online.get()) throw IOException("Fixture offline")
+            val body = Json.encodeToString(PlanningSnapshot(1, emptyList(), observedAt = 1.0))
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val client = HermesClient("http://fixture.invalid", { "test-only" }, httpClient = http)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val workspace = DeliveryWorkspace(context, "poll", scope, cache, client, true)
+        try {
+            waitUntil { workspace.hasSynced && !workspace.syncing }
+            val first = count.get()
+            workspace.tick()
+            assertEquals(first, count.get())
+            online.set(false)
+            workspace.tick(fromServiceTimer = true)
+            waitUntil { workspace.problem != null && !workspace.syncing }
+            val failed = count.get()
+            assertTrue(failed > first)
+            workspace.tick(fromServiceTimer = true)
+            assertFalse(workspace.syncing)
+            assertEquals(failed, count.get())
+            online.set(true)
+            workspace.refresh()
+            waitUntil { workspace.problem == null && !workspace.syncing && count.get() > failed }
+        } finally { workspace.close(); scope.cancel(); client.close(); cache.clear(); cache.close() }
+    }
+
     @Test fun lostAcknowledgementReusesDurableIdentityAfterCoordinatorRestart() = runBlocking {
         val context = RuntimeEnvironment.getApplication() as Context
         val preferences = context.getSharedPreferences("delivery-retry", Context.MODE_PRIVATE)

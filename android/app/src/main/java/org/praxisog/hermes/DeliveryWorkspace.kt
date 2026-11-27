@@ -50,7 +50,13 @@ internal class DeliveryWorkspace(private val context: Context, private val profi
         registered = runCatching { network.registerDefaultNetworkCallback(callback); true }.getOrDefault(false)
     }
     fun refresh() { if (!closed) scope.launch { sync(true) } }
-    fun tick() { if (!closed) scope.launch { sync(false) } }
+    fun tick(fromServiceTimer: Boolean = false) {
+        if (!closed) scope.launch {
+            // The service already spaces these checks a minute apart. A previous request
+            // finishing just after a tick must not suppress the entire next healthy poll.
+            sync(force = fromServiceTimer && failures == 0)
+        }
+    }
     private fun failed(error: Exception) {
         if (error is CancellationException) throw error
         problem = error.message ?: "Inbox storage is unavailable."

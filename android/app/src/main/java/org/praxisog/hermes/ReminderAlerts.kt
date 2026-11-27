@@ -43,23 +43,23 @@ internal class ReminderAlerts(private val context: Context, private val profileI
         val state = previous.receivedReminders(now)
         val due = state.due(now)
         if (!enabled()) return@updateDelivery state
-        if (due.isEmpty()) {
-            refreshPosted(state, now)
-            return@updateDelivery state
-        }
-        post(due)
-        state.copy(displayed = state.displayed + due.map { DeliveryState.occurrence(it) })
+        updateNotification(state, due, now)
+        if (due.isEmpty()) state else state.copy(displayed = state.displayed + due.map { DeliveryState.occurrence(it) })
     }
 
-    private fun refreshPosted(state: DeliveryState, now: Long) {
-        val posted = manager.activeNotifications.firstOrNull { it.tag == notificationTag && it.id == 0 }?.notification ?: return
+    private fun updateNotification(state: DeliveryState, due: List<Reminder>, now: Long) {
+        val posted = manager.activeNotifications.firstOrNull { it.tag == notificationTag && it.id == 0 }?.notification
+        if (posted == null) {
+            if (due.isNotEmpty()) post(due)
+            return
+        }
         val occurrences = posted.extras.getStringArray(OCCURRENCES)?.toSet()
         val oldText = posted.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
         // Older releases stored only the visible title or a count. Use the saved Inbox
         // receipt to recognize a renamed reminder. A legacy group has no member list.
         val legacySingle = occurrences == null && posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() == "Reminder"
         val priorIds = if (legacySingle) state.entries.filter { it.kind == "reminder" && it.title == oldText }.map { it.id }.toSet() else emptySet()
-        val remaining = state.reminders().filter { reminder ->
+        val stillPosted = state.reminders().filter { reminder ->
             val id = DeliveryState.occurrence(reminder)
             reminder.state == "pending" && reminder.dueMs <= now && id in state.displayed &&
                 when {
@@ -68,9 +68,10 @@ internal class ReminderAlerts(private val context: Context, private val profileI
                     else -> true
                 }
         }
-        if (remaining.isEmpty()) manager.cancel(notificationTag, 0)
-        else if (remaining.map { DeliveryState.occurrence(it) }.toSet() != occurrences || alertText(remaining) != oldText) {
-            post(remaining)
+        val reminders = stillPosted + due
+        if (reminders.isEmpty()) manager.cancel(notificationTag, 0)
+        else if (reminders.map { DeliveryState.occurrence(it) }.toSet() != occurrences || alertText(reminders) != oldText) {
+            post(reminders)
         }
     }
 

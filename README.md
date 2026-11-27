@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.29 / build 79 and Bellpull plugin 0.9.27-mobile-preview**
-> Snooze uses the time of the tap, including offline. Posted reminder alerts update when their reminders change.
-> [Android release notes](docs/RELEASE-0.20.29-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.30 / build 80 and Bellpull plugin 0.9.27-mobile-preview**
+> The background listener checks for remote reminders on each healthy poll. Reminders that come due separately share one alert until you clear it.
+> [Android release notes](docs/RELEASE-0.20.30-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
 
 <div align="center">
 

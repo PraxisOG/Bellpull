@@ -47,7 +47,11 @@ class NotificationListenerService : Service() {
                 }
             }
             scope.launch {
-                while (isActive) { runtime.store?.loadSessions(); runtime.catchUpNotifications(); delay(60_000) }
+                while (isActive) {
+                    runtime.store?.loadSessions()
+                    runtime.catchUpNotifications(fromServiceTimer = true)
+                    delay(DeliveryWorkspace.SYNC_INTERVAL_MS)
+                }
             }
         }
         return START_STICKY

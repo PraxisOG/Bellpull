@@ -333,8 +333,8 @@ internal class BellpullRuntime private constructor(context: Context) {
         current.loadSessions()
     }
 
-    fun catchUpNotifications() {
-        delivery?.tick()
+    fun catchUpNotifications(fromServiceTimer: Boolean = false) {
+        delivery?.tick(fromServiceTimer)
         val current = store ?: return
         current.readState.snapshot().forEach { (id, receipt) ->
             if (receipt.unreadReply > receipt.readThrough) notifications?.reply(id, receipt.unreadReply)
