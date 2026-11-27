@@ -179,6 +179,30 @@ class DeliveryTest {
         assertFalse(settled.copy(status = "unknown").supersedes(settled))
     }
 
+    @Test fun recoveredOwnerOutcomeReplacesAmbiguousInboxReceiptAfterOfflineRestore() {
+        val unknown = BotChatReceipt("bot-chat:(own)", "e".repeat(64), "ambiguous", "owner", "7".repeat(32))
+        fun page(receipt: BotChatReceipt) = BotChatHistory(listOf(HistoricalBotChatDelivery("job", "stamp", receipt)))
+        val first = DeliveryState().rememberHistory(page(unknown), 100)
+        val id = first.entries.single().id
+        val saved = first.copy(entries = first.entries.map { it.copy(openedAt = 110) })
+        val restored = Json.decodeFromString<DeliveryState>(Json.encodeToString(saved))
+
+        for (outcome in listOf("failed", "settled", "cancelled")) {
+            val confirmed = unknown.copy(status = outcome)
+            val resolved = restored.rememberHistory(page(confirmed), 200)
+            val entry = resolved.entries.single()
+            assertEquals(id, entry.id)
+            assertEquals(110L, entry.openedAt)
+            assertEquals(confirmed, entry.botChatReceipt)
+            assertEquals(200L, entry.receiptChangedAt)
+            assertEquals(resolved, resolved.rememberHistory(page(unknown), 300))
+        }
+        for (stale in listOf(unknown.copy(status = "queued"), unknown.copy(status = "claimed"),
+                unknown.copy(source = "scheduler", status = "failed"), unknown.copy(source = "deferred", status = "settled"))) {
+            assertEquals(restored, restored.rememberHistory(page(stale), 400))
+        }
+    }
+
     @Test fun previousPluginsSupportBothSingleAndMultipleDeliveryDestinations() {
         fun read(field: String) = Json.decodeFromString<Routine>("""{"id":"job","fingerprint":"v","deliver":$field}""").deliver
         assertNull(read("null"))

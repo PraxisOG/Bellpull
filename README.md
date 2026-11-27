@@ -1,6 +1,6 @@
-> **Latest experimental release · Android 0.20.33 / build 83 and Bellpull plugin 0.9.27-mobile-preview**
-> Chat displays the answer from a background worker and uses it for read-aloud.
-> [Android release notes](docs/RELEASE-0.20.33-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
+> **Latest experimental release · Android 0.20.34 / build 84 and Bellpull plugin 0.9.27-mobile-preview**
+> The Inbox updates an ambiguous Bot Chat delivery when Hermes confirms its outcome.
+> [Android release notes](docs/RELEASE-0.20.34-EXPERIMENTAL.md) · [Plugin release notes](docs/RELEASE-PLUGIN-0.9.27-EXPERIMENTAL.md).
 
 <div align="center">
 
@@ -13,10 +13,10 @@
 A native Android companion for self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent), built for phones and foldables.
 
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-59091e?style=flat-square)](#get-started)
-[![Experimental](https://img.shields.io/badge/experimental-0.20.9-59091e?style=flat-square)](docs/release.md)
+[![Experimental](https://img.shields.io/badge/experimental-0.20.34-59091e?style=flat-square)](docs/release.md)
 [![MIT license](https://img.shields.io/badge/license-MIT-59091e?style=flat-square)](LICENSE)
 
-[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.9-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.9-experimental.1)
+[**Download the experimental APK**](https://github.com/PraxisOG/Bellpull/releases/download/android-v0.20.34-experimental.1/Bellpull.apk) · [**Install the plugin**](#connect-hermes) · [**Phase roadmap**](docs/ROADMAP.md) · [**Release notes**](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.34-experimental.1)
 
 </div>
 

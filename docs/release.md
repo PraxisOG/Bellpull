@@ -1,3 +1,7 @@
+## Recovered Bot Chat outcomes · Android 0.20.34 experimental
+
+The Inbox updates a saved delivery when its Hermes owner resolves an ambiguous outcome. Includes signed Android build 84 and server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.34-experimental.1) · [Release notes](RELEASE-0.20.34-EXPERIMENTAL.md)
+
 ## Background worker answers · Android 0.20.33 experimental
 
 Android shows and reads the answer from a recognized single-worker report in its original chat. Includes signed build 83 and server plugin 0.9.27. [Downloads](https://github.com/PraxisOG/Bellpull/releases/tag/android-v0.20.33-experimental.1) · [Release notes](RELEASE-0.20.33-EXPERIMENTAL.md)

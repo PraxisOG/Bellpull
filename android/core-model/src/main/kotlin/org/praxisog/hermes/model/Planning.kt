@@ -42,6 +42,8 @@ internal object RoutineDestinationSerializer : JsonTransformingSerializer<String
     internal fun supersedes(old: BotChatReceipt): Boolean = when {
         this == old || (status == "unknown" && old.status != "unknown") -> false
         evidenceRank != old.evidenceRank -> evidenceRank > old.evidenceRank
+        // A restarted owner can later settle an ambiguous receipt under the same delivery ID.
+        old.status == "ambiguous" && source == "owner" -> status in setOf("settled", "failed", "cancelled")
         old.status == "claimed" -> status != "queued"
         old.status in setOf("settled", "failed", "ambiguous", "cancelled", "suppressed", "transferred") -> false
         else -> true
